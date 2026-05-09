@@ -25,6 +25,20 @@ This repository contains a local-only implementation with:
 | --- | --- | --- |
 | <img src="Screenshots/playing-room-screen.png" alt="Domino Poker game room" width="100%"> | <img src="Screenshots/settings-screen.png" alt="Domino Poker settings" width="100%"> | <img src="Screenshots/gamerules-screen.png" alt="Domino Poker rules dialog" width="100%"> |
 
+## Shuffle And Deal Method
+
+Domino Poker intentionally uses a human-style domino shuffle instead of a Fisher-Yates shuffle. For this game, the current method is preferred because it better resembles how physical domino tiles are mixed and cut before play.
+
+The round deck is prepared as follows:
+
+1. A full double-six set of 28 unique tiles is created.
+2. The set is randomly cut.
+3. The tiles are mixed with an overhand-style shuffle using small packets of 2-6 tiles.
+4. The mixed set is randomly cut again.
+5. The final deck is dealt sequentially: 7 tiles to each of the 4 players.
+
+This method is intentional game design. It preserves a more natural domino-table feel and avoids replacing the existing shuffle with a perfectly uniform Fisher-Yates shuffle.
+
 ## Tech Stack
 
 - **Next.js App Router** for the web application.
