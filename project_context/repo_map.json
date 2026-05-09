@@ -1,0 +1,266 @@
+[
+  {
+    "path": "README.md",
+    "type": "docs",
+    "purpose": "Public GitHub landing documentation with project overview, screenshots, setup commands, gameplay summary, and license link.",
+    "importance": "high",
+    "related_files": ["LICENSE", "Screenshots/Lobby-screen.png", "Screenshots/playing-room-screen.png", "Screenshots/settings-screen.png", "Screenshots/gamerules-screen.png"],
+    "confidence": "high"
+  },
+  {
+    "path": "LICENSE",
+    "type": "docs",
+    "purpose": "Apache License 2.0 terms for the public project.",
+    "importance": "high",
+    "related_files": ["README.md"],
+    "confidence": "high"
+  },
+  {
+    "path": "Screenshots/Lobby-screen.png",
+    "type": "docs",
+    "purpose": "Main full-width README screenshot of the Domino Poker lobby.",
+    "importance": "medium",
+    "related_files": ["README.md"],
+    "confidence": "high"
+  },
+  {
+    "path": "Screenshots/playing-room-screen.png",
+    "type": "docs",
+    "purpose": "README screenshot of the active game room.",
+    "importance": "medium",
+    "related_files": ["README.md"],
+    "confidence": "high"
+  },
+  {
+    "path": "Screenshots/settings-screen.png",
+    "type": "docs",
+    "purpose": "README screenshot of the settings dialog.",
+    "importance": "medium",
+    "related_files": ["README.md"],
+    "confidence": "high"
+  },
+  {
+    "path": "Screenshots/gamerules-screen.png",
+    "type": "docs",
+    "purpose": "README screenshot of the game rules dialog.",
+    "importance": "medium",
+    "related_files": ["README.md"],
+    "confidence": "high"
+  },
+  {
+    "path": "package.json",
+    "type": "config",
+    "purpose": "Root npm workspace scripts for build, test, typecheck, and web dev server.",
+    "importance": "high",
+    "related_files": ["apps/web/package.json", "packages/core/package.json"],
+    "confidence": "high"
+  },
+  {
+    "path": "package-lock.json",
+    "type": "config",
+    "purpose": "Locked dependency tree for the local-only web and core workspaces.",
+    "importance": "high",
+    "related_files": ["package.json", "apps/web/package.json", "packages/core/package.json"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/package.json",
+    "type": "config",
+    "purpose": "Next.js web workspace package scripts and dependencies.",
+    "importance": "high",
+    "related_files": ["package.json", "apps/web/next.config.ts", "apps/web/tsconfig.json"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/app/page.tsx",
+    "type": "entrypoint",
+    "purpose": "App Router page that renders the main AppShell.",
+    "importance": "high",
+    "related_files": ["apps/web/components/AppShell.tsx"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/app/layout.tsx",
+    "type": "entrypoint",
+    "purpose": "Root layout and metadata for the Next.js web app.",
+    "importance": "medium",
+    "related_files": ["apps/web/app/globals.css"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/AppShell.tsx",
+    "type": "ui",
+    "purpose": "Main client app shell for lobby/game routing, localized rules dialog, disabled multiplayer button, local stats sessions, locale switching, and shared audio settings.",
+    "importance": "critical",
+    "related_files": [
+      "apps/web/components/DominoPokerGame.tsx",
+      "apps/web/components/RulesDialog.tsx",
+      "apps/web/components/AudioControls.tsx",
+      "apps/web/lib/stats/client.ts",
+      "apps/web/lib/i18n.ts",
+      "apps/web/app/globals.css"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/RulesDialog.tsx",
+    "type": "ui",
+    "purpose": "Shared localized game rules dialog and animated question-mark icon used by the lobby and game room.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/AppShell.tsx",
+      "apps/web/components/DominoPokerGame.tsx",
+      "apps/web/lib/locales/en.ts",
+      "apps/web/lib/locales/lv.ts",
+      "apps/web/app/globals.css"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/DominoPokerGame.tsx",
+    "type": "ui",
+    "purpose": "Interactive single-player Domino Poker table, bidding UI, tile play UI, AI turn timers, trick completion, round summaries, and game-over flow.",
+    "importance": "critical",
+    "related_files": [
+      "packages/core/src/gameState.ts",
+      "packages/core/src/aiService.ts",
+      "apps/web/components/AppShell.tsx",
+      "apps/web/app/globals.css"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/AudioControls.tsx",
+    "type": "ui",
+    "purpose": "Shared audio controls and background music element for lobby and game.",
+    "importance": "medium",
+    "related_files": ["apps/web/lib/useAudioSettings.ts", "apps/web/components/AppShell.tsx"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/useAudioSettings.ts",
+    "type": "utility",
+    "purpose": "Browser localStorage-backed audio preference hook.",
+    "importance": "medium",
+    "related_files": ["apps/web/components/AudioControls.tsx"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/stats/client.ts",
+    "type": "utility",
+    "purpose": "Browser localStorage-backed local statistics and game-session lifecycle helpers.",
+    "importance": "high",
+    "related_files": ["apps/web/lib/stats/types.ts", "apps/web/components/AppShell.tsx"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/stats/types.ts",
+    "type": "model",
+    "purpose": "Shared TypeScript types for local statistics summaries and session outcomes.",
+    "importance": "medium",
+    "related_files": ["apps/web/lib/stats/client.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/i18n.ts",
+    "type": "utility",
+    "purpose": "Locale registry and locale persistence helpers.",
+    "importance": "medium",
+    "related_files": ["apps/web/lib/locales/en.ts", "apps/web/lib/locales/lv.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/locales/en.ts",
+    "type": "utility",
+    "purpose": "English UI strings.",
+    "importance": "medium",
+    "related_files": ["apps/web/lib/i18n.ts", "apps/web/lib/locales/lv.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/locales/lv.ts",
+    "type": "utility",
+    "purpose": "Latvian UI strings.",
+    "importance": "medium",
+    "related_files": ["apps/web/lib/i18n.ts", "apps/web/lib/locales/en.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/app/globals.css",
+    "type": "ui",
+    "purpose": "Global app styling, lobby layout, rules/settings dialog styling, fixed table layout, and domino rendering.",
+    "importance": "high",
+    "related_files": ["apps/web/components/AppShell.tsx", "apps/web/components/DominoPokerGame.tsx"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/package.json",
+    "type": "config",
+    "purpose": "Core workspace build and test scripts.",
+    "importance": "high",
+    "related_files": ["packages/core/tsconfig.json", "packages/core/scripts/fix-esm-imports.cjs"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/index.ts",
+    "type": "entrypoint",
+    "purpose": "Public exports for core Domino Poker rules and types.",
+    "importance": "high",
+    "related_files": [
+      "packages/core/src/gameState.ts",
+      "packages/core/src/dominoTile.ts",
+      "packages/core/src/player.ts",
+      "packages/core/src/aiService.ts",
+      "packages/core/src/types.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/gameState.ts",
+    "type": "service",
+    "purpose": "Game creation, bidding and play progression, trick resolution, scoring, round transitions, and game-over logic.",
+    "importance": "critical",
+    "related_files": ["packages/core/src/types.ts", "packages/core/test/dominoRules.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/dominoTile.ts",
+    "type": "service",
+    "purpose": "Domino tile representation, set creation, human-style shuffle, and tile comparison helpers.",
+    "importance": "critical",
+    "related_files": ["packages/core/src/player.ts", "packages/core/src/gameState.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/player.ts",
+    "type": "service",
+    "purpose": "Player creation, hand management, legal-play validation, and tile selection helpers.",
+    "importance": "critical",
+    "related_files": ["packages/core/src/gameState.ts", "packages/core/test/dominoRules.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/aiService.ts",
+    "type": "service",
+    "purpose": "CPU bidding and tile-play heuristics.",
+    "importance": "high",
+    "related_files": ["packages/core/src/gameState.ts", "packages/core/src/player.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/types.ts",
+    "type": "model",
+    "purpose": "Core Domino Poker types and game-state interfaces.",
+    "importance": "high",
+    "related_files": ["packages/core/src/gameState.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/dominoRules.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage for core rule behavior and scoring edge cases.",
+    "importance": "high",
+    "related_files": ["packages/core/src/gameState.ts", "packages/core/src/player.ts", "packages/core/src/dominoTile.ts"],
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,88 @@
+[
+  {
+    "name": "Web App",
+    "folder": "apps/web",
+    "purpose": "Next.js App Router application with the main lobby, localized rules dialog, disabled multiplayer entry, settings dialog, local stats, shared audio controls, locale switching, and the single-player Domino Poker game UI.",
+    "main_files": [
+      "apps/web/app/page.tsx",
+      "apps/web/components/AppShell.tsx",
+      "apps/web/components/AudioControls.tsx",
+      "apps/web/components/DominoPokerGame.tsx",
+      "apps/web/components/RulesDialog.tsx",
+      "apps/web/lib/i18n.ts",
+      "apps/web/lib/locales/en.ts",
+      "apps/web/lib/locales/lv.ts",
+      "apps/web/app/globals.css"
+    ],
+    "depends_on": ["Core Rules", "Local Stats"],
+    "used_by": ["Browser users", "Next.js runtime"],
+    "risks": [
+      "AppShell owns lobby/game state, locale, audio settings, and game-session lifecycle.",
+      "DominoPokerGame has timer-driven AI turns and delayed trick completion; UI changes can affect turn flow.",
+      "The multiplayer button should remain disabled in the main lobby unless the product direction changes."
+    ],
+    "confidence": "high"
+  },
+  {
+    "name": "Local Stats",
+    "folder": "apps/web/lib/stats",
+    "purpose": "Browser-only local statistics and game-session tracking for the lobby, persisted in localStorage.",
+    "main_files": [
+      "apps/web/lib/stats/client.ts",
+      "apps/web/lib/stats/types.ts"
+    ],
+    "depends_on": ["Browser localStorage"],
+    "used_by": ["Web App"],
+    "risks": [
+      "Functions are intended for client-side use; guard any future server usage carefully.",
+      "Session start, finish, and abandon paths should stay best-effort so local storage failures do not block starting a single-player game.",
+      "Do not add external stats APIs without updating the local-only architecture decision."
+    ],
+    "confidence": "high"
+  },
+  {
+    "name": "Core Rules",
+    "folder": "packages/core",
+    "purpose": "Pure TypeScript Domino Poker rules, tile handling, bidding, legal-play validation, scoring, round state, game state, and CPU AI decisions.",
+    "main_files": [
+      "packages/core/src/dominoTile.ts",
+      "packages/core/src/player.ts",
+      "packages/core/src/gameState.ts",
+      "packages/core/src/aiService.ts",
+      "packages/core/src/types.ts",
+      "packages/core/test/dominoRules.test.ts"
+    ],
+    "depends_on": [],
+    "used_by": ["Web App"],
+    "risks": [
+      "Rule changes can alter scoring, legal-play validation, dealer rotation, and AI decisions.",
+      "Docs contain some stale scoring details; prefer current tests and implementation when they conflict.",
+      "The package emits ESM files through a postbuild import-fix script."
+    ],
+    "confidence": "high"
+  },
+  {
+    "name": "Documentation",
+    "folder": ".",
+    "purpose": "Public README, license, screenshots, and human-readable rules, scoring examples, and strategy notes for Domino Poker.",
+    "main_files": [
+      "README.md",
+      "LICENSE",
+      "Screenshots/Lobby-screen.png",
+      "Screenshots/playing-room-screen.png",
+      "Screenshots/settings-screen.png",
+      "Screenshots/gamerules-screen.png",
+      "docs/Domino pokera Noteikumi.md",
+      "docs/domino_poker_rules_summary.md",
+      "docs/PUNKTU_SISTEMA_PIEMERI.md",
+      "docs/game_strategy.md"
+    ],
+    "depends_on": [],
+    "used_by": ["Developers", "Design/reference work"],
+    "risks": [
+      "Some documentation may lag behind tested code behavior.",
+      "Use docs as reference material, not as proof that implementation is current."
+    ],
+    "confidence": "medium"
+  }
+]

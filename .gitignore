@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Licensed local font files must not be published.
+apps/web/public/assets/fonts/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+coverage/
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Local tooling and caches
+.local-server/
+.turbo/
+.cache/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
