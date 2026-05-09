@@ -273,7 +273,7 @@ export function AppShell() {
               disabled={isStartingGame}
               onClick={startSinglePlayer}
             >
-              {isStartingGame ? t.startingGame : t.play}
+              {t.play}
             </button>
           </div>
 

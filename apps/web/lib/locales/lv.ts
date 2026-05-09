@@ -27,7 +27,6 @@ export const lv = {
   decreaseRounds: "Samazināt raundu skaitu",
   increaseRounds: "Palielināt raundu skaitu",
   play: "Spēlēt",
-  startingGame: "Sāk...",
   settings: "Iestatījumi",
   settingsDescription: "Skaņas kontroles un valodas izvēle ir pieejamas tagad. Citas opcijas tiks pievienotas vēlāk.",
   rules: "Spēles noteikumi",

@@ -23,7 +23,6 @@ export const en = {
   decreaseRounds: "Decrease rounds",
   increaseRounds: "Increase rounds",
   play: "Play",
-  startingGame: "Starting...",
   settings: "Settings",
   settingsDescription: "Audio controls and language selection are available now. More options are coming later.",
   rules: "Game rules",
