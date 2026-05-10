@@ -1,6 +1,6 @@
 // Spēles gaitas ietekmēšanas iespējas:  
 
-0. Ja tev ir pirmā roka (pirmais gājiens) un tev ienāk labi kauliņi piemēram: (0:0, 1:1, 1:5, 1:4, 5:5, 5:6, 5:0), šajā situācija loģiski ir pieteikt visus 7 stiķus. pirmais gājiens uzreiz ar 0:0, otrs gājiens 1:1, trešais ar 1:5 (visticamāk 1:6) jau būs izsists pirmajos divos gājienos. Tālāk 1:4, tālāk 5:5, tālāk 5:6(5), un pēdējā gājienā atkal prasi 5:0(5).
+0. Ja tev ir pirmā roka (pirmais gājiens) un tev ienāk labi kauliņi piemēram: (0:0, 1:1, 1:5, 1:4, 5:5, 5:6, 5:0), šajā situācijā loģiski ir pieteikt visus 7 stiķus. pirmais gājiens uzreiz ar 0:0, otrs gājiens 1:1, trešais ar 1:5 (visticamāk 1:6) jau būs izsists pirmajos divos gājienos. Tālāk 1:4, tālāk 5:5, tālāk 5:6(5), un pēdējā gājienā atkal prasi 5:0(5).
 
 1. Lielu lomu spēlē tas, kuram būs pirmā rokā (pirmais gājiens). Ja tev ir pirmā roka, tu vari cerēt pieteikt stiķi arī uz dūžiem, sākot gājienus ar tiem. Kamēr citiem ir pilnas rokas ar kauliņiem, ir lielas varbūtības ka dūži apies apli. Bet lai pieteiktu uz dūžiem (piemēram 6:6), tev paralēli jāskatās cik "6" tev pašam ir rokās, jo ja bez 6:6 rokās ir citi "6", varbūtība ka tads dūzis apies apli ir gandrīz nekāda.
 
