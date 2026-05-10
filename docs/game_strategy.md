@@ -1,4 +1,4 @@
-// Spēles nianses no manis, kurš ir profesionāls spēlētājs:  
+// Spēles gaitas ietekmēšanas iespējas:  
 
 0. Ja tev ir pirmā roka (pirmais gājiens) un tev ienāk labi kauliņi piemēram: (0:0, 1:1, 1:5, 1:4, 5:5, 5:6, 5:0), šajā situācija loģiski ir pieteikt visus 7 stiķus. pirmais gājiens uzreiz ar 0:0, otrs gājiens 1:1, trešais ar 1:5 (visticamāk 1:6) jau būs izsists pirmajos divos gājienos. Tālāk 1:4, tālāk 5:5, tālāk 5:6(5), un pēdējā gājienā atkal prasi 5:0(5).
 
