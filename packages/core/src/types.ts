@@ -1,4 +1,3 @@
-export type AIDifficulty = "easy" | "medium" | "hard";
 export type PlayerType = "human" | "cpu";
 export type GamePhase = "bidding" | "playing" | "roundEnd" | "gameEnd";
 
@@ -11,7 +10,6 @@ export interface Player {
   readonly id: string;
   readonly name: string;
   readonly isAI: boolean;
-  readonly aiDifficulty?: AIDifficulty | undefined;
   readonly playerType: PlayerType;
   readonly hand: readonly DominoTile[];
   readonly bid: number;
@@ -55,7 +53,6 @@ export interface GameState {
 export interface NewGameOptions {
   readonly playerName?: string | undefined;
   readonly numberOfRounds?: number | undefined;
-  readonly aiDifficulty?: AIDifficulty | undefined;
   readonly dealerIndex?: number | undefined;
   readonly deck?: readonly DominoTile[] | undefined;
   readonly rng?: (() => number) | undefined;

@@ -15,7 +15,6 @@ import {
   resetPlayerRound
 } from "./player";
 import type {
-  AIDifficulty,
   DominoTile,
   GameState,
   NewGameOptions,
@@ -34,7 +33,6 @@ interface GamePlayerOptions {
   readonly id: string;
   readonly name: string;
   readonly isAI: boolean;
-  readonly aiDifficulty?: AIDifficulty | undefined;
   readonly playerType: PlayerType;
 }
 
@@ -43,10 +41,9 @@ const maxNumberOfRounds = 50;
 
 export function createNewGame(options: NewGameOptions = {}): GameState {
   const playerName = options.playerName ?? "You";
-  const aiDifficulty: AIDifficulty = options.aiDifficulty ?? "hard";
   const totalRounds = validateNumberOfRounds(options.numberOfRounds ?? 7);
 
-  const players = createGamePlayers(createDefaultPlayerOptions(playerName, aiDifficulty), aiDifficulty);
+  const players = createGamePlayers(createDefaultPlayerOptions(playerName));
 
   const dealerIndex =
     options.dealerIndex ?? Math.floor((options.rng ?? Math.random)() * players.length);
@@ -71,21 +68,17 @@ export function createNewGame(options: NewGameOptions = {}): GameState {
 }
 
 function createDefaultPlayerOptions(
-  playerName: string,
-  aiDifficulty: AIDifficulty
+  playerName: string
 ): readonly GamePlayerOptions[] {
   return [
     { id: "1", name: playerName, isAI: false, playerType: "human" },
-    { id: "2", name: "AI 1", isAI: true, aiDifficulty, playerType: "cpu" },
-    { id: "3", name: "AI 2", isAI: true, aiDifficulty, playerType: "cpu" },
-    { id: "4", name: "AI 3", isAI: true, aiDifficulty, playerType: "cpu" }
+    { id: "2", name: "AI 1", isAI: true, playerType: "cpu" },
+    { id: "3", name: "AI 2", isAI: true, playerType: "cpu" },
+    { id: "4", name: "AI 3", isAI: true, playerType: "cpu" }
   ];
 }
 
-function createGamePlayers(
-  playerOptions: readonly GamePlayerOptions[],
-  defaultAiDifficulty: AIDifficulty
-): Player[] {
+function createGamePlayers(playerOptions: readonly GamePlayerOptions[]): Player[] {
   const seenIds = new Set<string>();
   return playerOptions.map((player, index) => {
     const id = player.id.trim();
@@ -100,7 +93,6 @@ function createGamePlayers(
       id,
       name,
       isAI,
-      aiDifficulty: isAI ? player.aiDifficulty ?? defaultAiDifficulty : player.aiDifficulty,
       playerType: player.playerType ?? (isAI ? "cpu" : "human")
     });
   });

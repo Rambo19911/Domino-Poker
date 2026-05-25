@@ -232,7 +232,7 @@ describe("round flow", () => {
 });
 
 describe("AI behavior", () => {
-  it("preserves easy bidding and number declaration heuristics", () => {
+  it("preserves AI bidding and number declaration heuristics", () => {
     const player = withHand([
       tile(0, 0),
       tile(1, 1),
@@ -243,7 +243,7 @@ describe("AI behavior", () => {
       tile(3, 4)
     ]);
 
-    expect(makeAIBid(player, "easy")).toBe(4);
+    expect(makeAIBid(player)).toBe(3);
     expect(selectNumber(tile(2, 4), player)).toBe(4);
   });
 });
@@ -258,8 +258,7 @@ function playableState(hands: DominoTile[][]): GameState {
       id: String(index + 1),
       name: index === 0 ? "You" : `AI ${index}`,
       isAI: index !== 0,
-      playerType: index === 0 ? "human" : "cpu",
-      aiDifficulty: "hard"
+      playerType: index === 0 ? "human" : "cpu"
     }),
     hand,
     bid: 0

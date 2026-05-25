@@ -227,12 +227,12 @@ export function DominoPokerGame({
         if (!latestPlayer?.isAI) return latest;
 
         if (latest.phase === "bidding") {
-          const bid = makeAIBid(latestPlayer, latestPlayer.aiDifficulty ?? "hard");
+          const bid = makeAIBid(latestPlayer);
           return makeBid(latest, bid);
         }
 
         if (latest.phase === "playing" && !isProcessingTrick) {
-          const tile = selectAITile(latestPlayer, latest, latestPlayer.aiDifficulty ?? "hard");
+          const tile = selectAITile(latestPlayer, latest);
           const declaredNumber =
             latest.currentTrick.length === 0 && !isTrump(tile)
               ? selectNumber(tile, latestPlayer)

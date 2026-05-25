@@ -17,6 +17,7 @@ coverage/
 !.env.example
 
 # Local tooling and caches
+TODO.md
 .local-server/
 .turbo/
 .cache/

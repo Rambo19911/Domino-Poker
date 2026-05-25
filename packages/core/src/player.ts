@@ -4,13 +4,12 @@ import {
   tileEquals,
   trumpPriority
 } from "./dominoTile";
-import type { AIDifficulty, DominoTile, Player, PlayerType } from "./types";
+import type { DominoTile, Player, PlayerType } from "./types";
 
 export interface CreatePlayerOptions {
   readonly id: string;
   readonly name: string;
   readonly isAI?: boolean | undefined;
-  readonly aiDifficulty?: AIDifficulty | undefined;
   readonly playerType?: PlayerType | undefined;
 }
 
@@ -19,7 +18,6 @@ export function createPlayer(options: CreatePlayerOptions): Player {
     id: options.id,
     name: options.name,
     isAI: options.isAI ?? false,
-    aiDifficulty: options.aiDifficulty,
     playerType: options.playerType ?? "cpu",
     hand: [],
     bid: -1,

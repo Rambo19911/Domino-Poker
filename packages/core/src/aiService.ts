@@ -7,51 +7,23 @@ import {
 } from "./dominoTile";
 import { canPlayTile } from "./player";
 import { highestTrumpPriorityInTrick } from "./gameState";
-import type { AIDifficulty, DominoTile, GameState, Player } from "./types";
+import type { DominoTile, GameState, Player } from "./types";
 
-export function makeAIBid(
-  player: Player,
-  difficulty: AIDifficulty,
-  rng: () => number = Math.random
-): number {
+export function makeAIBid(player: Player): number {
   const handStrength = evaluateHandStrength(player.hand);
-
-  switch (difficulty) {
-    case "easy": {
-      const trumpCount = player.hand.filter((tile) => isTrump(tile)).length;
-      const aceCount = player.hand.filter((tile) => isAce(tile) && !isTrump(tile)).length;
-      return Math.min(trumpCount + Math.floor(aceCount / 2), 7);
-    }
-    case "medium":
-      if (handStrength >= 80) return 6 + randomInt(rng, 2);
-      if (handStrength >= 60) return 4 + randomInt(rng, 2);
-      if (handStrength >= 40) return 3 + randomInt(rng, 2);
-      if (handStrength >= 20) return 1 + randomInt(rng, 2);
-      return randomInt(rng, 2);
-    case "hard":
-      return calculateOptimalBid(player.hand, handStrength);
-  }
+  return calculateOptimalBid(player.hand, handStrength);
 }
 
 export function selectAITile(
   player: Player,
-  gameState: GameState,
-  difficulty: AIDifficulty,
-  rng: () => number = Math.random
+  gameState: GameState
 ): DominoTile {
   const validTiles = getValidTiles(player, gameState);
   if (validTiles.length === 0) {
     throw new Error("No valid tiles available for AI.");
   }
 
-  switch (difficulty) {
-    case "easy":
-      return validTiles[randomInt(rng, validTiles.length)]!;
-    case "medium":
-      return selectMediumTile(player, gameState, validTiles);
-    case "hard":
-      return selectHardTile(player, gameState, validTiles);
-  }
+  return selectHardTile(player, gameState, validTiles);
 }
 
 export function selectNumber(tile: DominoTile, player: Player): number {
@@ -111,24 +83,6 @@ function calculateOptimalBid(hand: readonly DominoTile[], strength: number): num
   if (strength > 70) bid += 1;
   if (strength > 85) bid += 1;
   return Math.min(bid, 7);
-}
-
-function selectMediumTile(
-  player: Player,
-  gameState: GameState,
-  validTiles: DominoTile[]
-): DominoTile {
-  const needsTricks = player.tricksWon < player.bid;
-
-  if (gameState.currentTrick.length === 0) {
-    return needsTricks ? getStrongestTile(validTiles) : getWeakestTile(validTiles);
-  }
-
-  if (needsTricks && canWinTrick(validTiles, gameState)) {
-    return getWinningTile(validTiles, gameState);
-  }
-
-  return getWeakestTile(validTiles);
 }
 
 function selectHardTile(
@@ -256,8 +210,4 @@ function isStrongerTileForAi(
   if (tile1IsAce && tile2IsAce) return tileTotalValue(tile1) > tileTotalValue(tile2);
 
   return tileTotalValue(tile1) > tileTotalValue(tile2);
-}
-
-function randomInt(rng: () => number, maxExclusive: number): number {
-  return Math.floor(rng() * maxExclusive);
 }
