@@ -49,7 +49,7 @@ export const en = {
   rulesPlayAceBody: "If an ace is led, players must follow the matching number. If they cannot, they must play trump if possible.",
   rulesPlayRegularBody: "If a regular number is led, players must follow that number. If they cannot, they must play trump if possible; otherwise they may discard any tile.",
   rulesWinTitle: "Winning the game",
-  rulesWinBody: "After all selected rounds are complete, the player with the highest total score wins.",
+  rulesWinBody: "After all selected rounds are complete, the player with the highest total score wins. Ties are broken by bid, then tricks won, then seat order from the dealer.",
   audioSection: "Audio",
   languageSection: "Language",
   language: "Language",

@@ -53,7 +53,7 @@ export const lv = {
   rulesPlayAceBody: "Ja iziet ar dūzi, jāliek atbilstošais skaitlis. Ja tāda nav, jāsit ar trumpi, ja trumpis ir.",
   rulesPlayRegularBody: "Ja iziet ar parastu skaitli, jāliek pieprasītais skaitlis. Ja tāda nav, jāsit ar trumpi, ja iespējams; citādi drīkst atmest jebkuru kauliņu.",
   rulesWinTitle: "Uzvara",
-  rulesWinBody: "Kad visi izvēlētie raundi ir izspēlēti, uzvar spēlētājs ar lielāko kopējo punktu skaitu.",
+  rulesWinBody: "Kad visi izvēlētie raundi ir izspēlēti, uzvar spēlētājs ar lielāko kopējo punktu skaitu. Vienāda rezultāta gadījumā izšķir solījums, tad paņemtie stiķi, tad vieta secībā no dalītāja.",
   audioSection: "Skaņa",
   languageSection: "Valoda",
   language: "Valoda",

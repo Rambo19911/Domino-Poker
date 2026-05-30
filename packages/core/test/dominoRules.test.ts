@@ -8,6 +8,7 @@ import {
   determineTrickWinner,
   getFullSet,
   getInvalidMoveReason,
+  getWinner,
   isAce,
   isTrump,
   makeBid,
@@ -311,6 +312,41 @@ describe("round flow", () => {
     state = makeBid(state, 4);
     expect(state.phase).toBe("playing");
     expect(state.currentPlayerIndex).toBe(2);
+  });
+
+  it("breaks final game score ties with the round winner tiebreakers", () => {
+    const state: GameState = {
+      ...createNewGame({ dealerIndex: 0, deck: getFullSet() }),
+      phase: "gameEnd",
+      players: [
+        {
+          ...createPlayer({ id: "1", name: "You", playerType: "human" }),
+          totalScore: 100,
+          bid: 2,
+          tricksWon: 2
+        },
+        {
+          ...createPlayer({ id: "2", name: "AI 1", isAI: true }),
+          totalScore: 100,
+          bid: 4,
+          tricksWon: 2
+        },
+        {
+          ...createPlayer({ id: "3", name: "AI 2", isAI: true }),
+          totalScore: 90,
+          bid: 7,
+          tricksWon: 7
+        },
+        {
+          ...createPlayer({ id: "4", name: "AI 3", isAI: true }),
+          totalScore: 100,
+          bid: 3,
+          tricksWon: 5
+        }
+      ]
+    };
+
+    expect(getWinner(state)?.id).toBe("2");
   });
 });
 

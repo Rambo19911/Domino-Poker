@@ -1,16 +1,5 @@
 export type GameOutcome = "win" | "loss";
 
-export type GameSessionStatus = "active" | "finished" | "abandoned";
-
-export interface GameSessionRecord {
-  readonly id: string;
-  readonly status: GameSessionStatus;
-  readonly startedAt: string;
-  readonly finishedAt?: string;
-  readonly outcome?: GameOutcome;
-  readonly abandonReason?: string;
-}
-
 export interface StatsSummary {
   readonly gamesPlayed: number;
   readonly wins: number;

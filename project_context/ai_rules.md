@@ -23,6 +23,7 @@
 - Non-trump required-number leads require a non-trump matching number before trumping.
 - UI invalid-move messages should use core `getInvalidMoveReason(...)` from `packages/core/src/player.ts`; do not infer message type directly from approximate `GameState` flags.
 - Round winner tiebreakers are round score, then bid, then tricks won, then seat order from dealer.
+- Final game winner tiebreakers are total score first, then the same bid/tricks-won/seat-order tiebreakers used for round winners.
 - The next round dealer is the previous round winner.
 
 ## Commands
@@ -43,6 +44,7 @@ Run `npm run typecheck`, `npm run test`, `npm run test:web`, and `npm run build`
 - The main lobby keeps the multiplayer button visible but disabled.
 - Local lobby stats live behind `apps/web/lib/stats/client.ts` and use browser storage only. Do not add API routes for stats unless a future task explicitly changes the architecture.
 - Browser audio settings are localStorage-only and do not contain secrets.
+- `useAudioSettings()` reuses a small pool of effect audio elements; do not switch back to creating a new `Audio` object on every effect play.
 - Use `apps/web/lib/safeStorage.ts` for localStorage access so unavailable, blocked, or throwing storage does not crash the app.
 - Keep `useAudioSettings()` owned by `AppShell` so lobby and game share one audio state and one background music element.
 - Keep configurable game setup owned by `AppShell`; the lobby-selected round count is passed into `DominoPokerGame` as `numberOfRounds`.

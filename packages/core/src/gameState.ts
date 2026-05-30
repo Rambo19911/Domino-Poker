@@ -343,7 +343,7 @@ export function startNextRound(
   const validatedDeck = validateRoundDeck(deck, state.players.length);
 
   const dealerIndex =
-    state.currentRound >= 1 && state.lastRoundWinnerIndex !== undefined
+    state.lastRoundWinnerIndex !== undefined
       ? state.lastRoundWinnerIndex
       : state.dealerIndex;
 
@@ -368,9 +368,15 @@ export function startNextRound(
 
 export function getWinner(state: GameState): Player | undefined {
   if (state.phase !== "gameEnd") return undefined;
-  return state.players.reduce((winner, player) =>
-    player.totalScore > winner.totalScore ? player : winner
+  const candidates = keepBest(
+    state.players.map((_, index) => index),
+    (index) => state.players[index]?.totalScore ?? Number.NEGATIVE_INFINITY
   );
+  const winnerIndex =
+    candidates.length === 1
+      ? candidates[0]
+      : chooseRoundWinnerByTiebreakers(state, candidates);
+  return winnerIndex === undefined ? undefined : state.players[winnerIndex];
 }
 
 export function highestTrumpPriorityInTrick(state: GameState): number | undefined {

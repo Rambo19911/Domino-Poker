@@ -12,6 +12,18 @@ const audioPaths = {
   backgroundMusic: "/assets/sounds/background_music.mp3"
 } as const;
 
+type EffectName = keyof Omit<typeof audioPaths, "backgroundMusic">;
+type EffectPools = Partial<Record<EffectName, HTMLAudioElement[]>>;
+
+const effectNames = [
+  "tilePlaced",
+  "bidClick",
+  "trickComplete",
+  "roundWin",
+  "uiClick"
+] as const satisfies readonly EffectName[];
+const effectPoolSize = 3;
+
 export function useAudioSettings() {
   const [isMuted, setIsMuted] = useStoredBoolean("domino-poker-muted", false);
   const [isMusicEnabled, setIsMusicEnabled] = useStoredBoolean(
@@ -24,6 +36,8 @@ export function useAudioSettings() {
   );
   const [musicVolume, setMusicVolume] = useStoredNumber("domino-poker-music-volume", 0.5);
   const musicRef = useRef<HTMLAudioElement | null>(null);
+  const effectPoolsRef = useRef<EffectPools>({});
+  const effectPoolCursorRef = useRef<Partial<Record<EffectName, number>>>({});
 
   useEffect(() => {
     const audio = new Audio(audioPaths.backgroundMusic);
@@ -33,6 +47,20 @@ export function useAudioSettings() {
     return () => {
       audio.pause();
       musicRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    effectPoolsRef.current = createEffectPools();
+    return () => {
+      for (const pool of Object.values(effectPoolsRef.current)) {
+        for (const audio of pool ?? []) {
+          audio.pause();
+          audio.currentTime = 0;
+        }
+      }
+      effectPoolsRef.current = {};
+      effectPoolCursorRef.current = {};
     };
   }, []);
 
@@ -48,9 +76,17 @@ export function useAudioSettings() {
   }, [isMuted, isMusicEnabled, musicVolume]);
 
   const play = useCallback(
-    (name: keyof Omit<typeof audioPaths, "backgroundMusic">) => {
+    (name: EffectName) => {
       if (isMuted) return;
-      const audio = new Audio(audioPaths[name]);
+      const pool =
+        effectPoolsRef.current[name] ??
+        (effectPoolsRef.current[name] = createEffectPool(name));
+      const cursor = effectPoolCursorRef.current[name] ?? 0;
+      const audio = pool[cursor % pool.length];
+      if (!audio) return;
+      effectPoolCursorRef.current[name] = cursor + 1;
+      audio.pause();
+      audio.currentTime = 0;
       audio.volume = effectsVolume;
       void audio.play().catch(() => undefined);
     },
@@ -84,6 +120,20 @@ export function useAudioSettings() {
 }
 
 export type AudioSettings = ReturnType<typeof useAudioSettings>;
+
+function createEffectPools(): EffectPools {
+  return Object.fromEntries(
+    effectNames.map((name) => [name, createEffectPool(name)])
+  ) as EffectPools;
+}
+
+function createEffectPool(name: EffectName): HTMLAudioElement[] {
+  return Array.from({ length: effectPoolSize }, () => {
+    const audio = new Audio(audioPaths[name]);
+    audio.preload = "auto";
+    return audio;
+  });
+}
 
 function useStoredBoolean(key: string, defaultValue: boolean) {
   const [value, setValue] = useState(defaultValue);

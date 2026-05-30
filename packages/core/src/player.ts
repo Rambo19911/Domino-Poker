@@ -88,6 +88,34 @@ function getRequiredTrumpInvalidReason(
     : { code: "stronger-trump-required" };
 }
 
+function getRequiredNumberInvalidReason(
+  player: Player,
+  tile: DominoTile,
+  requiredNumber: number,
+  highestTrumpPriorityInTrick: number | undefined
+): InvalidMoveReason | null {
+  const hasRequired = player.hand.some(
+    (handTile) => tileContains(handTile, requiredNumber) && !isTrump(handTile)
+  );
+  if (hasRequired) {
+    return tileContains(tile, requiredNumber) && !isTrump(tile)
+      ? null
+      : { code: "required-number-required", requiredNumber };
+  }
+
+  const hasTrump = player.hand.some((handTile) => isTrump(handTile));
+  if (!hasTrump) return null;
+
+  const trumpReason = getRequiredTrumpInvalidReason(
+    player,
+    tile,
+    highestTrumpPriorityInTrick
+  );
+  return trumpReason?.code === "trump-required"
+    ? { code: "required-number-or-trump-required", requiredNumber }
+    : trumpReason;
+}
+
 export function getInvalidMoveReason(
   player: Player,
   tile: DominoTile,
@@ -112,49 +140,21 @@ export function getInvalidMoveReason(
       throw new Error("Ace lead requires a required number.");
     }
 
-    const hasRequired = player.hand.some(
-      (handTile) => tileContains(handTile, requiredNumber) && !isTrump(handTile)
-    );
-    if (hasRequired) {
-      return tileContains(tile, requiredNumber) && !isTrump(tile)
-        ? null
-        : { code: "required-number-required", requiredNumber };
-    }
-
-    const hasTrump = player.hand.some((handTile) => isTrump(handTile));
-    if (!hasTrump) return null;
-
-    const trumpReason = getRequiredTrumpInvalidReason(
+    return getRequiredNumberInvalidReason(
       player,
       tile,
+      requiredNumber,
       options.highestTrumpPriorityInTrick
     );
-    return trumpReason?.code === "trump-required"
-      ? { code: "required-number-or-trump-required", requiredNumber }
-      : trumpReason;
   }
 
   if (requiredNumber !== undefined) {
-    const hasRequired = player.hand.some(
-      (handTile) => tileContains(handTile, requiredNumber) && !isTrump(handTile)
-    );
-    if (hasRequired) {
-      return tileContains(tile, requiredNumber) && !isTrump(tile)
-        ? null
-        : { code: "required-number-required", requiredNumber };
-    }
-
-    const hasTrump = player.hand.some((handTile) => isTrump(handTile));
-    if (!hasTrump) return null;
-
-    const trumpReason = getRequiredTrumpInvalidReason(
+    return getRequiredNumberInvalidReason(
       player,
       tile,
+      requiredNumber,
       options.highestTrumpPriorityInTrick
     );
-    return trumpReason?.code === "trump-required"
-      ? { code: "required-number-or-trump-required", requiredNumber }
-      : trumpReason;
   }
 
   return null;
