@@ -19,6 +19,7 @@
     "used_by": ["Browser users", "Next.js runtime"],
     "risks": [
       "AppShell owns lobby/game state, locale, audio settings, and game-session lifecycle.",
+      "The lobby has separate desktop wheel and compact viewport layouts; keep both flows wired to the same selected round count and start-game handler.",
       "DominoPokerGame has timer-driven AI turns and delayed trick completion; UI changes can affect turn flow.",
       "The game table uses uniform contain scaling of the fixed 1920x1080 stage; phone portrait reflow is intentionally out of scope.",
       "The multiplayer button should remain disabled in the main lobby unless the product direction changes."

@@ -39,6 +39,7 @@ The project must run without external game, account, database, deployment, or ma
 - `packages/core/src/player.ts`: legal-play validation for trump leads and required-number leads.
 - `packages/core/src/aiService.ts`: intentionally preserves original AI heuristics, including its simpler trick-strength comparison.
 - `apps/web/components/AppShell.tsx`: main lobby, localized rules dialog, disabled multiplayer button, game screen switching, local stats session lifecycle, locale selection, and shared audio settings ownership.
+- `apps/web/components/AppShell.tsx`: the lobby uses a desktop circular mode wheel and a separate compact control panel for narrow or short viewports.
 - `apps/web/components/DominoPokerGame.tsx`: async AI turn timers, delayed trick completion, round end handling, and game exit behavior.
 - `apps/web/components/DominoPokerGame.tsx`: the game table keeps a fixed 1920x1080 coordinate system and uses uniform contain scaling; phone portrait reflow is not part of the current layout contract.
 - `apps/web/lib/stats/client.ts`: browser-only local statistics persistence; must not depend on external APIs or services.

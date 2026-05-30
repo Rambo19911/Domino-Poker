@@ -282,6 +282,33 @@ export function AppShell() {
             <img src="/assets/images/domino_poker_logo.png" alt="" />
           </div>
         </div>
+
+        <div className="compactLobbyPanel" aria-label={t.gameModes}>
+          <img className="compactLobbyLogo" src="/assets/images/domino_poker_logo.png" alt="" />
+          <div className="compactModeTitle">{t.modeSinglePlayer}</div>
+          <CompactRoundSelector
+            decreaseLabel={t.decreaseRounds}
+            disabled={isStartingGame}
+            id="compact-single-player-round-count"
+            increaseLabel={t.increaseRounds}
+            label={t.roundCount}
+            max={maxRoundCount}
+            min={minRoundCount}
+            onChange={setSelectedRoundCount}
+            value={selectedRoundCount}
+          />
+          <button
+            className="compactPlayButton"
+            type="button"
+            disabled={isStartingGame}
+            onClick={startSinglePlayer}
+          >
+            {t.play}
+          </button>
+          <button className="compactModeDisabled" type="button" disabled>
+            {t.modeMultiplayer}
+          </button>
+        </div>
       </section>
 
       {settingsOpen ? (
@@ -302,6 +329,71 @@ export function AppShell() {
         />
       ) : null}
     </main>
+  );
+}
+
+function CompactRoundSelector({
+  decreaseLabel,
+  disabled,
+  id,
+  increaseLabel,
+  label,
+  max,
+  min,
+  onChange,
+  value
+}: {
+  readonly decreaseLabel: string;
+  readonly disabled: boolean;
+  readonly id: string;
+  readonly increaseLabel: string;
+  readonly label: string;
+  readonly max: number;
+  readonly min: number;
+  readonly onChange: (roundCount: number) => void;
+  readonly value: number;
+}) {
+  const setClampedValue = (nextValue: number) => {
+    onChange(clampRoundCount(nextValue, min, max));
+  };
+
+  return (
+    <div className="compactRoundSelector">
+      <div className="compactRoundHeader">
+        <label htmlFor={id}>{label}</label>
+        <output htmlFor={id}>{value}</output>
+      </div>
+      <div className="compactRoundControls">
+        <button
+          className="compactRoundStep"
+          type="button"
+          disabled={disabled || value <= min}
+          aria-label={decreaseLabel}
+          onClick={() => setClampedValue(value - 1)}
+        >
+          -
+        </button>
+        <input
+          id={id}
+          type="range"
+          min={min}
+          max={max}
+          value={value}
+          disabled={disabled}
+          aria-label={label}
+          onChange={(event) => setClampedValue(event.currentTarget.valueAsNumber)}
+        />
+        <button
+          className="compactRoundStep"
+          type="button"
+          disabled={disabled || value >= max}
+          aria-label={increaseLabel}
+          onClick={() => setClampedValue(value + 1)}
+        >
+          +
+        </button>
+      </div>
+    </div>
   );
 }
 
