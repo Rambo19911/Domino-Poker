@@ -31,6 +31,12 @@ const CANVAS_WIDTH = 1920;
 const CANVAS_HEIGHT = 1080;
 const PROFILE_SIZE = 144;
 
+type StageContainLayout = {
+  readonly scale: number;
+  readonly left: number;
+  readonly top: number;
+};
+
 const layout = {
   player1ProfileLeft: 80,
   player1ProfileTop: 112,
@@ -111,7 +117,7 @@ export function DominoPokerGame({
   const gameEndReportedRef = useRef(false);
   const didInitializeGameRef = useRef(false);
   const lastTileSoundSignatureRef = useRef("");
-  const scale = useStageContainScale();
+  const stageLayout = useStageContainLayout();
 
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -330,7 +336,12 @@ export function DominoPokerGame({
       <div className="stageClip">
         <div
           className="fixedStage"
-          style={{ transform: `translate(-50%, -50%) scale(${scale})` }}
+          style={{
+            left: stageLayout.left,
+            top: stageLayout.top,
+            transform: `scale(${stageLayout.scale})`,
+            transformOrigin: "top left"
+          }}
           aria-label={labels.gameTableLabel}
         >
           <GameTable gameState={gameState} labels={labels} />
@@ -1201,19 +1212,32 @@ function Modal({
   return <div className={`modalBackdrop ${transparent ? "transparentBackdrop" : ""}`}>{children}</div>;
 }
 
-function useStageContainScale(): number {
-  const [scale, setScale] = useState(1);
+function useStageContainLayout(): StageContainLayout {
+  const [layout, setLayout] = useState<StageContainLayout>(() => getStageContainLayout());
 
   useEffect(() => {
     const update = () => {
-      setScale(Math.min(window.innerWidth / CANVAS_WIDTH, window.innerHeight / CANVAS_HEIGHT));
+      setLayout(getStageContainLayout());
     };
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  return scale;
+  return layout;
+}
+
+function getStageContainLayout(): StageContainLayout {
+  if (typeof window === "undefined") {
+    return { scale: 1, left: 0, top: 0 };
+  }
+
+  const scale = Math.min(window.innerWidth / CANVAS_WIDTH, window.innerHeight / CANVAS_HEIGHT);
+  return {
+    scale,
+    left: (window.innerWidth - CANVAS_WIDTH * scale) / 2,
+    top: (window.innerHeight - CANVAS_HEIGHT * scale) / 2
+  };
 }
 
 function getInvalidMoveMessage(gameState: GameState, labels: AppStrings): string {

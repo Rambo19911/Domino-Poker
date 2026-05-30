@@ -230,6 +230,14 @@
     "confidence": "high"
   },
   {
+    "path": "tests/e2e/layout-regression.spec.ts",
+    "type": "test",
+    "purpose": "Playwright layout regression coverage for Lobby and Game views across desktop and tablet target viewports.",
+    "importance": "high",
+    "related_files": ["playwright.config.ts", "apps/web/components/AppShell.tsx", "apps/web/components/DominoPokerGame.tsx", "apps/web/app/globals.css"],
+    "confidence": "high"
+  },
+  {
     "path": "packages/core/package.json",
     "type": "config",
     "purpose": "Core workspace build and test scripts.",

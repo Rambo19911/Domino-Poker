@@ -15,6 +15,7 @@
       "apps/web/lib/locales/lv.ts",
       "apps/web/app/globals.css",
       "tests/e2e/main-flow.spec.ts",
+      "tests/e2e/layout-regression.spec.ts",
       "playwright.config.ts"
     ],
     "depends_on": ["Core Rules", "Local Stats"],
@@ -24,6 +25,7 @@
       "The lobby has separate desktop wheel and compact viewport layouts; keep both flows wired to the same selected round count and start-game handler.",
       "DominoPokerGame has timer-driven AI turns and delayed trick completion; UI changes can affect turn flow.",
       "The main browser smoke test covers lobby start, bidding, tile play, optional number selection, and first trick completion; keep it stable when UI labels or dialog semantics change.",
+      "The layout regression test verifies Lobby and Game viewport containment at desktop/tablet sizes; keep it aligned with the current no-phone-reflow layout contract.",
       "The game table uses uniform contain scaling of the fixed 1920x1080 stage; phone portrait reflow is intentionally out of scope.",
       "The multiplayer button should remain disabled in the main lobby unless the product direction changes."
     ],
