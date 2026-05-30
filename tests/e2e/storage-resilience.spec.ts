@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("local storage resilience", () => {
-  test("ignores malformed stored locale, audio, and stats values", async ({ page }) => {
+  test("ignores malformed stored locale and audio values", async ({ page }) => {
     const runtimeErrors = collectRuntimeErrors(page);
 
     await page.addInitScript(() => {
@@ -10,16 +10,12 @@ test.describe("local storage resilience", () => {
       window.localStorage.setItem("domino-poker-music-enabled", "not-a-boolean");
       window.localStorage.setItem("domino-poker-effects-volume", "999");
       window.localStorage.setItem("domino-poker-music-volume", "not-a-number");
-      window.localStorage.setItem("domino-poker-local-stats", "{bad json");
-      window.localStorage.setItem("domino-poker-active-sessions", "{bad json");
     });
 
     await page.goto("/");
 
     await expect(page.getByRole("button", { name: "Play" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
-    await expect(page.getByLabel("Live Stats")).toContainText("Games played");
-    await expect(page.getByLabel("Live Stats")).toContainText("0");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
 
     await page.getByRole("button", { name: "Settings" }).click();

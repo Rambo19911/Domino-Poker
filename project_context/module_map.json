@@ -2,7 +2,7 @@
   {
     "name": "Web App",
     "folder": "apps/web",
-    "purpose": "Next.js App Router application with the main lobby, localized rules dialog, disabled multiplayer entry, settings dialog, local stats, shared audio controls, locale switching, and the single-player Domino Poker game UI.",
+    "purpose": "Next.js App Router application with the main lobby, localized rules dialog, disabled multiplayer entry, settings dialog, shared audio controls, locale switching, and the single-player Domino Poker game UI.",
     "main_files": [
       "apps/web/app/page.tsx",
       "apps/web/components/AppShell.tsx",
@@ -27,10 +27,10 @@
       "tests/e2e/storage-resilience.spec.ts",
       "playwright.config.ts"
     ],
-    "depends_on": ["Core Rules", "Local Stats"],
+    "depends_on": ["Core Rules"],
     "used_by": ["Browser users", "Next.js runtime"],
     "risks": [
-      "AppShell owns lobby/game state, locale, audio settings, and game-session lifecycle.",
+      "AppShell owns lobby/game state, locale, audio settings, and screen transitions.",
       "The lobby has separate desktop wheel and compact viewport layouts; keep both flows wired to the same selected round count and start-game handler.",
       "DominoPokerGame has timer-driven AI turns and delayed trick completion; UI changes can affect turn flow.",
       "GameDialogs, PlayerSeat, InfoPanel, DominoTileView, and LobbyWheel are UI extraction boundaries; keep core rules and deck/dealing logic out of these components.",
@@ -41,24 +41,6 @@
       "Local storage access should go through safeStorage and remain best-effort when browser storage is malformed, blocked, or throwing.",
       "The game table uses uniform contain scaling of the fixed 1920x1080 stage; phone portrait reflow is intentionally out of scope.",
       "The multiplayer button should remain disabled in the main lobby unless the product direction changes."
-    ],
-    "confidence": "high"
-  },
-  {
-    "name": "Local Stats",
-    "folder": "apps/web/lib/stats",
-    "purpose": "Browser-only local statistics and game-session tracking for the lobby, persisted in localStorage.",
-    "main_files": [
-      "apps/web/lib/stats/client.ts",
-      "apps/web/lib/stats/types.ts",
-      "apps/web/lib/safeStorage.ts"
-    ],
-    "depends_on": ["Browser localStorage"],
-    "used_by": ["Web App"],
-    "risks": [
-      "Functions are intended for client-side use; guard any future server usage carefully.",
-      "Session start, finish, and abandon paths should stay best-effort so local storage failures do not block starting a single-player game.",
-      "Do not add external stats APIs without updating the local-only architecture decision."
     ],
     "confidence": "high"
   },

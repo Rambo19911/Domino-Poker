@@ -10,7 +10,6 @@
 - For UI/game flow: read `apps/web/components/DominoPokerGame.tsx` and `apps/web/app/globals.css`.
 - For game-table UI extraction: use `apps/web/components/GameDialogs.tsx`, `apps/web/components/PlayerSeat.tsx`, `apps/web/components/InfoPanel.tsx`, and `apps/web/components/DominoTileView.tsx`; do not move deck creation, shuffle, dealing, AI timers, or trick state transitions into these UI components.
 - For modal/dialog UI: use `apps/web/components/Dialog.tsx` with `apps/web/components/useDialogFocus.ts` instead of duplicating `role="dialog"`, `aria-modal`, focus trap, Escape, or focus restoration behavior.
-- For local statistics behavior: read `apps/web/lib/stats/client.ts` and `apps/web/lib/stats/types.ts`.
 
 ## Rule-Specific Care Points
 
@@ -42,7 +41,7 @@ Run `npm run typecheck`, `npm run test`, `npm run test:web`, and `npm run build`
 
 - The app is local single-player only. Do not add external game hosting, matchmaking, account, auth, database, or stats services unless the user explicitly asks for a new integration.
 - The main lobby keeps the multiplayer button visible but disabled.
-- Local lobby stats live behind `apps/web/lib/stats/client.ts` and use browser storage only. Do not add API routes for stats unless a future task explicitly changes the architecture.
+- Lobby statistics and game-session tracking were removed; do not reintroduce stats storage, stats UI, or stats API routes unless the user explicitly asks for them.
 - Browser audio settings are localStorage-only and do not contain secrets.
 - `useAudioSettings()` reuses a small pool of effect audio elements; do not switch back to creating a new `Audio` object on every effect play.
 - Use `apps/web/lib/safeStorage.ts` for localStorage access so unavailable, blocked, or throwing storage does not crash the app.

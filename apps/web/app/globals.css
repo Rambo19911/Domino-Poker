@@ -83,157 +83,6 @@ button {
     linear-gradient(to bottom, rgba(24, 79, 61, 0.28), var(--overlay));
 }
 
-.lobbyStatsArt {
-  position: absolute;
-  left: 3vw;
-  top: 11vh;
-  bottom: 9vh;
-  z-index: 0;
-  display: grid;
-  width: min(31vw, 390px);
-  min-width: 280px;
-  grid-template-rows: auto 1fr auto auto;
-  gap: 18px;
-  padding: 20px 18px;
-  border-left: 1px solid rgba(201, 162, 62, 0.2);
-  background:
-    linear-gradient(90deg, rgba(201, 162, 62, 0.08), transparent 82%),
-    radial-gradient(circle at 15% 32%, rgba(76, 175, 80, 0.12), transparent 36%);
-  opacity: 0.42;
-  pointer-events: none;
-}
-
-.statsArtHeader {
-  display: grid;
-  gap: 6px;
-}
-
-.statsArtHeader span {
-  color: var(--primary);
-  font-size: 14px;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.statsArtHeader small {
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.statsDonut {
-  position: relative;
-  align-self: center;
-  display: grid;
-  place-items: center;
-  width: min(220px, 70%);
-  aspect-ratio: 1;
-  margin-left: 18px;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle, rgba(14, 14, 14, 0.92) 0 47%, transparent 48%),
-    conic-gradient(var(--primary) var(--winRate), rgba(236, 237, 238, 0.15) 0);
-  box-shadow:
-    0 0 40px rgba(201, 162, 62, 0.08),
-    inset 0 0 18px rgba(0, 0, 0, 0.7);
-}
-
-.statsDonut span {
-  color: var(--text-primary);
-  font-size: 34px;
-  font-weight: 900;
-}
-
-.statsDonut small {
-  margin-top: 44px;
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 800;
-  position: absolute;
-  text-transform: uppercase;
-}
-
-.statsBars {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: end;
-  gap: 14px;
-  min-height: 190px;
-}
-
-.chartBar {
-  display: grid;
-  gap: 8px;
-  align-items: end;
-  min-width: 0;
-}
-
-.chartColumn {
-  position: relative;
-  height: 150px;
-  border-radius: 999px;
-  background: rgba(236, 237, 238, 0.08);
-  overflow: hidden;
-}
-
-.chartColumn span {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  min-height: 8px;
-  border-radius: inherit;
-}
-
-.chartBar.green .chartColumn span {
-  background: linear-gradient(180deg, rgba(76, 175, 80, 0.72), rgba(46, 125, 50, 0.42));
-}
-
-.chartBar.red .chartColumn span {
-  background: linear-gradient(180deg, rgba(225, 35, 63, 0.72), rgba(225, 35, 63, 0.36));
-}
-
-.chartBar.gold .chartColumn span {
-  background: linear-gradient(180deg, rgba(201, 162, 62, 0.76), rgba(201, 162, 62, 0.36));
-}
-
-.chartBar small {
-  color: var(--text-secondary);
-  font-size: 10px;
-  font-weight: 800;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.chartBar strong {
-  color: var(--text-primary);
-  font-size: 19px;
-  line-height: 1;
-  font-weight: 900;
-}
-
-.statsArtFooter {
-  display: grid;
-  gap: 6px;
-  color: var(--text-secondary);
-}
-
-.statsArtFooter span,
-.statsArtFooter small {
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.statsArtFooter strong {
-  color: var(--primary);
-  font-size: 42px;
-  line-height: 1;
-  font-weight: 900;
-}
-
 .lobbyTopBar {
   position: fixed;
   top: 20px;
@@ -1684,39 +1533,6 @@ button {
     padding: 84px 16px 32px;
   }
 
-  .lobbyStatsArt {
-    left: -32px;
-    top: 110px;
-    bottom: auto;
-    width: 190px;
-    min-width: 0;
-    height: 520px;
-    opacity: 0.24;
-    padding: 12px;
-  }
-
-  .statsBars {
-    min-height: 140px;
-    gap: 8px;
-  }
-
-  .chartColumn {
-    height: 112px;
-  }
-
-  .statsDonut {
-    width: 132px;
-    margin-left: 0;
-  }
-
-  .statsDonut span {
-    font-size: 23px;
-  }
-
-  .statsArtFooter strong {
-    font-size: 30px;
-  }
-
   .lobbyContent {
     grid-column: auto;
   }
@@ -1754,10 +1570,6 @@ button {
     place-items: center;
     overflow: auto;
     padding: 88px 20px 40px;
-  }
-
-  .lobbyStatsArt {
-    display: none;
   }
 
   .lobbyContent {

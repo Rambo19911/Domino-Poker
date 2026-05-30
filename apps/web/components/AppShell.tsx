@@ -3,9 +3,7 @@
 import {
   useCallback,
   useEffect,
-  useRef,
-  useState,
-  type CSSProperties
+  useState
 } from "react";
 import { AudioControls } from "./AudioControls";
 import { Dialog } from "./Dialog";
@@ -21,14 +19,6 @@ import {
   type Locale
 } from "../lib/i18n";
 import { readLocalStorage, writeLocalStorage } from "../lib/safeStorage";
-import {
-  abandonStatsSession,
-  fetchStatsSummary,
-  finishStatsSession,
-  sendAbandonStatsBeacon,
-  startStatsSession
-} from "../lib/stats/client";
-import type { GameOutcome, StatsSummary } from "../lib/stats/types";
 import { useAudioSettings } from "../lib/useAudioSettings";
 
 type AppScreen = "lobby" | "game";
@@ -43,22 +33,13 @@ export function AppShell() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [locale, setLocale] = useState<Locale>(defaultLocale);
-  const [stats, setStats] = useState<StatsSummary | null>(null);
-  const [statsStatus, setStatsStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [isStartingGame, setIsStartingGame] = useState(false);
   const [selectedRoundCount, setSelectedRoundCount] = useState(defaultRoundCount);
-  const activeGlobalSessionIdRef = useRef<string | null>(null);
-  const screenRef = useRef<AppScreen>(screen);
   const audio = useAudioSettings();
   const t = getAppStrings(locale);
 
   useEffect(() => {
     document.documentElement.lang = t.localeCode;
   }, [t.localeCode]);
-
-  useEffect(() => {
-    screenRef.current = screen;
-  }, [screen]);
 
   useEffect(() => {
     const storedLocale = readLocalStorage(localeStorageKey);
@@ -72,99 +53,9 @@ export function AppShell() {
     writeLocalStorage(localeStorageKey, nextLocale);
   };
 
-  const refreshStats = useCallback(async () => {
-    try {
-      setStatsStatus((current) => (current === "ready" ? current : "loading"));
-      const nextStats = await fetchStatsSummary();
-      setStats(nextStats);
-      setStatsStatus("ready");
-    } catch {
-      setStatsStatus("error");
-    }
-  }, []);
-
-  useEffect(() => {
-    void refreshStats();
-  }, [refreshStats]);
-
-  const createStatsSession = useCallback(async (): Promise<void> => {
-    try {
-      const globalSession = await startStatsSession();
-      activeGlobalSessionIdRef.current = globalSession.sessionId;
-      setStats(globalSession.stats);
-      setStatsStatus("ready");
-    } catch {
-      activeGlobalSessionIdRef.current = null;
-      setStatsStatus("error");
-    }
-  }, []);
-
-  const finishActiveSession = useCallback((outcome: GameOutcome) => {
-    const globalSessionId = activeGlobalSessionIdRef.current;
-    if (!globalSessionId) return;
-
-    activeGlobalSessionIdRef.current = null;
-
-    const mutations: Promise<void>[] = [];
-    mutations.push(
-      finishStatsSession(globalSessionId, outcome).then((result) => {
-        setStats(result.stats);
-        setStatsStatus("ready");
-      })
-    );
-
-    void Promise.allSettled(mutations)
-      .then((results) => {
-        if (results.some((result) => result.status === "rejected")) {
-          setStatsStatus("error");
-        }
-      });
-  }, []);
-
-  const abandonActiveSession = useCallback((reason: string) => {
-    const globalSessionId = activeGlobalSessionIdRef.current;
-    if (!globalSessionId) return;
-
-    activeGlobalSessionIdRef.current = null;
-
-    const mutations: Promise<void>[] = [];
-    mutations.push(
-      abandonStatsSession(globalSessionId, reason).then((result) => {
-        setStats(result.stats);
-        setStatsStatus("ready");
-      })
-    );
-
-    void Promise.allSettled(mutations)
-      .then((results) => {
-        if (results.some((result) => result.status === "rejected")) {
-          setStatsStatus("error");
-        }
-      });
-  }, []);
-
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      if (screenRef.current !== "game") return;
-
-      const globalSessionId = activeGlobalSessionIdRef.current;
-      if (!globalSessionId) return;
-
-      activeGlobalSessionIdRef.current = null;
-      sendAbandonStatsBeacon(globalSessionId, "page-unload");
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, []);
-  const startSinglePlayer = async () => {
-    if (isStartingGame) return;
-
+  const startSinglePlayer = () => {
     audio.play("uiClick");
-    setIsStartingGame(true);
-    await createStatsSession();
     setScreen("game");
-    setIsStartingGame(false);
   };
 
   if (screen === "game") {
@@ -177,9 +68,7 @@ export function AppShell() {
         }}
         labels={t}
         numberOfRounds={selectedRoundCount}
-        onGameFinished={finishActiveSession}
         onExitToLobby={() => {
-          abandonActiveSession("exit-to-lobby");
           setScreen("lobby");
         }}
       />
@@ -188,8 +77,6 @@ export function AppShell() {
 
   return (
     <main className="lobbyShell">
-      <StatsBackground locale={locale} stats={stats} status={statsStatus} />
-
       <header className="lobbyTopBar">
         <button
           className="iconButton lobbyHelpButton"
@@ -219,7 +106,7 @@ export function AppShell() {
       <section className="lobbyContent" aria-labelledby="lobby-title">
         <h1 className="srOnly" id="lobby-title">{t.lobbyTitle}</h1>
         <LobbyWheel
-          disabled={isStartingGame}
+          disabled={false}
           labels={t}
           maxRoundCount={maxRoundCount}
           minRoundCount={minRoundCount}
@@ -229,7 +116,7 @@ export function AppShell() {
         />
 
         <CompactLobbyPanel
-          disabled={isStartingGame}
+          disabled={false}
           labels={t}
           maxRoundCount={maxRoundCount}
           minRoundCount={minRoundCount}
@@ -258,84 +145,6 @@ export function AppShell() {
       ) : null}
     </main>
   );
-}
-
-function StatsBackground({
-  locale,
-  stats,
-  status
-}: {
-  readonly locale: Locale;
-  readonly stats: StatsSummary | null;
-  readonly status: "loading" | "ready" | "error";
-}) {
-  const t = getAppStrings(locale);
-  const gamesPlayed = stats?.gamesPlayed ?? 0;
-  const wins = stats?.wins ?? 0;
-  const losses = stats?.losses ?? 0;
-  const abandoned = stats?.abandoned ?? 0;
-  const maxMetric = Math.max(wins, losses, abandoned, 1);
-  const winRate = stats?.winRate ?? 0;
-
-  return (
-    <aside className="lobbyStatsArt" aria-label={t.liveStats}>
-      <div className="statsArtHeader">
-        <span>{t.liveStats}</span>
-        <small>{status === "error" ? t.statsUnavailable : status === "loading" ? t.statsLoading : `${t.activeGames}: ${stats?.activeGames ?? 0}`}</small>
-      </div>
-      <div
-        className="statsDonut"
-        style={{ "--winRate": `${Math.round(winRate * 100)}%` } as CSSProperties}
-      >
-        <span>{formatPercent(stats?.winRate)}</span>
-        <small>{t.winRate}</small>
-      </div>
-      <div className="statsBars">
-        <ChartBar label={t.wins} value={wins} max={maxMetric} tone="green" />
-        <ChartBar label={t.losses} value={losses} max={maxMetric} tone="red" />
-        <ChartBar label={t.abandonedGames} value={abandoned} max={maxMetric} tone="gold" />
-      </div>
-      <div className="statsArtFooter">
-        <span>{t.gamesPlayed}</span>
-        <strong>{gamesPlayed}</strong>
-        <small>{t.winLossRatio}: {formatRatio(stats?.winLossRatio, t)}</small>
-      </div>
-    </aside>
-  );
-}
-
-function ChartBar({
-  label,
-  value,
-  max,
-  tone
-}: {
-  readonly label: string;
-  readonly value: number;
-  readonly max: number;
-  readonly tone: "green" | "red" | "gold";
-}) {
-  const height = Math.max(8, Math.round((value / max) * 100));
-
-  return (
-    <div className={`chartBar ${tone}`}>
-      <div className="chartColumn">
-        <span style={{ height: `${height}%` }} />
-      </div>
-      <small>{label}</small>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
-function formatPercent(value: number | undefined): string {
-  return value === undefined ? "--" : `${Math.round(value * 100)}%`;
-}
-
-function formatRatio(value: number | null | undefined, labels: AppStrings): string {
-  if (value === undefined) return "--";
-  if (value === null) return labels.notAvailable;
-  return value.toFixed(2);
 }
 
 function SettingsDialog({

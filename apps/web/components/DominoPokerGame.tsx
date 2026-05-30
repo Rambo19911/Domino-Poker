@@ -6,7 +6,6 @@ import {
   createNewGame,
   getInvalidMoveReason as getCoreInvalidMoveReason,
   getValidTiles,
-  getWinner,
   highestTrumpPriorityInTrick,
   isTrump,
   makeAIBid,
@@ -32,7 +31,6 @@ import { InfoPanel } from "./InfoPanel";
 import { PlayerSeat } from "./PlayerSeat";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
 import type { AppStrings } from "../lib/i18n";
-import type { GameOutcome } from "../lib/stats/types";
 import type { AudioSettings } from "../lib/useAudioSettings";
 
 const CANVAS_WIDTH = 1920;
@@ -49,7 +47,6 @@ export function DominoPokerGame({
   humanProfile,
   labels,
   numberOfRounds,
-  onGameFinished,
   onExitToLobby
 }: {
   readonly audio: AudioSettings;
@@ -59,7 +56,6 @@ export function DominoPokerGame({
   };
   readonly labels: AppStrings;
   readonly numberOfRounds: number;
-  readonly onGameFinished: (outcome: GameOutcome) => void;
   readonly onExitToLobby: () => void;
 }) {
   const humanPlayerName = humanProfile.displayName.trim() || labels.you;
@@ -81,7 +77,6 @@ export function DominoPokerGame({
   const burstTimerRef = useRef<number | null>(null);
   const phaseDialogTimerRef = useRef<number | null>(null);
   const gameStateRef = useRef(gameState);
-  const gameEndReportedRef = useRef(false);
   const didInitializeGameRef = useRef(false);
   const lastTileSoundSignatureRef = useRef("");
   const stageLayout = useStageContainLayout();
@@ -96,7 +91,6 @@ export function DominoPokerGame({
       return;
     }
 
-    gameEndReportedRef.current = false;
     setGameState(createNewGame({ numberOfRounds, playerName: humanPlayerName }));
   }, [humanPlayerName, numberOfRounds]);
 
@@ -204,15 +198,9 @@ export function DominoPokerGame({
     }
 
     if (gameState.phase === "gameEnd") {
-      if (!gameEndReportedRef.current) {
-        gameEndReportedRef.current = true;
-        const winner = getWinner(gameState);
-        const humanPlayer = gameState.players[0];
-        onGameFinished(winner?.id === humanPlayer?.id ? "win" : "loss");
-      }
       phaseDialogTimerRef.current = window.setTimeout(() => setShowGameEnd(true), 1000);
     }
-  }, [audio, gameState.phase, gameState.currentRound, onGameFinished]);
+  }, [audio, gameState.phase, gameState.currentRound]);
 
   useEffect(() => {
     if (!currentPlayer?.isAI || isProcessingTrick) return;
