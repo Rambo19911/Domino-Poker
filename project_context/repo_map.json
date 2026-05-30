@@ -238,6 +238,14 @@
     "confidence": "high"
   },
   {
+    "path": "tests/e2e/dialog-a11y.spec.ts",
+    "type": "test",
+    "purpose": "Playwright dialog accessibility coverage for modal semantics, initial focus, Escape handling, focus restoration, and mandatory dialog behavior.",
+    "importance": "high",
+    "related_files": ["playwright.config.ts", "apps/web/components/useDialogFocus.ts", "apps/web/components/AppShell.tsx", "apps/web/components/DominoPokerGame.tsx", "apps/web/components/RulesDialog.tsx"],
+    "confidence": "high"
+  },
+  {
     "path": "packages/core/package.json",
     "type": "config",
     "purpose": "Core workspace build and test scripts.",
