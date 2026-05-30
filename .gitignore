@@ -28,8 +28,6 @@ yarn-error.log*
 pnpm-debug.log*
 
 # Local audit and planning notes
-Codex-AUDIT_REPORT.md
-Opus 4.8-AUDIT_REPORT.md
 fix_scope.md
 fix-scope.md
 docs/fix_scope.md
