@@ -4,6 +4,7 @@ import type {
   GameSessionStartResponse,
   StatsSummary
 } from "./types";
+import { readLocalStorage, writeLocalStorage } from "../safeStorage";
 
 const statsStorageKey = "domino-poker-local-stats";
 const activeSessionsStorageKey = "domino-poker-active-sessions";
@@ -76,13 +77,12 @@ function abandonSession(sessionId: string): StatsSummary {
 
 function mutateStats(mutator: (stats: StatsSummary) => StatsSummary): StatsSummary {
   const nextStats = normalizeStats(mutator(readStats()));
-  window.localStorage.setItem(statsStorageKey, JSON.stringify(nextStats));
+  writeLocalStorage(statsStorageKey, JSON.stringify(nextStats));
   return nextStats;
 }
 
 function readStats(): StatsSummary {
-  if (typeof window === "undefined") return createEmptyStats();
-  const rawStats = window.localStorage.getItem(statsStorageKey);
+  const rawStats = readLocalStorage(statsStorageKey);
   if (!rawStats) return createEmptyStats();
 
   try {
@@ -136,8 +136,7 @@ function safeNumber(value: unknown): number {
 }
 
 function readActiveSessions(): string[] {
-  if (typeof window === "undefined") return [];
-  const rawSessions = window.localStorage.getItem(activeSessionsStorageKey);
+  const rawSessions = readLocalStorage(activeSessionsStorageKey);
   if (!rawSessions) return [];
 
   try {
@@ -151,7 +150,7 @@ function readActiveSessions(): string[] {
 }
 
 function writeActiveSessions(sessionIds: readonly string[]): void {
-  window.localStorage.setItem(activeSessionsStorageKey, JSON.stringify([...new Set(sessionIds)]));
+  writeLocalStorage(activeSessionsStorageKey, JSON.stringify([...new Set(sessionIds)]));
 }
 
 function consumeActiveSession(sessionId: string): boolean {

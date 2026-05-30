@@ -37,6 +37,7 @@ Run `npm run typecheck`, `npm run test`, `npm run test:web`, and `npm run build`
 - The main lobby keeps the multiplayer button visible but disabled.
 - Local lobby stats live behind `apps/web/lib/stats/client.ts` and use browser storage only. Do not add API routes for stats unless a future task explicitly changes the architecture.
 - Browser audio settings are localStorage-only and do not contain secrets.
+- Use `apps/web/lib/safeStorage.ts` for localStorage access so unavailable, blocked, or throwing storage does not crash the app.
 - Keep `useAudioSettings()` owned by `AppShell` so lobby and game share one audio state and one background music element.
 - Keep configurable game setup owned by `AppShell`; the lobby-selected round count is passed into `DominoPokerGame` as `numberOfRounds`.
 - The lobby uses the circular mode wheel for desktop-sized viewports and a separate compact control panel for narrow or short viewports. Do not solve lobby fit issues by uniformly shrinking the wheel until labels and controls become impractical.

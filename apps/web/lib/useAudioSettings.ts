@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { readLocalStorage, writeLocalStorage } from "./safeStorage";
 
 const audioPaths = {
   tilePlaced: "/assets/sounds/tile_placed.mp3",
@@ -88,8 +89,8 @@ function useStoredBoolean(key: string, defaultValue: boolean) {
   const [value, setValue] = useState(defaultValue);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(key);
-    if (stored !== null) {
+    const stored = readLocalStorage(key);
+    if (stored === "true" || stored === "false") {
       setValue(stored === "true");
     }
   }, [key]);
@@ -98,7 +99,7 @@ function useStoredBoolean(key: string, defaultValue: boolean) {
     (next: boolean | ((current: boolean) => boolean)) => {
       setValue((current) => {
         const resolved = typeof next === "function" ? next(current) : next;
-        window.localStorage.setItem(key, String(resolved));
+        writeLocalStorage(key, String(resolved));
         return resolved;
       });
     },
@@ -112,10 +113,10 @@ function useStoredNumber(key: string, defaultValue: number) {
   const [value, setValue] = useState(defaultValue);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(key);
+    const stored = readLocalStorage(key);
     if (stored !== null) {
       const parsed = Number(stored);
-      if (Number.isFinite(parsed)) setValue(parsed);
+      if (Number.isFinite(parsed)) setValue(clampVolume(parsed));
     }
   }, [key]);
 
@@ -123,8 +124,8 @@ function useStoredNumber(key: string, defaultValue: number) {
     (next: number | ((current: number) => number)) => {
       setValue((current) => {
         const resolved = typeof next === "function" ? next(current) : next;
-        const clamped = Math.max(0, Math.min(1, resolved));
-        window.localStorage.setItem(key, String(clamped));
+        const clamped = clampVolume(resolved);
+        writeLocalStorage(key, String(clamped));
         return clamped;
       });
     },
@@ -132,4 +133,8 @@ function useStoredNumber(key: string, defaultValue: number) {
   );
 
   return [value, update] as const;
+}
+
+function clampVolume(value: number): number {
+  return Math.max(0, Math.min(1, value));
 }

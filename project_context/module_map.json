@@ -10,6 +10,7 @@
       "apps/web/components/DominoPokerGame.tsx",
       "apps/web/components/RulesDialog.tsx",
       "apps/web/components/useDialogFocus.ts",
+      "apps/web/lib/safeStorage.ts",
       "apps/web/lib/i18n.ts",
       "apps/web/lib/locales/en.ts",
       "apps/web/lib/locales/lv.ts",
@@ -17,6 +18,7 @@
       "tests/e2e/main-flow.spec.ts",
       "tests/e2e/layout-regression.spec.ts",
       "tests/e2e/dialog-a11y.spec.ts",
+      "tests/e2e/storage-resilience.spec.ts",
       "playwright.config.ts"
     ],
     "depends_on": ["Core Rules", "Local Stats"],
@@ -28,6 +30,7 @@
       "The main browser smoke test covers lobby start, bidding, tile play, optional number selection, and first trick completion; keep it stable when UI labels or dialog semantics change.",
       "The layout regression test verifies Lobby and Game viewport containment at desktop/tablet sizes; keep it aligned with the current no-phone-reflow layout contract.",
       "The dialog accessibility test covers modal semantics, initial focus, Escape handling, focus restoration, and mandatory bid behavior.",
+      "Local storage access should go through safeStorage and remain best-effort when browser storage is malformed, blocked, or throwing.",
       "The game table uses uniform contain scaling of the fixed 1920x1080 stage; phone portrait reflow is intentionally out of scope.",
       "The multiplayer button should remain disabled in the main lobby unless the product direction changes."
     ],
@@ -39,7 +42,8 @@
     "purpose": "Browser-only local statistics and game-session tracking for the lobby, persisted in localStorage.",
     "main_files": [
       "apps/web/lib/stats/client.ts",
-      "apps/web/lib/stats/types.ts"
+      "apps/web/lib/stats/types.ts",
+      "apps/web/lib/safeStorage.ts"
     ],
     "depends_on": ["Browser localStorage"],
     "used_by": ["Web App"],

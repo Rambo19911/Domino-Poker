@@ -170,7 +170,15 @@
     "type": "utility",
     "purpose": "Browser localStorage-backed audio preference hook.",
     "importance": "medium",
-    "related_files": ["apps/web/components/AudioControls.tsx"],
+    "related_files": ["apps/web/components/AudioControls.tsx", "apps/web/lib/safeStorage.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/safeStorage.ts",
+    "type": "utility",
+    "purpose": "Small safe localStorage wrapper that converts unavailable, blocked, or throwing browser storage reads/writes into null/false results.",
+    "importance": "high",
+    "related_files": ["apps/web/components/AppShell.tsx", "apps/web/lib/useAudioSettings.ts", "apps/web/lib/stats/client.ts", "tests/e2e/storage-resilience.spec.ts"],
     "confidence": "high"
   },
   {
@@ -178,7 +186,7 @@
     "type": "utility",
     "purpose": "Browser localStorage-backed local statistics and game-session lifecycle helpers.",
     "importance": "high",
-    "related_files": ["apps/web/lib/stats/types.ts", "apps/web/components/AppShell.tsx"],
+    "related_files": ["apps/web/lib/stats/types.ts", "apps/web/components/AppShell.tsx", "apps/web/lib/safeStorage.ts"],
     "confidence": "high"
   },
   {
@@ -243,6 +251,14 @@
     "purpose": "Playwright dialog accessibility coverage for modal semantics, initial focus, Escape handling, focus restoration, and mandatory dialog behavior.",
     "importance": "high",
     "related_files": ["playwright.config.ts", "apps/web/components/useDialogFocus.ts", "apps/web/components/AppShell.tsx", "apps/web/components/DominoPokerGame.tsx", "apps/web/components/RulesDialog.tsx"],
+    "confidence": "high"
+  },
+  {
+    "path": "tests/e2e/storage-resilience.spec.ts",
+    "type": "test",
+    "purpose": "Playwright coverage for malformed localStorage values and blocked/throwing localStorage behavior across locale, audio, stats, and game start paths.",
+    "importance": "high",
+    "related_files": ["playwright.config.ts", "apps/web/lib/safeStorage.ts", "apps/web/components/AppShell.tsx", "apps/web/lib/useAudioSettings.ts", "apps/web/lib/stats/client.ts"],
     "confidence": "high"
   },
   {

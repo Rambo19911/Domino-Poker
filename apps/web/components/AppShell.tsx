@@ -20,6 +20,7 @@ import {
   type AppStrings,
   type Locale
 } from "../lib/i18n";
+import { readLocalStorage, writeLocalStorage } from "../lib/safeStorage";
 import {
   abandonStatsSession,
   fetchStatsSummary,
@@ -60,7 +61,7 @@ export function AppShell() {
   }, [screen]);
 
   useEffect(() => {
-    const storedLocale = window.localStorage.getItem(localeStorageKey);
+    const storedLocale = readLocalStorage(localeStorageKey);
     if (storedLocale && isLocale(storedLocale)) {
       setLocale(storedLocale);
     }
@@ -68,7 +69,7 @@ export function AppShell() {
 
   const changeLocale = (nextLocale: Locale) => {
     setLocale(nextLocale);
-    window.localStorage.setItem(localeStorageKey, nextLocale);
+    writeLocalStorage(localeStorageKey, nextLocale);
   };
 
   const refreshStats = useCallback(async () => {
