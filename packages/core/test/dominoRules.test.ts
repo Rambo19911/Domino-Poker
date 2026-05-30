@@ -220,6 +220,53 @@ describe("round flow", () => {
     expect(() => createNewGame({ numberOfRounds: 51 })).toThrow("1 to 50");
   });
 
+  it("rejects invalid dealer indexes", () => {
+    const deck = getFullSet();
+
+    expect(() => createNewGame({ dealerIndex: -1, deck })).toThrow("Dealer index");
+    expect(() => createNewGame({ dealerIndex: 4, deck })).toThrow("Dealer index");
+    expect(() => createNewGame({ dealerIndex: 1.5, deck })).toThrow("Dealer index");
+    expect(() => createNewGame({ rng: () => 1, deck })).toThrow("Dealer index");
+  });
+
+  it("rejects malformed custom decks before dealing", () => {
+    const fullSet = getFullSet();
+    const duplicateDeck = [
+      { side1: 0, side2: 1 },
+      { side1: 1, side2: 0 },
+      ...fullSet.slice(2)
+    ];
+    const invalidPipDeck = [
+      { side1: 7, side2: 0 },
+      ...fullSet.slice(1)
+    ];
+
+    expect(() => createNewGame({ dealerIndex: 0, deck: fullSet.slice(1) })).toThrow(
+      "exactly 28"
+    );
+    expect(() => createNewGame({ dealerIndex: 0, deck: duplicateDeck })).toThrow(
+      "Duplicate tile"
+    );
+    expect(() => createNewGame({ dealerIndex: 0, deck: invalidPipDeck })).toThrow(
+      "integer from 0 to 6"
+    );
+  });
+
+  it("validates custom decks passed to the next round", () => {
+    const roundEndState: GameState = {
+      ...createNewGame({ dealerIndex: 0, deck: getFullSet() }),
+      phase: "roundEnd",
+      lastRoundWinnerIndex: 1
+    };
+    const duplicateDeck = [
+      { side1: 0, side2: 1 },
+      { side1: 1, side2: 0 },
+      ...getFullSet().slice(2)
+    ];
+
+    expect(() => startNextRound(roundEndState, duplicateDeck)).toThrow("Duplicate tile");
+  });
+
   it("moves to round end after seven tricks and promotes round winner to next dealer", () => {
     let state = playableState([
       [tile(0, 0), tile(0, 2), tile(0, 3), tile(0, 4), tile(0, 5), tile(2, 6), tile(3, 6)],

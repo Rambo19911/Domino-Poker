@@ -16,6 +16,7 @@
 
 - Preserve tested TypeScript behavior over stale docs when they disagree. Known disagreement: `docs/domino_poker_rules_summary.md` says overtricks are `-1`, but `docs/PUNKTU_SISTEMA_PIEMERI.md` and current tests use `tricksWon * 5`.
 - `shuffleSet()` intentionally uses an imperfect human-style random cut + overhand packet shuffle + random cut. This is a game-design choice to create more varied hands with more frequent 0, 5, 6, and occasional 7 trump hands. Do not replace it with Fisher-Yates unless explicitly requested.
+- Public setup APIs must validate `dealerIndex` and custom round decks before dealing; custom decks must contain exactly 28 unique legal domino tiles after normalized duplicate checks, while preserving the supplied order and tile orientation for dealing.
 - 0-6 is special: it is an ace only when played/required as 0; when declared as 6 it behaves as a regular 6 for ace comparison.
 - Trump lead requires a stronger trump if the player has one stronger than the highest trump already in the trick.
 - Non-trump required-number leads require a non-trump matching number before trumping.

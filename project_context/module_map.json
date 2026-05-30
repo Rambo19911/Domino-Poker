@@ -78,6 +78,7 @@
     "used_by": ["Web App"],
     "risks": [
       "Rule changes can alter scoring, legal-play validation, dealer rotation, and AI decisions.",
+      "Public game setup validates dealerIndex and custom round decks, including exact tile count, duplicate normalized tiles, and raw pip values from 0 to 6.",
       "`getInvalidMoveReason` is the structured source for UI invalid-move messages; keep `canPlayTile` as the boolean compatibility wrapper.",
       "Docs contain some stale scoring details; prefer current tests and implementation when they conflict.",
       "The package emits ESM files through a postbuild import-fix script."

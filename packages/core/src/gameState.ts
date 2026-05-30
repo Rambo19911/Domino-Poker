@@ -5,6 +5,7 @@
   shuffleSet,
   tileContains,
   tileEquals,
+  tileKey,
   trumpPriority
 } from "./dominoTile";
 import {
@@ -38,6 +39,7 @@ interface GamePlayerOptions {
 
 const minNumberOfRounds = 1;
 const maxNumberOfRounds = 50;
+const tilesPerPlayer = 7;
 
 export function createNewGame(options: NewGameOptions = {}): GameState {
   const playerName = options.playerName ?? "You";
@@ -45,9 +47,13 @@ export function createNewGame(options: NewGameOptions = {}): GameState {
 
   const players = createGamePlayers(createDefaultPlayerOptions(playerName));
 
-  const dealerIndex =
-    options.dealerIndex ?? Math.floor((options.rng ?? Math.random)() * players.length);
-  const deck = [...(options.deck ?? shuffleSet(options.rng))];
+  const dealerIndex = validateDealerIndex(
+    options.dealerIndex === undefined
+      ? Math.floor((options.rng ?? Math.random)() * players.length)
+      : options.dealerIndex,
+    players.length
+  );
+  const deck = validateRoundDeck(options.deck ?? shuffleSet(options.rng), players.length);
   const dealtPlayers = dealPlayers(players, deck);
 
   return {
@@ -110,6 +116,70 @@ function validateNumberOfRounds(numberOfRounds: number): number {
   }
 
   return numberOfRounds;
+}
+
+function validateDealerIndex(dealerIndex: number, playerCount: number): number {
+  if (
+    !Number.isInteger(dealerIndex) ||
+    dealerIndex < 0 ||
+    dealerIndex >= playerCount
+  ) {
+    throw new Error(
+      `Dealer index must be an integer from 0 to ${playerCount - 1}. Received ${dealerIndex}.`
+    );
+  }
+
+  return dealerIndex;
+}
+
+function validateRoundDeck(deck: unknown, playerCount: number): DominoTile[] {
+  if (!Array.isArray(deck)) {
+    throw new Error("Deck must be an array of domino tiles.");
+  }
+
+  const expectedTileCount = playerCount * tilesPerPlayer;
+  if (deck.length !== expectedTileCount) {
+    throw new Error(
+      `A full round requires exactly ${expectedTileCount} unique tiles. Received ${deck.length}.`
+    );
+  }
+
+  const seenKeys = new Set<string>();
+  return deck.map((tile, index) => {
+    const validTile = validateDeckTile(tile, index);
+    const key = tileKey(validTile);
+    if (seenKeys.has(key)) {
+      throw new Error(`Duplicate tile in deck: ${key}.`);
+    }
+    seenKeys.add(key);
+    return validTile;
+  });
+}
+
+function validateDeckTile(tile: unknown, index: number): DominoTile {
+  if (!tile || typeof tile !== "object") {
+    throw new Error(`Deck tile ${index + 1} must be an object with side1 and side2.`);
+  }
+
+  const candidate = tile as Partial<DominoTile>;
+  const side1 = candidate.side1;
+  const side2 = candidate.side2;
+  validateDeckPip(side1, index, "side1");
+  validateDeckPip(side2, index, "side2");
+
+  return { side1, side2 };
+}
+
+function validateDeckPip(
+  value: number | undefined,
+  index: number,
+  sideName: "side1" | "side2"
+): asserts value is number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 6) {
+    throw new Error(
+      `Deck tile ${index + 1} ${sideName} must be an integer from 0 to 6. Received ${value}.`
+    );
+  }
 }
 
 export function makeBid(state: GameState, bid: number): GameState {
@@ -262,6 +332,8 @@ export function startNextRound(
     return { ...state, phase: "gameEnd" };
   }
 
+  const validatedDeck = validateRoundDeck(deck, state.players.length);
+
   const dealerIndex =
     state.currentRound >= 1 && state.lastRoundWinnerIndex !== undefined
       ? state.lastRoundWinnerIndex
@@ -270,7 +342,7 @@ export function startNextRound(
   const resetPlayers = state.players.map(resetPlayerRound);
   return {
     ...state,
-    players: dealPlayers(resetPlayers, deck),
+    players: dealPlayers(resetPlayers, validatedDeck),
     dealerIndex,
     currentRound: state.currentRound + 1,
     currentPlayerIndex: (dealerIndex + 1) % state.players.length,
