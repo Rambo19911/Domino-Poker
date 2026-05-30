@@ -13,6 +13,7 @@ import {
   makeBid,
   makeAIBid,
   playTile,
+  selectAITile,
   selectNumber,
   shuffleSet,
   startNextRound,
@@ -327,6 +328,27 @@ describe("AI behavior", () => {
 
     expect(makeAIBid(player)).toBe(3);
     expect(selectNumber(tile(2, 4), player)).toBe(4);
+  });
+
+  it("preserves AI trick comparison behavior for the 0-6 tile", () => {
+    const state = playableState([
+      [tile(2, 6)],
+      [tile(0, 6), tile(4, 6)],
+      [tile(3, 3)],
+      [tile(4, 4)]
+    ]);
+    const aiState: GameState = {
+      ...state,
+      currentPlayerIndex: 1,
+      currentTrick: [{ tile: tile(2, 6), playerIndex: 0, declaredNumber: 6 }],
+      leadTile: tile(2, 6),
+      requiredNumber: 6,
+      players: state.players.map((player) =>
+        player.id === "2" ? { ...player, bid: 1, tricksWon: 0 } : player
+      )
+    };
+
+    expect(tileEquals(selectAITile(aiState.players[1]!, aiState), tile(0, 6))).toBe(true);
   });
 });
 

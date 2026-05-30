@@ -372,7 +372,7 @@
   {
     "path": "packages/core/src/gameState.ts",
     "type": "service",
-    "purpose": "Game creation, public dealer/deck input validation, bidding and play progression, trick resolution, scoring, round transitions, and game-over logic.",
+    "purpose": "Game creation, public dealer/deck input validation, shared trick tile comparison, bidding and play progression, trick resolution, scoring, round transitions, and game-over logic.",
     "importance": "critical",
     "related_files": ["packages/core/src/types.ts", "packages/core/src/dominoTile.ts", "packages/core/test/dominoRules.test.ts"],
     "confidence": "high"
@@ -396,7 +396,7 @@
   {
     "path": "packages/core/src/aiService.ts",
     "type": "service",
-    "purpose": "CPU bidding and tile-play heuristics.",
+    "purpose": "CPU bidding and tile-play heuristics, using core trick tile comparison with AI-specific ace context.",
     "importance": "high",
     "related_files": ["packages/core/src/gameState.ts", "packages/core/src/player.ts"],
     "confidence": "high"
@@ -412,7 +412,7 @@
   {
     "path": "packages/core/test/dominoRules.test.ts",
     "type": "test",
-    "purpose": "Vitest coverage for core rule behavior, public input validation, scoring, and round-flow edge cases.",
+    "purpose": "Vitest coverage for core rule behavior, public input validation, AI heuristic preservation, scoring, and round-flow edge cases.",
     "importance": "high",
     "related_files": ["packages/core/src/gameState.ts", "packages/core/src/player.ts", "packages/core/src/dominoTile.ts"],
     "confidence": "high"

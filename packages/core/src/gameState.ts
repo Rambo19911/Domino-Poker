@@ -6,6 +6,7 @@
   tileContains,
   tileEquals,
   tileKey,
+  tileTotalValue,
   trumpPriority
 } from "./dominoTile";
 import {
@@ -28,6 +29,13 @@ import type {
 export interface PlayTileResult {
   readonly state: GameState;
   readonly trickComplete: boolean;
+}
+
+export interface TileStrengthContext {
+  readonly requiredNumber?: number | undefined;
+  readonly tile1IsAce: boolean;
+  readonly tile2IsAce: boolean;
+  readonly breakAceTiesByTotalValue?: boolean | undefined;
 }
 
 interface GamePlayerOptions {
@@ -402,6 +410,18 @@ export function isStrongerTile(
   const play1 = state.currentTrick.find((play) => tileEquals(play.tile, tile1));
   const play2 = state.currentTrick.find((play) => tileEquals(play.tile, tile2));
 
+  return isStrongerTileWithContext(tile1, tile2, {
+    requiredNumber: state.requiredNumber,
+    tile1IsAce: isPlayedAsAce(state.requiredNumber, tile1, play1),
+    tile2IsAce: isPlayedAsAce(state.requiredNumber, tile2, play2)
+  });
+}
+
+export function isStrongerTileWithContext(
+  tile1: DominoTile,
+  tile2: DominoTile,
+  context: TileStrengthContext
+): boolean {
   const tile1IsTrump = isTrump(tile1);
   const tile2IsTrump = isTrump(tile2);
 
@@ -412,26 +432,28 @@ export function isStrongerTile(
     return trumpPriority(tile1) < trumpPriority(tile2);
   }
 
-  if (state.requiredNumber === undefined) {
+  const { requiredNumber } = context;
+  if (requiredNumber === undefined) {
     return false;
   }
 
-  const tile1HasRequired = tileContains(tile1, state.requiredNumber);
-  const tile2HasRequired = tileContains(tile2, state.requiredNumber);
+  const tile1HasRequired = tileContains(tile1, requiredNumber);
+  const tile2HasRequired = tileContains(tile2, requiredNumber);
 
   if (tile1HasRequired && !tile2HasRequired) return true;
   if (!tile1HasRequired && tile2HasRequired) return false;
   if (!tile1HasRequired && !tile2HasRequired) return false;
 
-  const tile1IsActualAce = isPlayedAsAce(state.requiredNumber, tile1, play1);
-  const tile2IsActualAce = isPlayedAsAce(state.requiredNumber, tile2, play2);
+  if (context.tile1IsAce && !context.tile2IsAce) return true;
+  if (!context.tile1IsAce && context.tile2IsAce) return false;
+  if (context.tile1IsAce && context.tile2IsAce) {
+    return context.breakAceTiesByTotalValue === true
+      ? tileTotalValue(tile1) > tileTotalValue(tile2)
+      : false;
+  }
 
-  if (tile1IsActualAce && !tile2IsActualAce) return true;
-  if (!tile1IsActualAce && tile2IsActualAce) return false;
-  if (tile1IsActualAce && tile2IsActualAce) return false;
-
-  const tile1OtherSide = getOtherSide(tile1, state.requiredNumber);
-  const tile2OtherSide = getOtherSide(tile2, state.requiredNumber);
+  const tile1OtherSide = getOtherSide(tile1, requiredNumber);
+  const tile2OtherSide = getOtherSide(tile2, requiredNumber);
   return tile1OtherSide > tile2OtherSide;
 }
 

@@ -6,7 +6,10 @@ import {
   trumpPriority
 } from "./dominoTile";
 import { canPlayTile } from "./player";
-import { highestTrumpPriorityInTrick } from "./gameState";
+import {
+  highestTrumpPriorityInTrick,
+  isStrongerTileWithContext
+} from "./gameState";
 import type { DominoTile, GameState, Player } from "./types";
 
 export function makeAIBid(player: Player): number {
@@ -186,28 +189,10 @@ function isStrongerTileForAi(
   tile2: DominoTile,
   requiredNumber: number | undefined
 ): boolean {
-  const tile1IsTrump = isTrump(tile1);
-  const tile2IsTrump = isTrump(tile2);
-
-  if (tile1IsTrump && !tile2IsTrump) return true;
-  if (!tile1IsTrump && tile2IsTrump) return false;
-  if (tile1IsTrump && tile2IsTrump) {
-    return trumpPriority(tile1) < trumpPriority(tile2);
-  }
-
-  if (requiredNumber === undefined) return false;
-
-  const tile1HasRequired = tileContains(tile1, requiredNumber);
-  const tile2HasRequired = tileContains(tile2, requiredNumber);
-  if (tile1HasRequired && !tile2HasRequired) return true;
-  if (!tile1HasRequired && tile2HasRequired) return false;
-  if (!tile1HasRequired && !tile2HasRequired) return false;
-
-  const tile1IsAce = isAce(tile1);
-  const tile2IsAce = isAce(tile2);
-  if (tile1IsAce && !tile2IsAce) return true;
-  if (!tile1IsAce && tile2IsAce) return false;
-  if (tile1IsAce && tile2IsAce) return tileTotalValue(tile1) > tileTotalValue(tile2);
-
-  return tileTotalValue(tile1) > tileTotalValue(tile2);
+  return isStrongerTileWithContext(tile1, tile2, {
+    requiredNumber,
+    tile1IsAce: isAce(tile1),
+    tile2IsAce: isAce(tile2),
+    breakAceTiesByTotalValue: true
+  });
 }
