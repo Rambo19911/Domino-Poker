@@ -110,11 +110,25 @@
     "importance": "critical",
     "related_files": [
       "apps/web/components/DominoPokerGame.tsx",
+      "apps/web/components/LobbyWheel.tsx",
       "apps/web/components/RulesDialog.tsx",
       "apps/web/components/AudioControls.tsx",
       "apps/web/lib/stats/client.ts",
       "apps/web/lib/i18n.ts",
       "apps/web/app/globals.css"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/LobbyWheel.tsx",
+    "type": "ui",
+    "purpose": "Desktop lobby mode wheel, compact lobby panel, and shared round-count controls for single-player start.",
+    "importance": "high",
+    "related_files": [
+      "apps/web/components/AppShell.tsx",
+      "apps/web/app/globals.css",
+      "tests/e2e/layout-regression.spec.ts",
+      "tests/e2e/main-flow.spec.ts"
     ],
     "confidence": "high"
   },
@@ -168,6 +182,62 @@
       "packages/core/src/gameState.ts",
       "packages/core/src/aiService.ts",
       "apps/web/components/AppShell.tsx",
+      "apps/web/components/GameDialogs.tsx",
+      "apps/web/components/PlayerSeat.tsx",
+      "apps/web/components/InfoPanel.tsx",
+      "apps/web/components/DominoTileView.tsx",
+      "apps/web/app/globals.css"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/GameDialogs.tsx",
+    "type": "ui",
+    "purpose": "Game-specific bidding, number-selection, round-summary, game-end, and exit confirmation dialogs.",
+    "importance": "high",
+    "related_files": [
+      "apps/web/components/DominoPokerGame.tsx",
+      "apps/web/components/Dialog.tsx",
+      "packages/core/src/gameState.ts",
+      "tests/e2e/dialog-a11y.spec.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/PlayerSeat.tsx",
+    "type": "ui",
+    "purpose": "Shared game-table seat renderer for the human player, AI players, visible hand buttons, hidden opponent tiles, profile cards, and turn indicator.",
+    "importance": "high",
+    "related_files": [
+      "apps/web/components/DominoPokerGame.tsx",
+      "apps/web/components/DominoTileView.tsx",
+      "packages/core/src/player.ts",
+      "tests/e2e/main-flow.spec.ts",
+      "tests/e2e/layout-regression.spec.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/InfoPanel.tsx",
+    "type": "ui",
+    "purpose": "Game status and score panel for current round, trick count, bid/won values, round score, and total score.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/DominoPokerGame.tsx",
+      "packages/core/src/gameState.ts",
+      "tests/e2e/layout-regression.spec.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/DominoTileView.tsx",
+    "type": "ui",
+    "purpose": "Shared visual renderer for visible domino tiles and hidden opponent tile backs.",
+    "importance": "high",
+    "related_files": [
+      "apps/web/components/DominoPokerGame.tsx",
+      "apps/web/components/PlayerSeat.tsx",
+      "packages/core/src/dominoTile.ts",
       "apps/web/app/globals.css"
     ],
     "confidence": "high"

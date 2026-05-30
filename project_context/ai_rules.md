@@ -6,7 +6,9 @@
 - `packages/core` source keeps extensionless relative imports for Next/Turbopack workspace transpilation. Its build script runs `packages/core/scripts/fix-esm-imports.cjs` after `tsc` so emitted `dist/*.js` files have Node-compatible `.js` ESM specifiers.
 - For AI behavior: read `packages/core/src/aiService.ts` before changing heuristics.
 - For app/lobby flow: read `apps/web/components/AppShell.tsx`, `apps/web/lib/i18n.ts`, and `apps/web/components/AudioControls.tsx`.
+- For lobby UI controls: keep desktop wheel and compact lobby rendering in `apps/web/components/LobbyWheel.tsx`, with shared selected round count passed from `AppShell`.
 - For UI/game flow: read `apps/web/components/DominoPokerGame.tsx` and `apps/web/app/globals.css`.
+- For game-table UI extraction: use `apps/web/components/GameDialogs.tsx`, `apps/web/components/PlayerSeat.tsx`, `apps/web/components/InfoPanel.tsx`, and `apps/web/components/DominoTileView.tsx`; do not move deck creation, shuffle, dealing, AI timers, or trick state transitions into these UI components.
 - For modal/dialog UI: use `apps/web/components/Dialog.tsx` with `apps/web/components/useDialogFocus.ts` instead of duplicating `role="dialog"`, `aria-modal`, focus trap, Escape, or focus restoration behavior.
 - For local statistics behavior: read `apps/web/lib/stats/client.ts` and `apps/web/lib/stats/types.ts`.
 

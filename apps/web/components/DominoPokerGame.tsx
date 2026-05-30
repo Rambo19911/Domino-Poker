@@ -2,14 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  calculateRoundScore,
   canPlayTile,
   completeTrick,
   createNewGame,
   getValidTiles,
   getWinner,
   highestTrumpPriorityInTrick,
-  isAce,
   isTrump,
   makeAIBid,
   makeBid,
@@ -19,9 +17,19 @@ import {
   startNextRound,
   tileKey
 } from "@domino-poker/core";
-import type { DominoTile, GameState, Player } from "@domino-poker/core";
+import type { DominoTile, GameState } from "@domino-poker/core";
 import { AudioControls, VolumeIcon, VolumeOffIcon } from "./AudioControls";
-import { Dialog } from "./Dialog";
+import { DominoTileView } from "./DominoTileView";
+import {
+  BidDialog,
+  ExitDialog,
+  ExitIcon,
+  GameEndDialog,
+  NumberDialog,
+  RoundSummaryDialog
+} from "./GameDialogs";
+import { InfoPanel } from "./InfoPanel";
+import { PlayerSeat } from "./PlayerSeat";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
 import type { AppStrings } from "../lib/i18n";
 import type { GameOutcome } from "../lib/stats/types";
@@ -29,53 +37,12 @@ import type { AudioSettings } from "../lib/useAudioSettings";
 
 const CANVAS_WIDTH = 1920;
 const CANVAS_HEIGHT = 1080;
-const PROFILE_SIZE = 144;
 
 type StageContainLayout = {
   readonly scale: number;
   readonly left: number;
   readonly top: number;
 };
-
-const layout = {
-  player1ProfileLeft: 80,
-  player1ProfileTop: 112,
-  player1StatsLeft: 80,
-  player1StatsTop: 272,
-  player1TilesLeft: 80,
-  player1TilesStartTop: 359,
-  player1TileSpacing: 88,
-  player2ProfileLeft: 965,
-  player2ProfileTop: 119,
-  player2StatsLeft: 867,
-  player2StatsTop: 120,
-  player2TilesStartLeft: 244,
-  player2TilesTop: 119,
-  player2TileSpacing: 89,
-  player3ProfileLeft: 1121,
-  player3ProfileTop: 824,
-  player3StatsLeft: 1120,
-  player3StatsTop: 736,
-  player3TilesLeft: 1120,
-  player3TilesStartTop: 120,
-  player3TileSpacing: 88,
-  player0ProfileLeft: 240,
-  player0ProfileTop: 825,
-  player0StatsLeft: 393,
-  player0StatsTop: 823,
-  player0TilesStartLeft: 493,
-  player0TilesTop: 824,
-  player0TileSpacing: 90,
-  tableLeft: 448,
-  tableTop: 320,
-  tableSize: 450,
-  infoPanelLeft: 1360,
-  infoPanelTop: 128,
-  tileWidth: 80,
-  tileHeight: 144,
-  hiddenTileWidth: 144,
-  hiddenTileHeight: 80
-} as const;
 
 export function DominoPokerGame({
   audio,
@@ -346,29 +313,33 @@ export function DominoPokerGame({
         >
           <GameTable gameState={gameState} labels={labels} />
 
-          <AILeftPlayer
+          <PlayerSeat
             gameState={gameState}
             labels={labels}
             player={gameState.players[1]}
+            seatIndex={1}
             isWinnerGlow={showWinnerGlow && lastTrickWinner === 1}
           />
-          <AITopPlayer
+          <PlayerSeat
             gameState={gameState}
             labels={labels}
             player={gameState.players[2]}
+            seatIndex={2}
             isWinnerGlow={showWinnerGlow && lastTrickWinner === 2}
           />
-          <AIRightPlayer
+          <PlayerSeat
             gameState={gameState}
             labels={labels}
             player={gameState.players[3]}
+            seatIndex={3}
             isWinnerGlow={showWinnerGlow && lastTrickWinner === 3}
           />
-          <HumanBottomPlayer
+          <PlayerSeat
             gameState={gameState}
             humanAvatarUrl={humanProfile.avatarUrl}
             labels={labels}
             player={gameState.players[0]}
+            seatIndex={0}
             validTileKeys={validHumanTiles}
             isWinnerGlow={showWinnerGlow && lastTrickWinner === 0}
             onTileClick={handleTileClick}
@@ -508,299 +479,6 @@ function GameTable({
   );
 }
 
-function AILeftPlayer({
-  gameState,
-  labels,
-  player,
-  isWinnerGlow
-}: {
-  readonly gameState: GameState;
-  readonly labels: AppStrings;
-  readonly player: Player | undefined;
-  readonly isWinnerGlow: boolean;
-}) {
-  if (!player) return null;
-  return (
-    <>
-      <PlayerProfile
-        player={player}
-        playerIndex={1}
-        gameState={gameState}
-        labels={labels}
-        isWinnerGlow={isWinnerGlow}
-        style={{ left: layout.player1ProfileLeft, top: layout.player1ProfileTop }}
-      />
-      <PlayerStats
-        labels={labels}
-        player={player}
-        style={{ left: layout.player1StatsLeft, top: layout.player1StatsTop }}
-      />
-      {player.hand.map((tile, index) => (
-        <HiddenTile
-          key={`${tileKey(tile)}-${index}`}
-          orientation="horizontal"
-          style={{
-            left: layout.player1TilesLeft,
-            top: layout.player1TilesStartTop + index * layout.player1TileSpacing
-          }}
-        />
-      ))}
-    </>
-  );
-}
-
-function AITopPlayer({
-  gameState,
-  labels,
-  player,
-  isWinnerGlow
-}: {
-  readonly gameState: GameState;
-  readonly labels: AppStrings;
-  readonly player: Player | undefined;
-  readonly isWinnerGlow: boolean;
-}) {
-  if (!player) return null;
-  return (
-    <>
-      <PlayerProfile
-        player={player}
-        playerIndex={2}
-        gameState={gameState}
-        labels={labels}
-        isWinnerGlow={isWinnerGlow}
-        style={{ left: layout.player2ProfileLeft, top: layout.player2ProfileTop }}
-      />
-      <PlayerStats
-        labels={labels}
-        player={player}
-        style={{ left: layout.player2StatsLeft, top: layout.player2StatsTop }}
-      />
-      {player.hand.map((tile, index) => {
-        const rightMostIndex = 6;
-        const firstVisibleIndex = rightMostIndex - (player.hand.length - 1);
-        const visualIndex = firstVisibleIndex + index;
-        return (
-          <HiddenTile
-            key={`${tileKey(tile)}-${index}`}
-            orientation="vertical"
-            style={{
-              left: layout.player2TilesStartLeft + visualIndex * layout.player2TileSpacing,
-              top: layout.player2TilesTop
-            }}
-          />
-        );
-      })}
-    </>
-  );
-}
-
-function AIRightPlayer({
-  gameState,
-  labels,
-  player,
-  isWinnerGlow
-}: {
-  readonly gameState: GameState;
-  readonly labels: AppStrings;
-  readonly player: Player | undefined;
-  readonly isWinnerGlow: boolean;
-}) {
-  if (!player) return null;
-  return (
-    <>
-      <PlayerProfile
-        player={player}
-        playerIndex={3}
-        gameState={gameState}
-        labels={labels}
-        isWinnerGlow={isWinnerGlow}
-        style={{ left: layout.player3ProfileLeft, top: layout.player3ProfileTop }}
-      />
-      <PlayerStats
-        labels={labels}
-        player={player}
-        style={{ left: layout.player3StatsLeft, top: layout.player3StatsTop }}
-      />
-      {player.hand.map((tile, index) => {
-        const bottomIndex = 6;
-        const firstVisibleIndex = bottomIndex - (player.hand.length - 1);
-        const visualIndex = firstVisibleIndex + index;
-        return (
-          <HiddenTile
-            key={`${tileKey(tile)}-${index}`}
-            orientation="horizontal"
-            style={{
-              left: layout.player3TilesLeft,
-              top: layout.player3TilesStartTop + visualIndex * layout.player3TileSpacing
-            }}
-          />
-        );
-      })}
-    </>
-  );
-}
-
-function HumanBottomPlayer({
-  gameState,
-  humanAvatarUrl,
-  labels,
-  player,
-  validTileKeys,
-  isWinnerGlow,
-  onTileClick
-}: {
-  readonly gameState: GameState;
-  readonly humanAvatarUrl: string | null;
-  readonly labels: AppStrings;
-  readonly player: Player | undefined;
-  readonly validTileKeys: readonly string[];
-  readonly isWinnerGlow: boolean;
-  readonly onTileClick: (tile: DominoTile) => void;
-}) {
-  if (!player) return null;
-  const isActive = gameState.currentPlayerIndex === 0;
-  return (
-    <>
-      <PlayerProfile
-        player={player}
-        playerIndex={0}
-        gameState={gameState}
-        avatarUrl={humanAvatarUrl}
-        labels={labels}
-        isWinnerGlow={isWinnerGlow}
-        style={{ left: layout.player0ProfileLeft, top: layout.player0ProfileTop }}
-      />
-      <PlayerStats
-        labels={labels}
-        player={player}
-        style={{ left: layout.player0StatsLeft, top: layout.player0StatsTop }}
-      />
-      {isActive && gameState.phase === "playing" ? <YourTurnIndicator labels={labels} /> : null}
-      {player.hand.map((tile, index) => {
-        const key = tileKey(tile);
-        const isValid = validTileKeys.includes(key);
-        return (
-          <button
-            className={`humanTileButton ${isValid && isActive ? "valid" : ""}`}
-            key={`${key}-${index}`}
-            type="button"
-            aria-label={formatTemplate(labels.playTile, { tile: `${tile.side1}-${tile.side2}` })}
-            onClick={() => onTileClick(tile)}
-            disabled={!isValid || !isActive}
-            style={{
-              left: layout.player0TilesStartLeft + index * layout.player0TileSpacing,
-              top: layout.player0TilesTop
-            }}
-          >
-            <DominoTileView tile={tile} isPlayable={isValid && isActive} />
-          </button>
-        );
-      })}
-    </>
-  );
-}
-
-function PlayerProfile({
-  player,
-  playerIndex,
-  gameState,
-  avatarUrl = null,
-  labels,
-  isWinnerGlow,
-  style
-}: {
-  readonly player: Player;
-  readonly playerIndex: number;
-  readonly gameState: GameState;
-  readonly avatarUrl?: string | null;
-  readonly labels: AppStrings;
-  readonly isWinnerGlow: boolean;
-  readonly style: React.CSSProperties;
-}) {
-  const isActive = gameState.currentPlayerIndex === playerIndex;
-  const isDealer = gameState.dealerIndex === playerIndex;
-  return (
-    <div
-      className={`playerProfile ${avatarUrl ? "hasAvatar" : ""} ${isActive ? "active" : ""} ${isDealer ? "dealer" : ""} ${
-        isWinnerGlow ? "winnerGlow" : ""
-      }`}
-      style={{ ...style, width: PROFILE_SIZE, height: PROFILE_SIZE }}
-    >
-      {avatarUrl ? (
-        <img className="profileAvatarImage" src={avatarUrl} alt="" aria-hidden="true" />
-      ) : null}
-      <div className="profileBottom">
-        <div className={`profileName ${isActive ? "activeName" : ""}`}>{player.name}</div>
-        {isDealer ? <div className="dealerBadge">{labels.dealer}</div> : null}
-      </div>
-    </div>
-  );
-}
-
-function PlayerStats({
-  labels,
-  player,
-  style
-}: {
-  readonly labels: AppStrings;
-  readonly player: Player;
-  readonly style: React.CSSProperties;
-}) {
-  return (
-    <div className="playerStats" style={style}>
-      <div>{labels.tricksBid}: {player.bid < 0 ? "?" : player.bid}</div>
-      <div>{labels.tricksWon}: {player.tricksWon}</div>
-    </div>
-  );
-}
-
-function YourTurnIndicator({ labels }: { readonly labels: AppStrings }) {
-  return (
-    <div className="yourTurnIndicator">
-      <TouchIcon />
-      <span>{labels.yourTurn}</span>
-    </div>
-  );
-}
-
-function InfoPanel({
-  gameState,
-  labels
-}: {
-  readonly gameState: GameState;
-  readonly labels: AppStrings;
-}) {
-  return (
-    <aside className="infoPanel" aria-label={labels.gameStatus}>
-      <div className="infoPanelHeader">
-        <div className="roundTitle">{labels.roundLabel} {gameState.currentRound}/{gameState.totalRounds}</div>
-        {gameState.phase === "playing" ? (
-          <div className="trickCount">{gameState.completedTricks.length} {labels.tricksLabel} / 7</div>
-        ) : null}
-      </div>
-      <div className="infoDivider" />
-      <div className="scoreRows">
-        {gameState.players.map((player, index) => {
-          const roundScore = calculateRoundScore(player);
-          const isCurrent = gameState.currentPlayerIndex === index;
-          const tricksBidText = player.bid >= 0 ? `${player.tricksWon}/${player.bid}` : `${player.tricksWon}`;
-          return (
-            <div className="scoreRow" key={player.id}>
-              <span className={`turnMarker ${isCurrent ? "active" : ""}`} aria-hidden="true" />
-              <div className={`scorePlayerName ${isCurrent ? "current" : ""}`}>
-                <span>{player.name}</span>
-              </div>
-              <div className="tricksBidCell">{tricksBidText}</div>
-              <div className="scoreCell">{roundScore} / {player.totalScore}</div>
-            </div>
-          );
-        })}
-      </div>
-    </aside>
-  );
-}
-
 function TrickInfo({
   gameState,
   labels
@@ -842,52 +520,6 @@ function PlayedTileWithLabel({
   );
 }
 
-function DominoTileView({
-  tile,
-  isPlayable = true
-}: {
-  readonly tile: DominoTile;
-  readonly isPlayable?: boolean;
-}) {
-  const tileClass = !isPlayable ? "disabledTile" : isTrump(tile) ? "trumpTile" : isAce(tile) ? "aceTile" : "";
-  return (
-    <span className={`dominoTile ${tileClass}`}>
-      <span className="tileHalf">{renderPips(tile.side1)}</span>
-      <span className="tileDivider" />
-      <span className="tileHalf">{renderPips(tile.side2)}</span>
-    </span>
-  );
-}
-
-function HiddenTile({
-  orientation,
-  style
-}: {
-  readonly orientation: "horizontal" | "vertical";
-  readonly style: React.CSSProperties;
-}) {
-  return (
-    <span
-      className={`hiddenTile ${orientation === "vertical" ? "hiddenVertical" : "hiddenHorizontal"}`}
-      style={style}
-    >
-      <span className="hiddenTileSide" />
-      <span className="hiddenDivider" />
-      <span className="hiddenTileSide" />
-    </span>
-  );
-}
-
-function renderPips(count: number) {
-  return (
-    <span className={`pips pips-${count}`} aria-hidden="true">
-      {Array.from({ length: count }).map((_, index) => (
-        <span className="pip" key={index} />
-      ))}
-    </span>
-  );
-}
-
 function ParticleBurst() {
   return (
     <div className="particleLayer" aria-hidden="true">
@@ -904,238 +536,6 @@ function ParticleBurst() {
         />
       ))}
     </div>
-  );
-}
-
-function BidDialog({
-  labels,
-  onBid
-}: {
-  readonly labels: AppStrings;
-  readonly onBid: (bid: number) => void;
-}) {
-  return (
-    <Dialog
-      ariaLabelledBy="bid-dialog-title"
-      className="bidDialog"
-      transparent
-    >
-        <h2 id="bid-dialog-title">{labels.bidPrompt}</h2>
-        <div className="bidGrid">
-          {Array.from({ length: 8 }).map((_, bid) => (
-            <button className={`bidButton ${bid === 0 ? "selected" : ""} ${bid === 7 ? "bidSeven" : ""}`} key={bid} type="button" onClick={() => onBid(bid)}>
-              <strong>{bid}</strong>
-              {bid === 7 ? <span>{labels.bidSevenBonus}</span> : null}
-            </button>
-          ))}
-        </div>
-    </Dialog>
-  );
-}
-
-function NumberDialog({
-  tile,
-  audio,
-  labels,
-  onCancel,
-  onChoose
-}: {
-  readonly tile: DominoTile;
-  readonly audio: AudioSettings;
-  readonly labels: AppStrings;
-  readonly onCancel: () => void;
-  readonly onChoose: (number: number) => void;
-}) {
-  const options = tile.side1 === tile.side2 ? [tile.side1] : [tile.side1, tile.side2];
-  const handleCancel = useCallback(() => {
-    audio.play("uiClick");
-    onCancel();
-  }, [audio, onCancel]);
-
-  return (
-    <Dialog
-      ariaLabelledBy="number-dialog-title"
-      className="alertDialog numberDialog"
-      onEscape={handleCancel}
-    >
-        <h2 id="number-dialog-title">{labels.selectSuit}</h2>
-        <p>{labels.chooseNumber}</p>
-        <div className="numberChoices">
-          {options.map((number) => (
-            <button
-              key={number}
-              type="button"
-              onClick={() => {
-                audio.play("uiClick");
-                onChoose(number);
-              }}
-            >
-              {number}
-            </button>
-          ))}
-        </div>
-        <div className="dialogActions">
-          <button className="textButton" type="button" onClick={handleCancel}>{labels.cancel}</button>
-        </div>
-    </Dialog>
-  );
-}
-
-function RoundSummaryDialog({
-  gameState,
-  audio,
-  labels,
-  onContinue
-}: {
-  readonly gameState: GameState;
-  readonly audio: AudioSettings;
-  readonly labels: AppStrings;
-  readonly onContinue: () => void;
-}) {
-  return (
-    <Dialog
-      ariaLabelledBy="round-summary-title"
-      className="alertDialog summaryDialog"
-    >
-        <h2 id="round-summary-title"><TrophyIcon /> {labels.roundSummary}</h2>
-        <strong className="summaryRound">{labels.roundLabel} {gameState.currentRound}/{gameState.totalRounds}</strong>
-        <table>
-          <thead>
-            <tr>
-              <th />
-              <th>{labels.roundSummaryTricks}</th>
-              <th>{labels.roundSummaryWon}</th>
-              <th>+/-</th>
-            </tr>
-          </thead>
-          <tbody>
-            {gameState.players.map((player) => {
-              const score = calculateRoundScore(player);
-              return (
-                <tr key={player.id}>
-                  <td>{player.name}</td>
-                  <td>{player.bid}</td>
-                  <td>{player.tricksWon}</td>
-                  <td className={score >= 0 ? "positive" : "negative"}>{score > 0 ? `+${score}` : score}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        <h3>{labels.totalScore}</h3>
-        <dl className="summaryScores">
-          {gameState.players.map((player) => (
-            <div key={player.id}>
-              <dt>{player.name}</dt>
-              <dd>{player.totalScore}</dd>
-            </div>
-          ))}
-        </dl>
-        <button
-          className="primaryButton"
-          type="button"
-          onClick={() => {
-            audio.play("uiClick");
-            onContinue();
-          }}
-        >
-          {labels.continueGame}
-        </button>
-    </Dialog>
-  );
-}
-
-function GameEndDialog({
-  gameState,
-  audio,
-  labels,
-  onClose
-}: {
-  readonly gameState: GameState;
-  readonly audio: AudioSettings;
-  readonly labels: AppStrings;
-  readonly onClose: () => void;
-}) {
-  const winner = getWinner(gameState);
-  const handleClose = useCallback(() => {
-    audio.play("uiClick");
-    onClose();
-  }, [audio, onClose]);
-
-  return (
-    <Dialog
-      ariaLabelledBy="game-end-title"
-      className="alertDialog summaryDialog"
-      onEscape={handleClose}
-    >
-        <h2 id="game-end-title"><TrophyIcon /> {labels.gameOver}</h2>
-        <div className="winnerBanner">{labels.winner}: {winner?.name ?? ""}</div>
-        <dl className="finalScores">
-          {gameState.players.map((player) => (
-            <div className={player.id === winner?.id ? "winnerRow" : ""} key={player.id}>
-              <dt>{player.name}</dt>
-              <dd>{player.totalScore} {labels.pointsLabel}</dd>
-            </div>
-          ))}
-        </dl>
-        <button
-          className="primaryButton"
-          type="button"
-          onClick={handleClose}
-        >
-          {labels.ok}
-        </button>
-    </Dialog>
-  );
-}
-
-function ExitDialog({
-  audio,
-  labels,
-  onCancel,
-  onExit
-}: {
-  readonly audio: AudioSettings;
-  readonly labels: AppStrings;
-  readonly onCancel: () => void;
-  readonly onExit: () => void;
-}) {
-  const handleCancel = useCallback(() => {
-    audio.play("uiClick");
-    onCancel();
-  }, [audio, onCancel]);
-
-  return (
-    <Dialog
-      ariaLabelledBy="exit-dialog-title"
-      className="alertDialog exitDialog"
-      onEscape={handleCancel}
-    >
-        <h2 id="exit-dialog-title"><ExitIcon /> {labels.exit}</h2>
-        <div className="exitContent">
-          <p>{labels.exitGameConfirm}</p>
-          <p className="negative">{labels.exitGameLoseWarning}</p>
-        </div>
-        <div className="dialogActions">
-          <button
-            className="textButton"
-            type="button"
-            onClick={handleCancel}
-          >
-            {labels.cancel}
-          </button>
-          <button
-            className="dangerButton"
-            type="button"
-            onClick={() => {
-              audio.play("uiClick");
-              onExit();
-            }}
-          >
-            {labels.exit}
-          </button>
-        </div>
-    </Dialog>
   );
 }
 
@@ -1217,36 +617,4 @@ function formatTemplate(template: string, values: Record<string, string>): strin
 function seededNoise(seed: number): number {
   const value = Math.sin(seed * 12.9898 + 42) * 43758.5453;
   return value - Math.floor(value);
-}
-
-function ExitIcon() {
-  return (
-    <svg className="iconSvg" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M10 4H5v16h5" />
-      <path d="M14 8l4 4-4 4" />
-      <path d="M8 12h10" />
-    </svg>
-  );
-}
-
-function TouchIcon() {
-  return (
-    <svg className="iconSvg" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M8 11V5a2 2 0 0 1 4 0v6" />
-      <path d="M12 10V8a2 2 0 0 1 4 0v4" />
-      <path d="M16 12v-1a2 2 0 0 1 4 0v3c0 4-3 7-7 7h-1a6 6 0 0 1-5.2-3L4 13a2 2 0 0 1 3.5-2l1.5 2" />
-    </svg>
-  );
-}
-
-function TrophyIcon() {
-  return (
-    <svg className="iconSvg" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M8 4h8v5a4 4 0 0 1-8 0V4Z" />
-      <path d="M8 6H4v2a4 4 0 0 0 4 4" />
-      <path d="M16 6h4v2a4 4 0 0 1-4 4" />
-      <path d="M12 13v5" />
-      <path d="M8 20h8" />
-    </svg>
-  );
 }
