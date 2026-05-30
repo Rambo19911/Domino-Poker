@@ -9,6 +9,7 @@
       "apps/web/components/AudioControls.tsx",
       "apps/web/components/DominoPokerGame.tsx",
       "apps/web/components/RulesDialog.tsx",
+      "apps/web/components/useDialogFocus.ts",
       "apps/web/lib/i18n.ts",
       "apps/web/lib/locales/en.ts",
       "apps/web/lib/locales/lv.ts",
@@ -19,6 +20,7 @@
     "risks": [
       "AppShell owns lobby/game state, locale, audio settings, and game-session lifecycle.",
       "DominoPokerGame has timer-driven AI turns and delayed trick completion; UI changes can affect turn flow.",
+      "The game table uses uniform contain scaling of the fixed 1920x1080 stage; phone portrait reflow is intentionally out of scope.",
       "The multiplayer button should remain disabled in the main lobby unless the product direction changes."
     ],
     "confidence": "high"

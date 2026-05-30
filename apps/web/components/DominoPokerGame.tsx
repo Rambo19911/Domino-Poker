@@ -6,7 +6,6 @@ import {
   canPlayTile,
   completeTrick,
   createNewGame,
-  getFullSet,
   getValidTiles,
   getWinner,
   highestTrumpPriorityInTrick,
@@ -23,6 +22,7 @@ import {
 import type { DominoTile, GameState, Player } from "@domino-poker/core";
 import { AudioControls, VolumeIcon, VolumeOffIcon } from "./AudioControls";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
+import { useDialogFocus } from "./useDialogFocus";
 import type { AppStrings } from "../lib/i18n";
 import type { GameOutcome } from "../lib/stats/types";
 import type { AudioSettings } from "../lib/useAudioSettings";
@@ -91,7 +91,7 @@ export function DominoPokerGame({
 }) {
   const humanPlayerName = humanProfile.displayName.trim() || labels.you;
   const [gameState, setGameState] = useState<GameState>(() =>
-    createNewGame({ dealerIndex: 0, deck: getFullSet(), numberOfRounds, playerName: humanPlayerName })
+    createNewGame({ numberOfRounds, playerName: humanPlayerName })
   );
   const [isProcessingTrick, setIsProcessingTrick] = useState(false);
   const [pendingNumberTile, setPendingNumberTile] = useState<DominoTile | null>(null);
@@ -107,11 +107,23 @@ export function DominoPokerGame({
   const glowTimerRef = useRef<number | null>(null);
   const burstTimerRef = useRef<number | null>(null);
   const phaseDialogTimerRef = useRef<number | null>(null);
+  const gameStateRef = useRef(gameState);
   const gameEndReportedRef = useRef(false);
+  const didInitializeGameRef = useRef(false);
   const lastTileSoundSignatureRef = useRef("");
-  const scale = useCoverScale();
+  const scale = useStageContainScale();
 
   useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
+
+  useEffect(() => {
+    if (!didInitializeGameRef.current) {
+      didInitializeGameRef.current = true;
+      return;
+    }
+
+    gameEndReportedRef.current = false;
     setGameState(createNewGame({ numberOfRounds, playerName: humanPlayerName }));
   }, [humanPlayerName, numberOfRounds]);
 
@@ -151,11 +163,15 @@ export function DominoPokerGame({
   }, [audio, gameState.currentTrick]);
 
   const scheduleCompleteTrick = useCallback(() => {
-    clearCompletionTimer();
+    if (completionTimerRef.current !== null) return;
+
     setIsProcessingTrick(true);
     completionTimerRef.current = window.setTimeout(() => {
-      setGameState((latest) => {
+      const latest = gameStateRef.current;
+      if (latest.currentTrick.length === latest.players.length) {
         const completed = completeTrick(latest);
+        gameStateRef.current = completed;
+        setGameState(completed);
         setLastTrickWinner(completed.currentPlayerIndex);
         setShowWinnerGlow(true);
         setShowParticleBurst(true);
@@ -165,25 +181,33 @@ export function DominoPokerGame({
         clearBurstTimer();
         glowTimerRef.current = window.setTimeout(() => setShowWinnerGlow(false), 2000);
         burstTimerRef.current = window.setTimeout(() => setShowParticleBurst(false), 1000);
-        return completed;
-      });
+      }
       setIsProcessingTrick(false);
       completionTimerRef.current = null;
     }, 2000);
-  }, [audio, clearBurstTimer, clearCompletionTimer, clearGlowTimer]);
+  }, [audio, clearBurstTimer, clearGlowTimer]);
 
   const commitTile = useCallback(
     (tile: DominoTile, declaredNumber?: number) => {
       setGameState((latest) => {
         const result = playTile(latest, tile, declaredNumber);
-        if (result.trickComplete) {
-          scheduleCompleteTrick();
-        }
         return result.state;
       });
     },
-    [scheduleCompleteTrick]
+    []
   );
+
+  useEffect(() => {
+    if (gameState.phase !== "playing" || isProcessingTrick) return;
+    if (gameState.currentTrick.length !== gameState.players.length) return;
+    scheduleCompleteTrick();
+  }, [
+    gameState.currentTrick.length,
+    gameState.phase,
+    gameState.players.length,
+    isProcessingTrick,
+    scheduleCompleteTrick
+  ]);
 
   useEffect(() => {
     return () => {
@@ -238,9 +262,6 @@ export function DominoPokerGame({
               ? selectNumber(tile, latestPlayer)
               : undefined;
           const result = playTile(latest, tile, declaredNumber);
-          if (result.trickComplete) {
-            scheduleCompleteTrick();
-          }
           return result.state;
         }
 
@@ -249,7 +270,7 @@ export function DominoPokerGame({
     }, delay);
 
     return () => window.clearTimeout(timer);
-  }, [currentPlayer, gameState.phase, isProcessingTrick, scheduleCompleteTrick]);
+  }, [currentPlayer, gameState.phase, isProcessingTrick]);
 
   const makeHumanBid = (bid: number) => {
     audio.play("bidClick");
@@ -882,10 +903,19 @@ function BidDialog({
   readonly labels: AppStrings;
   readonly onBid: (bid: number) => void;
 }) {
+  const dialogRef = useDialogFocus<HTMLDivElement>();
+
   return (
     <Modal transparent>
-      <div className="bidDialog">
-        <h2>{labels.bidPrompt}</h2>
+      <div
+        ref={dialogRef}
+        className="bidDialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="bid-dialog-title"
+        tabIndex={-1}
+      >
+        <h2 id="bid-dialog-title">{labels.bidPrompt}</h2>
         <div className="bidGrid">
           {Array.from({ length: 8 }).map((_, bid) => (
             <button className={`bidButton ${bid === 0 ? "selected" : ""} ${bid === 7 ? "bidSeven" : ""}`} key={bid} type="button" onClick={() => onBid(bid)}>
@@ -913,10 +943,23 @@ function NumberDialog({
   readonly onChoose: (number: number) => void;
 }) {
   const options = tile.side1 === tile.side2 ? [tile.side1] : [tile.side1, tile.side2];
+  const handleCancel = useCallback(() => {
+    audio.play("uiClick");
+    onCancel();
+  }, [audio, onCancel]);
+  const dialogRef = useDialogFocus<HTMLDivElement>(handleCancel);
+
   return (
     <Modal>
-      <div className="alertDialog numberDialog">
-        <h2>{labels.selectSuit}</h2>
+      <div
+        ref={dialogRef}
+        className="alertDialog numberDialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="number-dialog-title"
+        tabIndex={-1}
+      >
+        <h2 id="number-dialog-title">{labels.selectSuit}</h2>
         <p>{labels.chooseNumber}</p>
         <div className="numberChoices">
           {options.map((number) => (
@@ -933,7 +976,7 @@ function NumberDialog({
           ))}
         </div>
         <div className="dialogActions">
-          <button className="textButton" type="button" onClick={onCancel}>{labels.cancel}</button>
+          <button className="textButton" type="button" onClick={handleCancel}>{labels.cancel}</button>
         </div>
       </div>
     </Modal>
@@ -951,10 +994,19 @@ function RoundSummaryDialog({
   readonly labels: AppStrings;
   readonly onContinue: () => void;
 }) {
+  const dialogRef = useDialogFocus<HTMLDivElement>();
+
   return (
     <Modal>
-      <div className="alertDialog summaryDialog">
-        <h2><TrophyIcon /> {labels.roundSummary}</h2>
+      <div
+        ref={dialogRef}
+        className="alertDialog summaryDialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="round-summary-title"
+        tabIndex={-1}
+      >
+        <h2 id="round-summary-title"><TrophyIcon /> {labels.roundSummary}</h2>
         <strong className="summaryRound">{labels.roundLabel} {gameState.currentRound}/{gameState.totalRounds}</strong>
         <table>
           <thead>
@@ -1015,10 +1067,23 @@ function GameEndDialog({
   readonly onClose: () => void;
 }) {
   const winner = getWinner(gameState);
+  const handleClose = useCallback(() => {
+    audio.play("uiClick");
+    onClose();
+  }, [audio, onClose]);
+  const dialogRef = useDialogFocus<HTMLDivElement>(handleClose);
+
   return (
     <Modal>
-      <div className="alertDialog summaryDialog">
-        <h2><TrophyIcon /> {labels.gameOver}</h2>
+      <div
+        ref={dialogRef}
+        className="alertDialog summaryDialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="game-end-title"
+        tabIndex={-1}
+      >
+        <h2 id="game-end-title"><TrophyIcon /> {labels.gameOver}</h2>
         <div className="winnerBanner">{labels.winner}: {winner?.name ?? ""}</div>
         <dl className="finalScores">
           {gameState.players.map((player) => (
@@ -1031,10 +1096,7 @@ function GameEndDialog({
         <button
           className="primaryButton"
           type="button"
-          onClick={() => {
-            audio.play("uiClick");
-            onClose();
-          }}
+          onClick={handleClose}
         >
           {labels.ok}
         </button>
@@ -1054,10 +1116,23 @@ function ExitDialog({
   readonly onCancel: () => void;
   readonly onExit: () => void;
 }) {
+  const handleCancel = useCallback(() => {
+    audio.play("uiClick");
+    onCancel();
+  }, [audio, onCancel]);
+  const dialogRef = useDialogFocus<HTMLDivElement>(handleCancel);
+
   return (
     <Modal>
-      <div className="alertDialog exitDialog">
-        <h2><ExitIcon /> {labels.exit}</h2>
+      <div
+        ref={dialogRef}
+        className="alertDialog exitDialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="exit-dialog-title"
+        tabIndex={-1}
+      >
+        <h2 id="exit-dialog-title"><ExitIcon /> {labels.exit}</h2>
         <div className="exitContent">
           <p>{labels.exitGameConfirm}</p>
           <p className="negative">{labels.exitGameLoseWarning}</p>
@@ -1066,10 +1141,7 @@ function ExitDialog({
           <button
             className="textButton"
             type="button"
-            onClick={() => {
-              audio.play("uiClick");
-              onCancel();
-            }}
+            onClick={handleCancel}
           >
             {labels.cancel}
           </button>
@@ -1129,12 +1201,12 @@ function Modal({
   return <div className={`modalBackdrop ${transparent ? "transparentBackdrop" : ""}`}>{children}</div>;
 }
 
-function useCoverScale(): number {
+function useStageContainScale(): number {
   const [scale, setScale] = useState(1);
 
   useEffect(() => {
     const update = () => {
-      setScale(Math.max(window.innerWidth / CANVAS_WIDTH, window.innerHeight / CANVAS_HEIGHT));
+      setScale(Math.min(window.innerWidth / CANVAS_WIDTH, window.innerHeight / CANVAS_HEIGHT));
     };
     update();
     window.addEventListener("resize", update);

@@ -21,7 +21,7 @@
 ## Punktu Sistēma (kopā 135 punkti)
 
 - **+15 punkti** par katru paņemto stiķi (nepārsniedzot solīto)
-- **-1 punkts** par katru pārsniegto stiķi virs solītā
+- **+5 punkti** par katru pārsniegto stiķi virs solītā (pārsolot, visu raundu vērtē kā `paņemtie × 5`)
 - **-5 punkti** par katru nepaņemto stiķi zem solītā
 - **+50 bonuss** par visiem 7 stiķiem (ja solīts)
 - **-50 sods** par nepaņemtiem 7 stiķiem (ja solīts)

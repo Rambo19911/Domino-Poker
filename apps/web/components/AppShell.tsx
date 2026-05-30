@@ -11,6 +11,7 @@ import {
 import { AudioControls } from "./AudioControls";
 import { DominoPokerGame } from "./DominoPokerGame";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
+import { useDialogFocus } from "./useDialogFocus";
 import {
   defaultLocale,
   getAppStrings,
@@ -603,7 +604,11 @@ function SettingsDialog({
   readonly onLocaleChange: (locale: Locale) => void;
 }) {
   const t = getAppStrings(locale);
-  const dialogRef = useRef<HTMLElement | null>(null);
+  const handleClose = useCallback(() => {
+    audio.play("uiClick");
+    onClose();
+  }, [audio, onClose]);
+  const dialogRef = useDialogFocus<HTMLElement>(handleClose);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -618,7 +623,14 @@ function SettingsDialog({
 
   return (
     <div className="modalBackdrop">
-      <section ref={dialogRef} className="alertDialog settingsDialog" aria-labelledby="settings-title">
+      <section
+        ref={dialogRef}
+        className="alertDialog settingsDialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-title"
+        tabIndex={-1}
+      >
         <div className="settingsHeader">
           <div>
             <h2 id="settings-title"><SettingsIcon /> {t.settings}</h2>
@@ -628,10 +640,7 @@ function SettingsDialog({
             className="iconButton settingsCloseButton"
             type="button"
             aria-label={t.close}
-            onClick={() => {
-              audio.play("uiClick");
-              onClose();
-            }}
+            onClick={handleClose}
           >
             <CloseIcon />
           </button>

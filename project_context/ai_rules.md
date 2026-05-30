@@ -37,6 +37,7 @@ Run `npm run typecheck`, `npm run test`, and `npm run build` sequentially rather
 - Browser audio settings are localStorage-only and do not contain secrets.
 - Keep `useAudioSettings()` owned by `AppShell` so lobby and game share one audio state and one background music element.
 - Keep configurable game setup owned by `AppShell`; the lobby-selected round count is passed into `DominoPokerGame` as `numberOfRounds`.
+- The game table currently preserves a fixed 1920x1080 coordinate layout and uses uniform contain scaling so the full stage remains visible. Do not convert this to phone portrait reflow unless explicitly requested.
 - Keep user-facing web text in `apps/web/lib/locales/*.ts` and register locales through `apps/web/lib/i18n.ts`; pass the active locale strings through component props instead of importing a fixed strings object or writing hardcoded JSX text.
 - Keep locale switching owned by `AppShell`; the selected locale is persisted in `localStorage` under `domino-poker-locale`.
 

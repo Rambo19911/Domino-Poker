@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
+import { useDialogFocus } from "./useDialogFocus";
 import type { AppStrings } from "../lib/i18n";
 import type { AudioSettings } from "../lib/useAudioSettings";
 
@@ -13,7 +14,11 @@ export function RulesDialog({
   readonly labels: AppStrings;
   readonly onClose: () => void;
 }) {
-  const dialogRef = useRef<HTMLElement | null>(null);
+  const handleClose = () => {
+    audio.play("uiClick");
+    onClose();
+  };
+  const dialogRef = useDialogFocus<HTMLElement>(handleClose);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -70,7 +75,14 @@ export function RulesDialog({
 
   return (
     <div className="modalBackdrop">
-      <section ref={dialogRef} className="alertDialog rulesDialog" aria-labelledby="rules-title">
+      <section
+        ref={dialogRef}
+        className="alertDialog rulesDialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="rules-title"
+        tabIndex={-1}
+      >
         <div className="settingsHeader">
           <div>
             <h2 id="rules-title"><HelpIcon /> {labels.rules}</h2>
@@ -80,10 +92,7 @@ export function RulesDialog({
             className="iconButton settingsCloseButton"
             type="button"
             aria-label={labels.close}
-            onClick={() => {
-              audio.play("uiClick");
-              onClose();
-            }}
+            onClick={handleClose}
           >
             <CloseIcon />
           </button>

@@ -117,6 +117,18 @@
     "confidence": "high"
   },
   {
+    "path": "apps/web/components/useDialogFocus.ts",
+    "type": "utility",
+    "purpose": "Small client hook for modal initial focus, Escape handling, and focus restoration.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/AppShell.tsx",
+      "apps/web/components/DominoPokerGame.tsx",
+      "apps/web/components/RulesDialog.tsx"
+    ],
+    "confidence": "high"
+  },
+  {
     "path": "apps/web/components/DominoPokerGame.tsx",
     "type": "ui",
     "purpose": "Interactive single-player Domino Poker table, bidding UI, tile play UI, AI turn timers, trick completion, round summaries, and game-over flow.",
