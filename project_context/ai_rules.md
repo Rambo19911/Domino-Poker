@@ -24,10 +24,12 @@
 - Install: `npm install`
 - Typecheck: `npm run typecheck`
 - Test: `npm run test`
+- Web smoke tests: `npm run test:web`
 - Build: `npm run build`
 - Dev server: `npm run dev`
+- Windows launcher: `start-domino-poker.bat`
 
-Run `npm run typecheck`, `npm run test`, and `npm run build` sequentially rather than in parallel because Next rewrites `.next/types` during builds.
+Run `npm run typecheck`, `npm run test`, `npm run test:web`, and `npm run build` sequentially rather than in parallel because Next rewrites `.next/types` during builds and Playwright owns a dev server during smoke tests.
 
 ## Architecture Rules
 
@@ -52,4 +54,4 @@ Run `npm run typecheck`, `npm run test`, and `npm run build` sequentially rather
 ## Testing Expectations
 
 - Add or update Vitest tests in `packages/core/test` for any scoring, legal-play, trick-resolution, AI, or round-flow changes.
-- Use browser smoke checks for meaningful UI changes, especially bidding, number selection, trick completion delay, and round summary behavior.
+- Use Playwright browser smoke checks in `tests/e2e` for meaningful UI changes, especially lobby start, bidding, number selection, trick completion delay, and round summary behavior.

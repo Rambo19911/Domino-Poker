@@ -28,8 +28,10 @@ The project must run without external game, account, database, deployment, or ma
 
 - Install dependencies: `npm install`
 - Development server: `npm run dev`
+- Windows launcher: `start-domino-poker.bat`
 - Typecheck all workspaces: `npm run typecheck`
 - Run tests: `npm run test`
+- Run web smoke tests: `npm run test:web`
 - Production build: `npm run build`
 
 ## Fragile Or High-Risk Areas

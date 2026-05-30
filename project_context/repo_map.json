@@ -64,6 +64,22 @@
     "confidence": "high"
   },
   {
+    "path": "start-domino-poker.bat",
+    "type": "utility",
+    "purpose": "Windows launcher that checks Node.js/npm, installs dependencies when needed, starts the local web dev server, waits for readiness, and opens the game URL.",
+    "importance": "medium",
+    "related_files": ["package.json", "apps/web/package.json"],
+    "confidence": "high"
+  },
+  {
+    "path": "playwright.config.ts",
+    "type": "config",
+    "purpose": "Playwright smoke-test configuration that starts the Next.js web app and runs desktop Chromium e2e checks.",
+    "importance": "medium",
+    "related_files": ["tests/e2e/main-flow.spec.ts", "package.json", "apps/web/package.json"],
+    "confidence": "high"
+  },
+  {
     "path": "apps/web/package.json",
     "type": "config",
     "purpose": "Next.js web workspace package scripts and dependencies.",
@@ -203,6 +219,14 @@
     "purpose": "Global app styling, lobby layout, rules/settings dialog styling, fixed table layout, and domino rendering.",
     "importance": "high",
     "related_files": ["apps/web/components/AppShell.tsx", "apps/web/components/DominoPokerGame.tsx"],
+    "confidence": "high"
+  },
+  {
+    "path": "tests/e2e/main-flow.spec.ts",
+    "type": "test",
+    "purpose": "Playwright smoke test for the main single-player flow from lobby start through bid, tile play, optional suit choice, and first trick completion.",
+    "importance": "high",
+    "related_files": ["playwright.config.ts", "apps/web/components/AppShell.tsx", "apps/web/components/DominoPokerGame.tsx"],
     "confidence": "high"
   },
   {
