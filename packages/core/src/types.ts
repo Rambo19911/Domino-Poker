@@ -18,6 +18,18 @@ export interface Player {
   readonly lastAiComment?: string | null | undefined;
 }
 
+export type InvalidMoveReasonCode =
+  | "tile-not-in-hand"
+  | "trump-required"
+  | "stronger-trump-required"
+  | "required-number-required"
+  | "required-number-or-trump-required";
+
+export interface InvalidMoveReason {
+  readonly code: InvalidMoveReasonCode;
+  readonly requiredNumber?: number | undefined;
+}
+
 export interface PlayedTile {
   readonly tile: DominoTile;
   readonly playerIndex: number;

@@ -19,6 +19,7 @@
 - 0-6 is special: it is an ace only when played/required as 0; when declared as 6 it behaves as a regular 6 for ace comparison.
 - Trump lead requires a stronger trump if the player has one stronger than the highest trump already in the trick.
 - Non-trump required-number leads require a non-trump matching number before trumping.
+- UI invalid-move messages should use core `getInvalidMoveReason(...)` from `packages/core/src/player.ts`; do not infer message type directly from approximate `GameState` flags.
 - Round winner tiebreakers are round score, then bid, then tricks won, then seat order from dealer.
 - The next round dealer is the previous round winner.
 

@@ -7,6 +7,7 @@ import {
   createPlayer,
   determineTrickWinner,
   getFullSet,
+  getInvalidMoveReason,
   isAce,
   isTrump,
   makeBid,
@@ -107,6 +108,40 @@ describe("legal play", () => {
 
     expect(canPlayTile(player, tile(1, 5), options)).toBe(true);
     expect(canPlayTile(player, tile(1, 3), options)).toBe(false);
+  });
+
+  it("returns structured invalid move reasons for UI messages", () => {
+    const trumpLeadPlayer = withHand([tile(1, 1), tile(1, 0), tile(2, 3)]);
+    expect(
+      getInvalidMoveReason(trumpLeadPlayer, tile(1, 0), {
+        leadTile: tile(1, 5),
+        isTrumpLead: true,
+        highestTrumpPriorityInTrick: 3
+      })
+    ).toEqual({ code: "stronger-trump-required" });
+
+    const requiredNumberPlayer = withHand([tile(3, 6), tile(1, 1), tile(0, 2)]);
+    expect(
+      getInvalidMoveReason(requiredNumberPlayer, tile(1, 1), {
+        leadTile: tile(3, 4),
+        requiredNumber: 3
+      })
+    ).toEqual({ code: "required-number-required", requiredNumber: 3 });
+
+    const trumpFallbackPlayer = withHand([tile(1, 1), tile(0, 2), tile(4, 5)]);
+    expect(
+      getInvalidMoveReason(trumpFallbackPlayer, tile(4, 5), {
+        leadTile: tile(3, 4),
+        requiredNumber: 3
+      })
+    ).toEqual({ code: "required-number-or-trump-required", requiredNumber: 3 });
+
+    expect(
+      getInvalidMoveReason(trumpFallbackPlayer, tile(3, 3), {
+        leadTile: tile(3, 4),
+        requiredNumber: 3
+      })
+    ).toEqual({ code: "tile-not-in-hand" });
   });
 });
 

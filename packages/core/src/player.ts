@@ -4,7 +4,7 @@ import {
   tileEquals,
   trumpPriority
 } from "./dominoTile";
-import type { DominoTile, Player, PlayerType } from "./types";
+import type { DominoTile, InvalidMoveReason, Player, PlayerType } from "./types";
 
 export interface CreatePlayerOptions {
   readonly id: string;
@@ -69,40 +69,42 @@ export interface CanPlayTileOptions {
   readonly highestTrumpPriorityInTrick?: number | undefined;
 }
 
-function canPlayRequiredTrump(
+function getRequiredTrumpInvalidReason(
   player: Player,
   tile: DominoTile,
   targetPriority: number | undefined
-): boolean {
-  if (!isTrump(tile)) return false;
-  if (targetPriority === undefined) return true;
+): InvalidMoveReason | null {
+  if (!isTrump(tile)) return { code: "trump-required" };
+  if (targetPriority === undefined) return null;
 
   const hasStrongerTrump = player.hand.some(
     (handTile) => isTrump(handTile) && trumpPriority(handTile) < targetPriority
   );
 
-  if (!hasStrongerTrump) return true;
+  if (!hasStrongerTrump) return null;
 
-  return trumpPriority(tile) < targetPriority;
+  return trumpPriority(tile) < targetPriority
+    ? null
+    : { code: "stronger-trump-required" };
 }
 
-export function canPlayTile(
+export function getInvalidMoveReason(
   player: Player,
   tile: DominoTile,
   options: CanPlayTileOptions = {}
-): boolean {
-  if (!playerHasTile(player, tile)) return false;
+): InvalidMoveReason | null {
+  if (!playerHasTile(player, tile)) return { code: "tile-not-in-hand" };
   const { leadTile, requiredNumber, isTrumpLead = false, isAceLead = false } = options;
 
-  if (!leadTile) return true;
+  if (!leadTile) return null;
 
   if (isTrumpLead) {
     const hasTrump = player.hand.some((handTile) => isTrump(handTile));
-    if (!hasTrump) return true;
+    if (!hasTrump) return null;
 
     const targetPriority =
       options.highestTrumpPriorityInTrick ?? trumpPriority(leadTile);
-    return canPlayRequiredTrump(player, tile, targetPriority);
+    return getRequiredTrumpInvalidReason(player, tile, targetPriority);
   }
 
   if (isAceLead) {
@@ -114,13 +116,22 @@ export function canPlayTile(
       (handTile) => tileContains(handTile, requiredNumber) && !isTrump(handTile)
     );
     if (hasRequired) {
-      return tileContains(tile, requiredNumber) && !isTrump(tile);
+      return tileContains(tile, requiredNumber) && !isTrump(tile)
+        ? null
+        : { code: "required-number-required", requiredNumber };
     }
 
     const hasTrump = player.hand.some((handTile) => isTrump(handTile));
-    return hasTrump
-      ? canPlayRequiredTrump(player, tile, options.highestTrumpPriorityInTrick)
-      : true;
+    if (!hasTrump) return null;
+
+    const trumpReason = getRequiredTrumpInvalidReason(
+      player,
+      tile,
+      options.highestTrumpPriorityInTrick
+    );
+    return trumpReason?.code === "trump-required"
+      ? { code: "required-number-or-trump-required", requiredNumber }
+      : trumpReason;
   }
 
   if (requiredNumber !== undefined) {
@@ -128,16 +139,33 @@ export function canPlayTile(
       (handTile) => tileContains(handTile, requiredNumber) && !isTrump(handTile)
     );
     if (hasRequired) {
-      return tileContains(tile, requiredNumber) && !isTrump(tile);
+      return tileContains(tile, requiredNumber) && !isTrump(tile)
+        ? null
+        : { code: "required-number-required", requiredNumber };
     }
 
     const hasTrump = player.hand.some((handTile) => isTrump(handTile));
-    return hasTrump
-      ? canPlayRequiredTrump(player, tile, options.highestTrumpPriorityInTrick)
-      : true;
+    if (!hasTrump) return null;
+
+    const trumpReason = getRequiredTrumpInvalidReason(
+      player,
+      tile,
+      options.highestTrumpPriorityInTrick
+    );
+    return trumpReason?.code === "trump-required"
+      ? { code: "required-number-or-trump-required", requiredNumber }
+      : trumpReason;
   }
 
-  return true;
+  return null;
+}
+
+export function canPlayTile(
+  player: Player,
+  tile: DominoTile,
+  options: CanPlayTileOptions = {}
+): boolean {
+  return getInvalidMoveReason(player, tile, options) === null;
 }
 
 export function calculateRoundScore(player: Pick<Player, "bid" | "tricksWon">): number {

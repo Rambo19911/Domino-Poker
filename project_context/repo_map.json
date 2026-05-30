@@ -176,10 +176,11 @@
   {
     "path": "apps/web/components/DominoPokerGame.tsx",
     "type": "ui",
-    "purpose": "Interactive single-player Domino Poker table, bidding UI, tile play UI, AI turn timers, trick completion, round summaries, and game-over flow.",
+    "purpose": "Interactive single-player Domino Poker table, tile-play orchestration, AI turn timers, trick completion, round summaries, and game-over flow.",
     "importance": "critical",
     "related_files": [
       "packages/core/src/gameState.ts",
+      "packages/core/src/player.ts",
       "packages/core/src/aiService.ts",
       "apps/web/components/AppShell.tsx",
       "apps/web/components/GameDialogs.tsx",
@@ -387,9 +388,9 @@
   {
     "path": "packages/core/src/player.ts",
     "type": "service",
-    "purpose": "Player creation, hand management, legal-play validation, and tile selection helpers.",
+    "purpose": "Player creation, hand management, legal-play validation, structured invalid move reasons, and tile selection helpers.",
     "importance": "critical",
-    "related_files": ["packages/core/src/gameState.ts", "packages/core/test/dominoRules.test.ts"],
+    "related_files": ["packages/core/src/types.ts", "packages/core/src/gameState.ts", "packages/core/test/dominoRules.test.ts", "apps/web/components/DominoPokerGame.tsx"],
     "confidence": "high"
   },
   {
@@ -403,9 +404,9 @@
   {
     "path": "packages/core/src/types.ts",
     "type": "model",
-    "purpose": "Core Domino Poker types and game-state interfaces.",
+    "purpose": "Core Domino Poker types, invalid move reason contracts, and game-state interfaces.",
     "importance": "high",
-    "related_files": ["packages/core/src/gameState.ts"],
+    "related_files": ["packages/core/src/player.ts", "packages/core/src/gameState.ts", "apps/web/components/DominoPokerGame.tsx"],
     "confidence": "high"
   },
   {

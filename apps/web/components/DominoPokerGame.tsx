@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  canPlayTile,
   completeTrick,
   createNewGame,
+  getInvalidMoveReason as getCoreInvalidMoveReason,
   getValidTiles,
   getWinner,
   highestTrumpPriorityInTrick,
@@ -17,7 +17,7 @@ import {
   startNextRound,
   tileKey
 } from "@domino-poker/core";
-import type { DominoTile, GameState } from "@domino-poker/core";
+import type { DominoTile, GameState, InvalidMoveReason } from "@domino-poker/core";
 import { AudioControls, VolumeIcon, VolumeOffIcon } from "./AudioControls";
 import { DominoTileView } from "./DominoTileView";
 import {
@@ -254,7 +254,7 @@ export function DominoPokerGame({
     if (!currentPlayer || currentPlayer.isAI || gameState.phase !== "playing") return;
     if (isProcessingTrick) return;
 
-    const playable = canPlayTile(currentPlayer, tile, {
+    const invalidReason = getCoreInvalidMoveReason(currentPlayer, tile, {
       leadTile: gameState.leadTile,
       requiredNumber: gameState.requiredNumber,
       isTrumpLead: gameState.isTrumpLead,
@@ -262,8 +262,8 @@ export function DominoPokerGame({
       highestTrumpPriorityInTrick: highestTrumpPriorityInTrick(gameState)
     });
 
-    if (!playable) {
-      setInvalidMessage(getInvalidMoveMessage(gameState, labels));
+    if (invalidReason) {
+      setInvalidMessage(getInvalidMoveMessage(invalidReason, labels));
       window.setTimeout(() => setInvalidMessage(null), 2000);
       return;
     }
@@ -597,13 +597,19 @@ function getStageContainLayout(): StageContainLayout {
   };
 }
 
-function getInvalidMoveMessage(gameState: GameState, labels: AppStrings): string {
-  if (gameState.isTrumpLead) {
+function getInvalidMoveMessage(reason: InvalidMoveReason, labels: AppStrings): string {
+  if (reason.code === "trump-required" || reason.code === "stronger-trump-required") {
     return labels.invalidTrumpMove;
   }
-  if ((gameState.isAceLead || gameState.requiredNumber !== undefined) && gameState.requiredNumber !== undefined) {
-    return formatTemplate(labels.invalidRequiredMove, { number: String(gameState.requiredNumber) });
+
+  if (
+    (reason.code === "required-number-required" ||
+      reason.code === "required-number-or-trump-required") &&
+    reason.requiredNumber !== undefined
+  ) {
+    return formatTemplate(labels.invalidRequiredMove, { number: String(reason.requiredNumber) });
   }
+
   return labels.invalidMove;
 }
 
