@@ -564,110 +564,6 @@ button {
   transform: translate(-50%, -50%);
 }
 
-.modeList {
-  display: grid;
-  width: min(300px, 100%);
-  gap: 10px;
-}
-
-.modePanel {
-  display: grid;
-  gap: 10px;
-  min-height: 132px;
-  padding: 12px 14px;
-  border: 2px solid rgba(201, 162, 62, 0.78);
-  border-radius: 12px;
-  background:
-    linear-gradient(135deg, rgba(201, 162, 62, 0.93), rgba(151, 117, 37, 0.9)),
-    radial-gradient(circle at 100% 0%, rgba(255, 255, 255, 0.26), transparent 34%);
-  color: var(--overlay);
-  text-align: left;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.42);
-}
-
-.modePanelHeader {
-  display: grid;
-  gap: 3px;
-}
-
-.modePanelHeader span {
-  font-size: 18px;
-  font-weight: 900;
-}
-
-.modePanelHeader small {
-  color: rgba(14, 14, 14, 0.75);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.roundSelector {
-  display: grid;
-  gap: 5px;
-}
-
-.roundSelectorHeader {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.roundSelectorHeader label {
-  color: rgba(14, 14, 14, 0.78);
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.roundSelectorHeader output {
-  min-width: 34px;
-  color: var(--overlay);
-  font-size: 24px;
-  font-weight: 900;
-  line-height: 1;
-  text-align: right;
-}
-
-.roundStepper {
-  display: grid;
-  grid-template-columns: 30px 1fr 30px;
-  align-items: center;
-  gap: 8px;
-}
-
-.roundStepButton {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border: 2px solid rgba(14, 14, 14, 0.22);
-  border-radius: 8px;
-  background: rgba(14, 14, 14, 0.12);
-  color: var(--overlay);
-  font-size: 18px;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.roundStepButton:disabled {
-  cursor: not-allowed;
-  opacity: 0.42;
-}
-
-.roundStepper input[type="range"] {
-  width: 100%;
-  accent-color: var(--overlay);
-}
-
-.roundSelectorBounds {
-  display: flex;
-  justify-content: space-between;
-  color: rgba(14, 14, 14, 0.62);
-  font-size: 10px;
-  font-weight: 800;
-}
-
 .playButton {
   min-height: 36px;
   border: 2px solid rgba(14, 14, 14, 0.2);
@@ -1221,14 +1117,6 @@ button {
   border-radius: 50%;
   background: var(--primary);
   animation: particleBurst 1000ms ease-out both;
-}
-
-.particle[style*="--colorIndex: 1"] {
-  background: var(--primary);
-}
-
-.particle[style*="--colorIndex: 2"] {
-  background: var(--primary);
 }
 
 .toast {
@@ -1839,40 +1727,9 @@ button {
     right: 14px;
   }
 
-  .lobbyLogoFrame {
-    width: 132px;
-    height: 132px;
-    margin-bottom: 20px;
-  }
-
-  .lobbyLogoFrame img {
-    width: 112px;
-    height: 112px;
-  }
-
   .lobbyContent p {
     margin-bottom: 26px;
     font-size: 15px;
-  }
-
-  .modePanel {
-    min-height: 132px;
-    padding: 12px;
-    gap: 10px;
-  }
-
-  .roundSelectorHeader output {
-    font-size: 24px;
-  }
-
-  .roundStepper {
-    grid-template-columns: 30px 1fr 30px;
-    gap: 8px;
-  }
-
-  .roundStepButton {
-    width: 30px;
-    height: 30px;
   }
 
   .settingsHeader {

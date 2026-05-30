@@ -530,8 +530,7 @@ function ParticleBurst() {
           style={{
             "--angle": `${(index / 30) * 360 + seededNoise(index) * 28}deg`,
             "--distance": `${150 * (0.8 + seededNoise(index + 40) * 0.4)}px`,
-            "--radius": `${3 + seededNoise(index + 80) * 5}px`,
-            "--colorIndex": index % 3
+            "--radius": `${3 + seededNoise(index + 80) * 5}px`
           } as React.CSSProperties}
         />
       ))}
