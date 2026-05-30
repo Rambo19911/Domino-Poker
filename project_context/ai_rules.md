@@ -7,6 +7,7 @@
 - For AI behavior: read `packages/core/src/aiService.ts` before changing heuristics.
 - For app/lobby flow: read `apps/web/components/AppShell.tsx`, `apps/web/lib/i18n.ts`, and `apps/web/components/AudioControls.tsx`.
 - For UI/game flow: read `apps/web/components/DominoPokerGame.tsx` and `apps/web/app/globals.css`.
+- For modal/dialog UI: use `apps/web/components/Dialog.tsx` with `apps/web/components/useDialogFocus.ts` instead of duplicating `role="dialog"`, `aria-modal`, focus trap, Escape, or focus restoration behavior.
 - For local statistics behavior: read `apps/web/lib/stats/client.ts` and `apps/web/lib/stats/types.ts`.
 
 ## Rule-Specific Care Points

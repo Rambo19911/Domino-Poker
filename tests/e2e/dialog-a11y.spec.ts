@@ -11,6 +11,11 @@ test.describe("dialog accessibility", () => {
     await expectModalDialog(settingsDialog);
     await expect(settingsDialog.getByRole("button", { name: "Close" })).toBeFocused();
 
+    await page.keyboard.press("Shift+Tab");
+    await expect(page.getByLabel("Language")).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(settingsDialog.getByRole("button", { name: "Close" })).toBeFocused();
+
     await page.keyboard.press("Escape");
     await expect(settingsDialog).toBeHidden();
     await expect(settingsButton).toBeFocused();
@@ -32,6 +37,11 @@ test.describe("dialog accessibility", () => {
     await expectModalDialog(bidDialog);
 
     const zeroBidButton = bidDialog.getByRole("button", { name: "0", exact: true });
+    await expect(zeroBidButton).toBeFocused();
+
+    await page.keyboard.press("Shift+Tab");
+    await expect(bidDialog.getByRole("button").last()).toBeFocused();
+    await page.keyboard.press("Tab");
     await expect(zeroBidButton).toBeFocused();
 
     await page.keyboard.press("Escape");

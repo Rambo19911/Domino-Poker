@@ -9,9 +9,9 @@ import {
   type PointerEvent
 } from "react";
 import { AudioControls } from "./AudioControls";
+import { Dialog } from "./Dialog";
 import { DominoPokerGame } from "./DominoPokerGame";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
-import { useDialogFocus } from "./useDialogFocus";
 import {
   defaultLocale,
   getAppStrings,
@@ -701,29 +701,14 @@ function SettingsDialog({
     audio.play("uiClick");
     onClose();
   }, [audio, onClose]);
-  const dialogRef = useDialogFocus<HTMLElement>(handleClose);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return undefined;
-
-    dialog.scrollTop = 0;
-    const timeoutId = window.setTimeout(() => {
-      dialog.scrollTop = 0;
-    }, 0);
-    return () => window.clearTimeout(timeoutId);
-  }, []);
 
   return (
-    <div className="modalBackdrop">
-      <section
-        ref={dialogRef}
-        className="alertDialog settingsDialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="settings-title"
-        tabIndex={-1}
-      >
+    <Dialog
+      ariaLabelledBy="settings-title"
+      className="alertDialog settingsDialog"
+      onEscape={handleClose}
+      resetScrollOnMount
+    >
         <div className="settingsHeader">
           <div>
             <h2 id="settings-title"><SettingsIcon /> {t.settings}</h2>
@@ -749,8 +734,7 @@ function SettingsDialog({
           locale={locale}
           onLocaleChange={onLocaleChange}
         />
-      </section>
-    </div>
+    </Dialog>
   );
 }
 

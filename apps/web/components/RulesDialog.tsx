@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { useDialogFocus } from "./useDialogFocus";
+import { Dialog } from "./Dialog";
 import type { AppStrings } from "../lib/i18n";
 import type { AudioSettings } from "../lib/useAudioSettings";
 
@@ -18,18 +17,6 @@ export function RulesDialog({
     audio.play("uiClick");
     onClose();
   };
-  const dialogRef = useDialogFocus<HTMLElement>(handleClose);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return undefined;
-
-    dialog.scrollTop = 0;
-    const timeoutId = window.setTimeout(() => {
-      dialog.scrollTop = 0;
-    }, 0);
-    return () => window.clearTimeout(timeoutId);
-  }, []);
 
   const sections = [
     {
@@ -74,15 +61,12 @@ export function RulesDialog({
   ] as const;
 
   return (
-    <div className="modalBackdrop">
-      <section
-        ref={dialogRef}
-        className="alertDialog rulesDialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="rules-title"
-        tabIndex={-1}
-      >
+    <Dialog
+      ariaLabelledBy="rules-title"
+      className="alertDialog rulesDialog"
+      onEscape={handleClose}
+      resetScrollOnMount
+    >
         <div className="settingsHeader">
           <div>
             <h2 id="rules-title"><HelpIcon /> {labels.rules}</h2>
@@ -108,8 +92,7 @@ export function RulesDialog({
             </section>
           ))}
         </div>
-      </section>
-    </div>
+    </Dialog>
   );
 }
 

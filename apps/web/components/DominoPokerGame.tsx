@@ -21,8 +21,8 @@ import {
 } from "@domino-poker/core";
 import type { DominoTile, GameState, Player } from "@domino-poker/core";
 import { AudioControls, VolumeIcon, VolumeOffIcon } from "./AudioControls";
+import { Dialog } from "./Dialog";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
-import { useDialogFocus } from "./useDialogFocus";
 import type { AppStrings } from "../lib/i18n";
 import type { GameOutcome } from "../lib/stats/types";
 import type { AudioSettings } from "../lib/useAudioSettings";
@@ -914,18 +914,12 @@ function BidDialog({
   readonly labels: AppStrings;
   readonly onBid: (bid: number) => void;
 }) {
-  const dialogRef = useDialogFocus<HTMLDivElement>();
-
   return (
-    <Modal transparent>
-      <div
-        ref={dialogRef}
-        className="bidDialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="bid-dialog-title"
-        tabIndex={-1}
-      >
+    <Dialog
+      ariaLabelledBy="bid-dialog-title"
+      className="bidDialog"
+      transparent
+    >
         <h2 id="bid-dialog-title">{labels.bidPrompt}</h2>
         <div className="bidGrid">
           {Array.from({ length: 8 }).map((_, bid) => (
@@ -935,8 +929,7 @@ function BidDialog({
             </button>
           ))}
         </div>
-      </div>
-    </Modal>
+    </Dialog>
   );
 }
 
@@ -958,18 +951,13 @@ function NumberDialog({
     audio.play("uiClick");
     onCancel();
   }, [audio, onCancel]);
-  const dialogRef = useDialogFocus<HTMLDivElement>(handleCancel);
 
   return (
-    <Modal>
-      <div
-        ref={dialogRef}
-        className="alertDialog numberDialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="number-dialog-title"
-        tabIndex={-1}
-      >
+    <Dialog
+      ariaLabelledBy="number-dialog-title"
+      className="alertDialog numberDialog"
+      onEscape={handleCancel}
+    >
         <h2 id="number-dialog-title">{labels.selectSuit}</h2>
         <p>{labels.chooseNumber}</p>
         <div className="numberChoices">
@@ -989,8 +977,7 @@ function NumberDialog({
         <div className="dialogActions">
           <button className="textButton" type="button" onClick={handleCancel}>{labels.cancel}</button>
         </div>
-      </div>
-    </Modal>
+    </Dialog>
   );
 }
 
@@ -1005,18 +992,11 @@ function RoundSummaryDialog({
   readonly labels: AppStrings;
   readonly onContinue: () => void;
 }) {
-  const dialogRef = useDialogFocus<HTMLDivElement>();
-
   return (
-    <Modal>
-      <div
-        ref={dialogRef}
-        className="alertDialog summaryDialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="round-summary-title"
-        tabIndex={-1}
-      >
+    <Dialog
+      ariaLabelledBy="round-summary-title"
+      className="alertDialog summaryDialog"
+    >
         <h2 id="round-summary-title"><TrophyIcon /> {labels.roundSummary}</h2>
         <strong className="summaryRound">{labels.roundLabel} {gameState.currentRound}/{gameState.totalRounds}</strong>
         <table>
@@ -1061,8 +1041,7 @@ function RoundSummaryDialog({
         >
           {labels.continueGame}
         </button>
-      </div>
-    </Modal>
+    </Dialog>
   );
 }
 
@@ -1082,18 +1061,13 @@ function GameEndDialog({
     audio.play("uiClick");
     onClose();
   }, [audio, onClose]);
-  const dialogRef = useDialogFocus<HTMLDivElement>(handleClose);
 
   return (
-    <Modal>
-      <div
-        ref={dialogRef}
-        className="alertDialog summaryDialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="game-end-title"
-        tabIndex={-1}
-      >
+    <Dialog
+      ariaLabelledBy="game-end-title"
+      className="alertDialog summaryDialog"
+      onEscape={handleClose}
+    >
         <h2 id="game-end-title"><TrophyIcon /> {labels.gameOver}</h2>
         <div className="winnerBanner">{labels.winner}: {winner?.name ?? ""}</div>
         <dl className="finalScores">
@@ -1111,8 +1085,7 @@ function GameEndDialog({
         >
           {labels.ok}
         </button>
-      </div>
-    </Modal>
+    </Dialog>
   );
 }
 
@@ -1131,18 +1104,13 @@ function ExitDialog({
     audio.play("uiClick");
     onCancel();
   }, [audio, onCancel]);
-  const dialogRef = useDialogFocus<HTMLDivElement>(handleCancel);
 
   return (
-    <Modal>
-      <div
-        ref={dialogRef}
-        className="alertDialog exitDialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="exit-dialog-title"
-        tabIndex={-1}
-      >
+    <Dialog
+      ariaLabelledBy="exit-dialog-title"
+      className="alertDialog exitDialog"
+      onEscape={handleCancel}
+    >
         <h2 id="exit-dialog-title"><ExitIcon /> {labels.exit}</h2>
         <div className="exitContent">
           <p>{labels.exitGameConfirm}</p>
@@ -1167,8 +1135,7 @@ function ExitDialog({
             {labels.exit}
           </button>
         </div>
-      </div>
-    </Modal>
+    </Dialog>
   );
 }
 
@@ -1200,16 +1167,6 @@ function SoundMenu({
       ) : null}
     </div>
   );
-}
-
-function Modal({
-  children,
-  transparent = false
-}: {
-  readonly children: React.ReactNode;
-  readonly transparent?: boolean;
-}) {
-  return <div className={`modalBackdrop ${transparent ? "transparentBackdrop" : ""}`}>{children}</div>;
 }
 
 function useStageContainLayout(): StageContainLayout {
