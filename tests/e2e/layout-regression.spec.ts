@@ -63,16 +63,6 @@ test.describe("layout regression", () => {
 
 async function prepareLayoutPage(page: Page) {
   await page.goto("/");
-  await page.addStyleTag({
-    content: `
-      *, *::before, *::after {
-        animation-duration: 1ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 1ms !important;
-        scroll-behavior: auto !important;
-      }
-    `
-  });
 }
 
 async function clickVisiblePlayButton(page: Page, lobbyMode: ViewportCase["lobbyMode"]) {

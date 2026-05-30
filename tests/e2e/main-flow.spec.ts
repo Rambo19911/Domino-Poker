@@ -10,16 +10,6 @@ test("single-player smoke flow reaches the first completed trick", async ({ page
   page.on("pageerror", (error) => runtimeErrors.push(error.message));
 
   await page.goto("/");
-  await page.addStyleTag({
-    content: `
-      *, *::before, *::after {
-        animation-duration: 1ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 1ms !important;
-        scroll-behavior: auto !important;
-      }
-    `
-  });
   await expect(page).toHaveTitle(/Domino Poker/);
   await expect(page.getByRole("button", { name: "Play" })).toBeVisible();
 
