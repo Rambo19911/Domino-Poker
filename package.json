@@ -5,14 +5,21 @@
   "type": "module",
   "workspaces": [
     "packages/core",
-    "apps/web"
+    "packages/shared",
+    "apps/server",
+    "apps/web",
+    "tools/simulators",
+    "tools/load-test"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "test:web": "playwright test",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "dev": "npm run dev --workspace apps/web"
+    "dev": "npm run dev --workspace apps/web",
+    "dev:server": "npm run build --workspace packages/core && npm run build --workspace apps/server && node apps/server/dist/index.js",
+    "simulate": "npm run build --workspace packages/core && npm run build --workspace tools/simulators && npm run simulate --workspace tools/simulators",
+    "load:local": "npm run build --workspace packages/shared && npm run build --workspace tools/load-test && npm run load --workspace tools/load-test --"
   },
   "devDependencies": {
     "@playwright/test": "1.60.0",

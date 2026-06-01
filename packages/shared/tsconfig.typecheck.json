@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "paths": {
+      "@domino-poker/core/multiplayer": [
+        "../../packages/core/src/multiplayer/index.ts"
+      ]
+    }
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

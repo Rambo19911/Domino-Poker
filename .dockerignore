@@ -1,0 +1,16 @@
+# Docker build konteksts (lieto ar deploy/Dockerfile no repo saknes).
+# Neiekļaut: mazāks, ātrāks, tīrāks attēls.
+node_modules
+**/node_modules
+**/dist
+.git
+data/*.sqlite
+data/*.sqlite-wal
+data/*.sqlite-shm
+.env
+.env.*
+!.env.example
+**/*.tsbuildinfo
+.turbo
+.cache
+.local-server

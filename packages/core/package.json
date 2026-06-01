@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./multiplayer": {
+      "types": "./dist/multiplayer/index.d.ts",
+      "import": "./dist/multiplayer/index.js"
     }
   },
   "scripts": {

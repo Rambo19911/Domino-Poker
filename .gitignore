@@ -17,6 +17,9 @@ test-results/
 .env
 .env.*
 !.env.example
+data/*.sqlite
+data/*.sqlite-wal
+data/*.sqlite-shm
 
 # Local tooling and caches
 TODO.md
@@ -28,6 +31,14 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Agent / tooling working dirs (not for publishing)
+.claude/
+.playwright-mcp/
+
+# Internal planning + design notes (kept local, not published)
+docs/TODO/
+docs/mockups/
 
 # Local audit and planning notes
 fix_scope.md
