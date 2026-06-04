@@ -2556,11 +2556,11 @@ button {
   touch-action: manipulation;
 }
 
-/* Fiksēta 1080×1920 dizaina skatuve; `MpMobileTable` to mērogo ar transform: scale. */
+/* Fiksēta 1080×2340 dizaina skatuve; `MpMobileTable` to mērogo ar transform: scale. */
 .mpmStage {
   position: absolute;
   width: 1080px;
-  height: 1920px;
+  height: 2340px;
 }
 
 .mpmLeaveButton {
@@ -2633,14 +2633,14 @@ button {
   transform-origin: top left;
 }
 
-/* Kauliņa kaste = spec šūna 120×216 (DominoTileView 80×144 × 1.5). */
+/* Kauliņa kaste = spec šūna 130×234 (DominoTileView 80×144 × 1.625). */
 .mpmHandTile {
-  width: 120px;
-  height: 216px;
+  width: 130px;
+  height: 234px;
 }
 
 .mpmHandTile .dominoTile {
-  transform: scale(1.5);
+  transform: scale(1.625);
 }
 
 .mpmHandTile:disabled {
@@ -2653,12 +2653,12 @@ button {
 }
 
 .mpmTrickTile {
-  width: 120px;
-  height: 216px;
+  width: 130px;
+  height: 234px;
 }
 
 .mpmTrickTile .dominoTile {
-  transform: scale(1.5);
+  transform: scale(1.625);
 }
 
 .mpmDeclared {

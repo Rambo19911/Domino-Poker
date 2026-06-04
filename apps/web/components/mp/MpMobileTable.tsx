@@ -20,7 +20,7 @@ import { ExitIcon } from "../GameDialogs";
 
 /** Mobilā dizaina skatuve (px). Sk. `mp-layout-spec.json` (9:16). */
 const MOBILE_CANVAS_WIDTH = 1080;
-const MOBILE_CANVAS_HEIGHT = 1920;
+const MOBILE_CANVAS_HEIGHT = 2340;
 
 type StageLayout = { readonly scale: number; readonly left: number; readonly top: number };
 
@@ -38,7 +38,7 @@ function getMobileStageLayout(): StageLayout {
 }
 
 /**
- * Mērogo 1080×1920 skatuvi `contain` (kā desktop 1920×1080). Vienmērīga mērogošana
+ * Mērogo 1080×2340 skatuvi `contain` (kā desktop 1920×1080). Vienmērīga mērogošana
  * → izkārtojums nekad nepārklājas, lai kāda būtu telefona malu attiecība; uz citas
  * attiecības paliek tikai tukšas malas (letterbox).
  */

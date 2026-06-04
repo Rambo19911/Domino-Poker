@@ -12,7 +12,7 @@ un desktop MP galds netiek skarti — mobilais ir **atsevišķs renderēšanas c
 
 - **Desktop MP** izmanto fiksētu **1920×1080** skatuvi (`fixedStage`), kas tiek mērogota.
 - **Mobilais (telefona portrēts)** ir **atsevišķs komponents** (`MpMobileTable`), kas izmanto
-  **to pašu paņēmienu**: fiksētu **1080×1920** dizaina skatuvi, mērogotu vienmērīgi ar
+  **to pašu paņēmienu**: fiksētu **1080×2340** dizaina skatuvi, mērogotu vienmērīgi ar
   `transform: scale` (`contain`). Viss — pozīcijas UN izmēri — dzīvo vienā px telpā.
 - Pārslēgšanās notiek pēc media query telefona portrētā; desktop kods paliek neskarts.
 
@@ -23,7 +23,7 @@ un desktop MP galds netiek skarti — mobilais ir **atsevišķs renderēšanas c
 > kompozīcija mērogojas kā viens bloks, tāpēc nekas nepārklājas nevienā malu attiecībā (uz
 > citas attiecības paliek tikai tukšas malas — letterbox).
 
-Ģeometrijas avots ir lietotāja Photoshop zīmējums **1080×1920** telpā
+Ģeometrijas avots ir lietotāja Photoshop zīmējums **1080×2340** telpā
 (`docs/mockups/mp-layout-spec.json`); konkrētie skaitļi dzīvo `mobileLayout.ts` (sk. zemāk).
 
 ---
@@ -34,12 +34,12 @@ un desktop MP galds netiek skarti — mobilais ir **atsevišķs renderēšanas c
 | --- | --- |
 | `apps/web/components/mp/MpGameTable.tsx` | Desktop MP galds **+** `useIsPhonePortrait()` hooks un nosacījums, kas telefona portrētā renderē `MpMobileTable`. |
 | `apps/web/components/mp/MpMobileTable.tsx` | **Viss mobilais izkārtojums**: sēdvietas, nozīmītes (bid/won, punkti, kauliņu skaits, countdown), kopējo punktu tabula, galds + stiķis, roka, pamešanas poga, trumpja etiķete. |
-| `apps/web/lib/mp/mobileLayout.ts` | **Ģeometrija**: elementu centra pozīcijas (% no skatuves) un izmēri (px 1080×1920 telpā), + palīgi `centerPoint`/`centerBox`. **Vienīgais koordinātu avots.** |
+| `apps/web/lib/mp/mobileLayout.ts` | **Ģeometrija**: elementu centra pozīcijas (% no skatuves) un izmēri (px 1080×2340 telpā), + palīgi `centerPoint`/`centerBox`. **Vienīgais koordinātu avots.** |
 | `apps/web/lib/mp/seatLabel.ts` | `seatLabel()` (vārds: displayId / "AI n" / atkāpšanās) un `formatTemplate()`. Kopīgs ar desktop. |
 | `apps/web/app/globals.css` | `.mpmStageClip`/`.mpmStage` (mērogotā skatuve) + `.mpm*` CSS klases (izskats, izmēri px, kauliņu mērogošana). |
 | `apps/web/components/DominoTileView.tsx` | Kauliņa vizuālais komponents (fiksēti 80×144 px); mobilais to mērogo ar `transform`. |
 
-> Dizaina atskaite (px 1080×1920) ir `docs/mockups/mp-layout-spec.json`. **Tas ir lokāls
+> Dizaina atskaite (px 1080×2340) ir `docs/mockups/mp-layout-spec.json`. **Tas ir lokāls
 > (gitignored)** — koda patiesības avots ir `mobileLayout.ts`.
 
 ---
@@ -77,12 +77,12 @@ Dialogu mobilā mērogošana notiek `Dialog` komponentē (`modalScale` — atsev
 
 ## 4. Koordinātu sistēma (`mobileLayout.ts`)
 
-Skatuve ir fiksēta **1080×1920 px** kaste (`.mpmStage`), ko `MpMobileTable` mērogo ar
-`transform: scale(min(vw/1080, vh/1920))` un centrē (`useMobileStageLayout`). Tāpēc:
+Skatuve ir fiksēta **1080×2340 px** kaste (`.mpmStage`), ko `MpMobileTable` mērogo ar
+`transform: scale(min(vw/1080, vh/2340))` un centrē (`useMobileStageLayout`). Tāpēc:
 
-- Pozīcijas glabā kā **elementa CENTRU daļās (0..1)**; `left/top: %` no 1080×1920 kastes =
+- Pozīcijas glabā kā **elementa CENTRU daļās (0..1)**; `left/top: %` no 1080×2340 kastes =
   **precīzas spec px**.
-- Izmēri ir **px šajā 1080×1920 telpā** (no spec), nevis `vw`.
+- Izmēri ir **px šajā 1080×2340 telpā** (no spec), nevis `vw`.
 
 ```ts
 export const MP_MOBILE_SIZE = {
@@ -130,7 +130,8 @@ Stiķa slots pēc tā, kurš spēlēja: `TRICK_SLOT_BY_VISUAL_SEAT = {0:"S",1:"W
 
 Kauliņu izmērs: `DominoTileView` ir **80×144 px** (globālais `box-sizing: border-box` →
 faktiskais izmērs jau ietver padding/border, t.i. tie 80×144, NE ~100×164). CSS to mērogo ar
-`transform: scale(1.5)` → 120×216, kas atbilst spec rokas/stiķa šūnai (120×215).
+`transform: scale(1.625)` → 130×234, kas atbilst spec rokas šūnai (130×233); stiķa
+šūna ir 130×215, tāpēc kauliņš to nedaudz pārsniedz vertikāli, bet nepārklājas.
 
 ---
 
