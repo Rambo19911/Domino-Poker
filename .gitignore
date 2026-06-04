@@ -36,9 +36,13 @@ pnpm-debug.log*
 .claude/
 .playwright-mcp/
 
-# Internal planning + design notes (kept local, not published)
-docs/TODO/
-docs/mockups/
+# docs/ — publiski tikai 4 spēles noteikumu/stratēģijas faili; pārējais
+# (deploy, scaling, DB migrācija, TODO, mockups, u.c.) paliek lokāls.
+docs/*
+!docs/Domino pokera Noteikumi.md
+!docs/domino_poker_rules_summary.md
+!docs/game_strategy.md
+!docs/PUNKTU_SISTEMA_PIEMERI.md
 
 # Deploy skripts (satur servera IP/SSH ceļu — netiek publicēts)
 deploy.sh
