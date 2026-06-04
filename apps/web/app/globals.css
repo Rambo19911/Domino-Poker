@@ -2820,4 +2820,15 @@ button {
     transform: translate(-50%, -50%) scale(0.82);
     transform-origin: center center;
   }
+
+  /* Exit / Number / Game End: bez skaidra platuma tie absolūtajā mērogotajā
+     ietinējā sažņaudzas līdz saturam (atšķirībā no bidDialog ar fiksētu 420px).
+     Dodam platu viewport platumu; 110vw kompensē scale(0.82) → renderēts ~90vw,
+     tāpēc tie izstiepjas horizontāli tuvu ekrāna malām. (Bid/Rules netiek skarti.) */
+  .modalScale .exitDialog,
+  .modalScale .numberDialog,
+  .modalScale .summaryDialog {
+    width: min(560px, 110vw);
+    max-width: none;
+  }
 }
