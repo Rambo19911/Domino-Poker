@@ -6,26 +6,29 @@ import type { VisualSeat } from "./gameTableView";
  * MP portrēta (telefonu) izkārtojuma ģeometrija — vienīgais avots, atvasināts no
  * `docs/mockups/mp-layout-spec.json` (lietotāja Photoshop zīmējums, 1080×1920).
  *
- * Pozīcijas glabā kā elementa CENTRU daļās (0..1) no skatuves → pozicionē ar
- * `left/top: %` + `translate(-50%,-50%)`, tāpēc izkārtojums seko zīmējumam
- * proporcionāli jebkurā telefona izšķirtspējā.
+ * Skatuve ir fiksēta **1080×1920 px** kaste, ko `MpMobileTable` mērogo vienmērīgi
+ * ar `transform: scale` (kā desktop 1920×1080) → viss (pozīcijas UN izmēri) dzīvo
+ * vienā px telpā, tāpēc nekas nevar pārklāties neatkarīgi no telefona malu
+ * attiecības (atšķirībā no agrākās % pozīciju + `vw` izmēru pieejas).
  *
- * Izmēri profiliem/nozīmītēm/galdam ir `vw` (mērogojas ar platumu). Domino
- * kauliņiem izmēru dod fiksēta `transform: scale` (skat. CSS `.mpmTile`), jo
- * `DominoTileView` punkti ir px — vienmērīga mērogošana saglabā ģeometriju.
+ * Pozīcijas glabā kā elementa CENTRU daļās (0..1) no skatuves → pozicionē ar
+ * `left/top: %` + `translate(-50%,-50%)`. % no 1080×1920 kastes = precīzas spec px.
+ *
+ * Izmēri profiliem/nozīmītēm/galdam ir **px šajā 1080×1920 telpā** (no spec). Domino
+ * kauliņiem izmēru dod fiksēta `transform: scale` (skat. CSS `.mpmTile`).
  */
 
 export type Pt = { readonly cx: number; readonly cy: number };
 
-/** Elementu izmēri kā daļa no skatuves platuma (→ vw), un malu attiecības. */
+/** Elementu izmēri px 1080×1920 skatuves telpā (no spec), un malu attiecības. */
 export const MP_MOBILE_SIZE = {
-  profileVw: 20.19,
-  badgeVw: 9.35,
-  tableVw: 44.72,
+  profilePx: 218,
+  badgePx: 101,
+  tablePx: 483,
   tableAspect: 467 / 483,
-  leaveVw: 10.19,
+  leavePx: 110,
   leaveAspect: 58 / 110,
-  summaryVw: 59.07
+  summaryPx: 638
 } as const;
 
 /** Centra pozīcijas (daļas no skatuves W×H). Sēdvietas pēc vizuālās vietas 0..3. */
@@ -70,13 +73,13 @@ export function centerPoint(pt: Pt): CSSProperties {
   return { left: `${pt.cx * 100}%`, top: `${pt.cy * 100}%`, transform: "translate(-50%, -50%)" };
 }
 
-/** Pozicionē pēc centra + dod izmēru `vw` (aspect = h/w). */
-export function centerBox(pt: Pt, widthVw: number, aspect: number): CSSProperties {
+/** Pozicionē pēc centra + dod izmēru px (1080×1920 skatuves telpā; aspect = h/w). */
+export function centerBox(pt: Pt, widthPx: number, aspect: number): CSSProperties {
   return {
     left: `${pt.cx * 100}%`,
     top: `${pt.cy * 100}%`,
-    width: `${widthVw}vw`,
-    height: `${widthVw * aspect}vw`,
+    width: `${widthPx}px`,
+    height: `${widthPx * aspect}px`,
     transform: "translate(-50%, -50%)"
   };
 }

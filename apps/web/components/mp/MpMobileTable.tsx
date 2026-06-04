@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { calculateRoundScore, tileKey } from "@domino-poker/core";
 import type { DominoTile } from "@domino-poker/core";
 
@@ -15,6 +17,49 @@ import {
 import { formatTemplate, seatLabel } from "../../lib/mp/seatLabel";
 import { DominoTileView } from "../DominoTileView";
 import { ExitIcon } from "../GameDialogs";
+
+/** Mobilā dizaina skatuve (px). Sk. `mp-layout-spec.json` (9:16). */
+const MOBILE_CANVAS_WIDTH = 1080;
+const MOBILE_CANVAS_HEIGHT = 1920;
+
+type StageLayout = { readonly scale: number; readonly left: number; readonly top: number };
+
+function getMobileStageLayout(): StageLayout {
+  if (typeof window === "undefined") return { scale: 0, left: 0, top: 0 };
+  // visualViewport seko iOS Safari joslu rādīšanai/slēpšanai (innerHeight ne vienmēr).
+  const vw = window.visualViewport?.width ?? window.innerWidth;
+  const vh = window.visualViewport?.height ?? window.innerHeight;
+  const scale = Math.min(vw / MOBILE_CANVAS_WIDTH, vh / MOBILE_CANVAS_HEIGHT);
+  return {
+    scale,
+    left: (vw - MOBILE_CANVAS_WIDTH * scale) / 2,
+    top: (vh - MOBILE_CANVAS_HEIGHT * scale) / 2
+  };
+}
+
+/**
+ * Mērogo 1080×1920 skatuvi `contain` (kā desktop 1920×1080). Vienmērīga mērogošana
+ * → izkārtojums nekad nepārklājas, lai kāda būtu telefona malu attiecība; uz citas
+ * attiecības paliek tikai tukšas malas (letterbox).
+ */
+function useMobileStageLayout(): StageLayout {
+  const [layout, setLayout] = useState<StageLayout>(() => getMobileStageLayout());
+  useEffect(() => {
+    const update = () => setLayout(getMobileStageLayout());
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    window.visualViewport?.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("scroll", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+      window.visualViewport?.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("scroll", update);
+    };
+  }, []);
+  return layout;
+}
 
 /**
  * Portrēta (telefonu) izkārtojums MP galdam. Atsevišķs renderēšanas ceļš no
@@ -51,14 +96,20 @@ export function MpMobileTable({
   readonly onLeave: () => void;
 }) {
   const showLeadInfo = !frozen && table.leadTile !== undefined && table.phase === "playing";
+  const stage = useMobileStageLayout();
 
   return (
-    <div className="mpmStage" aria-label={t.gameTableLabel}>
+    <div className="mpmStageClip">
+    <div
+      className="mpmStage"
+      aria-label={t.gameTableLabel}
+      style={{ left: stage.left, top: stage.top, transform: `scale(${stage.scale})`, transformOrigin: "top left" }}
+    >
       <button
         className="mpmLeaveButton"
         type="button"
         aria-label={t.exit}
-        style={centerBox(MP_MOBILE_POS.leave, MP_MOBILE_SIZE.leaveVw, MP_MOBILE_SIZE.leaveAspect)}
+        style={centerBox(MP_MOBILE_POS.leave, MP_MOBILE_SIZE.leavePx, MP_MOBILE_SIZE.leaveAspect)}
         onClick={onLeave}
       >
         <ExitIcon />
@@ -69,7 +120,7 @@ export function MpMobileTable({
       <section
         className="mpmTable"
         aria-label={t.currentTrickLabel}
-        style={centerBox(MP_MOBILE_POS.table, MP_MOBILE_SIZE.tableVw, MP_MOBILE_SIZE.tableAspect)}
+        style={centerBox(MP_MOBILE_POS.table, MP_MOBILE_SIZE.tablePx, MP_MOBILE_SIZE.tableAspect)}
       >
         <img className="mpmTableLogo" src="/assets/images/domino_poker_logo.png" alt="" aria-hidden="true" />
       </section>
@@ -134,6 +185,7 @@ export function MpMobileTable({
 
       {errorToast ? <div className="toast" role="status">{errorToast}</div> : null}
     </div>
+    </div>
   );
 }
 
@@ -164,14 +216,14 @@ function MpmSeat({
       {/* Aplis paliek tukšs (nākotnē profila bilde); identitāte — tabulā augšā. */}
       <div
         className={`mpmProfile ${isActive ? "active" : ""} ${seat.isDealer ? "dealer" : ""} ${isDisconnected ? "disconnected" : ""}`}
-        style={centerBox(pos.profile, MP_MOBILE_SIZE.profileVw, 1)}
+        style={centerBox(pos.profile, MP_MOBILE_SIZE.profilePx, 1)}
         aria-label={label}
       />
 
       {/* Pieteiktie/paņemtie stiķi (bid/won). Aplis neitrāls; cipari maina krāsu. */}
       <div
         className={`mpmBadge mpmBidWon ${bidWonState}`}
-        style={centerBox(pos.bidWon, MP_MOBILE_SIZE.badgeVw, 1)}
+        style={centerBox(pos.bidWon, MP_MOBILE_SIZE.badgePx, 1)}
         aria-label={`${t.tricksBid} / ${t.tricksWon}: ${hasBid ? seat.bid : "?"}/${seat.tricksWon}`}
       >
         {hasBid ? seat.bid : "?"}/{seat.tricksWon}
@@ -180,7 +232,7 @@ function MpmSeat({
       {/* Tekošā raunda punkti. */}
       <div
         className="mpmBadge mpmPoints"
-        style={centerBox(pos.points, MP_MOBILE_SIZE.badgeVw, 1)}
+        style={centerBox(pos.points, MP_MOBILE_SIZE.badgePx, 1)}
         aria-label={`${t.pointsLabel}: ${roundScore ?? "-"}`}
       >
         {roundScore ?? "–"}
@@ -189,7 +241,7 @@ function MpmSeat({
       {pos.tileCount ? (
         <div
           className="mpmBadge mpmTileCount"
-          style={centerBox(pos.tileCount, MP_MOBILE_SIZE.badgeVw, 1)}
+          style={centerBox(pos.tileCount, MP_MOBILE_SIZE.badgePx, 1)}
           aria-label={`${seat.handCount}`}
         >
           {seat.handCount}
@@ -199,7 +251,7 @@ function MpmSeat({
       {showTimer ? (
         <div
           className="mpmBadge mpmCountdown"
-          style={centerBox(pos.countdown, MP_MOBILE_SIZE.badgeVw, 1)}
+          style={centerBox(pos.countdown, MP_MOBILE_SIZE.badgePx, 1)}
           aria-label={`${remainingSeconds}s`}
         >
           {remainingSeconds}
@@ -231,7 +283,7 @@ function MpmSummaryTable({
       style={{
         left: `${MP_MOBILE_POS.summary.cx * 100}%`,
         top: `${MP_MOBILE_POS.summary.cy * 100}%`,
-        width: `${MP_MOBILE_SIZE.summaryVw}vw`,
+        width: `${MP_MOBILE_SIZE.summaryPx}px`,
         transform: "translate(-50%, -50%)"
       }}
     >
