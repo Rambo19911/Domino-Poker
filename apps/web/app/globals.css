@@ -2821,6 +2821,14 @@ button {
     transform-origin: center center;
   }
 
+  /* Bid dialogs (skaitļu režģis) ir lielāks un centrēts pie 50% → uz gariem
+     telefoniem (9:19.5) tā apakša pārklāj apakšējā spēlētāja kauliņus (roka ~66%).
+     Proporcionāli samazinām un pabīdām uz augšu, lai apakša netiek līdz rokai. */
+  .modalScale:has(.bidDialog) {
+    top: 42%;
+    transform: translate(-50%, -50%) scale(0.72);
+  }
+
   /* Exit / Number / Game End: bez skaidra platuma tie absolūtajā mērogotajā
      ietinējā sažņaudzas līdz saturam (atšķirībā no bidDialog ar fiksētu 420px).
      Dodam platu viewport platumu; 110vw kompensē scale(0.82) → renderēts ~90vw,
