@@ -5,12 +5,14 @@ started as a local single-player table (one human vs. three bots on a double-six
 now also includes a complete **authoritative real-time multiplayer server** that lets up to
 four players share a room and play the same game over WebSocket.
 
+**▶ Play it live: [domino-poker.com](https://domino-poker.com/)**
+
 ![Domino Poker lobby](Screenshots/Lobby-screen.png)
 
 > **Branch note.** This is the **`multiplayer`** branch — a large work-in-progress update that
 > adds the multiplayer server, lobby, persistence, and deployment groundwork on top of the
-> single-player game. It runs and is playable locally with 4 humans (or humans + bots), but it
-> has **not been publicly deployed yet** and is still being tested and refined. Contributions
+> single-player game. It runs and is playable with 4 humans (or humans + bots) and is now
+> **live at [domino-poker.com](https://domino-poker.com/)**, still being tested and refined. Contributions
 > are welcome (see [Contributing](#contributing)).
 
 ## Overview
