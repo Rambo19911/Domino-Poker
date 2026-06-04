@@ -35,6 +35,13 @@ fix-scope.md
 docs/fix_scope.md
 docs/fix-scope.md
 
+# docs/ — publiski tikai 4 spēles noteikumu/stratēģijas faili; pārējais paliek lokāls.
+docs/*
+!docs/Domino pokera Noteikumi.md
+!docs/domino_poker_rules_summary.md
+!docs/game_strategy.md
+!docs/PUNKTU_SISTEMA_PIEMERI.md
+
 # OS and editor files
 .DS_Store
 Thumbs.db
