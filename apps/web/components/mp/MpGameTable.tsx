@@ -22,6 +22,8 @@ import { BidDialog, ExitDialog, ExitIcon, NumberDialog } from "../GameDialogs";
 import { Dialog } from "../Dialog";
 import { HelpIcon, RulesDialog } from "../RulesDialog";
 import { ConnectionBanner } from "./ConnectionBanner";
+import { MpMobileTable } from "./MpMobileTable";
+import { formatTemplate, seatLabel } from "../../lib/mp/seatLabel";
 
 const CANVAS_WIDTH = 1920;
 const CANVAS_HEIGHT = 1080;
@@ -87,6 +89,7 @@ export function MpGameTable({
   readonly onExitToLobby: () => void;
 }) {
   const stageLayout = useStageContainLayout();
+  const isPhonePortrait = useIsPhonePortrait();
   const [pendingNumberTile, setPendingNumberTile] = useState<DominoTile | null>(null);
   const [showRulesDialog, setShowRulesDialog] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
@@ -172,83 +175,108 @@ export function MpGameTable({
       ? undefined
       : Math.max(0, Math.ceil((table.preGameStartsAt - nowMs) / 1000));
 
+  const displayTrick = frozen && frozenTrick ? frozenTrick : table.trick;
+
   return (
     <main className="gameShell">
-      <div className="stageClip">
-        <div
-          className="fixedStage"
-          style={{
-            left: stageLayout.left,
-            top: stageLayout.top,
-            transform: `scale(${stageLayout.scale})`,
-            transformOrigin: "top left"
-          }}
-          aria-label={t.gameTableLabel}
-        >
-          <MpTableCenter
-            labels={t}
-            table={table}
-            trick={frozen && frozenTrick ? frozenTrick : table.trick}
-            frozen={frozen}
-          />
-
-          {table.seats.map((seat) => (
-            <MpSeat
-              key={seat.gameSeatIndex}
-              labels={t}
-              seat={seat}
-              activeSeatIndex={activeSeatIndex}
-              viewerHand={table.viewerHand}
-              isViewerTurn={table.isViewerTurn && interactive}
-              validTileKeys={validTileKeys}
-              remainingSeconds={remainingSeconds}
-              onTileClick={handleTileClick}
-            />
-          ))}
-
-          <MpInfoPanel labels={t} table={table} activeSeatIndex={activeSeatIndex} />
-
-          {preGameSeconds !== undefined ? (
-            <div className="mpPreGameOverlay" role="status" aria-live="polite">
-              <div className="mpPreGameCard">
-                <span className="mpPreGameLabel">{t.mpGameStartsIn}</span>
-                <strong className="mpPreGameSeconds">{preGameSeconds}s</strong>
-              </div>
-            </div>
-          ) : null}
-
-          {errorToast ? (
-            <div className="toast" role="status">{errorToast}</div>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="safeControls">
-        <MpSoundMenu audio={audio} labels={t} />
-        <button
-          className="iconButton gameHelpButton"
-          type="button"
-          aria-label={t.rules}
-          title={t.rules}
-          onClick={() => {
-            audio.play("uiClick");
-            setShowRulesDialog(true);
-          }}
-        >
-          <HelpIcon />
-        </button>
-        <button
-          className="iconButton exitButton"
-          type="button"
-          aria-label={t.exit}
-          onClick={() => {
+      {isPhonePortrait ? (
+        <MpMobileTable
+          labels={t}
+          table={table}
+          trick={displayTrick}
+          frozen={frozen}
+          activeSeatIndex={activeSeatIndex}
+          viewerHand={table.viewerHand}
+          isViewerTurn={table.isViewerTurn && interactive}
+          validTileKeys={validTileKeys}
+          remainingSeconds={remainingSeconds}
+          preGameSeconds={preGameSeconds}
+          errorToast={errorToast}
+          onTileClick={handleTileClick}
+          onLeave={() => {
             audio.play("uiClick");
             setShowExitDialog(true);
           }}
-        >
-          <ExitIcon />
-        </button>
-      </div>
+        />
+      ) : (
+        <>
+          <div className="stageClip">
+            <div
+              className="fixedStage"
+              style={{
+                left: stageLayout.left,
+                top: stageLayout.top,
+                transform: `scale(${stageLayout.scale})`,
+                transformOrigin: "top left"
+              }}
+              aria-label={t.gameTableLabel}
+            >
+              <MpTableCenter
+                labels={t}
+                table={table}
+                trick={displayTrick}
+                frozen={frozen}
+              />
+
+              {table.seats.map((seat) => (
+                <MpSeat
+                  key={seat.gameSeatIndex}
+                  labels={t}
+                  seat={seat}
+                  activeSeatIndex={activeSeatIndex}
+                  viewerHand={table.viewerHand}
+                  isViewerTurn={table.isViewerTurn && interactive}
+                  validTileKeys={validTileKeys}
+                  remainingSeconds={remainingSeconds}
+                  onTileClick={handleTileClick}
+                />
+              ))}
+
+              <MpInfoPanel labels={t} table={table} activeSeatIndex={activeSeatIndex} />
+
+              {preGameSeconds !== undefined ? (
+                <div className="mpPreGameOverlay" role="status" aria-live="polite">
+                  <div className="mpPreGameCard">
+                    <span className="mpPreGameLabel">{t.mpGameStartsIn}</span>
+                    <strong className="mpPreGameSeconds">{preGameSeconds}s</strong>
+                  </div>
+                </div>
+              ) : null}
+
+              {errorToast ? (
+                <div className="toast" role="status">{errorToast}</div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="safeControls">
+            <MpSoundMenu audio={audio} labels={t} />
+            <button
+              className="iconButton gameHelpButton"
+              type="button"
+              aria-label={t.rules}
+              title={t.rules}
+              onClick={() => {
+                audio.play("uiClick");
+                setShowRulesDialog(true);
+              }}
+            >
+              <HelpIcon />
+            </button>
+            <button
+              className="iconButton exitButton"
+              type="button"
+              aria-label={t.exit}
+              onClick={() => {
+                audio.play("uiClick");
+                setShowExitDialog(true);
+              }}
+            >
+              <ExitIcon />
+            </button>
+          </div>
+        </>
+      )}
 
       <div className="mpGameConnection">
         <ConnectionBanner status={view.connection} labels={t} />
@@ -651,24 +679,6 @@ function getStatsStyle(visualSeat: VisualSeat): CSSProperties {
   }
 }
 
-/**
- * Cilvēks → `displayId`; bots → "AI {sēdvieta}" (numurēts, lai atšķirtu 3 botus,
- * tāpat kā SP); nezināms → atkāpšanās vārds.
- */
-function seatLabel(
-  displayId: string | undefined,
-  isAI: boolean,
-  gameSeatIndex: number,
-  t: AppStrings
-): string {
-  if (displayId) return displayId;
-  return isAI ? `${t.mpBot} ${gameSeatIndex + 1}` : t.fallbackPlayerName;
-}
-
-function formatTemplate(template: string, values: Record<string, string>): string {
-  return Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, value), template);
-}
-
 /** Countdown takts: tikšķ tikai kamēr ir aktīvs deadline (citādi nevajadzīgi renderi). */
 function useNowMs(active: boolean): number {
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -704,4 +714,19 @@ function getStageContainLayout(): StageContainLayout {
     left: (window.innerWidth - CANVAS_WIDTH * scale) / 2,
     top: (window.innerHeight - CANVAS_HEIGHT * scale) / 2
   };
+}
+
+/** Telefona portrēts → mobilais izkārtojums; citur (ainava/desktop) → fiksētā skatuve. */
+const PHONE_PORTRAIT_QUERY = "(orientation: portrait) and (max-width: 768px)";
+
+function useIsPhonePortrait(): boolean {
+  const [isPhonePortrait, setIsPhonePortrait] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia(PHONE_PORTRAIT_QUERY);
+    const update = () => setIsPhonePortrait(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  return isPhonePortrait;
 }

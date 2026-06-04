@@ -40,6 +40,9 @@ pnpm-debug.log*
 docs/TODO/
 docs/mockups/
 
+# Deploy skripts (satur servera IP/SSH ceļu — netiek publicēts)
+deploy.sh
+
 # Local audit and planning notes
 fix_scope.md
 fix-scope.md
@@ -51,3 +54,4 @@ docs/fix-scope.md
 Thumbs.db
 .idea/
 .vscode/
+.superpowers/
