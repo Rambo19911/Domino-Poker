@@ -34,7 +34,9 @@ export const MP_MOBILE_SIZE = {
 /** Centra pozīcijas (daļas no skatuves W×H). Sēdvietas pēc vizuālās vietas 0..3. */
 export const MP_MOBILE_POS = {
   table: { cx: 0.4991, cy: 0.5 },
-  trumpLabel: { cx: 0.5, cy: 0.4 },
+  // Nav PSD elements — novietots tieši VIRS galda augšmalas (galds: top ≈ 0.3953),
+  // lai uzraksts nepārklājas pāri galdam. ~26px atstarpe līdz galdam.
+  trumpLabel: { cx: 0.5, cy: 0.373 },
   summary: { cx: 0.5037, cy: 0.0823 },
   leave: { cx: 0.9222, cy: 0.0329 },
   trick: {
