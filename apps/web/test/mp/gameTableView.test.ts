@@ -46,6 +46,9 @@ function snapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
     players: [player(0), player(1, { isAI: true }), player(2, { isAI: true }), player(3, { isAI: true })],
     eventSeq: 1,
     deadlineAt: undefined,
+    // Aktīvs servera turns (no `currentTurn`); `undefined` = sprauga starp turniem
+    // / pirms-spēle (tad neviens nedrīkst darboties).
+    turnId: "t1",
     viewerPlayerId: "1",
     hand: [{ side1: 6, side2: 6 }, { side1: 3, side2: 4 }],
     ...overrides
@@ -151,8 +154,15 @@ describe("toGameTableView", () => {
     expect(view?.turnAction).toBe("none");
   });
 
-  it("never reports the viewer's turn without an active turnId", () => {
-    const view = toGameTableView(snapshot({ currentPlayerIndex: 0 }), room([seat(0), seat(1), seat(2), seat(3)]), undefined);
+  it("does not report the viewer's turn in the gap before the server starts it (snapshot has no active turnId)", () => {
+    // Regresija: pēc bota gājiena `currentPlayerIndex` jau rāda cilvēku, bet servera
+    // turns vēl nav izveidots (`snapshot.turnId` undefined). Pat ar vecu (stale)
+    // sekoto turnId klients NEDRĪKST ieslēgt gājienu, citādi serveris to noraida.
+    const view = toGameTableView(
+      snapshot({ currentPlayerIndex: 0, turnId: undefined }),
+      room([seat(0), seat(1), seat(2), seat(3)]),
+      "t-stale"
+    );
     expect(view?.isViewerTurn).toBe(false);
     expect(view?.turnAction).toBe("none");
   });
@@ -211,9 +221,9 @@ describe("toGameTableView", () => {
 
   it("exposes preGameStartsAt while the first turn has not started", () => {
     const view = toGameTableView(
-      snapshot({ phase: "bidding" }),
+      snapshot({ phase: "bidding", turnId: undefined }), // vēl nav aktīva turna
       room([seat(0), seat(1), seat(2), seat(3)]),
-      undefined, // vēl nav aktīva turna
+      undefined,
       50_000
     );
     expect(view?.preGameStartsAt).toBe(50_000);

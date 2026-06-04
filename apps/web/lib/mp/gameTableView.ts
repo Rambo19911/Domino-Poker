@@ -161,9 +161,16 @@ export function toGameTableView(
 
   const currentPlayer = snapshot.players[snapshot.currentPlayerIndex];
   const isPlayablePhase = snapshot.phase === "bidding" || snapshot.phase === "playing";
+  // Vārtejam pēc servera AUTORITATĪVĀ aktīvā turna (`snapshot.turnId`), nevis pēc
+  // atsevišķi sekota `turnId`. Starp bota un cilvēka turnu ir sprauga, kur
+  // `currentPlayerIndex` jau rāda cilvēku, bet servera turns vēl nav izveidots
+  // (`snapshot.turnId === undefined`, jo `currentTurn` ir tukšs). Senāk klients tad
+  // ieslēdza kauliņus pāragri → gājiens ar veco turnId → "turn_not_started"
+  // noraidījums, lai gan bija likumīgs. (Kad turns aktīvs, sekotais `turnId` jau
+  // sakrīt ar `snapshot.turnId`, tāpēc sūtītais turnId paliek pareizs.)
   const isViewerTurn =
     isPlayablePhase &&
-    turnId !== undefined &&
+    snapshot.turnId !== undefined &&
     currentPlayer?.playerId === snapshot.viewerPlayerId;
   const turnAction: MpTurnAction = !isViewerTurn
     ? "none"
