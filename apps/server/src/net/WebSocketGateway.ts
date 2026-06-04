@@ -28,6 +28,8 @@ const DEFAULT_PING_INTERVAL_MS = 15_000;
 const DEFAULT_MISSED_PONG_THRESHOLD = 2;
 /** Izejošā bufera robeža (baiti), virs kuras broadcast sūtījumu klientam izlaiž. */
 const DEFAULT_SLOW_CLIENT_BUFFER_CAP = 1024 * 1024; // 1 MB
+/** Cik bieži (ms) izslaucīt istabas, kurām beidzies TTL (1h). 60s ir pietiekami. */
+const ROOM_SWEEP_INTERVAL_MS = 60_000;
 
 export interface WebSocketGatewayOptions {
   readonly clock: Clock;
@@ -154,6 +156,20 @@ export class WebSocketGateway implements GatewayHub {
   /** Cik bieži (ms) palaist `sweepHeartbeats` (transporta `setInterval` vajadzībām). */
   getPingIntervalMs(): number {
     return this.pingIntervalMs;
+  }
+
+  /**
+   * Istabu TTL izslaukšana: iznīcina istabas, kurām beidzies laiks, un pārraida
+   * jauno LOBBY_STATE. Deterministiska (lieto injicēto pulksteni); reālo periodisko
+   * izsaukšanu pieslēdz `wsTransport` ar `setInterval`.
+   */
+  sweepExpiredRooms(): void {
+    this.router.sweepExpiredRooms(this, this.clock());
+  }
+
+  /** Cik bieži (ms) palaist `sweepExpiredRooms` (transporta `setInterval` vajadzībām). */
+  getRoomSweepIntervalMs(): number {
+    return ROOM_SWEEP_INTERVAL_MS;
   }
 
   /** Aktīvo (handshake pabeigušo) spēlētāju skaits. */

@@ -7,6 +7,7 @@ import type { GatewayConnection } from "../../src/net/GatewayConnection.js";
 import { CoreMessageRouter } from "../../src/net/messageRouter.js";
 import { WebSocketGateway } from "../../src/net/WebSocketGateway.js";
 import { RoomManager } from "../../src/rooms/RoomManager.js";
+import { ManualTimerController } from "../../src/timers/ManualTimerController.js";
 
 class FakeConnection implements GatewayConnection {
   readonly id: string;
@@ -245,6 +246,73 @@ describe("Lobby message routing (6.5)", () => {
     send(gateway, guest, { type: "FILL_SEATS_WITH_BOTS" });
 
     expect(guest.lastTyped("ERROR")).toMatchObject({ code: "NOT_HOST" });
+  });
+});
+
+describe("Room TTL sweep broadcasts LOBBY_STATE", () => {
+  it("removes an expired empty room from the list and pushes the update to watchers", () => {
+    const timer = new ManualTimerController(1000);
+    const displayIds = new DisplayIdRegistry();
+    let roomSeq = 0;
+    let sessionSeq = 0;
+    const rooms = new RoomManager({
+      clock: timer.now,
+      displayIds,
+      ttlMs: 60_000,
+      createRoomId: () => `room-${(roomSeq += 1)}`,
+      createRoomCode: () => `CODE${roomSeq}`
+    });
+    const gateway = new WebSocketGateway({
+      clock: timer.now,
+      displayIds,
+      router: new CoreMessageRouter({ rooms, chat: new LobbyChat({ clock: timer.now }) }),
+      createSessionId: () => `session-${(sessionSeq += 1)}`,
+      createReconnectToken: () => `token-${sessionSeq}`
+    });
+
+    const host = connect(gateway, "c1", "host");
+    const watcher = connect(gateway, "c2", "watch");
+    send(gateway, host, { type: "CREATE_ROOM" });
+    expect(watcher.lastTyped("LOBBY_STATE")?.rooms).toHaveLength(1);
+    watcher.sent.length = 0;
+
+    timer.set(1000 + 60_000 + 1); // past TTL
+    gateway.sweepExpiredRooms();
+
+    const lobby = watcher.lastTyped("LOBBY_STATE");
+    expect(lobby).toBeDefined();
+    expect(lobby?.rooms).toEqual([]);
+  });
+
+  it("does not broadcast when no room has expired", () => {
+    const timer = new ManualTimerController(1000);
+    const displayIds = new DisplayIdRegistry();
+    let roomSeq = 0;
+    let sessionSeq = 0;
+    const rooms = new RoomManager({
+      clock: timer.now,
+      displayIds,
+      ttlMs: 60_000,
+      createRoomId: () => `room-${(roomSeq += 1)}`,
+      createRoomCode: () => `CODE${roomSeq}`
+    });
+    const gateway = new WebSocketGateway({
+      clock: timer.now,
+      displayIds,
+      router: new CoreMessageRouter({ rooms, chat: new LobbyChat({ clock: timer.now }) }),
+      createSessionId: () => `session-${(sessionSeq += 1)}`,
+      createReconnectToken: () => `token-${sessionSeq}`
+    });
+
+    const host = connect(gateway, "c1", "host");
+    const watcher = connect(gateway, "c2", "watch");
+    send(gateway, host, { type: "CREATE_ROOM" });
+    watcher.sent.length = 0;
+
+    timer.set(1000 + 30_000); // still within TTL
+    gateway.sweepExpiredRooms();
+
+    expect(watcher.typed("LOBBY_STATE")).toHaveLength(0);
   });
 });
 

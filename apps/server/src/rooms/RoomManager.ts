@@ -229,6 +229,24 @@ export class RoomManager {
     return { room: updated, events, destroyed };
   }
 
+  /**
+   * Periodiska istabu TTL izslaukšana (pieslēgta net slānī ar `setInterval`):
+   * iznīcina istabas, kurām beidzies laiks (WAITING/STARTING/FINISHED; IN_GAME
+   * paliek līdz partijas beigām), atbrīvo to dzinējus/timerus un notīra sēdošo
+   * cilvēku dalību (citādi host paliktu "iesprūdis" jau iznīcinātā istabā). Atgriež
+   * iznīcināto istabu id (≥1 → net slānis pārraida jauno LOBBY_STATE).
+   */
+  destroyExpiredRooms(now: number): readonly string[] {
+    const destroyed = this.lobby.destroyExpired(now);
+    if (destroyed.length === 0) return destroyed;
+    const destroyedSet = new Set(destroyed);
+    for (const [clientId, roomId] of this.clientRoom) {
+      if (destroyedSet.has(roomId)) this.clientRoom.delete(clientId);
+    }
+    for (const roomId of destroyed) this.disposeRoom(roomId);
+    return destroyed;
+  }
+
   /** Noņem istabas dzinēju, direktoru un visus timerus (pēc iznīcināšanas). */
   private disposeRoom(roomId: string): void {
     this.engines.get(roomId)?.dispose(); // atceļ gaidošo turn-timeout timeri

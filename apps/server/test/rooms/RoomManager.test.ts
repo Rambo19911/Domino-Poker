@@ -214,3 +214,34 @@ describe("RoomManager destroyFinishedRoom", () => {
     expect(() => manager.createRoom("host")).not.toThrow();
   });
 });
+
+describe("RoomManager destroyExpiredRooms (TTL sweep)", () => {
+  it("destroys rooms past their TTL, removes them from the list, and frees membership", () => {
+    const timer = new ManualTimerController(1_000);
+    let roomSeq = 0;
+    const manager = new RoomManager({
+      clock: timer.now,
+      ttlMs: 60_000,
+      createRoomId: () => `room-${(roomSeq += 1)}`,
+      createRoomCode: () => `code${roomSeq}`,
+      createSeed: () => `seed-${roomSeq}`
+    });
+    const room = manager.createRoom("host");
+    expect(manager.listRooms().map((r) => r.id)).toContain(room.id);
+
+    timer.set(1_000 + 60_000 + 1); // past expiresAt
+    const destroyed = manager.destroyExpiredRooms(timer.now());
+
+    expect(destroyed).toContain(room.id);
+    expect(manager.listRooms().map((r) => r.id)).not.toContain(room.id);
+    // Host vairs nav "iesprūdis" iznīcinātajā istabā — drīkst izveidot jaunu.
+    expect(manager.roomOf("host")).toBeUndefined();
+    expect(() => manager.createRoom("host")).not.toThrow();
+  });
+
+  it("returns empty (no broadcast) when nothing has expired yet", () => {
+    const { manager } = createManager();
+    manager.createRoom("host");
+    expect(manager.destroyExpiredRooms(2_000)).toEqual([]);
+  });
+});

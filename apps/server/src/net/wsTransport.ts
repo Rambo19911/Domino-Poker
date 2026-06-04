@@ -58,6 +58,12 @@ export function attachWebSocketGateway(
   heartbeat.unref?.();
   wss.on("close", () => clearInterval(heartbeat));
 
+  // Periodiska istabu TTL izslaukšana: istabas, kurām beidzies laiks, tiek
+  // iznīcinātas un noņemtas no lobby (citādi tukša istaba paliek sarakstā mūžīgi).
+  const roomSweep = setInterval(() => gateway.sweepExpiredRooms(), gateway.getRoomSweepIntervalMs());
+  roomSweep.unref?.();
+  wss.on("close", () => clearInterval(roomSweep));
+
   return wss;
 }
 

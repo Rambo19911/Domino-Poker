@@ -34,6 +34,12 @@ export interface MessageRouter {
    * spēlē, atzīmē `connectionState = disconnected` (spēle turpinās, sēdvieta paliek).
    */
   onDisconnected(hub: GatewayHub, serverNow: number, disconnected?: ConnectionIdentity): void;
+  /**
+   * Periodiska istabu TTL izslaukšana (net slānis to sauc ar `setInterval`):
+   * iznīcina istabas, kurām beidzies laiks, un, ja kāda iznīcināta, pārraida
+   * jauno LOBBY_STATE (lai klienti noņem istabu no saraksta).
+   */
+  sweepExpiredRooms(hub: GatewayHub, now: number): void;
 }
 
 export interface CoreMessageRouterOptions {
@@ -555,6 +561,13 @@ export class CoreMessageRouter implements MessageRouter {
       }
     } catch {
       // Atvienojuma apstrāde nedrīkst sabrukt (piem. istaba jau iznīcināta).
+    }
+  }
+
+  sweepExpiredRooms(hub: GatewayHub, now: number): void {
+    const destroyed = this.rooms.destroyExpiredRooms(now);
+    if (destroyed.length > 0) {
+      this.pushLobbyState(hub);
     }
   }
 
