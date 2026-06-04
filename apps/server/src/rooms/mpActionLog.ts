@@ -1,5 +1,5 @@
 import { appendFileSync, mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { resolve } from "node:path";
 
 import type { MultiplayerCommand, MultiplayerGameState } from "@domino-poker/core/multiplayer";
 
@@ -14,13 +14,15 @@ import type { RoomDispatchResult } from "./RoomEngine.js";
  *
  * Izvads iet UZREIZ uz divām vietām:
  *   • terminālis (`console.log`/`warn`) — dzīvai vērošanai;
- *   • `.txt` fails (`logs/mp-actions.txt`) — pilnam ierakstam (terminālim ir
- *     ritināšanas limits). Pārraksta ceļu ar `MP_ACTION_LOG_FILE`.
+ *   • **atsevišķs `.txt` fails KATRAI spēlei** mapē `logs/`:
+ *     `mp-actions-<roomId>-<YYYY-MM-DD_HH-MM-SS>.txt`. roomId (= gameId) ir spēles
+ *     unikālais identifikators; datums_laiks = spēles pirmās darbības laiks.
+ *     Mapi pārraksta ar `MP_ACTION_LOG_DIR`.
  *
  * Pēc noklusējuma: IESLĒGTS visur (arī produkcijā — lai noķertu retas kļūdas uz
  * VPS), IZSLĒGTS testos (`VITEST`). Manuāli atslēdz ar `MP_ACTION_LOG=0`.
- * Produkcijā fails ir `/opt/domino-poker/logs/mp-actions.txt` (servisa CWD), to var
- * izgūt ar SSH; konsoles izvads nonāk arī `journalctl -u domino-poker`.
+ * Produkcijā faili ir `/opt/domino-poker/logs/` (servisa CWD), tos var izgūt ar
+ * SSH; konsoles izvads nonāk arī `journalctl -u domino-poker`.
  * Faila rakstīšanas kļūda NEKAD nesalauž spēli (best-effort, kā persistence).
  * Tikai MP — SP neiet caur `RoomEngine`.
  */
@@ -32,40 +34,10 @@ function resolveEnabled(): boolean {
 }
 
 const ENABLED = resolveEnabled();
-const FILE_PATH = ENABLED ? openLogFile() : undefined;
+const LOG_DIR = resolve(process.env.MP_ACTION_LOG_DIR?.trim() || "logs");
 let fileBroken = false;
-
-/** Sagatavo log failu (izveido mapi + pieraksta sesijas galveni). */
-function openLogFile(): string | undefined {
-  const custom = process.env.MP_ACTION_LOG_FILE?.trim();
-  const path = resolve(custom && custom.length > 0 ? custom : "logs/mp-actions.txt");
-  try {
-    mkdirSync(dirname(path), { recursive: true });
-    appendFileSync(path, `\n=== MP log sesija sākta ${new Date().toISOString()} (pid ${process.pid}) ===\n`);
-    return path;
-  } catch (error) {
-    console.error("[mp] neizdevās atvērt log failu:", error);
-    return undefined;
-  }
-}
-
-/** Best-effort pieraksts failā; pie pirmās kļūdas atslēdz failu (spēli nelauž). */
-function writeToFile(line: string): void {
-  if (!FILE_PATH || fileBroken) return;
-  try {
-    appendFileSync(FILE_PATH, `${line}\n`);
-  } catch (error) {
-    fileBroken = true;
-    console.error("[mp] log faila rakstīšana neizdevās, atslēdzu failu:", error);
-  }
-}
-
-/** Izvada vienu rindu uz termināli (warn=stderr) un failu. */
-function emit(line: string, warn: boolean): void {
-  if (warn) console.warn(line);
-  else console.log(line);
-  writeToFile(line);
-}
+/** roomId (spēle) → tās faila ceļš. Pirmā darbība istabā izveido failu + galveni. */
+const roomFiles = new Map<string, string>();
 
 export function mpActionLogEnabled(): boolean {
   return ENABLED;
@@ -83,26 +55,67 @@ export function logMpAction(
 
   if (result.idempotentReplay) {
     // Atkārtots requestId — klients pārsūtīja to pašu komandu (retry/dublikāts).
-    emit(`${head} → IDEMPOTENT REPLAY (dublēts requestId)`, true);
+    emit(command.gameId, nowMs, `${head} → IDEMPOTENT REPLAY (dublēts requestId)`, true);
     return;
   }
   if (result.accepted) {
     const events = result.events.map((entry) => entry.event.type).join(",") || "-";
     const seq = result.events[result.events.length - 1]?.seq ?? "-";
-    emit(`${head} → OK seq=${seq} ev=[${events}]`, false);
+    emit(command.gameId, nowMs, `${head} → OK seq=${seq} ev=[${events}]`, false);
     return;
   }
   const errors = result.errors.map((error) => `${error.code}:${error.message}`).join(" | ") || "-";
-  emit(`${head} → REJECTED [${errors}]${rejectContext(command, state)}`, true);
+  emit(command.gameId, nowMs, `${head} → REJECTED [${errors}]${rejectContext(command, state)}`, true);
 }
 
 /** Logo re-entrant (rindā ielikto) komandu — aizdomīga aizsardzības situācija. */
 export function logMpQueued(nowMs: number, command: MultiplayerCommand): void {
   if (!ENABLED) return;
   emit(
+    command.gameId,
+    nowMs,
     `[mp ${formatTime(nowMs)}] room=${command.gameId} ${command.type} req=${command.requestId} → QUEUED (re-entrant dispatch; tiks apstrādāts pēc tekošā)`,
     true
   );
+}
+
+/** Izvada vienu rindu uz termināli (warn=stderr) un attiecīgās spēles failu. */
+function emit(roomId: string, nowMs: number, line: string, warn: boolean): void {
+  if (warn) console.warn(line);
+  else console.log(line);
+  writeToFile(roomId, nowMs, line);
+}
+
+/** Best-effort pieraksts spēles failā; pie pirmās kļūdas atslēdz failus (spēli nelauž). */
+function writeToFile(roomId: string, nowMs: number, line: string): void {
+  if (fileBroken) return;
+  const path = fileForRoom(roomId, nowMs);
+  if (!path) return;
+  try {
+    appendFileSync(path, `${line}\n`);
+  } catch (error) {
+    fileBroken = true;
+    console.error("[mp] log faila rakstīšana neizdevās, atslēdzu failus:", error);
+  }
+}
+
+/** Atgriež (vai izveido) šīs spēles log faila ceļu: `mp-actions-<roomId>-<stamp>.txt`. */
+function fileForRoom(roomId: string, nowMs: number): string | undefined {
+  const existing = roomFiles.get(roomId);
+  if (existing) return existing;
+  const path = resolve(LOG_DIR, `mp-actions-${sanitize(roomId)}-${fileStamp(nowMs)}.txt`);
+  try {
+    mkdirSync(LOG_DIR, { recursive: true });
+    // Lokāls laiks (saskan ar faila nosaukumu un rindām, neatkarīgi no servera TZ).
+    const started = `${fileStamp(nowMs).slice(0, 10)} ${formatTime(nowMs).slice(0, 8)}`;
+    appendFileSync(path, `=== MP spēle room=${roomId} sākta ${started} (pid ${process.pid}) ===\n`);
+    roomFiles.set(roomId, path);
+    return path;
+  } catch (error) {
+    fileBroken = true;
+    console.error("[mp] neizdevās izveidot spēles log failu:", error);
+    return undefined;
+  }
 }
 
 function playerOf(command: MultiplayerCommand): string {
@@ -138,8 +151,21 @@ function rejectContext(command: MultiplayerCommand, state: MultiplayerGameState 
   return ` | phase=${core.phase} cur=${core.currentPlayerIndex} ${turnInfo} lead=${lead} req#=${core.requiredNumber ?? "-"} trump=${core.isTrumpLead} ace=${core.isAceLead}`;
 }
 
+/** `HH:MM:SS.mmm` (lokāls laiks) — rindas iekšā. */
 function formatTime(ms: number): string {
   const date = new Date(ms);
   const pad = (value: number, width = 2): string => String(value).padStart(width, "0");
   return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`;
+}
+
+/** `YYYY-MM-DD_HH-MM-SS` (lokāls laiks) — faila nosaukumā (failsistēmas-drošs). */
+function fileStamp(ms: number): string {
+  const date = new Date(ms);
+  const pad = (value: number): string => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`;
+}
+
+/** Faila nosaukumam drošs roomId (UUID iziet cauri nemainīts). */
+function sanitize(id: string): string {
+  return id.replace(/[^A-Za-z0-9_-]/g, "_");
 }
