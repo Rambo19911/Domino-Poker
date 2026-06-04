@@ -43,6 +43,9 @@ docs/mockups/
 # Deploy skripts (satur servera IP/SSH ceļu — netiek publicēts)
 deploy.sh
 
+# Lokālās darba instrukcijas (netiek publicētas)
+CLAUDE.md
+
 # Local audit and planning notes
 fix_scope.md
 fix-scope.md

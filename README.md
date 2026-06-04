@@ -10,7 +10,7 @@ four players share a room and play the same game over WebSocket.
 ![Domino Poker lobby](Screenshots/Lobby-screen.png)
 
 > **Branch note.** This is the **`multiplayer`** branch — a large work-in-progress update that
-> adds the multiplayer server, lobby, persistence, and deployment groundwork on top of the
+> adds the multiplayer server, lobby, and persistence on top of the
 > single-player game. It runs and is playable with 4 humans (or humans + bots) and is now
 > **live at [domino-poker.com](https://domino-poker.com/)**, still being tested and refined. Contributions
 > are welcome (see [Contributing](#contributing)).
@@ -52,9 +52,7 @@ single-player rules. Highlights:
   reproducible from its seed + event log (replay, recovery, fairness auditing).
 - **Load-tested**: a local load-test tool drives hundreds–thousands of virtual clients; the
   server is hardened against broadcast-fanout overload (debounce + backpressure + single-pass
-  serialization). See [`docs/SCALING.md`](docs/SCALING.md).
-- **Deployment groundwork**: `.env` configuration, a systemd service, a Dockerfile, and an
-  Nginx/Caddy reverse-proxy example. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+  serialization).
 
 The single-player game is unchanged and still works fully offline.
 
@@ -129,8 +127,7 @@ packages/core    Pure TypeScript rules, scoring, state, AI — incl. the `multip
 packages/shared  Protocol contracts (client/server messages, room DTOs) — single source
 tools/simulators Headless full-game simulator (determinism + invariant stress tests)
 tools/load-test  Local WebSocket load generator (npm run load:local)
-deploy           systemd service, Dockerfile, Nginx/Caddy reverse-proxy examples
-docs             Rules, scoring examples, deployment, scaling, and DB-migration guides
+docs             Rules, scoring examples, and design notes
 Screenshots      Public README screenshots
 ```
 
@@ -176,9 +173,6 @@ one normal window + one incognito per browser, so each gets its own identity), g
 3. The host starts the game (from the room screen, or the **Start** button in the lobby list).
 4. Bid and play; the server runs the per-turn countdown and auto-plays on timeout.
 
-The web client connects to `ws://<host>:4000/ws` by default. Behind a reverse proxy, set
-`NEXT_PUBLIC_MP_WS_URL` at build time (see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)).
-
 ## Available scripts
 
 ```bash
@@ -192,44 +186,14 @@ npm run load:local   # Local load test against a running server (e.g. -- 100)
 npm run test:web     # Playwright web e2e tests
 ```
 
-## Configuration
-
-The server reads configuration from environment variables (and an optional `.env` file at the
-repo root). Copy the example and adjust:
-
-```bash
-cp .env.example .env
-```
-
-| Variable | Purpose | Default |
-| --- | --- | --- |
-| `SERVER_PORT` (or `HTTP_PORT`) | HTTP + WebSocket port | `4000` |
-| `SERVER_HOST` | Bind address (`127.0.0.1` behind a proxy) | `0.0.0.0` |
-| `DATABASE_URL` | SQLite file path or `:memory:` | `./data/dev.sqlite` |
-| `TURN_DURATION_MS` | Per-turn countdown in ms (range 100–600000) | `10000` |
-| `NODE_ENV` | `development` / `production` | `development` |
-
-See [`.env.example`](.env.example) for full notes.
-
-## Deployment, scaling, and database
-
-- **[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)** — production build, systemd service or Docker,
-  and an Nginx/Caddy reverse proxy with WebSocket upgrade (VPS prep).
-- **[`docs/SCALING.md`](docs/SCALING.md)** — measured load-test results, where the bottleneck
-  is (global chat broadcast fan-out), and the path to thousands of users (Redis pub/sub +
-  room sharding).
-- **[`docs/DB_MIGRATION.md`](docs/DB_MIGRATION.md)** — SQLite (local) → PostgreSQL (VPS)
-  strategy using the same `StoragePort` interface.
-
 ## Project status
 
 **Working locally:** single-player; multiplayer lobby, rooms, bot-fill, real-time play, server
 turn timers + timeout auto-play, reconnect, chat, SQLite persistence, and a basic load test.
 
-**Not done yet / intentionally deferred (post-MVP):** public deployment; real-money or ranked
-play; tournaments; spectator mode; horizontal scaling (Redis pub/sub, room sharding); full
-per-game crash recovery; persistent cross-session player identity / accounts; in-room chat;
-moderation. These are out of scope for the current local MVP.
+**Not done yet / intentionally deferred (post-MVP):** real-money or ranked play; tournaments;
+spectator mode; horizontal scaling; full per-game crash recovery; persistent cross-session
+player identity / accounts; in-room chat; moderation.
 
 ## Contributing
 
