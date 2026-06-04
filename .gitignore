@@ -32,6 +32,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# MP darbību logi (.txt failā; lokāla atkļūdošana)
+logs/
+
 # Agent / tooling working dirs (not for publishing)
 .claude/
 .playwright-mcp/

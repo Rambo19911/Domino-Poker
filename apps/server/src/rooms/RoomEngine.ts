@@ -11,6 +11,7 @@ import {
 } from "@domino-poker/core/multiplayer";
 
 import type { Clock, TurnTimerScheduler } from "../timers/TurnTimerScheduler.js";
+import { logMpAction, logMpQueued } from "./mpActionLog.js";
 
 /** Neliela rezerve (ms) virs deadline, lai TURN_TIMEOUT `now > deadlineAt`. */
 const TURN_TIMER_GRACE_MS = 1;
@@ -111,6 +112,8 @@ export class RoomEngine {
   dispatch(command: MultiplayerCommand): RoomDispatchResult {
     if (this.processing) {
       this.queue.push(command);
+      // Re-entrance ir aizsardzības gadījums — ja tas notiek, tas ir aizdomīgi.
+      logMpQueued(this.clock(), command);
       return {
         accepted: false,
         idempotentReplay: false,
@@ -192,7 +195,16 @@ export class RoomEngine {
     return this.state !== undefined;
   }
 
+  /** Apstrādā komandu un logo rezultātu (MP atkļūdošanai; no-op, ja izslēgts). */
   private process(command: MultiplayerCommand): RoomDispatchResult {
+    const result = this.processInner(command);
+    // `this.state` šeit: noraidījumam = pirms-komandas state (nemainīts) → korekts
+    // konteksts "kāpēc noraidīts"; pieņemšanai = jaunais state (logam pietiek ar events).
+    logMpAction(this.clock(), command, result, this.state);
+    return result;
+  }
+
+  private processInner(command: MultiplayerCommand): RoomDispatchResult {
     const idempotencyKey = this.idempotencyKey(command);
     if (idempotencyKey !== undefined) {
       const cached = this.seenRequests.get(idempotencyKey);
