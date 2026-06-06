@@ -11,6 +11,9 @@ type QueryCall = {
 class RecordingPool {
   readonly queries: QueryCall[] = [];
   fanoutRows: QueryResultRow[] = [];
+  totalCount = 0;
+  idleCount = 0;
+  waitingCount = 0;
 
   async query<T extends QueryResultRow = QueryResultRow>(
     text: string,
@@ -152,6 +155,23 @@ describe("PostgresEventBus", () => {
       query.text.includes("SELECT origin_instance_id")
     );
     expect(lookupQueries).toHaveLength(0);
+
+    await bus.close();
+  });
+
+  it("exposes event-bus pool saturation via poolStats", async () => {
+    const pool = new RecordingPool();
+    pool.totalCount = 3;
+    pool.idleCount = 1;
+    pool.waitingCount = 2;
+    const bus = await PostgresEventBus.open({
+      connectionString: "postgres://test",
+      instanceId: "instance-a",
+      pool,
+      listenerFactory: () => new FakeListener()
+    });
+
+    expect(bus.poolStats()).toEqual({ total: 3, idle: 1, waiting: 2 });
 
     await bus.close();
   });

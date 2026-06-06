@@ -128,7 +128,15 @@ rooms.setMemberDepartedHandler((clientId) => {
 // PG režīmā pievieno DB veselību (SELECT 1 latency + pool piesātinājums).
 const server = createHealthHttpServer({
   connectionCount: () => gateway.onlineCount(),
-  ...(storage instanceof PostgresStorage ? { dbHealth: () => storage.healthCheck() } : {})
+  ...(storage instanceof PostgresStorage
+    ? {
+        dbHealth: async () => {
+          const report = await storage.healthCheck();
+          // Pievieno event-bus pool atsevišķi (tas dzīvo PostgresEventBus, ne storage).
+          return eventBus ? { ...report, eventBusPool: eventBus.poolStats() } : report;
+        }
+      }
+    : {})
 });
 // Decision B: WebSocket uz tā paša HTTP servera/porta caur `upgrade`.
 attachWebSocketGateway(server, gateway);

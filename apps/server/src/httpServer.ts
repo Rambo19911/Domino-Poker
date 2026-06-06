@@ -1,11 +1,21 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import process from "node:process";
 
-/** DB veselības momentuzņēmums `/metrics` (strukturāli saderīgs ar `DbHealthReport`). */
+interface PoolCounts {
+  readonly total: number;
+  readonly idle: number;
+  readonly waiting: number;
+}
+
+/** DB momentuzņēmums `/metrics` (strukturāli saderīgs ar `DbHealthReport` + event-bus pool). */
 export interface DbHealthSnapshot {
   readonly ok: boolean;
   readonly latencyMs: number;
-  readonly pool: { readonly total: number; readonly idle: number; readonly waiting: number };
+  readonly pool: PoolCounts;
+  readonly fanout: { readonly rows: number; readonly oldestAgeMs: number };
+  readonly tables: Record<string, { readonly rows: number; readonly bytes: number }>;
+  /** Event-bus pool piesātinājums (ja PG fanout aktīvs); `undefined`, ja nav event bus. */
+  readonly eventBusPool?: PoolCounts;
 }
 
 export interface HealthHttpServerOptions {

@@ -42,14 +42,28 @@ export interface PgPoolOptions {
   readonly connectionTimeoutMillis?: number;
 }
 
-/** `/metrics` DB veselības momentuzņēmums (tikai PG režīmā). */
+/** Savienojumu pool piesātinājums (trendiem `/metrics`). */
+export interface PoolStats {
+  readonly total: number;
+  readonly idle: number;
+  readonly waiting: number;
+}
+
+/** `/metrics` DB momentuzņēmums (tikai PG režīmā): veselība + backlog + izmēri. */
 export interface DbHealthReport {
   /** `true`, ja `SELECT 1` izdevās; `false` signalizē DB nepieejamību monitoringam. */
   readonly ok: boolean;
   /** `SELECT 1` aprites laiks ms (arī pie `ok:false` — cik ilgi gaidīja līdz kļūdai). */
   readonly latencyMs: number;
-  /** Pool piesātinājums: `waiting > 0` nozīmē, ka pieprasījumi rindā gaida savienojumu. */
-  readonly pool: { readonly total: number; readonly idle: number; readonly waiting: number };
+  /** Storage pool piesātinājums: `waiting > 0` nozīmē pieprasījumus rindā. */
+  readonly pool: PoolStats;
+  /**
+   * Fanout backlog: `server_event_fanout` rindu skaits un vecākā ieraksta vecums ms.
+   * Augošs `rows`/`oldestAgeMs` nozīmē, ka prune neuztur līdzi (cleanup problēma).
+   */
+  readonly fanout: { readonly rows: number; readonly oldestAgeMs: number };
+  /** Tabulu aptuvenais izmērs (rindas + baiti) augšanas uzraudzībai, pēc tabulas nosaukuma. */
+  readonly tables: Record<string, { readonly rows: number; readonly bytes: number }>;
 }
 
 export class PostgresStorage implements StoragePort, RoomLeaseStore, DurableSessionStore {
@@ -342,21 +356,57 @@ export class PostgresStorage implements StoragePort, RoomLeaseStore, DurableSess
    */
   async healthCheck(now: () => number = Date.now): Promise<DbHealthReport> {
     const start = now();
-    let ok = true;
     try {
       await this.pool.query("SELECT 1");
     } catch {
-      ok = false;
+      // DB nepieejama: atgriežam ok:false + tukšus rādītājus (neapgrūtinām endpointu
+      // ar tālākiem izsaukumiem). `ok:false` ir lejupejošā stāvokļa signāls monitoringam.
+      return {
+        ok: false,
+        latencyMs: now() - start,
+        pool: this.poolStats(),
+        fanout: { rows: 0, oldestAgeMs: 0 },
+        tables: {}
+      };
     }
+    const latencyMs = now() - start;
+    // SELECT 1 izdevās → savācam backlog + izmērus. Ja šie pēc veiksmīga SELECT 1
+    // tomēr neizdotos (anomālija), kļūda propagējas uz /metrics 500 (netiek slēpta).
+    const fanout = await this.fanoutBacklog(now());
+    const tables = await this.tableSizes();
+    return { ok: true, latencyMs, pool: this.poolStats(), fanout, tables };
+  }
+
+  private poolStats(): PoolStats {
     return {
-      ok,
-      latencyMs: now() - start,
-      pool: {
-        total: this.pool.totalCount ?? 0,
-        idle: this.pool.idleCount ?? 0,
-        waiting: this.pool.waitingCount ?? 0
-      }
+      total: this.pool.totalCount ?? 0,
+      idle: this.pool.idleCount ?? 0,
+      waiting: this.pool.waitingCount ?? 0
     };
+  }
+
+  private async fanoutBacklog(nowMs: number): Promise<{ rows: number; oldestAgeMs: number }> {
+    const result = await this.pool.query<FanoutBacklogRow>(
+      `SELECT count(*)::bigint AS rows, COALESCE(min(created_at), 0) AS oldest_created_at
+         FROM server_event_fanout`
+    );
+    const row = result.rows[0];
+    const rows = row ? Number(row.rows) : 0;
+    const oldest = row ? Number(row.oldest_created_at) : 0;
+    return { rows, oldestAgeMs: rows > 0 ? Math.max(0, nowMs - oldest) : 0 };
+  }
+
+  private async tableSizes(): Promise<Record<string, { rows: number; bytes: number }>> {
+    const result = await this.pool.query<TableSizeRow>(
+      `SELECT relname AS name, n_live_tup AS rows, pg_total_relation_size(relid) AS bytes
+         FROM pg_stat_user_tables
+        WHERE schemaname = current_schema()`
+    );
+    const tables: Record<string, { rows: number; bytes: number }> = {};
+    for (const row of result.rows) {
+      tables[row.name] = { rows: Number(row.rows), bytes: Number(row.bytes) };
+    }
+    return tables;
   }
 
   async close(): Promise<void> {
@@ -409,6 +459,17 @@ interface RoomLeaseRow {
   readonly owner_instance_id: string;
   readonly expires_at: number | string;
   readonly updated_at: number | string;
+}
+
+interface FanoutBacklogRow {
+  readonly rows: number | string;
+  readonly oldest_created_at: number | string;
+}
+
+interface TableSizeRow {
+  readonly name: string;
+  readonly rows: number | string;
+  readonly bytes: number | string;
 }
 
 function rowToMatchStarted(row: MatchRow): MatchStartedRecord {

@@ -164,12 +164,27 @@ describeIfPostgres("PostgresStorage integration", () => {
     expect(Number(after.rows[0]?.count)).toBe(1);
   });
 
-  it("reports healthy DB status with real pool statistics", async () => {
-    const health = await storage.healthCheck();
-    expect(health.ok).toBe(true);
-    expect(health.latencyMs).toBeGreaterThanOrEqual(0);
-    expect(health.pool.total).toBeGreaterThanOrEqual(0);
-    expect(health.pool.waiting).toBe(0);
+  it("reports DB health, pool stats, fanout backlog, and table sizes", async () => {
+    const empty = await storage.healthCheck();
+    expect(empty.ok).toBe(true);
+    expect(empty.latencyMs).toBeGreaterThanOrEqual(0);
+    expect(empty.pool.waiting).toBe(0);
+    expect(empty.fanout.rows).toBe(0);
+    expect(empty.fanout.oldestAgeMs).toBe(0);
+    expect(empty.tables).toHaveProperty("server_event_fanout");
+    expect(empty.tables).toHaveProperty("matches");
+    expect(empty.tables["server_event_fanout"]?.bytes).toBeGreaterThanOrEqual(0);
+
+    await client.query(
+      `INSERT INTO ${quoteIdentifier(schemaName)}.server_event_fanout
+         (event_id, origin_instance_id, message_json, created_at)
+       VALUES ($1, $2, $3::jsonb, $4)`,
+      ["evt-1", "instance-x", JSON.stringify({ kind: "broadcast" }), 100]
+    );
+
+    const withBacklog = await storage.healthCheck();
+    expect(withBacklog.fanout.rows).toBe(1);
+    expect(withBacklog.fanout.oldestAgeMs).toBeGreaterThan(0);
   });
 
   it("keeps player stat increments atomic under concurrent PostgreSQL writes", async () => {

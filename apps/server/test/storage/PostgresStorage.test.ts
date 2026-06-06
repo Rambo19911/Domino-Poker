@@ -7,10 +7,6 @@ class RecordingPool {
   readonly queries: Array<{ text: string; values: readonly unknown[] | undefined }> = [];
   readonly rowQueue: unknown[][] = [];
   closed = false;
-  // `pg` Pool atklāj šos getterus; healthCheck tos lasa pool piesātinājumam.
-  totalCount = 0;
-  idleCount = 0;
-  waitingCount = 0;
 
   async query<T extends QueryResultRow = QueryResultRow>(
     text: string,
@@ -34,6 +30,40 @@ class RecordingPool {
  */
 function queryContaining(pool: RecordingPool, needle: string) {
   return pool.queries.find((entry) => entry.text.includes(needle));
+}
+
+/**
+ * Content-aware fake `healthCheck` testiem: atbild ar konkrētām rindām SELECT 1 /
+ * fanout backlog / table-size vaicājumiem, lai pārbaudītu parsēšanu un kļūdas ceļu
+ * (migrācijas pie `fromPool` saņem tukšu atbildi no catch-all).
+ */
+class HealthPool {
+  totalCount = 0;
+  idleCount = 0;
+  waitingCount = 0;
+  failSelect1 = false;
+  fanoutRows: unknown[] = [];
+  tableRows: unknown[] = [];
+
+  async query<T extends QueryResultRow = QueryResultRow>(text: string): Promise<QueryResult<T>> {
+    if (text.includes("SELECT 1")) {
+      if (this.failSelect1) {
+        throw new Error("connection refused");
+      }
+      return { rows: [] as unknown[] } as QueryResult<T>;
+    }
+    if (text.includes("oldest_created_at")) {
+      return { rows: this.fanoutRows } as QueryResult<T>;
+    }
+    if (text.includes("pg_stat_user_tables")) {
+      return { rows: this.tableRows } as QueryResult<T>;
+    }
+    return { rows: [] as unknown[] } as QueryResult<T>;
+  }
+
+  async end(): Promise<void> {
+    // Nothing to close in the fake pool.
+  }
 }
 
 describe("storage factory", () => {
@@ -218,43 +248,43 @@ describe("PostgresStorage", () => {
     expect(queryContaining(pool, "SELECT room_id, owner_instance_id")).toBeDefined();
   });
 
-  it("reports DB health with SELECT 1 latency and pool saturation", async () => {
-    const pool = new RecordingPool();
+  it("reports DB health, pool saturation, fanout backlog, and table sizes", async () => {
+    const pool = new HealthPool();
     pool.totalCount = 5;
     pool.idleCount = 2;
     pool.waitingCount = 1;
+    pool.fanoutRows = [{ rows: "12", oldest_created_at: "994" }];
+    pool.tableRows = [
+      { name: "matches", rows: "7", bytes: "8192" },
+      { name: "match_events", rows: "30", bytes: "16384" }
+    ];
     const storage = await PostgresStorage.fromPool(pool);
 
-    const times = [1000, 1007];
-    const health = await storage.healthCheck(() => times.shift() ?? 9999);
+    const health = await storage.healthCheck(() => 1000);
 
-    expect(queryContaining(pool, "SELECT 1")).toBeDefined();
     expect(health).toEqual({
       ok: true,
-      latencyMs: 7,
-      pool: { total: 5, idle: 2, waiting: 1 }
+      latencyMs: 0,
+      pool: { total: 5, idle: 2, waiting: 1 },
+      fanout: { rows: 12, oldestAgeMs: 6 },
+      tables: {
+        matches: { rows: 7, bytes: 8192 },
+        match_events: { rows: 30, bytes: 16384 }
+      }
     });
   });
 
-  it("reports ok=false when the health probe query fails", async () => {
-    class ThrowingPool extends RecordingPool {
-      override async query<T extends QueryResultRow = QueryResultRow>(
-        text: string,
-        values?: readonly unknown[]
-      ): Promise<QueryResult<T>> {
-        if (text.includes("SELECT 1")) {
-          throw new Error("connection refused");
-        }
-        return super.query<T>(text, values);
-      }
-    }
-    const pool = new ThrowingPool();
+  it("reports ok=false with empty stats when the health probe query fails", async () => {
+    const pool = new HealthPool();
+    pool.failSelect1 = true;
     const storage = await PostgresStorage.fromPool(pool);
 
     const health = await storage.healthCheck(() => 1000);
 
     expect(health.ok).toBe(false);
     expect(health.latencyMs).toBe(0);
+    expect(health.fanout).toEqual({ rows: 0, oldestAgeMs: 0 });
+    expect(health.tables).toEqual({});
   });
 
   it("creates, reads, and deletes durable player sessions", async () => {

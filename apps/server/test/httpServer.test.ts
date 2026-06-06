@@ -84,7 +84,10 @@ describe("createHealthHttpServer", () => {
         Promise.resolve({
           ok: true,
           latencyMs: 4,
-          pool: { total: 5, idle: 2, waiting: 0 }
+          pool: { total: 5, idle: 2, waiting: 0 },
+          fanout: { rows: 12, oldestAgeMs: 3000 },
+          tables: { matches: { rows: 7, bytes: 8192 } },
+          eventBusPool: { total: 2, idle: 1, waiting: 0 }
         })
     });
     servers.push(server);
@@ -93,9 +96,16 @@ describe("createHealthHttpServer", () => {
 
     const metrics = (await (
       await fetch(`http://127.0.0.1:${address.port}/metrics`)
-    ).json()) as { connections: number; db: { ok: boolean; pool: { waiting: number } } };
+    ).json()) as { connections: number; db: Record<string, unknown> };
 
     expect(metrics.connections).toBe(3);
-    expect(metrics.db).toEqual({ ok: true, latencyMs: 4, pool: { total: 5, idle: 2, waiting: 0 } });
+    expect(metrics.db).toEqual({
+      ok: true,
+      latencyMs: 4,
+      pool: { total: 5, idle: 2, waiting: 0 },
+      fanout: { rows: 12, oldestAgeMs: 3000 },
+      tables: { matches: { rows: 7, bytes: 8192 } },
+      eventBusPool: { total: 2, idle: 1, waiting: 0 }
+    });
   });
 });

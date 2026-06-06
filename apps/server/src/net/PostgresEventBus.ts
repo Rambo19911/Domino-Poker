@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { Client, Pool, type QueryResult, type QueryResultRow } from "pg";
 
 import { runMigrations } from "../storage/migrations.js";
-import type { PgPoolOptions } from "../storage/PostgresStorage.js";
+import type { PgPoolOptions, PoolStats } from "../storage/PostgresStorage.js";
 import type { ServerEventBus, ServerEventFanoutMessage } from "./ServerEventBus.js";
 
 const CHANNEL = "domino_poker_fanout";
@@ -19,6 +19,9 @@ interface PgPool {
     values?: readonly unknown[]
   ): Promise<QueryResult<T>>;
   end(): Promise<void>;
+  readonly totalCount?: number;
+  readonly idleCount?: number;
+  readonly waitingCount?: number;
 }
 
 interface PgNotification {
@@ -123,6 +126,15 @@ export class PostgresEventBus implements ServerEventBus {
        SELECT pg_notify($5, event_id) FROM inserted`,
       [eventId, this.instanceId, JSON.stringify(message), now, CHANNEL]
     );
+  }
+
+  /** Event-bus pool piesātinājums `/metrics` trendiem (atsevišķs no storage pool). */
+  poolStats(): PoolStats {
+    return {
+      total: this.pool.totalCount ?? 0,
+      idle: this.pool.idleCount ?? 0,
+      waiting: this.pool.waitingCount ?? 0
+    };
   }
 
   async close(): Promise<void> {
