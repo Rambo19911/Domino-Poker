@@ -1106,6 +1106,12 @@ button {
   width: min(760px, 100%);
   max-height: min(860px, calc(100vh - 40px));
   overflow: auto;
+  /* Paslēpj redzamo ritjoslu, saglabājot ritināšanu (gan single-, gan multiplayer noteikumu logā). */
+  scrollbar-width: none;
+}
+
+.rulesDialog::-webkit-scrollbar {
+  display: none;
 }
 
 .rulesDialog h2 .helpAssetIcon {
@@ -1142,6 +1148,20 @@ button {
   color: rgba(236, 237, 238, 0.86);
   font-size: 14px;
   line-height: 1.5;
+}
+
+.rulesSection ul {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+  color: rgba(236, 237, 238, 0.86);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.rulesSection li {
+  margin: 0;
 }
 
 .settingsHeader {
@@ -1643,14 +1663,6 @@ button {
     box-shadow:
       0 0 0 5px rgba(14, 14, 14, 0.82),
       0 16px 36px rgba(0, 0, 0, 0.5);
-  }
-
-  .compactModeTitle {
-    color: var(--primary);
-    font-size: 24px;
-    font-weight: 800;
-    line-height: 1.15;
-    text-align: center;
   }
 
   .compactRoundSelector {

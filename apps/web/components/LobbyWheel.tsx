@@ -130,7 +130,6 @@ export function CompactLobbyPanel({
   return (
     <div className="compactLobbyPanel" aria-label={labels.gameModes}>
       <img className="compactLobbyLogo" src="/assets/images/domino_poker_logo.png" alt="" />
-      <div className="compactModeTitle">{labels.modeSinglePlayer}</div>
       <CompactRoundSelector
         decreaseLabel={labels.decreaseRounds}
         disabled={disabled}
@@ -148,7 +147,7 @@ export function CompactLobbyPanel({
         disabled={disabled}
         onClick={onStartSinglePlayer}
       >
-        {labels.play}
+        {labels.modeSinglePlayer}
       </button>
       <button
         className="compactMultiplayerButton"

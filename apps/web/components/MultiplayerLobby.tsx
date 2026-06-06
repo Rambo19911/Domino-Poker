@@ -22,6 +22,7 @@ import { Dialog } from "./Dialog";
 import { ConnectionBanner } from "./mp/ConnectionBanner";
 import { MpGameTable } from "./mp/MpGameTable";
 import { HelpIcon } from "./RulesDialog";
+import { getMpRulesDoc } from "../lib/mpRulesContent";
 
 const CHAT_MAX_LENGTH = 200;
 const ROOM_CODE_MAX_LENGTH = 12;
@@ -709,6 +710,8 @@ function MultiplayerRulesDialog({
     onClose();
   };
 
+  const doc = getMpRulesDoc(t.localeCode);
+
   return (
     <Dialog
       ariaLabelledBy="mp-rules-title"
@@ -728,6 +731,32 @@ function MultiplayerRulesDialog({
         >
           <CloseIcon />
         </button>
+      </div>
+
+      <div className="rulesContent">
+        {doc.intro.length > 0 ? (
+          <section className="rulesSection">
+            {doc.intro.map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
+          </section>
+        ) : null}
+        {doc.sections.map((section) => (
+          <section className="rulesSection" key={section.title}>
+            <h3>{section.title}</h3>
+            {section.blocks.map((block) =>
+              typeof block === "string" ? (
+                <p key={block}>{block}</p>
+              ) : (
+                <ul key={block.list.join("|")}>
+                  {block.list.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              )
+            )}
+          </section>
+        ))}
       </div>
     </Dialog>
   );
