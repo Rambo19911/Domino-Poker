@@ -164,6 +164,14 @@ describeIfPostgres("PostgresStorage integration", () => {
     expect(Number(after.rows[0]?.count)).toBe(1);
   });
 
+  it("reports healthy DB status with real pool statistics", async () => {
+    const health = await storage.healthCheck();
+    expect(health.ok).toBe(true);
+    expect(health.latencyMs).toBeGreaterThanOrEqual(0);
+    expect(health.pool.total).toBeGreaterThanOrEqual(0);
+    expect(health.pool.waiting).toBe(0);
+  });
+
   it("keeps player stat increments atomic under concurrent PostgreSQL writes", async () => {
     await Promise.all(
       Array.from({ length: 25 }, (_, index) =>

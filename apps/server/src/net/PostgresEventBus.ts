@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { Client, Pool, type QueryResult, type QueryResultRow } from "pg";
 
 import { runMigrations } from "../storage/migrations.js";
+import type { PgPoolOptions } from "../storage/PostgresStorage.js";
 import type { ServerEventBus, ServerEventFanoutMessage } from "./ServerEventBus.js";
 
 const CHANNEL = "domino_poker_fanout";
@@ -38,6 +39,7 @@ export interface PostgresEventBusOptions {
   readonly instanceId: string;
   readonly clock?: () => number;
   readonly pool?: PgPool;
+  readonly poolOptions?: PgPoolOptions;
   readonly listenerFactory?: () => PgListener;
   readonly retentionMs?: number;
   readonly pruneIntervalMs?: number;
@@ -83,7 +85,9 @@ export class PostgresEventBus implements ServerEventBus {
       "reconnectDelayMs"
     );
     this.logger = options.logger ?? console;
-    this.pool = options.pool ?? new Pool({ connectionString: options.connectionString });
+    this.pool =
+      options.pool ??
+      new Pool({ connectionString: options.connectionString, ...options.poolOptions });
     this.createListener =
       options.listenerFactory ?? (() => new PgClientListener(options.connectionString));
   }

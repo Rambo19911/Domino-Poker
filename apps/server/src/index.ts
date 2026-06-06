@@ -20,7 +20,7 @@ const clock: () => number = () => Date.now();
 
 // Fāze 10/12.3: persistence aiz StoragePort (SQLite lokāli, PostgreSQL pēc URL).
 // Koordinators ir fire-and-forget — DB kļūda nedrīkst aizkavēt vai salauzt spēles plūsmu.
-const storage = await openStorage(config.databaseUrl);
+const storage = await openStorage(config.databaseUrl, config.pg);
 const persistence = new MatchPersistence({ storage, clock });
 const instanceId = randomUUID();
 const roomOwnership = isRoomLeaseStore(storage)
@@ -34,7 +34,11 @@ const roomOwnership = isRoomLeaseStore(storage)
 roomOwnership?.startRenewing();
 const eventBus =
   storage instanceof PostgresStorage
-    ? await PostgresEventBus.open({ connectionString: config.databaseUrl, instanceId })
+    ? await PostgresEventBus.open({
+        connectionString: config.databaseUrl,
+        instanceId,
+        poolOptions: config.pg
+      })
     : undefined;
 
 // Kopīgs DisplayIdRegistry: gateway (WELCOME) un RoomManager (sēdvietas) rāda
@@ -120,8 +124,12 @@ rooms.setMemberDepartedHandler((clientId) => {
   }
 });
 
-// `/metrics` ziņo aktīvo savienojumu skaitu (slodzes testam + VPS uzraudzībai).
-const server = createHealthHttpServer({ connectionCount: () => gateway.onlineCount() });
+// `/metrics` ziņo aktīvo savienojumu skaitu (slodzes testam + VPS uzraudzībai);
+// PG režīmā pievieno DB veselību (SELECT 1 latency + pool piesātinājums).
+const server = createHealthHttpServer({
+  connectionCount: () => gateway.onlineCount(),
+  ...(storage instanceof PostgresStorage ? { dbHealth: () => storage.healthCheck() } : {})
+});
 // Decision B: WebSocket uz tā paša HTTP servera/porta caur `upgrade`.
 attachWebSocketGateway(server, gateway);
 

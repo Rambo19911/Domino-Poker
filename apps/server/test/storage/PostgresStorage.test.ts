@@ -7,6 +7,10 @@ class RecordingPool {
   readonly queries: Array<{ text: string; values: readonly unknown[] | undefined }> = [];
   readonly rowQueue: unknown[][] = [];
   closed = false;
+  // `pg` Pool atklāj šos getterus; healthCheck tos lasa pool piesātinājumam.
+  totalCount = 0;
+  idleCount = 0;
+  waitingCount = 0;
 
   async query<T extends QueryResultRow = QueryResultRow>(
     text: string,
@@ -212,6 +216,45 @@ describe("PostgresStorage", () => {
     expect(queryContaining(pool, "UPDATE room_leases")).toBeDefined();
     expect(queryContaining(pool, "DELETE FROM room_leases")).toBeDefined();
     expect(queryContaining(pool, "SELECT room_id, owner_instance_id")).toBeDefined();
+  });
+
+  it("reports DB health with SELECT 1 latency and pool saturation", async () => {
+    const pool = new RecordingPool();
+    pool.totalCount = 5;
+    pool.idleCount = 2;
+    pool.waitingCount = 1;
+    const storage = await PostgresStorage.fromPool(pool);
+
+    const times = [1000, 1007];
+    const health = await storage.healthCheck(() => times.shift() ?? 9999);
+
+    expect(queryContaining(pool, "SELECT 1")).toBeDefined();
+    expect(health).toEqual({
+      ok: true,
+      latencyMs: 7,
+      pool: { total: 5, idle: 2, waiting: 1 }
+    });
+  });
+
+  it("reports ok=false when the health probe query fails", async () => {
+    class ThrowingPool extends RecordingPool {
+      override async query<T extends QueryResultRow = QueryResultRow>(
+        text: string,
+        values?: readonly unknown[]
+      ): Promise<QueryResult<T>> {
+        if (text.includes("SELECT 1")) {
+          throw new Error("connection refused");
+        }
+        return super.query<T>(text, values);
+      }
+    }
+    const pool = new ThrowingPool();
+    const storage = await PostgresStorage.fromPool(pool);
+
+    const health = await storage.healthCheck(() => 1000);
+
+    expect(health.ok).toBe(false);
+    expect(health.latencyMs).toBe(0);
   });
 
   it("creates, reads, and deletes durable player sessions", async () => {

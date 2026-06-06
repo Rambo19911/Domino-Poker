@@ -1,12 +1,24 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import process from "node:process";
 
+/** DB veselības momentuzņēmums `/metrics` (strukturāli saderīgs ar `DbHealthReport`). */
+export interface DbHealthSnapshot {
+  readonly ok: boolean;
+  readonly latencyMs: number;
+  readonly pool: { readonly total: number; readonly idle: number; readonly waiting: number };
+}
+
 export interface HealthHttpServerOptions {
   /**
    * Aktīvo (handshake pabeigušo) savienojumu skaits `/metrics` atskaitei. Injicē
    * `index.ts` no gateway, lai httpServer paliek atsaistīts no tīkla slāņa.
    */
   readonly connectionCount?: () => number;
+  /**
+   * Opcionāla DB veselības zonde `/metrics` (tikai PostgreSQL režīmā). Injicē
+   * `index.ts` no `PostgresStorage.healthCheck`; SQLite režīmā netiek dota.
+   */
+  readonly dbHealth?: () => Promise<DbHealthSnapshot>;
 }
 
 /**
@@ -29,18 +41,28 @@ function handleRequest(
   }
 
   if (request.method === "GET" && request.url === "/metrics") {
-    writeJson(response, 200, collectMetrics(options));
+    void collectMetrics(options)
+      .then((metrics) => writeJson(response, 200, metrics))
+      .catch((error: unknown) => {
+        console.error("[metrics] failed to collect metrics:", error);
+        writeJson(response, 500, { error: "metrics_failed" });
+      });
     return;
   }
 
   writeJson(response, 404, { error: "Not found" });
 }
 
-/** Servera procesa momentuzņēmums. CPU ir kumulatīvs (µs) — klients rēķina deltas. */
-function collectMetrics(options: HealthHttpServerOptions): Record<string, number> {
+/**
+ * Servera procesa momentuzņēmums. CPU ir kumulatīvs (µs) — klients rēķina deltas.
+ * PG režīmā pievieno `db` apakšobjektu ar veselību + pool piesātinājumu.
+ */
+async function collectMetrics(
+  options: HealthHttpServerOptions
+): Promise<Record<string, unknown>> {
   const memory = process.memoryUsage();
   const cpu = process.cpuUsage();
-  return {
+  const base = {
     uptimeSec: Math.round(process.uptime() * 1000) / 1000,
     rssBytes: memory.rss,
     heapUsedBytes: memory.heapUsed,
@@ -48,6 +70,10 @@ function collectMetrics(options: HealthHttpServerOptions): Record<string, number
     cpuSystemMicros: cpu.system,
     connections: options.connectionCount?.() ?? 0
   };
+  if (options.dbHealth === undefined) {
+    return base;
+  }
+  return { ...base, db: await options.dbHealth() };
 }
 
 function writeJson(response: ServerResponse, statusCode: number, body: unknown): void {

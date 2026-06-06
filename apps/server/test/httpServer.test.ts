@@ -63,4 +63,39 @@ describe("createHealthHttpServer", () => {
     };
     expect(second.connections).toBe(12);
   });
+
+  it("omits db health from /metrics when no probe is provided", async () => {
+    const server = createHealthHttpServer({ connectionCount: () => 0 });
+    servers.push(server);
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const address = server.address() as AddressInfo;
+
+    const metrics = (await (
+      await fetch(`http://127.0.0.1:${address.port}/metrics`)
+    ).json()) as Record<string, unknown>;
+
+    expect(metrics).not.toHaveProperty("db");
+  });
+
+  it("includes db health in /metrics when a probe is provided", async () => {
+    const server = createHealthHttpServer({
+      connectionCount: () => 3,
+      dbHealth: () =>
+        Promise.resolve({
+          ok: true,
+          latencyMs: 4,
+          pool: { total: 5, idle: 2, waiting: 0 }
+        })
+    });
+    servers.push(server);
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const address = server.address() as AddressInfo;
+
+    const metrics = (await (
+      await fetch(`http://127.0.0.1:${address.port}/metrics`)
+    ).json()) as { connections: number; db: { ok: boolean; pool: { waiting: number } } };
+
+    expect(metrics.connections).toBe(3);
+    expect(metrics.db).toEqual({ ok: true, latencyMs: 4, pool: { total: 5, idle: 2, waiting: 0 } });
+  });
 });

@@ -1,4 +1,4 @@
-import { PostgresStorage } from "./PostgresStorage.js";
+import { PostgresStorage, type PgPoolOptions } from "./PostgresStorage.js";
 import { SqliteStorage } from "./SqliteStorage.js";
 import type { StoragePort } from "./StoragePort.js";
 
@@ -14,6 +14,7 @@ export type {
   UnfinishedMatch
 } from "./StoragePort.js";
 export { PostgresStorage } from "./PostgresStorage.js";
+export type { DbHealthReport, PgPoolOptions } from "./PostgresStorage.js";
 export { MIGRATIONS, runMigrations } from "./migrations.js";
 export type { Migration, MigratablePool, RunMigrationsOptions } from "./migrations.js";
 export { InMemoryRoomLeaseStore, toLeaseRecord } from "./RoomLeaseStore.js";
@@ -37,9 +38,12 @@ export function openSqliteStorage(databaseUrl: string): StoragePort {
   return new SqliteStorage({ filename: databaseUrl });
 }
 
-export async function openStorage(databaseUrl: string): Promise<StoragePort> {
+export async function openStorage(
+  databaseUrl: string,
+  pgPoolOptions: PgPoolOptions = {}
+): Promise<StoragePort> {
   if (isPostgresDatabaseUrl(databaseUrl)) {
-    return PostgresStorage.open(databaseUrl);
+    return PostgresStorage.open(databaseUrl, pgPoolOptions);
   }
   return openSqliteStorage(databaseUrl);
 }

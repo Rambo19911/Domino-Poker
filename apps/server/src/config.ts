@@ -10,6 +10,25 @@ const DEFAULT_NODE_ENV = "development";
 const DEFAULT_TURN_DURATION_MS = 10_000;
 const MIN_TURN_DURATION_MS = 100;
 const MAX_TURN_DURATION_MS = 600_000;
+// PostgreSQL pool noklusējumi = `pg` draivera noklusējumi, lai konfigurācijas
+// pievienošana NEMAINA esošo savienojumu skaitu, kamēr nav skaidri uzstādīts.
+const DEFAULT_PG_POOL_MAX = 10;
+const DEFAULT_PG_IDLE_TIMEOUT_MS = 10_000;
+const DEFAULT_PG_CONNECTION_TIMEOUT_MS = 0;
+
+/**
+ * PostgreSQL savienojumu pool limiti (tikai PG režīmā; SQLite tos ignorē).
+ * Single-instance serverī ir DIVI pool (storage + event bus) + 1 LISTEN klients,
+ * tāpēc kopējie savienojumi pret DB ≈ 2 × `max` + 1.
+ */
+export interface PgPoolConfig {
+  /** Maks. savienojumu skaits VIENĀ pool (`PG_POOL_MAX`; noklusējums 10). */
+  max: number;
+  /** Dīkstāves savienojuma aizvēršanas laiks ms; 0 = neaizvērt (`PG_POOL_IDLE_TIMEOUT_MS`). */
+  idleTimeoutMillis: number;
+  /** Cik ilgi gaidīt brīvu savienojumu ms; 0 = bez taimauta (`PG_POOL_CONNECTION_TIMEOUT_MS`). */
+  connectionTimeoutMillis: number;
+}
 
 export interface ServerConfig {
   /**
@@ -30,6 +49,8 @@ export interface ServerConfig {
   nodeEnv: string;
   /** Turna ilgums (ms) — solīšanas/gājiena countdown (`TURN_DURATION_MS`; noklusējums 10000). */
   turnDurationMs: number;
+  /** PostgreSQL pool limiti (tikai PG režīmā; SQLite tos ignorē). */
+  pg: PgPoolConfig;
 }
 
 interface EnvValues {
@@ -51,8 +72,49 @@ export function loadServerConfig(
     serverHost: readNonEmpty(env.SERVER_HOST ?? fileEnv.SERVER_HOST, DEFAULT_SERVER_HOST),
     databaseUrl: readDatabaseUrl(env.DATABASE_URL ?? fileEnv.DATABASE_URL),
     nodeEnv: readNonEmpty(env.NODE_ENV ?? fileEnv.NODE_ENV, DEFAULT_NODE_ENV),
-    turnDurationMs: readTurnDuration(env.TURN_DURATION_MS ?? fileEnv.TURN_DURATION_MS)
+    turnDurationMs: readTurnDuration(env.TURN_DURATION_MS ?? fileEnv.TURN_DURATION_MS),
+    pg: {
+      max: readPositiveInt(
+        "PG_POOL_MAX",
+        env.PG_POOL_MAX ?? fileEnv.PG_POOL_MAX,
+        DEFAULT_PG_POOL_MAX
+      ),
+      idleTimeoutMillis: readNonNegativeInt(
+        "PG_POOL_IDLE_TIMEOUT_MS",
+        env.PG_POOL_IDLE_TIMEOUT_MS ?? fileEnv.PG_POOL_IDLE_TIMEOUT_MS,
+        DEFAULT_PG_IDLE_TIMEOUT_MS
+      ),
+      connectionTimeoutMillis: readNonNegativeInt(
+        "PG_POOL_CONNECTION_TIMEOUT_MS",
+        env.PG_POOL_CONNECTION_TIMEOUT_MS ?? fileEnv.PG_POOL_CONNECTION_TIMEOUT_MS,
+        DEFAULT_PG_CONNECTION_TIMEOUT_MS
+      )
+    }
   };
+}
+
+/** Vesels skaitlis ≥ 1 vai noklusējums, ja tukšs/nav. */
+function readPositiveInt(name: string, value: string | undefined, fallback: number): number {
+  if (value === undefined || value.trim() === "") {
+    return fallback;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+  return parsed;
+}
+
+/** Vesels skaitlis ≥ 0 vai noklusējums, ja tukšs/nav. */
+function readNonNegativeInt(name: string, value: string | undefined, fallback: number): number {
+  if (value === undefined || value.trim() === "") {
+    return fallback;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`${name} must be a non-negative integer.`);
+  }
+  return parsed;
 }
 
 /** Turna ilgums (ms): vesels skaitlis [100, 600000]; noklusējums 10000. */

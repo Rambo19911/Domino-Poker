@@ -83,7 +83,9 @@ Run `npm run typecheck`, `npm run test`, `npm run test:web`, and `npm run build`
 
 - Never commit secrets, service keys, OAuth credentials, session credentials, or local secret files.
 - Never commit local runtime databases; `data/*.sqlite` is intentionally ignored.
-- Server config comes from env (`SERVER_PORT`/`HTTP_PORT`, `SERVER_HOST`, `DATABASE_URL`, `TURN_DURATION_MS`, `NODE_ENV`; see `apps/server/src/config.ts` and `.env.example`). `DATABASE_URL` accepts SQLite file paths/`:memory:`/`file:` or PostgreSQL URLs; do not log or hardcode DB credentials. The multiplayer server itself has no auth/account system — identity is a client-chosen `clientId` + server-issued `reconnectToken`/`displayId`.
+- Server config comes from env (`SERVER_PORT`/`HTTP_PORT`, `SERVER_HOST`, `DATABASE_URL`, `TURN_DURATION_MS`, `NODE_ENV`, and PostgreSQL pool limits `PG_POOL_MAX`/`PG_POOL_IDLE_TIMEOUT_MS`/`PG_POOL_CONNECTION_TIMEOUT_MS`; see `apps/server/src/config.ts` and `.env.example`). `DATABASE_URL` accepts SQLite file paths/`:memory:`/`file:` or PostgreSQL URLs; do not log or hardcode DB credentials. The multiplayer server itself has no auth/account system — identity is a client-chosen `clientId` + server-issued `reconnectToken`/`displayId`.
+- PostgreSQL pool limits apply to BOTH pools (storage + event bus) plus the LISTEN client, so total DB connections ≈ `2 × PG_POOL_MAX + 1`; keep that under the server's `max_connections`. Pool limits are PostgreSQL-only (SQLite ignores them). Defaults equal the `pg` driver defaults, so omitting them does not change connection count.
+- `/metrics` adds a `db` sub-object (`{ ok, latencyMs, pool: { total, idle, waiting } }`) only in PostgreSQL mode, sourced from `PostgresStorage.healthCheck` (a `SELECT 1` probe). `healthCheck` returns `ok:false` on failure rather than throwing (a health probe must not crash `/metrics`); do not make it throw. Operational backup/restore steps live in `deploy/BACKUP.md`.
 - Both single-player and the multiplayer lobby/game are playable without authentication.
 - Client components must not depend on server-only secrets or external service SDKs.
 

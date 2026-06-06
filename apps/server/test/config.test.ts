@@ -12,7 +12,8 @@ describe("loadServerConfig", () => {
       serverHost: "0.0.0.0",
       databaseUrl: "./data/dev.sqlite",
       nodeEnv: "development",
-      turnDurationMs: 10_000
+      turnDurationMs: 10_000,
+      pg: { max: 10, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 0 }
     });
   });
 
@@ -34,8 +35,34 @@ describe("loadServerConfig", () => {
       serverHost: "127.0.0.1",
       databaseUrl: "./data/dev.sqlite",
       nodeEnv: "production",
-      turnDurationMs: 5000
+      turnDurationMs: 5000,
+      pg: { max: 10, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 0 }
     });
+  });
+
+  it("reads configurable PostgreSQL pool limits", () => {
+    expect(
+      loadServerConfig(
+        {
+          PG_POOL_MAX: "20",
+          PG_POOL_IDLE_TIMEOUT_MS: "30000",
+          PG_POOL_CONNECTION_TIMEOUT_MS: "5000"
+        },
+        missingEnvPath
+      ).pg
+    ).toEqual({ max: 20, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 5000 });
+  });
+
+  it("rejects a non-positive PG_POOL_MAX", () => {
+    expect(() => loadServerConfig({ PG_POOL_MAX: "0" }, missingEnvPath)).toThrow(
+      "PG_POOL_MAX must be a positive integer."
+    );
+  });
+
+  it("rejects a negative PG_POOL_CONNECTION_TIMEOUT_MS", () => {
+    expect(() =>
+      loadServerConfig({ PG_POOL_CONNECTION_TIMEOUT_MS: "-1" }, missingEnvPath)
+    ).toThrow("PG_POOL_CONNECTION_TIMEOUT_MS must be a non-negative integer.");
   });
 
   it("rejects an out-of-range TURN_DURATION_MS", () => {

@@ -28,13 +28,38 @@ interface PgPool {
     values?: readonly unknown[]
   ): Promise<QueryResult<T>>;
   end(): Promise<void>;
+  // `pg` `Pool` atklāj šos kā sinhronus getterus; opcionāli, lai test-dubultnieki
+  // tos var nesniegt (sk. `healthCheck`).
+  readonly totalCount?: number;
+  readonly idleCount?: number;
+  readonly waitingCount?: number;
+}
+
+/** PostgreSQL pool limiti (caur no `config.pg`); tieši `pg` `PoolConfig` lauki. */
+export interface PgPoolOptions {
+  readonly max?: number;
+  readonly idleTimeoutMillis?: number;
+  readonly connectionTimeoutMillis?: number;
+}
+
+/** `/metrics` DB veselības momentuzņēmums (tikai PG režīmā). */
+export interface DbHealthReport {
+  /** `true`, ja `SELECT 1` izdevās; `false` signalizē DB nepieejamību monitoringam. */
+  readonly ok: boolean;
+  /** `SELECT 1` aprites laiks ms (arī pie `ok:false` — cik ilgi gaidīja līdz kļūdai). */
+  readonly latencyMs: number;
+  /** Pool piesātinājums: `waiting > 0` nozīmē, ka pieprasījumi rindā gaida savienojumu. */
+  readonly pool: { readonly total: number; readonly idle: number; readonly waiting: number };
 }
 
 export class PostgresStorage implements StoragePort, RoomLeaseStore, DurableSessionStore {
   private constructor(private readonly pool: PgPool) {}
 
-  static async open(connectionString: string): Promise<PostgresStorage> {
-    const storage = new PostgresStorage(new Pool({ connectionString }));
+  static async open(
+    connectionString: string,
+    poolOptions: PgPoolOptions = {}
+  ): Promise<PostgresStorage> {
+    const storage = new PostgresStorage(new Pool({ connectionString, ...poolOptions }));
     await storage.migrate();
     return storage;
   }
@@ -306,6 +331,32 @@ export class PostgresStorage implements StoragePort, RoomLeaseStore, DurableSess
       [roomId]
     );
     return rowToRoomLease(result.rows[0]);
+  }
+
+  /**
+   * DB veselības pārbaude `/metrics` vajadzībām: izpilda `SELECT 1` un mēra
+   * latency + pool piesātinājumu. Kļūda NETIEK mesta — tā tiek atspoguļota kā
+   * `ok:false`, jo veselības zonde nedrīkst nogāzt `/metrics` endpointu; lejupejošā
+   * stāvokļa signāls ir pati `ok:false` vērtība (to redz monitorings). Per-scrape
+   * netiek logots, lai pie ilgstošas DB nepieejamības neapplūdinātu žurnālus.
+   */
+  async healthCheck(now: () => number = Date.now): Promise<DbHealthReport> {
+    const start = now();
+    let ok = true;
+    try {
+      await this.pool.query("SELECT 1");
+    } catch {
+      ok = false;
+    }
+    return {
+      ok,
+      latencyMs: now() - start,
+      pool: {
+        total: this.pool.totalCount ?? 0,
+        idle: this.pool.idleCount ?? 0,
+        waiting: this.pool.waitingCount ?? 0
+      }
+    };
   }
 
   async close(): Promise<void> {
