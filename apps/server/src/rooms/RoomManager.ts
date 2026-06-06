@@ -376,7 +376,10 @@ export class RoomManager {
    */
   private firePreGameStart(roomId: string): void {
     this.preGameTimers.delete(roomId);
-    if (!this.engines.has(roomId)) return;
+    // Sargs pret istabu, kas starplaikā iznīcināta: `advanceGame` prasa DIREKTORU
+    // (ne tikai engine), tāpēc pārbaudām `directors` (saskan ar `handleTurnTimeout`).
+    // Citādi novēlots timeris mestu neapstrādātu `ROOM_NOT_FOUND` setTimeout callback iekšā.
+    if (!this.directors.has(roomId)) return;
     const events = this.advanceGame(roomId);
     // Pacētā režīmā `advanceGame` atgriež [] un piegādā soļus caur sink pati;
     // sinhronā režīmā piegādājam savāktos eventus.
@@ -422,6 +425,9 @@ export class RoomManager {
         seatIndex: seat.index,
         corePlayerId: corePlayerIdForSeat(seat.index),
         kind: seat.kind === "bot" ? "bot" : "human",
+        // Cilvēka `seat.playerId` ir stabilais clientId (reconnect identitāte) — to
+        // lieto statistikas atslēgai (F5). Botiem to neiekļaujam.
+        ...(seat.kind !== "bot" && seat.playerId !== undefined ? { clientId: seat.playerId } : {}),
         ...(seat.displayId !== undefined ? { displayId: seat.displayId } : {})
       }));
     this.onMatchStarted({

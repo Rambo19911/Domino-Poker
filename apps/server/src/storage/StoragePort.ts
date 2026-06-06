@@ -71,6 +71,14 @@ export interface MatchSeatRecord {
   readonly corePlayerId: string;
   /** Vai sēdvietu spēlē cilvēks vai bots. */
   readonly kind: "human" | "bot";
+  /**
+   * Stabilais savienojuma identifikators (clientId / reconnect identitāte) cilvēka
+   * sēdvietai — NEKAD netiek atklāts citiem spēlētājiem. `player_stats` tiek keyota
+   * pēc šī, NE pēc reciklējamā `displayId` (F5): atšķirībā no `displayId` (publisks
+   * aliass, ko `DisplayIdRegistry.release` atdod atkārtotai izmantošanai) `clientId`
+   * ir stabils starp sesijām, tāpēc divu dažādu cilvēku spēles nesajaucas vienā rindā.
+   */
+  readonly clientId?: string | undefined;
   /** Publiskais `displayId` (ja zināms; boti to var nesniegt). */
   readonly displayId?: string | undefined;
 }

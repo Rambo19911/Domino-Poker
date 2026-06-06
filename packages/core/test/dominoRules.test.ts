@@ -453,6 +453,28 @@ describe("AI behavior", () => {
     // 0-3, nevis uzvarošo 3-5.
     expect(tileEquals(selectAITile(aiState.players[1]!, aiState), tile(0, 3))).toBe(true);
   });
+
+  it("leads its strongest trump, not a high-value non-trump, when it must win every remaining trick (F1)", () => {
+    const state = playableState([
+      [tile(2, 2)],
+      [tile(1, 1), tile(6, 5)],
+      [tile(3, 3)],
+      [tile(4, 4)]
+    ]);
+    const aiState: GameState = {
+      ...state,
+      currentPlayerIndex: 1,
+      players: state.players.map((player) =>
+        player.id === "2" ? { ...player, bid: 7, tricksWon: 0 } : player
+      )
+    };
+
+    // Leading an empty trick with bid 7 / 0 won => tricksNeeded (7) === tricksLeft (7),
+    // so the AI is forced to win every remaining trick and must lead its STRONGEST tile.
+    // The trump 1-1 always beats the non-trump 6-5 (pip total 11); the AI must not be
+    // lured by the higher pip total into leading the weak non-trump.
+    expect(tileEquals(selectAITile(aiState.players[1]!, aiState), tile(1, 1))).toBe(true);
+  });
 });
 
 function withHand(hand: DominoTile[]): Player {

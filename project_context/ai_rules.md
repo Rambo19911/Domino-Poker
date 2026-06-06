@@ -3,7 +3,7 @@
 ## Read Before Major Edits
 
 - For rule behavior: read `packages/core/src/dominoTile.ts`, `packages/core/src/player.ts`, `packages/core/src/gameState.ts`, and `packages/core/test/dominoRules.test.ts`.
-- For multiplayer work: read `docs/TODO/TODO.md` and the current phase file in `docs/TODO/` before editing; keep MP implementation in `apps/server`, `packages/shared`, and future dedicated multiplayer files rather than mixing into existing single-player UI flow.
+- For multiplayer work: keep MP implementation in `apps/server`, `packages/shared`, and `packages/core/src/multiplayer/` rather than mixing into existing single-player UI flow. (Project context lives in `project_context/`; `docs/` is gitignored and is NOT present in clean clones, so do not rely on `docs/TODO/`.)
 - For multiplayer core-adjacent deterministic helpers: use `packages/core/src/multiplayer/` and tests under `packages/core/test/multiplayer/`; do not modify single-player shuffle/deal behavior for MP determinism.
 - For multiplayer state fields, use `packages/core/src/multiplayer/types.ts`; do not add MP-only fields directly to single-player `GameState` or `Player`.
 - For multiplayer command/event contracts, use `packages/core/src/multiplayer/commands.ts` and `packages/core/src/multiplayer/events.ts`; commands carry `requestId`, events carry `eventSeq`.
@@ -46,8 +46,8 @@
 - Build: `npm run build`
 - Dev server: `npm run dev`
 - Dev multiplayer server: `npm run dev:server`
-- Simulation placeholder: `npm run simulate`
-- Local load-test placeholder: `npm run load:local`
+- Simulation: `npm run simulate`
+- Local load-test: `npm run load:local`
 - Windows launcher: `start-domino-poker.bat`
 - Server workspace build/typecheck: `npm run build --workspace apps/server`, `npm run typecheck --workspace apps/server`
 - Shared workspace build/typecheck: `npm run build --workspace packages/shared`, `npm run typecheck --workspace packages/shared`

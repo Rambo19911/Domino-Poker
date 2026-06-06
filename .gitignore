@@ -51,9 +51,12 @@ docs/*
 deploy.sh
 
 # Lokālās darba instrukcijas (netiek publicētas)
+AGENTS.md
 CLAUDE.md
 
 # Local audit and planning notes
+CLAUDE_AUDIT_REPORT.md
+CODEX_AUDIT_REPORT.md
 fix_scope.md
 fix-scope.md
 docs/fix_scope.md

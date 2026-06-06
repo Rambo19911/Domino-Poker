@@ -19,21 +19,21 @@ import type { RoomDispatchResult } from "./RoomEngine.js";
  *     unikālais identifikators; datums_laiks = spēles pirmās darbības laiks.
  *     Mapi pārraksta ar `MP_ACTION_LOG_DIR`.
  *
- * Pēc noklusējuma: IESLĒGTS visur (arī produkcijā — lai noķertu retas kļūdas uz
- * VPS), IZSLĒGTS testos (`VITEST`). Manuāli atslēdz ar `MP_ACTION_LOG=0`.
- * Produkcijā faili ir `/opt/domino-poker/logs/` (servisa CWD), tos var izgūt ar
- * SSH; konsoles izvads nonāk arī `journalctl -u domino-poker`.
+ * **Opt-in (F8):** pēc noklusējuma IZSLĒGTS (arī produkcijā). Sinhronais
+ * `appendFileSync` ir spēles komandu ceļā, tāpēc ieslēgts-pēc-noklusējuma radītu
+ * latenci reālā slodzē, un `playerId` nonāktu žurnālos bez nepieciešamības.
+ * Ieslēdz atkļūdošanai ar `MP_ACTION_LOG=1` (vai `true`). Tad faili ir
+ * `/opt/domino-poker/logs/` (servisa CWD), tos var izgūt ar SSH; konsoles izvads
+ * nonāk arī `journalctl -u domino-poker`. Mapi pārraksta ar `MP_ACTION_LOG_DIR`.
  * Faila rakstīšanas kļūda NEKAD nesalauž spēli (best-effort, kā persistence).
  * Tikai MP — SP neiet caur `RoomEngine`.
  */
-function resolveEnabled(): boolean {
-  const flag = process.env.MP_ACTION_LOG;
-  if (flag === "1" || flag === "true") return true;
-  if (flag === "0" || flag === "false") return false;
-  return !process.env.VITEST; // noklusējums: ieslēgts visur, izņemot testus
+export function resolveMpActionLogEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  const flag = env.MP_ACTION_LOG;
+  return flag === "1" || flag === "true"; // opt-in: izslēgts, ja vien nav skaidri ieslēgts
 }
 
-const ENABLED = resolveEnabled();
+const ENABLED = resolveMpActionLogEnabled();
 const LOG_DIR = resolve(process.env.MP_ACTION_LOG_DIR?.trim() || "logs");
 let fileBroken = false;
 /** roomId (spēle) → tās faila ceļš. Pirmā darbība istabā izveido failu + galveni. */

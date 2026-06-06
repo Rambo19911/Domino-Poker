@@ -58,6 +58,22 @@ describe("reduceServerEvent (8.2)", () => {
     });
   });
 
+  it("ignores an unknown server event type without throwing (forward-compat, F12)", () => {
+    // Simulē jaunāku serveri, kas saderīgā protokola versijā sūta klientam vēl
+    // nezināmu notikuma tipu. Reducers to drīkst IGNORĒT, NE mest izņēmumu.
+    const unknownEvent = { type: "FUTURE_EVENT", payload: 1 } as unknown as ServerEvent;
+    const before = reduceServerEvent(initialClientView, {
+      type: "WELCOME",
+      sessionId: "s1",
+      playerId: "p1",
+      displayId: "#00001",
+      reconnectToken: "tok",
+      serverNow: 1
+    });
+    const after = reduceServerEvent(before, unknownEvent);
+    expect(after).toBe(before); // skats nemainīts (atgriež to pašu atsauci)
+  });
+
   it("LOBBY_STATE updates rooms and onlineCount", () => {
     const view = reduceServerEvent(initialClientView, {
       type: "LOBBY_STATE",

@@ -128,7 +128,10 @@ export function reduceServerEvent(view: ClientView, event: ServerEvent): ClientV
     case "PONG":
       return view; // latence varētu tikt izsekota vēlāk
     default:
-      return assertNever(event);
+      // Forward-compat (F12): nezināmu servera notikumu IGNORĒJAM (atgriežam `view`
+      // nemainītu), nevis metam izņēmumu — jaunāks serveris saderīgā protokola
+      // versijā nedrīkst sabojāt klienta skatu.
+      return ignoreUnknownServerEvent(event, view);
   }
 }
 
@@ -162,6 +165,11 @@ function appendChat(
   return [...chat, message].slice(-CHAT_VIEW_LIMIT);
 }
 
-function assertNever(value: never): never {
-  throw new Error(`Unhandled server event: ${JSON.stringify(value)}`);
+/**
+ * Tipu-līmeņa izsmeļamības pārbaude: ja `shared` pievieno jaunu `ServerEvent` tipu
+ * un `reduceServerEvent` to neapstrādā, `_event: never` parametrs lauž `tsc`.
+ * IZPILDLAIKĀ nezināmu notikumu ignorē — atgriež `view` nemainītu (forward-compat, F12).
+ */
+function ignoreUnknownServerEvent(_event: never, view: ClientView): ClientView {
+  return view;
 }

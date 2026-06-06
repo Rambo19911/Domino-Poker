@@ -130,7 +130,7 @@ function getStrongestTile(tiles: readonly DominoTile[]): DominoTile {
       if (trumpPriority(tile) < trumpPriority(strongest)) {
         strongest = tile;
       }
-    } else if (tileTotalValue(tile) > tileTotalValue(strongest)) {
+    } else if (!isTrump(strongest) && tileTotalValue(tile) > tileTotalValue(strongest)) {
       strongest = tile;
     }
   }

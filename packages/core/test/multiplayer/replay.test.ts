@@ -153,6 +153,13 @@ describe("multiplayer replay", () => {
     expect(replayEvents(events, seed)).toEqual(finalState.coreState);
   });
 
+  it("threads a non-default numberOfRounds into the replayed setup (m1)", () => {
+    // Bez `numberOfRounds` replay lieto noklusējuma 7 kārtas (diverģē ne-noklusējuma
+    // spēlēm). Ar argumentu `totalRounds` sakrīt ar oriģinālo spēli.
+    expect(replayEvents([], seed).totalRounds).toBe(7);
+    expect(replayEvents([], seed, 3).totalRounds).toBe(3);
+  });
+
   it("rejects event streams with non-consecutive eventSeq values", () => {
     const { events } = collectReplayFixture();
     const event = events[1];

@@ -16,12 +16,20 @@
 const CACHE = "domino-poker-v2";
 const PRECACHE = ["/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
 
+// Novērojamība (m12): kešošanas kļūdas paliek NE-fatālas (SW nedrīkst lauzt lapu),
+// bet dev vidē (localhost) tās tiek izvadītas, lai PWA/bezsaistes regresijas
+// nepaliktu klusas. Produkcijā (reāls domēns) izvads paliek kluss — bez uzvedības maiņas.
+const IS_DEV = self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1";
+function warnSw(context, error) {
+  if (IS_DEV) console.warn(`[sw] ${context}`, error);
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE)
       .then((cache) => cache.addAll(PRECACHE))
-      .catch(() => {})
+      .catch((error) => warnSw("precache failed", error))
       .then(() => self.skipWaiting())
   );
 });
@@ -54,7 +62,7 @@ self.addEventListener("fetch", (event) => {
     fetch(request)
       .then((response) => {
         const copy = response.clone();
-        caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => {});
+        caches.open(CACHE).then((cache) => cache.put(request, copy)).catch((error) => warnSw("cache put failed", error));
         return response;
       })
       .catch(() => caches.match(request))

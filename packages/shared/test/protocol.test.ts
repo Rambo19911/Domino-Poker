@@ -7,6 +7,7 @@ import {
   errorPayloadSchema,
   clientMessageSchema,
   maxIdentifierLength,
+  maxChatTextLength,
   parseClientMessage
 } from "../src/index.js";
 import type { RoomSummary, ServerEvent } from "../src/index.js";
@@ -110,14 +111,24 @@ describe("client message schemas", () => {
         reconnectToken: "t".repeat(maxIdentifierLength + 1)
       }).success
     ).toBe(false);
-    // PLAYER_RESUME reconnectToken arī robežots.
-    expect(
-      parseClientMessage({
-        type: "PLAYER_RESUME",
-        roomId: "room-1",
-        reconnectToken: "t".repeat(maxIdentifierLength + 1)
-      }).success
-    ).toBe(false);
+  });
+
+  it("bounds clientBuild, identifiers, and chat text length (F4)", () => {
+    // clientBuild robežots ar maxIdentifierLength.
+    const helloBase = { type: "HELLO", protocolVersion: "1", clientId: "c1" } as const;
+    expect(parseClientMessage({ ...helloBase, clientBuild: "b".repeat(maxIdentifierLength) }).success).toBe(true);
+    expect(parseClientMessage({ ...helloBase, clientBuild: "b".repeat(maxIdentifierLength + 1) }).success).toBe(false);
+
+    // nonEmpty identifikatori (roomId/turnId) robežoti ar maxIdentifierLength.
+    const bidBase = { type: "SUBMIT_BID", requestId: "r", roomId: "room-1", turnId: "t1", bid: 3 } as const;
+    expect(parseClientMessage({ ...bidBase, turnId: "t".repeat(maxIdentifierLength) }).success).toBe(true);
+    expect(parseClientMessage({ ...bidBase, turnId: "t".repeat(maxIdentifierLength + 1) }).success).toBe(false);
+    expect(parseClientMessage({ ...bidBase, roomId: "r".repeat(maxIdentifierLength + 1) }).success).toBe(false);
+
+    // Čata teksts robežots ar maxChatTextLength.
+    const chatBase = { type: "SEND_CHAT", requestId: "r" } as const;
+    expect(parseClientMessage({ ...chatBase, text: "x".repeat(maxChatTextLength) }).success).toBe(true);
+    expect(parseClientMessage({ ...chatBase, text: "x".repeat(maxChatTextLength + 1) }).success).toBe(false);
   });
 
   it("rejects a message missing a required field", () => {

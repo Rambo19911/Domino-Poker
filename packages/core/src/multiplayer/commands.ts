@@ -1,4 +1,17 @@
 import type { DominoTile } from "../types";
+
+/**
+ * MP komandu kontrakts. UZMANĪBU (m3): NE visas šeit deklarētās komandas apstrādā
+ * core `applyCommand` — sekojošās ar nodomu paliek augstāka slāņa ziņā un `applyCommand`
+ * tām atgriež `command_not_implemented`:
+ *   • `ADD_PLAYER`, `ADD_BOT`, `FILL_SEATS_WITH_BOTS`, `START_GAME` — lobby/sēdvietu
+ *     operācijas PIRMS spēles; tās izpilda serveris (`RoomManager`/`LobbyManager`),
+ *     nevis spēles dzinējs, kas darbojas tikai ar jau aktīvu spēli.
+ *   • `ENABLE_AUTO_PLAY` — auto-play dzinējā ieslēdzas NETIEŠI (pie disconnect/timeout);
+ *     tikai `DISABLE_AUTO_PLAY` ir tieša dzinēja komanda (pie resume/reconnect).
+ * Tipi paliek union daļa kā pilns protokola vārdnīcas apraksts (un augšējo slāņu tipu
+ * drošībai), bet to klātbūtne NENOZĪMĒ, ka `applyCommand` tās realizē.
+ */
 export const multiplayerCommandTypes = [
   "CREATE_GAME",
   "ADD_PLAYER",

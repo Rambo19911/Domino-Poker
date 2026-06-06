@@ -8,7 +8,6 @@ describe("loadServerConfig", () => {
   it("uses defaults when env values are missing", () => {
     expect(loadServerConfig({}, missingEnvPath)).toEqual({
       httpPort: 4000,
-      wsPort: 4001,
       serverHost: "0.0.0.0",
       databaseUrl: "./data/dev.sqlite",
       nodeEnv: "development",
@@ -22,7 +21,6 @@ describe("loadServerConfig", () => {
       loadServerConfig(
         {
           SERVER_PORT: "4100",
-          WS_PORT: "4101",
           SERVER_HOST: "127.0.0.1",
           NODE_ENV: "production",
           TURN_DURATION_MS: "5000"
@@ -31,7 +29,6 @@ describe("loadServerConfig", () => {
       )
     ).toEqual({
       httpPort: 4100,
-      wsPort: 4101,
       serverHost: "127.0.0.1",
       databaseUrl: "./data/dev.sqlite",
       nodeEnv: "production",

@@ -6,15 +6,21 @@ import {
 } from "./roomTypes.js";
 
 // ---- Atkārtoti lietotie primitīvi ----
-const nonEmpty = z.string().min(1);
-const pip = z.number().int().min(0).max(6);
 /**
- * Identitātes virkņu garuma robeža (M4). `clientId`/`reconnectToken` ir klienta
- * kontrolētas un kļūst par durable map atslēgām un log laukiem, tāpēc bez robežas
- * neautentificēts klients varētu sūtīt vairāku megabaitu virkni un pastiprināt
- * atmiņas/žurnālu patēriņu. UUID (faktiskais formāts) ir ~36 rakstzīmes.
+ * Identitātes/īso virkņu garuma robeža (M4, F4). Visas klienta-kontrolētās īsās
+ * virknes (id, kodi, protokola versija, turnId) kļūst par map atslēgām un log
+ * laukiem, tāpēc bez robežas neautentificēts klients varētu sūtīt vairāku megabaitu
+ * virkni un pastiprināt atmiņas/žurnālu patēriņu. UUID (faktiskais formāts) ~36 rakstzīmes.
  */
 export const maxIdentifierLength = 128;
+/**
+ * Čata teksta augšējā robeža shēmas līmenī (F4) — rupja DoS aizsardzība pirms
+ * validācijas. Autoritatīvais redzamais limits (200 zīmes pēc `trim`) paliek
+ * `LobbyChat`; šī robeža ar rezervi to nemaina, tikai bloķē milzu kadrus.
+ */
+export const maxChatTextLength = 1000;
+const nonEmpty = z.string().min(1).max(maxIdentifierLength);
+const pip = z.number().int().min(0).max(6);
 const clientId = z.string().min(1).max(maxIdentifierLength);
 const reconnectToken = z.string().max(maxIdentifierLength);
 
@@ -34,7 +40,7 @@ export const visibilitySchema = z.enum(["public", "private"]);
 export const helloSchema = z.object({
   type: z.literal("HELLO"),
   protocolVersion: nonEmpty,
-  clientBuild: z.string(),
+  clientBuild: z.string().max(maxIdentifierLength),
   clientId,
   reconnectToken: reconnectToken.optional()
 });
@@ -89,8 +95,10 @@ export const submitMoveSchema = z.object({
 
 export const playerResumeSchema = z.object({
   type: z.literal("PLAYER_RESUME"),
-  roomId: nonEmpty,
-  reconnectToken: reconnectToken.optional()
+  roomId: nonEmpty
+  // Piezīme (m5): nav `reconnectToken` — identitāte ir autoritatīva no HELLO
+  // handshake (`ctx.identity`), tāpēc resume to nelasa. Klients PLAYER_RESUME ar
+  // token nesūta; lauks bija mēms un maldinošs, tāpēc izņemts.
 });
 
 export const requestSnapshotSchema = z.object({
@@ -102,7 +110,7 @@ export const requestSnapshotSchema = z.object({
 export const sendChatSchema = z.object({
   type: z.literal("SEND_CHAT"),
   requestId: nonEmpty,
-  text: z.string()
+  text: z.string().max(maxChatTextLength)
 });
 
 export const pingSchema = z.object({

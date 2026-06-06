@@ -117,8 +117,7 @@ export class CoreMessageRouter implements MessageRouter {
       case "CREATE_ROOM":
         return this.handleCreateRoom(ctx, message);
       case "VIEW_ROOM":
-        this.handleViewRoom(ctx, message);
-        return;
+        return this.handleViewRoom(ctx, message);
       case "JOIN_ROOM":
         return this.handleJoinRoom(ctx, message);
       case "LEAVE_ROOM":
@@ -204,8 +203,8 @@ export class CoreMessageRouter implements MessageRouter {
   private handleViewRoom(
     ctx: RouteContext,
     message: Extract<PostHandshakeMessage, { type: "VIEW_ROOM" }>
-  ): void {
-    this.guard(ctx, () => {
+  ): MaybePromise<void> {
+    return this.guard(ctx, () => {
       const code = message.code?.trim();
       const room = code
         ? this.rooms.viewRoom({ code })

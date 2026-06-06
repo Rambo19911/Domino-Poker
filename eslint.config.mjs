@@ -21,6 +21,11 @@ export default tseslint.config(
       "apps/web/next-env.d.ts",
       "test-results/**",
       ".playwright-mcp/**",
+      // Lokāli, gitignored aģentu/rīku katalogi — var saturēt dinamiski ģenerētus
+      // failus (piem. `.remember/tmp/*.ts`), kas citādi lauztu lint vārtu lokāli.
+      ".remember/**",
+      ".claude/**",
+      "logs/**",
       "**/*.cjs"
     ]
   },

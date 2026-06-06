@@ -3,7 +3,6 @@ import { resolve } from "node:path";
 import process from "node:process";
 
 const DEFAULT_HTTP_PORT = 4000;
-const DEFAULT_WS_PORT = 4001;
 const DEFAULT_DATABASE_URL = "./data/dev.sqlite";
 const DEFAULT_SERVER_HOST = "0.0.0.0";
 const DEFAULT_NODE_ENV = "development";
@@ -36,11 +35,6 @@ export interface ServerConfig {
    * `HTTP_PORT` (noklusējums 4000). WS dalās ar šo portu caur `upgrade`.
    */
   httpPort: number;
-  /**
-   * Vēsturisks lauks (decision B: WS dalās ar `httpPort`, tāpēc atsevišķs WS ports
-   * netiek izmantots klausīšanai). Saglabāts saderībai; produkcijā nav jāiestata.
-   */
-  wsPort: number;
   /** Adrese, uz kuras serveris klausās (`SERVER_HOST`; noklusējums `0.0.0.0`). Aiz reverse proxy ieteicams `127.0.0.1`. */
   serverHost: string;
   /** SQLite faila ceļš, `:memory:` vai PostgreSQL URL (no `DATABASE_URL`; noklusējums `./data/dev.sqlite`). */
@@ -68,7 +62,6 @@ export function loadServerConfig(
       env.SERVER_PORT ?? env.HTTP_PORT ?? fileEnv.SERVER_PORT ?? fileEnv.HTTP_PORT,
       DEFAULT_HTTP_PORT
     ),
-    wsPort: readPort("WS_PORT", env.WS_PORT ?? fileEnv.WS_PORT, DEFAULT_WS_PORT),
     serverHost: readNonEmpty(env.SERVER_HOST ?? fileEnv.SERVER_HOST, DEFAULT_SERVER_HOST),
     databaseUrl: readDatabaseUrl(env.DATABASE_URL ?? fileEnv.DATABASE_URL),
     nodeEnv: readNonEmpty(env.NODE_ENV ?? fileEnv.NODE_ENV, DEFAULT_NODE_ENV),

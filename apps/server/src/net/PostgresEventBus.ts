@@ -66,6 +66,7 @@ export class PostgresEventBus implements ServerEventBus {
   private handler: ((message: ServerEventFanoutMessage) => void) | undefined;
   private listener: PgListener | undefined;
   private reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+  private pruneTimer: ReturnType<typeof setInterval> | undefined;
   private nextPruneAt = 0;
   private missedFanoutSince: number | undefined;
   private listenerGeneration = 0;
@@ -107,7 +108,29 @@ export class PostgresEventBus implements ServerEventBus {
     }
     this.handler = handler;
     this.stopped = false;
+    this.startPruneTimer();
     await this.connectListener();
+  }
+
+  /**
+   * Periodisks `server_event_fanout` tīrīšanas timeris (F7). Bez šī prune notiktu
+   * TIKAI `publish` laikā, tāpēc patērētāj-only instance (kas neko nepublicē) nekad
+   * netīrītu tabulu un rindas augtu bezgalīgi. `nextPruneAt` aizsargs novērš dubultu
+   * prune, ja `publish` jau nesen iztīrīja. `unref` ļauj procesam beigties.
+   */
+  private startPruneTimer(): void {
+    if (this.pruneTimer !== undefined) {
+      return;
+    }
+    this.pruneTimer = setInterval(() => {
+      if (this.stopped) {
+        return;
+      }
+      void this.pruneExpiredFanout(this.clock()).catch((error: unknown) => {
+        this.logger.error("[postgres-event-bus] periodic prune failed:", error);
+      });
+    }, this.pruneIntervalMs);
+    this.pruneTimer.unref?.();
   }
 
   async publish(message: ServerEventFanoutMessage): Promise<void> {
@@ -144,6 +167,10 @@ export class PostgresEventBus implements ServerEventBus {
     if (this.reconnectTimer !== undefined) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = undefined;
+    }
+    if (this.pruneTimer !== undefined) {
+      clearInterval(this.pruneTimer);
+      this.pruneTimer = undefined;
     }
     await this.listener?.end();
     await this.pool.end();

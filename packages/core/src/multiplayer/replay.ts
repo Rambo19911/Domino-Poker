@@ -6,11 +6,15 @@ import { createMultiplayerGameSetup } from "./gameSetup";
 
 export function replayEvents(
   events: readonly MultiplayerEvent[],
-  seed: string
+  seed: string,
+  numberOfRounds?: number
 ): GameState {
+  // `numberOfRounds` jānodod, ja oriģinālā spēle nelietoja noklusējuma kārtu skaitu
+  // (citādi `totalRounds` diverģē un `ROUND_RESULT`/`GAME_OVER` pārejas nesakrīt).
   const setup = createMultiplayerGameSetup({
     gameId: events[0]?.gameId ?? "replay",
-    seed
+    seed,
+    ...(numberOfRounds !== undefined ? { numberOfRounds } : {})
   });
   let state = setup.state;
 

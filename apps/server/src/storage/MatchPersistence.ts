@@ -75,9 +75,11 @@ export class MatchPersistence {
       })
     );
 
-    // Basic player stats: katram CILVĒKAM (ar displayId) +1 spēle; uzvarētājam +1
-    // uzvara. Boti netiek skaitīti. Atslēga ir publiskais displayId (MVP nav
-    // pastāvīgas starpsesijas identitātes — autentifikācija ir atlikta uz vēlāk).
+    // Basic player stats: katram CILVĒKAM (ar stabilo clientId) +1 spēle; uzvarētājam
+    // +1 uzvara. Boti netiek skaitīti. Atslēga ir stabilais clientId (reconnect
+    // identitāte), NE reciklējamais publiskais displayId (F5) — citādi divu dažādu
+    // cilvēku spēles var saskaitīties vienā rindā pēc displayId atkārtotas izmantošanas.
+    // Pilna starpsesijas identitāte (autentifikācija) joprojām ir atlikta uz vēlāk.
     const roster = this.rosters.get(matchId);
     this.rosters.delete(matchId);
     if (roster) {
@@ -92,10 +94,10 @@ export class MatchPersistence {
   ): Promise<void> {
     const now = this.clock();
     for (const seat of roster) {
-      if (seat.kind !== "human" || seat.displayId === undefined) continue;
+      if (seat.kind !== "human" || seat.clientId === undefined) continue;
       const won = seat.corePlayerId === winnerPlayerId;
       await this.storage.incrementPlayerStats({
-        playerId: seat.displayId,
+        playerId: seat.clientId,
         gamesPlayedDelta: 1,
         gamesWonDelta: won ? 1 : 0,
         updatedAt: now

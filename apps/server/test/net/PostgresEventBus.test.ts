@@ -126,6 +126,46 @@ describe("PostgresEventBus", () => {
     await bus.close();
   });
 
+  it("prunes expired fanout periodically even when the instance never publishes (F7)", async () => {
+    vi.useFakeTimers();
+    try {
+      let now = 10_000;
+      const pool = new RecordingPool();
+      const listener = new FakeListener();
+      const bus = await PostgresEventBus.open({
+        connectionString: "postgres://test",
+        instanceId: "consumer-only",
+        clock: () => now,
+        pool,
+        listenerFactory: () => listener,
+        retentionMs: 1_000,
+        pruneIntervalMs: 1_000,
+        logger: { error: vi.fn() }
+      });
+      // Patērētāj-only: tikai klausās, NEKAD nepublicē.
+      await bus.start(() => {});
+
+      // Pirms intervāla nav neviena prune (publish nekad nav izsaukts).
+      expect(
+        pool.queries.some((query) => query.text.includes("DELETE FROM server_event_fanout"))
+      ).toBe(false);
+
+      // Pēc viena prune intervāla periodiskais prune nostrādā bez publish.
+      now = 11_000;
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      const deleteQuery = pool.queries.find((query) =>
+        query.text.includes("DELETE FROM server_event_fanout")
+      );
+      expect(deleteQuery).toBeDefined();
+      expect(deleteQuery?.values).toEqual([now - 1_000]); // now - retentionMs
+
+      await bus.close();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("does not select the just-published local event on self-notification", async () => {
     const pool = new RecordingPool();
     const listener = new FakeListener();

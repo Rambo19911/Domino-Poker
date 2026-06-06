@@ -6,7 +6,6 @@
   tileContains,
   tileEquals,
   tileKey,
-  tileTotalValue,
   trumpPriority
 } from "./dominoTile";
 import {
@@ -31,11 +30,10 @@ export interface PlayTileResult {
   readonly trickComplete: boolean;
 }
 
-export interface TileStrengthContext {
+interface TileStrengthContext {
   readonly requiredNumber?: number | undefined;
   readonly tile1IsAce: boolean;
   readonly tile2IsAce: boolean;
-  readonly breakAceTiesByTotalValue?: boolean | undefined;
 }
 
 interface GamePlayerOptions {
@@ -423,7 +421,7 @@ export function isStrongerTile(
   });
 }
 
-export function isStrongerTileWithContext(
+function isStrongerTileWithContext(
   tile1: DominoTile,
   tile2: DominoTile,
   context: TileStrengthContext
@@ -452,11 +450,7 @@ export function isStrongerTileWithContext(
 
   if (context.tile1IsAce && !context.tile2IsAce) return true;
   if (!context.tile1IsAce && context.tile2IsAce) return false;
-  if (context.tile1IsAce && context.tile2IsAce) {
-    return context.breakAceTiesByTotalValue === true
-      ? tileTotalValue(tile1) > tileTotalValue(tile2)
-      : false;
-  }
+  if (context.tile1IsAce && context.tile2IsAce) return false;
 
   const tile1OtherSide = getOtherSide(tile1, requiredNumber);
   const tile2OtherSide = getOtherSide(tile2, requiredNumber);

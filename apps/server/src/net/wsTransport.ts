@@ -12,6 +12,14 @@ export interface AttachOptions {
 }
 
 /**
+ * Maksimālais ienākošā WS kadra izmērs baitos (F4). Visi derīgie klienta→serveris
+ * ziņojumi ir mazi (id ≤128, čats ≤1000 zīmes); 16 KiB dod rezervi, bet bloķē
+ * vairāku megabaitu kadrus pirms `decode`/`JSON.parse`, mazinot DoS virsmu.
+ * Pārsniegumu `ws` aizver ar kodu 1009 un raida `close`/`error` (apstrādāts zemāk).
+ */
+const MAX_WS_PAYLOAD_BYTES = 16 * 1024;
+
+/**
  * Decision B: WebSocket dzīvo uz tā paša HTTP servera (un porta) caur `upgrade`
  * notikumu — palaidējam (`start-domino-poker.bat`) pietiek ar vienu portu 4000.
  *
@@ -25,7 +33,7 @@ export function attachWebSocketGateway(
   options: AttachOptions = {}
 ): WebSocketServer {
   const path = options.path ?? "/ws";
-  const wss = new WebSocketServer({ noServer: true });
+  const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_WS_PAYLOAD_BYTES });
 
   httpServer.on("upgrade", (request, socket, head) => {
     let pathname: string;

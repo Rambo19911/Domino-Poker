@@ -69,4 +69,24 @@ describe("attachWebSocketGateway (decision B — WS on the HTTP port)", () => {
     expect(welcome.type).toBe("WELCOME");
     expect(welcome.playerId).toBe("client-itest");
   });
+
+  it("closes a connection that sends an oversized frame (F4 maxPayload)", async () => {
+    const port = await startServer();
+    const client = new WebSocket(`ws://127.0.0.1:${port}/ws`);
+    cleanups.push(async () => client.close());
+
+    await new Promise<void>((resolve, reject) => {
+      client.once("open", resolve);
+      client.once("error", reject);
+    });
+
+    // 32 KiB > 16 KiB maxPayload → serveris aizver ar 1009 ("message too big").
+    client.on("error", () => {}); // abruptu aizvēršanos `ws` var raidīt arī kā error
+    const closeCode = await new Promise<number>((resolve) => {
+      client.once("close", (code) => resolve(code));
+      client.send("x".repeat(32 * 1024));
+    });
+
+    expect(closeCode).toBe(1009);
+  });
 });

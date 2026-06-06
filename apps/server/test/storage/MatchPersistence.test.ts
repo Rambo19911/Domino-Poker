@@ -140,19 +140,20 @@ describe("MatchPersistence player stats (10.3)", () => {
       seed: "s",
       numberOfRounds: 7,
       players: [
-        { seatIndex: 0, corePlayerId: "1", kind: "human", displayId: "#winner" },
-        { seatIndex: 1, corePlayerId: "2", kind: "human", displayId: "#loser" },
+        { seatIndex: 0, corePlayerId: "1", kind: "human", clientId: "client-winner", displayId: "#winner" },
+        { seatIndex: 1, corePlayerId: "2", kind: "human", clientId: "client-loser", displayId: "#loser" },
         { seatIndex: 2, corePlayerId: "3", kind: "bot" },
-        { seatIndex: 3, corePlayerId: "4", kind: "human" } // bez displayId → izlaists
+        { seatIndex: 3, corePlayerId: "4", kind: "human" } // bez clientId → izlaists
       ],
       startedAt: 0
     });
     persistence.events([{ seq: 1, event: gameOver("g1", "1") }]);
     await new Promise((resolve) => setImmediate(resolve));
 
-    expect(await storage.getPlayerStats("#winner")).toMatchObject({ gamesPlayed: 1, gamesWon: 1 });
-    expect(await storage.getPlayerStats("#loser")).toMatchObject({ gamesPlayed: 1, gamesWon: 0 });
-    expect(await storage.getPlayerStats("#3")).toBeUndefined();
+    // Statistika keyota pēc stabilā clientId, NE pēc reciklējamā displayId (F5).
+    expect(await storage.getPlayerStats("client-winner")).toMatchObject({ gamesPlayed: 1, gamesWon: 1 });
+    expect(await storage.getPlayerStats("client-loser")).toMatchObject({ gamesPlayed: 1, gamesWon: 0 });
+    expect(await storage.getPlayerStats("#winner")).toBeUndefined(); // displayId nav atslēga
   });
 
   it("accumulates stats across multiple finished matches for the same player", async () => {
@@ -164,14 +165,46 @@ describe("MatchPersistence player stats (10.3)", () => {
         matchId,
         seed: "s",
         numberOfRounds: 7,
-        players: [{ seatIndex: 0, corePlayerId: "1", kind: "human", displayId: "#p" }],
+        players: [{ seatIndex: 0, corePlayerId: "1", kind: "human", clientId: "client-p", displayId: "#p" }],
         startedAt: 0
       });
       persistence.events([{ seq: 1, event: gameOver(matchId, "1") }]);
       await new Promise((resolve) => setImmediate(resolve));
     }
 
-    expect(await storage.getPlayerStats("#p")).toMatchObject({ gamesPlayed: 2, gamesWon: 2 });
+    expect(await storage.getPlayerStats("client-p")).toMatchObject({ gamesPlayed: 2, gamesWon: 2 });
+  });
+
+  it("keys stats by stable clientId, not the recyclable displayId (F5)", async () => {
+    storage = new SqliteStorage({ filename: ":memory:" });
+    const persistence = new MatchPersistence({ storage, clock: () => 3000 });
+
+    // Divi DAŽĀDI cilvēki (atšķirīgs clientId) secīgi saņem TO PAŠU reciklēto displayId.
+    persistence.matchStarted({
+      matchId: "g1",
+      seed: "s",
+      numberOfRounds: 7,
+      players: [{ seatIndex: 0, corePlayerId: "1", kind: "human", clientId: "client-A", displayId: "#0421" }],
+      startedAt: 0
+    });
+    persistence.events([{ seq: 1, event: gameOver("g1", "1") }]);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    persistence.matchStarted({
+      matchId: "g2",
+      seed: "s",
+      numberOfRounds: 7,
+      players: [{ seatIndex: 0, corePlayerId: "1", kind: "human", clientId: "client-B", displayId: "#0421" }],
+      startedAt: 0
+    });
+    persistence.events([{ seq: 1, event: gameOver("g2", "1") }]);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    // Statistika paliek ATSEVIŠĶA katram clientId, neskatoties uz koplietoto displayId.
+    expect(await storage.getPlayerStats("client-A")).toMatchObject({ gamesPlayed: 1, gamesWon: 1 });
+    expect(await storage.getPlayerStats("client-B")).toMatchObject({ gamesPlayed: 1, gamesWon: 1 });
+    // displayId NAV atslēga — citādi tas kļūdaini saskaitītu abus cilvēkus vienā rindā.
+    expect(await storage.getPlayerStats("#0421")).toBeUndefined();
   });
 });
 

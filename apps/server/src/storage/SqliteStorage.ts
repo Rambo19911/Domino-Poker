@@ -229,13 +229,15 @@ export class SqliteStorage implements StoragePort {
   }
 
   async loadRecentChatMessages(limit: number): Promise<readonly ChatMessage[]> {
-    // Paņemam pēdējās N pēc ievades secības (rowid), tad apgriežam uz hronoloģisku
-    // (vecākās pirmās), lai klients tās rāda dabiskā secībā.
+    // Paņemam pēdējās N pēc `server_now` (ar `id` kā stabilu neizšķirtu), tad
+    // apgriežam uz hronoloģisku (vecākās pirmās). Kārtošana SASKAŅOTA ar
+    // `PostgresStorage` (m8: `server_now DESC, id DESC` → pēc reverse `server_now ASC,
+    // id ASC`), lai abi backendi dod identisku secību arī pie vienāda `server_now`.
     const rows = this.db
       .prepare(
         `SELECT id, author_display_id, text, server_now
            FROM chat_messages
-          ORDER BY rowid DESC
+          ORDER BY server_now DESC, id DESC
           LIMIT ?`
       )
       .all(clampLimit(limit)) as unknown as ChatRow[];

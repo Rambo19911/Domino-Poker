@@ -14,3 +14,12 @@ data/*.sqlite-shm
 .turbo
 .cache
 .local-server
+# Web būves izvade — serveris (core → shared → server) to nelieto, tāpēc tā ~96 MB
+# cache nedrīkst nonākt servera attēlā.
+**/.next
+# Lokāli aģentu/rīku/izstrādes katalogi, kas nav vajadzīgi izpildlaikā.
+.remember/
+.claude/
+.playwright-mcp/
+logs/
+test-results/
