@@ -10,6 +10,7 @@ import {
   getInvalidMoveReason,
   getWinner,
   isAce,
+  isStrongerTile,
   isTrump,
   makeBid,
   makeAIBid,
@@ -39,6 +40,39 @@ describe("domino tiles", () => {
 
     expect(shuffledKeys).toEqual(fullSetKeys);
     expect(new Set(shuffledKeys)).toHaveProperty("size", 28);
+  });
+
+  it("preserves the existing cut-and-overhand shuffle order for an injected rng", () => {
+    expect(shuffleSet(() => 0.37).map(tileKey)).toEqual([
+      "5-5",
+      "5-6",
+      "6-6",
+      "4-4",
+      "4-5",
+      "4-6",
+      "3-4",
+      "3-5",
+      "3-6",
+      "2-5",
+      "2-6",
+      "3-3",
+      "2-2",
+      "2-3",
+      "2-4",
+      "1-4",
+      "1-5",
+      "1-6",
+      "1-3",
+      "0-6",
+      "1-1",
+      "1-2",
+      "0-3",
+      "0-4",
+      "0-5",
+      "0-0",
+      "0-1",
+      "0-2"
+    ]);
   });
 });
 
@@ -366,7 +400,7 @@ describe("AI behavior", () => {
     expect(selectNumber(tile(2, 4), player)).toBe(4);
   });
 
-  it("preserves AI trick comparison behavior for the 0-6 tile", () => {
+  it("matches the authoritative engine when comparing the 0-6 special tile (M7)", () => {
     const state = playableState([
       [tile(2, 6)],
       [tile(0, 6), tile(4, 6)],
@@ -384,7 +418,40 @@ describe("AI behavior", () => {
       )
     };
 
-    expect(tileEquals(selectAITile(aiState.players[1]!, aiState), tile(0, 6))).toBe(true);
+    // requiredNumber=6: the 0-6 played AS A 6 is NOT an ace (engine `isPlayedAsAce`),
+    // so it loses to the 2-6 lead (other side 0 < 2). 4-6 actually wins (4 > 2).
+    // The AI needs a trick (bid 1, 0 won) and must pick the truly-winning 4-6 —
+    // it no longer mis-predicts 0-6 as an unconditional ace.
+    expect(tileEquals(selectAITile(aiState.players[1]!, aiState), tile(4, 6))).toBe(true);
+
+    // Cross-check the prediction against the engine's authoritative comparison:
+    // 2-6 (lead) is stronger than 0-6 here, but not stronger than 4-6.
+    expect(isStrongerTile(aiState, tile(2, 6), tile(0, 6))).toBe(true);
+    expect(isStrongerTile(aiState, tile(2, 6), tile(4, 6))).toBe(false);
+  });
+
+  it("dumps a losing tile instead of winning once its bid is met (selectHardTile)", () => {
+    const state = playableState([
+      [tile(2, 3)],
+      [tile(0, 3), tile(3, 5)],
+      [tile(4, 4)],
+      [tile(5, 5)]
+    ]);
+    const aiState: GameState = {
+      ...state,
+      currentPlayerIndex: 1,
+      currentTrick: [{ tile: tile(2, 3), playerIndex: 0, declaredNumber: 3 }],
+      leadTile: tile(2, 3),
+      requiredNumber: 3,
+      players: state.players.map((player) =>
+        player.id === "2" ? { ...player, bid: 1, tricksWon: 1 } : player
+      )
+    };
+
+    // Solījums izpildīts (tricksNeeded = 0) un AI VAR uzvarēt (3-5 pārspētu lead),
+    // bet tai jāizvairās no nevajadzīga trika (overtricks sods): nomet zaudējošo
+    // 0-3, nevis uzvarošo 3-5.
+    expect(tileEquals(selectAITile(aiState.players[1]!, aiState), tile(0, 3))).toBe(true);
   });
 });
 

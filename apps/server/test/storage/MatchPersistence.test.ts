@@ -36,6 +36,7 @@ class RecordingStorage implements StoragePort {
     return [];
   }
   async savePlayerStats(): Promise<void> {}
+  async incrementPlayerStats(): Promise<void> {}
   async getPlayerStats(): Promise<undefined> {
     return undefined;
   }

@@ -1,7 +1,44 @@
 import { describe, expect, it } from "vitest";
 
 import { DisplayIdRegistry } from "../../src/identity/DisplayIdRegistry.js";
+import type {
+  CreateDurableSessionResult,
+  DurableSessionRecord,
+  DurableSessionStore,
+  NewDurableSessionRecord
+} from "../../src/sessions/DurableSessionStore.js";
 import { SessionManager } from "../../src/sessions/SessionManager.js";
+
+class FakeDurableSessionStore implements DurableSessionStore {
+  readonly sessions = new Map<string, DurableSessionRecord>();
+  readonly displayIds = new Set<string>();
+
+  async getSession(playerId: string): Promise<DurableSessionRecord | undefined> {
+    return this.sessions.get(playerId);
+  }
+
+  async createSessionIfAbsent(
+    record: NewDurableSessionRecord
+  ): Promise<CreateDurableSessionResult> {
+    if (this.sessions.has(record.playerId)) {
+      return "player_exists";
+    }
+    if (this.displayIds.has(record.displayId)) {
+      return "display_id_taken";
+    }
+    this.sessions.set(record.playerId, record);
+    this.displayIds.add(record.displayId);
+    return "created";
+  }
+
+  async deleteSession(playerId: string): Promise<void> {
+    const record = this.sessions.get(playerId);
+    if (record) {
+      this.displayIds.delete(record.displayId);
+    }
+    this.sessions.delete(playerId);
+  }
+}
 
 function buildManager() {
   let sessionSeq = 0;
@@ -114,5 +151,75 @@ describe("SessionManager (9.1)", () => {
     sessions.unregister("conn-2");
     expect(sessions.hasActiveConnection("client-B")).toBe(false);
     expect(sessions.onlineCount()).toBe(1);
+  });
+
+  it("restores durable sessions from a shared store across manager instances", async () => {
+    const store = new FakeDurableSessionStore();
+    const first = new SessionManager({
+      displayIds: new DisplayIdRegistry(),
+      durableStore: store,
+      createSessionId: () => "session-a",
+      createReconnectToken: () => "token-1",
+      clock: () => 1000
+    });
+    const created = await first.registerAsync("conn-1", "client-A");
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    const second = new SessionManager({
+      displayIds: new DisplayIdRegistry(),
+      durableStore: store,
+      createSessionId: () => "session-b",
+      createReconnectToken: () => "token-ignored",
+      clock: () => 2000
+    });
+    const restored = await second.registerAsync("conn-2", "client-A", "token-1");
+
+    expect(restored.ok).toBe(true);
+    if (!restored.ok) return;
+    expect(restored.isReconnect).toBe(true);
+    expect(restored.identity.reconnectToken).toBe("token-1");
+    expect(restored.identity.displayId).toBe(created.identity.displayId);
+  });
+
+  it("rejects a cross-instance reconnect with the wrong durable token", async () => {
+    const store = new FakeDurableSessionStore();
+    const first = new SessionManager({
+      displayIds: new DisplayIdRegistry(),
+      durableStore: store,
+      createSessionId: () => "session-a",
+      createReconnectToken: () => "token-1",
+      clock: () => 1000
+    });
+    await first.registerAsync("conn-1", "client-A");
+
+    const second = new SessionManager({
+      displayIds: new DisplayIdRegistry(),
+      durableStore: store,
+      createSessionId: () => "session-b",
+      createReconnectToken: () => "token-2",
+      clock: () => 2000
+    });
+
+    await expect(second.registerAsync("conn-2", "client-A", "wrong")).resolves.toEqual({
+      ok: false,
+      reason: "token_mismatch"
+    });
+  });
+
+  it("drops a durable session from the shared store on release", async () => {
+    const store = new FakeDurableSessionStore();
+    const sessions = new SessionManager({
+      displayIds: new DisplayIdRegistry(),
+      durableStore: store,
+      createSessionId: () => "session-a",
+      createReconnectToken: () => "token-1",
+      clock: () => 1000
+    });
+
+    await sessions.registerAsync("conn-1", "client-A");
+    await sessions.release("client-A");
+
+    expect(await store.getSession("client-A")).toBeUndefined();
   });
 });

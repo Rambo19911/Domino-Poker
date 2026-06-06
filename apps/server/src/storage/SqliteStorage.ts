@@ -10,6 +10,7 @@ import type {
   MatchFinishedRecord,
   MatchStartedRecord,
   MatchSummaryRecord,
+  PlayerStatsIncrementRecord,
   PlayerStatsRecord,
   StoragePort,
   UnfinishedMatch
@@ -26,7 +27,7 @@ export interface SqliteStorageOptions {
 /**
  * `StoragePort` implementācija ar iebūvēto `node:sqlite` (Fāze 10.2). Sinhronie
  * SQLite izsaukumi tiek ietīti `async` metodēs, lai izpildītu DB-agnostisko
- * līgumu (PostgreSQL adapteris vēlāk pieslēdzas tāpat). Idempotence panākta ar
+ * līgumu (PostgresStorage pieslēdzas tāpat). Idempotence panākta ar
  * `INSERT OR IGNORE` / upsert, lai novēlota vai atkārtota piegāde nedublētu datus.
  *
  * Glabā tikai serializējamus DTO: partijas metadata + append-only event log
@@ -184,6 +185,19 @@ export class SqliteStorage implements StoragePort {
            updated_at   = excluded.updated_at`
       )
       .run(stats.playerId, stats.gamesPlayed, stats.gamesWon, stats.updatedAt);
+  }
+
+  async incrementPlayerStats(stats: PlayerStatsIncrementRecord): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT INTO player_stats (player_id, games_played, games_won, updated_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(player_id) DO UPDATE SET
+           games_played = player_stats.games_played + excluded.games_played,
+           games_won    = player_stats.games_won + excluded.games_won,
+           updated_at   = max(player_stats.updated_at, excluded.updated_at)`
+      )
+      .run(stats.playerId, stats.gamesPlayedDelta, stats.gamesWonDelta, stats.updatedAt);
   }
 
   async getPlayerStats(playerId: string): Promise<PlayerStatsRecord | undefined> {

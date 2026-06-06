@@ -6,6 +6,7 @@ import { LobbyChat } from "../../src/chat/LobbyChat.js";
 import { DisplayIdRegistry } from "../../src/identity/DisplayIdRegistry.js";
 import type { GatewayConnection } from "../../src/net/GatewayConnection.js";
 import { CoreMessageRouter } from "../../src/net/messageRouter.js";
+import type { ServerEventBus, ServerEventFanoutMessage } from "../../src/net/ServerEventBus.js";
 import { WebSocketGateway } from "../../src/net/WebSocketGateway.js";
 import { RoomManager } from "../../src/rooms/RoomManager.js";
 
@@ -44,6 +45,14 @@ class FakeConnection implements GatewayConnection {
 
   last(): ServerEvent | undefined {
     return this.sent[this.sent.length - 1];
+  }
+}
+
+class FakeEventBus implements ServerEventBus {
+  readonly published: ServerEventFanoutMessage[] = [];
+
+  async publish(message: ServerEventFanoutMessage): Promise<void> {
+    this.published.push(message);
   }
 }
 
@@ -305,6 +314,138 @@ describe("WebSocketGateway slow-client backpressure (Phase 11)", () => {
     conn.buffered = 0;
     gateway.broadcast(event);
     expect(conn.sent).toContainEqual(event); // atsākts, kad buferis iztukšots
+  });
+});
+
+describe("WebSocketGateway cross-instance fanout", () => {
+  it("does not publish supersede for a first HELLO", async () => {
+    const displayIds = new DisplayIdRegistry();
+    const rooms = new RoomManager({ clock: () => FIXED_NOW, displayIds });
+    const chat = new LobbyChat({ clock: () => FIXED_NOW });
+    const eventBus = new FakeEventBus();
+    const gateway = new WebSocketGateway({
+      clock: () => FIXED_NOW,
+      displayIds,
+      router: new CoreMessageRouter({ rooms, chat }),
+      createSessionId: () => "session-1",
+      createReconnectToken: () => "token-1",
+      eventBus
+    });
+    const conn = new FakeConnection("c1");
+    gateway.open(conn);
+    gateway.message(conn, hello());
+    await Promise.resolve();
+
+    expect(eventBus.published.some((message) => message.kind === "supersede")).toBe(false);
+  });
+
+  it("publishes supersede when a reconnect replaces an existing session", async () => {
+    const displayIds = new DisplayIdRegistry();
+    const rooms = new RoomManager({ clock: () => FIXED_NOW, displayIds });
+    const chat = new LobbyChat({ clock: () => FIXED_NOW });
+    const eventBus = new FakeEventBus();
+    const gateway = new WebSocketGateway({
+      clock: () => FIXED_NOW,
+      displayIds,
+      router: new CoreMessageRouter({ rooms, chat }),
+      createSessionId: () => "session-1",
+      createReconnectToken: () => "token-1",
+      eventBus
+    });
+    const first = new FakeConnection("c1");
+    gateway.open(first);
+    gateway.message(first, hello());
+    eventBus.published.length = 0;
+
+    const second = new FakeConnection("c2");
+    gateway.open(second);
+    gateway.message(second, hello({ reconnectToken: "token-1" }));
+    await Promise.resolve();
+
+    expect(eventBus.published).toContainEqual({ kind: "supersede", playerId: "client-A" });
+  });
+
+  it("publishes local broadcasts to the event bus", async () => {
+    const displayIds = new DisplayIdRegistry();
+    const rooms = new RoomManager({ clock: () => FIXED_NOW, displayIds });
+    const chat = new LobbyChat({ clock: () => FIXED_NOW });
+    const eventBus = new FakeEventBus();
+    const gateway = new WebSocketGateway({
+      clock: () => FIXED_NOW,
+      displayIds,
+      router: new CoreMessageRouter({ rooms, chat }),
+      createSessionId: () => "session-1",
+      createReconnectToken: () => "token-1",
+      eventBus
+    });
+    const conn = new FakeConnection("c1");
+    gateway.open(conn);
+    gateway.message(conn, hello());
+    await Promise.resolve();
+    conn.sent.length = 0;
+    eventBus.published.length = 0;
+
+    const event: ServerEvent = { type: "LOBBY_STATE", rooms: [], onlineCount: 1 };
+    gateway.broadcast(event);
+    await Promise.resolve();
+
+    expect(conn.sent).toContainEqual(event);
+    expect(eventBus.published).toEqual([{ kind: "broadcast", event }]);
+  });
+
+  it("delivers remote fanout locally without re-publishing it", async () => {
+    const displayIds = new DisplayIdRegistry();
+    const rooms = new RoomManager({ clock: () => FIXED_NOW, displayIds });
+    const chat = new LobbyChat({ clock: () => FIXED_NOW });
+    const eventBus = new FakeEventBus();
+    const gateway = new WebSocketGateway({
+      clock: () => FIXED_NOW,
+      displayIds,
+      router: new CoreMessageRouter({ rooms, chat }),
+      createSessionId: () => "session-1",
+      createReconnectToken: () => "token-1",
+      eventBus
+    });
+    const conn = new FakeConnection("c1");
+    gateway.open(conn);
+    gateway.message(conn, hello());
+    await Promise.resolve();
+    conn.sent.length = 0;
+    eventBus.published.length = 0;
+
+    const event: ServerEvent = { type: "CHAT_MESSAGE", id: "m1", authorDisplayId: "#12345", text: "hi", serverNow: 1 };
+    gateway.deliverRemoteBroadcast(event);
+
+    expect(conn.sent).toContainEqual(event);
+    expect(eventBus.published).toEqual([]);
+  });
+
+  it("closes a local socket superseded by another instance", async () => {
+    const displayIds = new DisplayIdRegistry();
+    const rooms = new RoomManager({ clock: () => FIXED_NOW, displayIds });
+    const chat = new LobbyChat({ clock: () => FIXED_NOW });
+    const eventBus = new FakeEventBus();
+    const gateway = new WebSocketGateway({
+      clock: () => FIXED_NOW,
+      displayIds,
+      router: new CoreMessageRouter({ rooms, chat }),
+      createSessionId: () => "session-1",
+      createReconnectToken: () => "token-1",
+      eventBus
+    });
+    const conn = new FakeConnection("c1");
+    gateway.open(conn);
+    gateway.message(conn, hello({ clientId: "client-A" }));
+    await Promise.resolve();
+
+    gateway.closeRemoteSupersededPlayer("client-A");
+
+    expect(conn.isClosed).toBe(true);
+    expect(conn.closedCode).toBe(4003);
+    expect(gateway.onlineCount()).toBe(0);
+    const before = conn.sent.length;
+    gateway.message(conn, JSON.stringify({ type: "PING", clientTime: 1 }));
+    expect(conn.sent).toHaveLength(before);
   });
 });
 

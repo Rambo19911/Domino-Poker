@@ -12,7 +12,14 @@ import { errorEvent, GATEWAY_CLOSE } from "./gatewayEvents.js";
 import type { ConnectionState, GatewayConnection } from "./GatewayConnection.js";
 import type { GatewayHub } from "./GatewayHub.js";
 import type { MessageRouter } from "./messageRouter.js";
-import { SessionManager, type SessionIdentity } from "../sessions/SessionManager.js";
+import type { ServerEventBus } from "./ServerEventBus.js";
+import type { DurableSessionStore } from "../sessions/DurableSessionStore.js";
+import {
+  SessionManager,
+  type MaybePromise,
+  type RegisterResult,
+  type SessionIdentity
+} from "../sessions/SessionManager.js";
 
 interface ConnectionContext {
   readonly conn: GatewayConnection;
@@ -37,6 +44,8 @@ export interface WebSocketGatewayOptions {
   readonly router: MessageRouter;
   readonly createSessionId?: () => string;
   readonly createReconnectToken?: () => string;
+  readonly durableSessionStore?: DurableSessionStore;
+  readonly eventBus?: ServerEventBus;
   readonly pingIntervalMs?: number;
   readonly missedPongThreshold?: number;
   /** Lēna-klienta backpressure robeža baitos (noklusējums 1 MB). */
@@ -63,6 +72,7 @@ export class WebSocketGateway implements GatewayHub {
   private readonly pingIntervalMs: number;
   private readonly missedPongThreshold: number;
   private readonly slowClientBufferCap: number;
+  private readonly eventBus: ServerEventBus | undefined;
 
   constructor(options: WebSocketGatewayOptions) {
     this.clock = options.clock;
@@ -70,12 +80,15 @@ export class WebSocketGateway implements GatewayHub {
     this.pingIntervalMs = options.pingIntervalMs ?? DEFAULT_PING_INTERVAL_MS;
     this.missedPongThreshold = options.missedPongThreshold ?? DEFAULT_MISSED_PONG_THRESHOLD;
     this.slowClientBufferCap = options.slowClientBufferCap ?? DEFAULT_SLOW_CLIENT_BUFFER_CAP;
+    this.eventBus = options.eventBus;
     this.sessions = new SessionManager({
       displayIds: options.displayIds,
       ...(options.createSessionId ? { createSessionId: options.createSessionId } : {}),
       ...(options.createReconnectToken
         ? { createReconnectToken: options.createReconnectToken }
-        : {})
+        : {}),
+      ...(options.durableSessionStore ? { durableStore: options.durableSessionStore } : {}),
+      clock: options.clock
     });
   }
 
@@ -107,7 +120,7 @@ export class WebSocketGateway implements GatewayHub {
     const message = parsed.message;
 
     if (message.type === "HELLO") {
-      this.handleHello(ctx, message);
+      this.handleRouterResult(ctx.conn, this.handleHello(ctx, message));
       return;
     }
 
@@ -118,9 +131,9 @@ export class WebSocketGateway implements GatewayHub {
       return;
     }
 
-    this.router.route(
-      { identity: ctx.identity, conn, hub: this, serverNow: this.clock() },
-      message
+    this.handleRouterResult(
+      conn,
+      this.router.route({ identity: ctx.identity, conn, hub: this, serverNow: this.clock() }, message)
     );
   }
 
@@ -164,7 +177,7 @@ export class WebSocketGateway implements GatewayHub {
    * izsaukšanu pieslēdz `wsTransport` ar `setInterval`.
    */
   sweepExpiredRooms(): void {
-    this.router.sweepExpiredRooms(this, this.clock());
+    this.handleLifecycleResult(this.router.sweepExpiredRooms(this, this.clock()));
   }
 
   /** Cik bieži (ms) palaist `sweepExpiredRooms` (transporta `setInterval` vajadzībām). */
@@ -183,13 +196,30 @@ export class WebSocketGateway implements GatewayHub {
   }
 
   /**
+   * Atbrīvo durable sesiju (reconnectToken + displayId), kad spēlētājs pilnībā
+   * atstājis sistēmu. Aizsargāts ar `hasActiveConnection`, lai NEKAD neatbrīvotu
+   * tiešsaistes spēlētāja identitāti (token paliek reconnect grace vajadzībām).
+   * Idempotents. Risina `tokens`/displayId neierobežotu augšanu (M3).
+   */
+  releaseSession(playerId: string): MaybePromise<void> {
+    if (!this.sessions.hasActiveConnection(playerId)) {
+      return this.sessions.release(playerId);
+    }
+  }
+
+  /**
    * Vienots savienojuma noārdīšanas ceļš (transporta close VAI heartbeat).
    * `closeSocket` true → arī slēdz socketu (heartbeat gadījumā); transporta close
    * to nedara, jo socket jau ir slēgts. Idempotents pret jau noārdītu savienojumu.
    */
   private teardown(
     ctx: ConnectionContext,
-    options: { readonly closeSocket: boolean; readonly code?: number; readonly reason?: string }
+    options: {
+      readonly closeSocket: boolean;
+      readonly code?: number;
+      readonly reason?: string;
+      readonly suppressDisconnectedIdentity?: boolean;
+    }
   ): void {
     if (ctx.state === "disconnected") {
       return;
@@ -206,7 +236,13 @@ export class WebSocketGateway implements GatewayHub {
     // nav atvienojies — nepadodam `disconnected`, lai neatzīmētu kā offline.
     if (identity !== undefined) {
       const stillOnline = this.sessions.hasActiveConnection(identity.playerId);
-      this.router.onDisconnected(this, this.clock(), stillOnline ? undefined : identity);
+      this.handleLifecycleResult(
+        this.router.onDisconnected(
+          this,
+          this.clock(),
+          options.suppressDisconnectedIdentity || stillOnline ? undefined : identity
+        )
+      );
     }
   }
 
@@ -217,6 +253,15 @@ export class WebSocketGateway implements GatewayHub {
    * klientiem).
    */
   broadcast(event: ServerEvent): void {
+    this.broadcastLocal(event);
+    this.publishFanout({ kind: "broadcast", event });
+  }
+
+  deliverRemoteBroadcast(event: ServerEvent): void {
+    this.broadcastLocal(event);
+  }
+
+  private broadcastLocal(event: ServerEvent): void {
     const payload = JSON.stringify(event);
     for (const ctx of this.contexts.values()) {
       if (ctx.identity && ctx.state === "connected") {
@@ -227,11 +272,42 @@ export class WebSocketGateway implements GatewayHub {
 
   /** Sūta eventu visiem dotā spēlētāja aktīvajiem savienojumiem (mērķtiecīgi). */
   sendToPlayer(playerId: string, event: ServerEvent): void {
+    this.sendToLocalPlayer(playerId, event);
+    this.publishFanout({ kind: "player", playerId, event });
+  }
+
+  deliverRemoteToPlayer(playerId: string, event: ServerEvent): void {
+    this.sendToLocalPlayer(playerId, event);
+  }
+
+  closeRemoteSupersededPlayer(playerId: string): void {
+    for (const ctx of [...this.contexts.values()]) {
+      if (ctx.identity?.playerId === playerId && ctx.state === "connected") {
+        this.teardown(ctx, {
+          closeSocket: true,
+          code: GATEWAY_CLOSE.superseded,
+          reason: "superseded by a newer connection on another server instance",
+          suppressDisconnectedIdentity: true
+        });
+      }
+    }
+  }
+
+  private sendToLocalPlayer(playerId: string, event: ServerEvent): void {
     for (const ctx of this.contexts.values()) {
       if (ctx.identity?.playerId === playerId && ctx.state === "connected") {
         this.deliver(ctx, event);
       }
     }
+  }
+
+  private publishFanout(message: Parameters<ServerEventBus["publish"]>[0]): void {
+    if (this.eventBus === undefined) {
+      return;
+    }
+    void this.eventBus.publish(message).catch((error: unknown) => {
+      console.error("[gateway] cross-instance fanout failed:", error);
+    });
   }
 
   /**
@@ -256,7 +332,10 @@ export class WebSocketGateway implements GatewayHub {
     }
   }
 
-  private handleHello(ctx: ConnectionContext, message: Extract<ClientMessage, { type: "HELLO" }>): void {
+  private handleHello(
+    ctx: ConnectionContext,
+    message: Extract<ClientMessage, { type: "HELLO" }>
+  ): MaybePromise<void> {
     if (!isProtocolCompatible(message.protocolVersion)) {
       ctx.conn.send(
         errorEvent(
@@ -276,7 +355,14 @@ export class WebSocketGateway implements GatewayHub {
       return;
     }
 
-    const result = this.sessions.register(ctx.conn.id, message.clientId, message.reconnectToken);
+    const result = this.sessions.registerAsync(ctx.conn.id, message.clientId, message.reconnectToken);
+    if (isPromiseLike(result)) {
+      return result.then((resolved) => this.completeHello(ctx, resolved));
+    }
+    this.completeHello(ctx, result);
+  }
+
+  private completeHello(ctx: ConnectionContext, result: RegisterResult): void {
     if (!result.ok) {
       // reconnectToken nesakrīt ar zināmo clientId → noraidām (neuzdodas par citu).
       ctx.conn.send(errorEvent("FORBIDDEN", "Reconnect token does not match this client."));
@@ -296,7 +382,13 @@ export class WebSocketGateway implements GatewayHub {
       serverNow: this.clock()
     });
     // Jauns lobby dalībnieks: čata vēsture + onlineCount push pārējiem.
-    this.router.onConnected({ identity, conn: ctx.conn, hub: this, serverNow: this.clock() });
+    if (result.isReconnect || result.replacedConnectionId !== undefined) {
+      this.publishFanout({ kind: "supersede", playerId: identity.playerId });
+    }
+    this.handleRouterResult(
+      ctx.conn,
+      this.router.onConnected({ identity, conn: ctx.conn, hub: this, serverNow: this.clock() })
+    );
 
     // Viens aktīvs socket: aizveram veco savienojumu, ja šis clientId jau bija tiešsaistē.
     if (result.replacedConnectionId !== undefined) {
@@ -309,6 +401,25 @@ export class WebSocketGateway implements GatewayHub {
         });
       }
     }
+  }
+
+  private handleRouterResult(conn: GatewayConnection, result: void | Promise<void>): void {
+    if (!isPromiseLike(result)) {
+      return;
+    }
+    void result.catch((error: unknown) => {
+      console.error("[gateway] router failed:", error);
+      conn.send(errorEvent("INTERNAL_ERROR", "Server failed to handle the message."));
+    });
+  }
+
+  private handleLifecycleResult(result: void | Promise<void>): void {
+    if (!isPromiseLike(result)) {
+      return;
+    }
+    void result.catch((error: unknown) => {
+      console.error("[gateway] lifecycle router hook failed:", error);
+    });
   }
 }
 
@@ -325,4 +436,8 @@ function safeParse(raw: string): ParseResult {
   }
   const result = parseClientMessage(json);
   return result.success ? { ok: true, message: result.message } : { ok: false };
+}
+
+function isPromiseLike<T>(value: T | Promise<T>): value is Promise<T> {
+  return typeof (value as { readonly then?: unknown } | undefined)?.then === "function";
 }

@@ -85,11 +85,7 @@ export class MatchPersistence {
     }
   }
 
-  /**
-   * Lasa-modificē-raksta katra cilvēka statistiku. Lokālā vienas-instances vidē
-   * sērijveida fire-and-forget izsaukumi nesacenšas problemātiski; horizontāla
-   * mērogošana (atlikta uz vēlāk) prasītu atomāru increment DB pusē.
-   */
+  /** Saglabā katra cilvēka statistikas pieaugumu kā atomisku storage operāciju. */
   private async updatePlayerStats(
     roster: readonly MatchSeatRecord[],
     winnerPlayerId: string | undefined
@@ -97,12 +93,11 @@ export class MatchPersistence {
     const now = this.clock();
     for (const seat of roster) {
       if (seat.kind !== "human" || seat.displayId === undefined) continue;
-      const previous = await this.storage.getPlayerStats(seat.displayId);
       const won = seat.corePlayerId === winnerPlayerId;
-      await this.storage.savePlayerStats({
+      await this.storage.incrementPlayerStats({
         playerId: seat.displayId,
-        gamesPlayed: (previous?.gamesPlayed ?? 0) + 1,
-        gamesWon: (previous?.gamesWon ?? 0) + (won ? 1 : 0),
+        gamesPlayedDelta: 1,
+        gamesWonDelta: won ? 1 : 0,
         updatedAt: now
       });
     }

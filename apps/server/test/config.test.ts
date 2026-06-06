@@ -69,9 +69,9 @@ describe("loadServerConfig", () => {
     ).toBe("./data/dev.sqlite");
   });
 
-  it("rejects a PostgreSQL URL (handled by a separate adapter)", () => {
-    expect(() =>
-      loadServerConfig({ DATABASE_URL: "postgres://localhost/db" }, missingEnvPath)
-    ).toThrow("SqliteStorage expects a file path");
+  it("accepts a PostgreSQL URL for the storage factory", () => {
+    expect(
+      loadServerConfig({ DATABASE_URL: "postgres://localhost/db" }, missingEnvPath).databaseUrl
+    ).toBe("postgres://localhost/db");
   });
 });

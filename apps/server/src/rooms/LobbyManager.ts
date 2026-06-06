@@ -313,7 +313,16 @@ export class LobbyManager {
   destroyExpired(now: number): readonly string[] {
     const destroyed: string[] = [];
     for (const room of this.rooms.values()) {
-      if (room.status === "DESTROYED" || room.status === "IN_GAME") continue;
+      if (room.status === "DESTROYED") {
+        // Tombstone tīrīšana (M5): iepriekš iznīcinātās istabas izņemam no `rooms`
+        // un `codes`, lai `create → leave → create` cikls šīs kartes neaudzētu
+        // bezgalīgi. Notiek periodiskajā sweep (ne uzreiz pie iznīcināšanas),
+        // tāpēc tikko iznīcināta istaba īslaicīgi paliek pieprasāma kā DESTROYED.
+        this.rooms.delete(room.id);
+        this.codes.delete(room.code);
+        continue;
+      }
+      if (room.status === "IN_GAME") continue;
       if (now >= room.expiresAt) {
         this.destroyRoom(room.id);
         destroyed.push(room.id);

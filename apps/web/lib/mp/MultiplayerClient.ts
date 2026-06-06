@@ -83,6 +83,13 @@ export class MultiplayerClient {
   private reconnectTimer: TimerHandle | undefined;
   private pingTimer: TimerHandle | undefined;
   private requestSeq = 0;
+  private socketGeneration = 0;
+  private snapshotRequest:
+    | {
+        readonly roomId: string;
+        readonly lastSeq: number;
+      }
+    | undefined;
 
   constructor(options: MultiplayerClientOptions) {
     this.options = options;
@@ -104,10 +111,12 @@ export class MultiplayerClient {
   /** Aizver pēc lietotāja gribas — bez reconnect. */
   close(): void {
     this.closedByUser = true;
+    this.socketGeneration += 1;
     this.clearTimers();
     this.socket?.close();
     this.socket = undefined;
     this.socketOpen = false;
+    this.snapshotRequest = undefined;
   }
 
   // ---- izejošie ziņojumi ----
@@ -187,11 +196,22 @@ export class MultiplayerClient {
 
   private openSocket(): void {
     this.welcomed = false;
+    const generation = (this.socketGeneration += 1);
     this.socket = this.options.socketFactory(this.options.url, {
-      onOpen: () => this.handleOpen(),
-      onMessage: (data) => this.handleMessage(data),
-      onClose: (code) => this.handleClose(code)
+      onOpen: () => {
+        if (this.isCurrentSocket(generation)) this.handleOpen();
+      },
+      onMessage: (data) => {
+        if (this.isCurrentSocket(generation)) this.handleMessage(data);
+      },
+      onClose: (code) => {
+        if (generation === this.socketGeneration) this.handleClose(code);
+      }
     });
+  }
+
+  private isCurrentSocket(generation: number): boolean {
+    return generation === this.socketGeneration && !this.closedByUser;
   }
 
   private handleOpen(): void {
@@ -234,6 +254,7 @@ export class MultiplayerClient {
     const lastGoodSeq = this.view.game.seq;
     const hasGap =
       event.type === "GAME_EVENT" && lastGoodSeq > 0 && event.seq > lastGoodSeq + 1;
+    this.trackSnapshotRecovery(event);
 
     if (event.type === "ERROR" && event.code === "PROTOCOL_VERSION_MISMATCH") {
       // Neatkārtojam savienojumu nesaderīgas versijas gadījumā.
@@ -270,12 +291,32 @@ export class MultiplayerClient {
   private requestSnapshot(lastSeq: number): void {
     const roomId = this.view.room?.id;
     if (roomId === undefined) return;
+    if (this.snapshotRequest !== undefined) return;
+    this.snapshotRequest = { roomId, lastSeq };
     this.send({ type: "REQUEST_SNAPSHOT", roomId, lastSeq });
   }
 
+  private trackSnapshotRecovery(event: ServerEvent): void {
+    const request = this.snapshotRequest;
+    if (request === undefined) return;
+
+    if (
+      (event.type === "STATE_SNAPSHOT" && event.roomId === request.roomId) ||
+      (event.type === "GAME_EVENT" &&
+        event.roomId === request.roomId &&
+        event.seq === request.lastSeq + 1) ||
+      (event.type === "ROOM_LEFT" && event.roomId === request.roomId) ||
+      event.type === "ERROR"
+    ) {
+      this.snapshotRequest = undefined;
+    }
+  }
+
   private handleClose(code?: number): void {
+    this.socketGeneration += 1;
     this.socketOpen = false;
     this.socket = undefined;
+    this.snapshotRequest = undefined;
     this.stopPing();
     if (this.closedByUser) return;
     if (code === CLOSE_SUPERSEDED) {

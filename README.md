@@ -35,7 +35,9 @@ single-player rules. Highlights:
 
 - **Authoritative server** (`apps/server`): the server owns all game state and is the single
   source of truth. Clients only send *intent* (bid/move) and render server snapshots — they
-  contain no game rules, so they cannot cheat or desync the table.
+  do not decide whether an action is accepted, so they cannot cheat or desync the table.
+  The web client may reuse `packages/core` only for non-authoritative UI hints such as
+  highlighting playable tiles.
 - **Lobby + rooms**: create public/private rooms, join by list or code, choose seats, host can
   fill empty seats with bots and start the game. Rooms have a 1-hour TTL.
 - **Real-time WebSocket protocol**: a small typed protocol (`packages/shared`) with a strict
@@ -45,8 +47,9 @@ single-player rules. Highlights:
 - **Reconnect & resilience**: the client auto-reconnects with backoff; the server keeps a
   reconnect token and restores the player's room/seat and a fresh snapshot. Disconnected
   seats keep playing via timeout auto-play; abandoned rooms are cleaned up.
-- **Persistence (SQLite)**: match start (with seed), an append-only event log, match results,
-  basic player stats, and lobby chat are stored locally; lobby chat survives a server restart.
+- **Persistence (SQLite or PostgreSQL)**: match start (with seed), an append-only event log,
+  match results, basic player stats, and lobby chat are stored through `StoragePort`; lobby
+  chat survives a server restart.
 - **Lobby chat**: rate-limited (token bucket), broadcast to everyone online.
 - **Determinism**: the multiplayer deck is shuffled from a seed, so a match is fully
   reproducible from its seed + event log (replay, recovery, fairness auditing).
@@ -71,25 +74,32 @@ The single-player game is unchanged and still works fully offline.
  │ MultiplayerClient  │ ────────────▶ │ RoomManager / LobbyManager   │
  │  - sends intent    │ ◀──────────── │ RoomEngine (single-writer)   │
  │  - renders snapshot│   snapshots   │   → core rules (packages/core)│
- └────────────────────┘   + events    │ StoragePort → SQLite          │
+└────────────────────┘   + events    │ StoragePort → SQLite/Postgres │
                                        └──────────────────────────────┘
 ```
 
 Key design rules (please preserve these when contributing):
 
 - **One source of rules.** All game logic lives in `packages/core`. The server and clients
-  never duplicate rules; the multiplayer engine reuses the core rules through a dedicated
-  `core/multiplayer` zone.
+  must not reimplement rules locally. The multiplayer engine reuses the core rules through a
+  dedicated `core/multiplayer` zone; the web client may call shared core helpers only for
+  non-authoritative display hints, never to accept or reject a move.
 - **Single-writer per room.** Every state change for a room goes through `RoomEngine.dispatch`
   (serialized). This is the only place room state mutates.
 - **Server is the time + state authority.** The server overrides client-supplied timestamps,
-  assigns event sequence numbers, and decides acceptance — clients are render-only.
+  assigns event sequence numbers, and decides acceptance — clients render snapshots and may
+  derive UI-only hints from shared core helpers.
 - **Multiplayer determinism stays in the multiplayer zone.** The single-player code uses
   `Math.random`; the multiplayer code uses a seeded RNG so games are reproducible. These are
   intentionally separate.
-- **Persistence is DB-agnostic and async.** `StoragePort` is a `Promise`-based interface
-  (today: SQLite via the built-in `node:sqlite`; a PostgreSQL adapter can be swapped in with
-  no call-site changes — see [`docs/DB_MIGRATION.md`](docs/DB_MIGRATION.md)).
+- **Persistence is DB-agnostic and async.** `StoragePort` is a `Promise`-based interface.
+  `DATABASE_URL` selects SQLite file paths/`:memory:` or PostgreSQL URLs (`postgres://` /
+  `postgresql://`) without changing server call sites.
+- **PostgreSQL multi-instance mode is a foundation, not full failover.** PostgreSQL provides
+  shared storage, durable reconnect sessions, room ownership leases, and cross-instance
+  fanout. Active room state still lives in the owning Node process, so production
+  multi-instance deploys need room-affinity/owner routing or explicit state rehydration
+  before claiming per-game crash failover.
 
 ## Shuffle and deal method
 
@@ -112,7 +122,8 @@ is deterministic and reproducible from the match seed — the shuffle "feel" is 
 ## Tech stack
 
 - **Next.js App Router** + **React** for the web client.
-- **Node.js** authoritative server using the **`ws`** library and the built-in **`node:sqlite`**.
+- **Node.js** authoritative server using the **`ws`** library, built-in **`node:sqlite`**, and
+  optional **PostgreSQL** via `pg`.
 - **TypeScript** across the web app, server, rules engine, and tools.
 - **npm workspaces** for the monorepo.
 - **Vitest** for core, server, shared, and tool tests; **Playwright** for web e2e.
@@ -135,8 +146,9 @@ Screenshots      Public README screenshots
 
 ### Prerequisites
 
-- **Node.js 22.5+** (the server uses the built-in `node:sqlite`; Node 24 recommended)
+- **Node.js 22.5+** (the default SQLite storage uses the built-in `node:sqlite`; Node 24 recommended and pinned in `.nvmrc`/`.node-version`)
 - **npm**
+- Optional: **PostgreSQL** if `DATABASE_URL` is a `postgres://` or `postgresql://` URL.
 
 ### Installation
 
@@ -184,15 +196,64 @@ npm run typecheck    # TypeScript checks for all workspaces
 npm run simulate     # Headless full-game simulations (determinism + invariants)
 npm run load:local   # Local load test against a running server (e.g. -- 100)
 npm run test:web     # Playwright web e2e tests
+npm run test:postgres:docker # Start disposable Docker PostgreSQL, run Postgres integration tests, clean up
 ```
+
+Optional PostgreSQL storage integration check:
+
+```bash
+npm run test:postgres:docker
+```
+
+Or, against an already running PostgreSQL database:
+
+```bash
+TEST_POSTGRES_DATABASE_URL=postgres://user:password@localhost:5432/domino_test \
+  npm run test:postgres --workspace apps/server
+```
+
+PowerShell:
+
+```powershell
+$env:TEST_POSTGRES_DATABASE_URL = "postgres://user:password@localhost:5432/domino_test"
+npm run test:postgres --workspace apps/server
+```
+
+The tests create and drop their own schemas inside that database and verify PostgreSQL storage
+round-trips, atomic player-stat increments, durable reconnect sessions, room ownership leases,
+and the PostgreSQL LISTEN/NOTIFY-backed fanout bus used between server instances. Without
+`TEST_POSTGRES_DATABASE_URL`, the integration specs are skipped by the normal test suite.
+
+### Troubleshooting workspace links
+
+This repo uses npm workspaces. On Windows, if a previous install was interrupted, the
+workspace entries under `node_modules/@domino-poker/*` can occasionally end up as empty
+regular folders instead of workspace junctions. Builds then fail with misleading errors such
+as `Cannot find module '@domino-poker/shared'` or `Cannot find module
+'@domino-poker/core/multiplayer'`.
+
+First repair the install from the repo root:
+
+```bash
+npm install
+```
+
+Then verify that the workspace packages resolve again:
+
+```bash
+npm ls --depth=0 --workspaces
+```
+
+CI or other clean environments should prefer `npm ci` so dependency installation starts from
+a fresh lockfile-based state.
 
 ## Project status
 
 **Working locally:** single-player; multiplayer lobby, rooms, bot-fill, real-time play, server
-turn timers + timeout auto-play, reconnect, chat, SQLite persistence, and a basic load test.
+turn timers + timeout auto-play, reconnect, chat, SQLite/PostgreSQL persistence, and a basic load test.
 
 **Not done yet / intentionally deferred (post-MVP):** real-money or ranked play; tournaments;
-spectator mode; horizontal scaling; full per-game crash recovery; persistent cross-session
+spectator mode; full horizontal scaling with active room failover; persistent cross-session
 player identity / accounts; in-room chat; moderation.
 
 ## Contributing
@@ -202,7 +263,9 @@ Contributions are welcome. A few ground rules that keep the codebase healthy:
 - **Do not mix multiplayer and single-player logic.** Multiplayer code lives in `apps/server`
   and `packages/core/multiplayer`; keep determinism and server logic there.
 - **Do not change the shuffle/deal algorithm** (it is intentional game design).
-- **Rules live only in `packages/core`** — don't duplicate them in the client or server.
+- **Rules live only in `packages/core`** — don't reimplement them in the client or server.
+  Client-side rule helper use is allowed only for non-authoritative UI hints; the server still
+  validates and rejects illegal actions.
 - Add tests for multiplayer changes (core/server/shared/tools all use Vitest). Run
   `npm run typecheck && npm run test` before opening a PR.
 

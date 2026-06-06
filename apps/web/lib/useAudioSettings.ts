@@ -42,7 +42,6 @@ export function useAudioSettings() {
   useEffect(() => {
     const audio = new Audio(audioPaths.backgroundMusic);
     audio.loop = true;
-    audio.volume = isMuted ? 0 : musicVolume;
     musicRef.current = audio;
     return () => {
       audio.pause();

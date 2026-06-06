@@ -14,7 +14,7 @@ test.describe("local storage resilience", () => {
 
     await page.goto("/");
 
-    await expect(page.getByRole("button", { name: "Play" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
 
@@ -39,10 +39,10 @@ test.describe("local storage resilience", () => {
 
     await page.goto("/");
 
-    await expect(page.getByRole("button", { name: "Play" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
 
-    await page.getByRole("button", { name: "Play" }).click();
+    await page.getByRole("button", { name: "Play", exact: true }).click();
     await expect(page.getByRole("dialog", { name: /How many tricks/i })).toBeVisible({ timeout: 10_000 });
 
     expect(runtimeErrors).toEqual([]);

@@ -701,18 +701,30 @@ function useStageContainLayout(): StageContainLayout {
     const update = () => setLayout(getStageContainLayout());
     update();
     window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    // visualViewport `resize` noķer iOS Safari joslas sabrukumu (mainās augstums);
+    // NEklausāmies `scroll`, kas uzbāztos nepārtraukti un radītu jank (sk. m5).
+    window.visualViewport?.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+      window.visualViewport?.removeEventListener("resize", update);
+    };
   }, []);
   return layout;
 }
 
 function getStageContainLayout(): StageContainLayout {
   if (typeof window === "undefined") return { scale: 1, left: 0, top: 0 };
-  const scale = Math.min(window.innerWidth / CANVAS_WIDTH, window.innerHeight / CANVAS_HEIGHT);
+  // visualViewport seko iOS Safari joslu rādīšanai/slēpšanai, tāpēc skatuve
+  // neielien zem pārlūka joslas mobilajā ainavā; fallback uz innerWidth/Height.
+  const vw = window.visualViewport?.width ?? window.innerWidth;
+  const vh = window.visualViewport?.height ?? window.innerHeight;
+  const scale = Math.min(vw / CANVAS_WIDTH, vh / CANVAS_HEIGHT);
   return {
     scale,
-    left: (window.innerWidth - CANVAS_WIDTH * scale) / 2,
-    top: (window.innerHeight - CANVAS_HEIGHT * scale) / 2
+    left: (vw - CANVAS_WIDTH * scale) / 2,
+    top: (vh - CANVAS_HEIGHT * scale) / 2
   };
 }
 

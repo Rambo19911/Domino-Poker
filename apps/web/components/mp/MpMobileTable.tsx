@@ -47,15 +47,17 @@ function useMobileStageLayout(): StageLayout {
   useEffect(() => {
     const update = () => setLayout(getMobileStageLayout());
     update();
+    // Tikai izmēra izmaiņas pārrēķina skatuvi. NEklausāmies `visualViewport`
+    // `scroll` — iOS Safari to uzbāž nepārtraukti URL-joslas/klaviatūras pārejās,
+    // kas izraisītu re-render/letterbox jank; augstuma izmaiņas jau sedz
+    // `visualViewport` `resize` (+ `resize`/`orientationchange`).
     window.addEventListener("resize", update);
     window.addEventListener("orientationchange", update);
     window.visualViewport?.addEventListener("resize", update);
-    window.visualViewport?.addEventListener("scroll", update);
     return () => {
       window.removeEventListener("resize", update);
       window.removeEventListener("orientationchange", update);
       window.visualViewport?.removeEventListener("resize", update);
-      window.visualViewport?.removeEventListener("scroll", update);
     };
   }, []);
   return layout;

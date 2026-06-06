@@ -4,8 +4,8 @@ import type { ChatMessage } from "@domino-poker/shared";
 /**
  * Persistences slānis (Fāze 10). `StoragePort` ir **DB-agnostisks** līgums starp
  * servera loģiku un konkrēto glabātuvi: lokāli to implementē `SqliteStorage`
- * (Fāze 10.2), bet VPS vidē vēlāk to pašu interfeisu var izpildīt PostgreSQL
- * adapteris (Fāze 12.3), nemainot nevienu servera izsaukuma vietu.
+ * (Fāze 10.2), bet VPS/kopīgas DB vidē to pašu interfeisu izpilda
+ * `PostgresStorage` (Fāze 12.3), nemainot servera izsaukuma vietas.
  *
  * **Kāpēc visas metodes ir `async` (`Promise`)?** `better-sqlite3` / `node:sqlite`
  * ir sinhroni, taču PostgreSQL draiveris ir asinhrons. Lai interfeiss derētu
@@ -46,6 +46,9 @@ export interface StoragePort {
 
   /** Saglabā (upsert) spēlētāja statistiku. */
   savePlayerStats(stats: PlayerStatsRecord): Promise<void>;
+
+  /** Atomiski inkrementē spēlētāja statistiku. */
+  incrementPlayerStats(stats: PlayerStatsIncrementRecord): Promise<void>;
 
   /** Spēlētāja statistika vai `undefined`, ja vēl nav ierakstu. */
   getPlayerStats(playerId: string): Promise<PlayerStatsRecord | undefined>;
@@ -128,6 +131,15 @@ export interface PlayerStatsRecord {
   readonly playerId: string;
   readonly gamesPlayed: number;
   readonly gamesWon: number;
+  /** Servera laiks (ms) pēdējam atjauninājumam. */
+  readonly updatedAt: number;
+}
+
+/** Atomisks statistikas pieaugums pēc vienas pabeigtas partijas. */
+export interface PlayerStatsIncrementRecord {
+  readonly playerId: string;
+  readonly gamesPlayedDelta: number;
+  readonly gamesWonDelta: number;
   /** Servera laiks (ms) pēdējam atjauninājumam. */
   readonly updatedAt: number;
 }

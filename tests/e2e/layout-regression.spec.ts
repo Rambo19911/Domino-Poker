@@ -35,7 +35,7 @@ test.describe("layout regression", () => {
         await expect(page.locator(".modeWheel")).toBeVisible();
         await expect(page.locator(".compactLobbyPanel")).toBeHidden();
         await expectInsideViewport(page.locator(".modeWheel"), viewport, "desktop lobby wheel");
-        await expectInsideViewport(page.locator(".playButton"), viewport, "desktop play button");
+        await expectInsideViewport(page.locator(".playButton:not(.multiplayerButton)"), viewport, "desktop play button");
       }
     });
 
@@ -66,7 +66,7 @@ async function prepareLayoutPage(page: Page) {
 }
 
 async function clickVisiblePlayButton(page: Page, lobbyMode: ViewportCase["lobbyMode"]) {
-  const playButton = lobbyMode === "compact" ? page.locator(".compactPlayButton") : page.locator(".playButton");
+  const playButton = lobbyMode === "compact" ? page.locator(".compactPlayButton") : page.locator(".playButton:not(.multiplayerButton)");
   await expect(playButton).toBeVisible();
   await playButton.click();
 }

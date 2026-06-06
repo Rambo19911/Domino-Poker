@@ -13,9 +13,10 @@ import type { GameSnapshot } from "./clientView";
  *   • pagriež sēdvietas tā, ka skatītājs vienmēr ir apakšā (vizuālā vieta 0);
  *   • vārdus ņem no `RoomView.displayId` (snapshot `name` ir SP noklusējums);
  *   • atvasina, vai ir skatītāja kārta un kāda darbība atļauta (solījums/gājiens);
+ *   • izmanto shared core tikai neautoritatīvam derīgo kauliņu UI hintam;
  *   • norāda `deadlineAt` countdown avotu un aktīvo `turnId` sūtīšanai atpakaļ.
  *
- * Te NEKAD netiek izvērtēta gājiena legalitāte — to dara serveris.
+ * Serveris paliek vienīgā autoritāte, kas validē un pieņem/noraida gājienu.
  */
 
 /** Vizuālā sēdvieta: 0 = apakša (skatītājs), 1 = kreisā, 2 = augša, 3 = labā. */

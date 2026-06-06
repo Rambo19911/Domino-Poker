@@ -46,7 +46,7 @@ describe("LobbyChat (6.6)", () => {
   });
 
   it("allows a burst up to capacity, then rate-limits further messages", () => {
-    let now = 1000;
+    const now = 1000;
     const chat = makeChat({ now: () => now, burstCapacity: 3, refillMs: 2000 });
 
     // 3 ziņas pēc kārtas (uzliesmojums) — visas pieņemtas.

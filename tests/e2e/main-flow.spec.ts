@@ -11,9 +11,9 @@ test("single-player smoke flow reaches the first completed trick", async ({ page
 
   await page.goto("/");
   await expect(page).toHaveTitle(/Domino Poker/);
-  await expect(page.getByRole("button", { name: "Play" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "Play" }).click();
+  await page.getByRole("button", { name: "Play", exact: true }).click();
 
   const bidDialog = page.getByRole("dialog", { name: /How many tricks/i });
   await expect(bidDialog).toBeVisible();
