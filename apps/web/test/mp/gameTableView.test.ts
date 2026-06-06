@@ -231,6 +231,20 @@ describe("toGameTableView", () => {
     expect(view?.turnAction).toBe("none");
   });
 
+  it("exposes preGameStartsAt even when a stale local turnId lingers from a prior game", () => {
+    // Regresija: klientam var palikt novecojis `turnId` no iepriekšējās spēles
+    // (ROOM_LEFT to neatiestata). Pre-game overlay jābalstās uz AUTORITATĪVO
+    // snapshot.turnId (jaunā spēlē vēl undefined), nevis uz lokāli sekoto turnId —
+    // citādi atskaiti redzētu tikai "tīrs" klients, ne tas ar veco turnId.
+    const view = toGameTableView(
+      snapshot({ phase: "bidding", turnId: undefined }), // jauna spēle: servera turns vēl nav
+      room([seat(0), seat(1), seat(2), seat(3)]),
+      "stale-turn-from-previous-game", // novecojis lokālais turnId
+      50_000
+    );
+    expect(view?.preGameStartsAt).toBe(50_000);
+  });
+
   it("clears preGameStartsAt once a turn is active", () => {
     const view = toGameTableView(
       snapshot({ phase: "bidding", currentPlayerIndex: 0 }),

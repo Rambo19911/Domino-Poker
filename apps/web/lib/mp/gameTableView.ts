@@ -199,7 +199,12 @@ export function toGameTableView(
     turnAction,
     deadlineAt: snapshot.deadlineAt,
     turnId,
-    preGameStartsAt: startsAt !== undefined && turnId === undefined ? startsAt : undefined,
+    // Pre-game overlay balstās uz servera AUTORITATĪVO `snapshot.turnId` (tāpat kā
+    // `isViewerTurn` augstāk), NEVIS uz lokāli sekoto `turnId`. Lokālais var būt
+    // novecojis no iepriekšējās spēles (ROOM_LEFT to neatiestata), kas citādi
+    // nomāktu atskaiti vienam cilvēkam, bet ne otram. Pirms-spēlē serveris vēl nav
+    // atvēris turnu → `snapshot.turnId === undefined` → atskaite redzama VISIEM.
+    preGameStartsAt: startsAt !== undefined && snapshot.turnId === undefined ? startsAt : undefined,
     winnerSeatIndex: snapshot.phase === "gameEnd" ? highestScoreSeatIndex(snapshot.players) : undefined
   };
 }
