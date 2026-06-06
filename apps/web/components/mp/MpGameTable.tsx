@@ -122,6 +122,19 @@ export function MpGameTable({
     };
   }, []);
 
+  // Kauliņa skaņa VISIEM gājieniem (boti + attālie cilvēki), nevis tikai lokālajam.
+  // Skaita šajā raundā izspēlētos kauliņus: completedTrickCount*4 + trick garums —
+  // pieaug par 1 katram kauliņam, t.sk. triku-pabeidzošajam 4., kad serveris uzreiz
+  // notīra `trick`. Atskaņo, kad skaitlis pieaug; raunda maiņā tas krītas → klusums.
+  const tilesPlayedThisRound = table.completedTrickCount * 4 + table.trick.length;
+  const prevTilesPlayedRef = useRef(tilesPlayedThisRound);
+  useEffect(() => {
+    if (tilesPlayedThisRound > prevTilesPlayedRef.current) {
+      audio.play("tilePlaced");
+    }
+    prevTilesPlayedRef.current = tilesPlayedThisRound;
+  }, [tilesPlayedThisRound, audio]);
+
   const frozen = frozenTrick !== null;
   const interactive = !frozen;
   // Izgaismojums = servera aktīvā sēdvieta (currentPlayerIndex). Pēc pabeigta trika
@@ -165,7 +178,6 @@ export function MpGameTable({
       setPendingNumberTile(tile);
       return;
     }
-    audio.play("tilePlaced");
     onSubmitMove({ tile });
   };
 
@@ -302,7 +314,6 @@ export function MpGameTable({
           onChoose={(declaredNumber) => {
             const tile = pendingNumberTile;
             setPendingNumberTile(null);
-            audio.play("tilePlaced");
             onSubmitMove({ tile, declaredNumber });
           }}
         />
