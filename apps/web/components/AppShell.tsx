@@ -202,10 +202,17 @@ function SettingsDialog({
   readonly onLocaleChange: (locale: Locale) => void;
 }) {
   const t = getAppStrings(locale);
+  const [tab, setTab] = useState<"settings" | "about">("settings");
   const handleClose = useCallback(() => {
     audio.play("uiClick");
     onClose();
   }, [audio, onClose]);
+
+  const selectTab = (next: "settings" | "about") => {
+    if (next === tab) return;
+    audio.play("uiClick");
+    setTab(next);
+  };
 
   return (
     <Dialog
@@ -214,10 +221,27 @@ function SettingsDialog({
       onEscape={handleClose}
       resetScrollOnMount
     >
+        <h2 id="settings-title" className="srOnly">{t.settings}</h2>
         <div className="settingsHeader">
-          <div>
-            <h2 id="settings-title"><SettingsIcon /> {t.settings}</h2>
-            <p>{t.settingsDescription}</p>
+          <div className="settingsTabs" role="tablist" aria-label={t.settings}>
+            <button
+              className="settingsTab"
+              type="button"
+              role="tab"
+              aria-selected={tab === "settings"}
+              onClick={() => selectTab("settings")}
+            >
+              <SettingsIcon /> {t.settings}
+            </button>
+            <button
+              className="settingsTab"
+              type="button"
+              role="tab"
+              aria-selected={tab === "about"}
+              onClick={() => selectTab("about")}
+            >
+              {t.about}
+            </button>
           </div>
           <button
             className="iconButton settingsCloseButton"
@@ -229,17 +253,78 @@ function SettingsDialog({
           </button>
         </div>
 
-        <div className="settingsSectionTitle">{t.audioSection}</div>
-        <AudioControls audio={audio} labels={labels} />
+        {tab === "settings" ? (
+          <>
+            <p className="settingsTabDescription">{t.settingsDescription}</p>
 
-        <div className="settingsSectionTitle">{t.languageSection}</div>
-        <LanguageSelector
-          audio={audio}
-          labels={t}
-          locale={locale}
-          onLocaleChange={onLocaleChange}
-        />
+            <div className="settingsSectionTitle">{t.audioSection}</div>
+            <AudioControls audio={audio} labels={labels} />
+
+            <div className="settingsSectionTitle">{t.languageSection}</div>
+            <LanguageSelector
+              audio={audio}
+              labels={t}
+              locale={locale}
+              onLocaleChange={onLocaleChange}
+            />
+          </>
+        ) : (
+          <AboutPanel labels={t} />
+        )}
     </Dialog>
+  );
+}
+
+function AboutPanel({ labels: t }: { readonly labels: AppStrings }) {
+  const version = process.env.NEXT_PUBLIC_APP_VERSION ?? "dev";
+
+  return (
+    <div className="aboutPanel">
+      <p className="settingsTabDescription">{t.aboutDescription}</p>
+
+      <dl className="aboutMeta">
+        <div className="aboutMetaRow">
+          <dt>{t.versionLabel}</dt>
+          <dd>{version}</dd>
+        </div>
+        <div className="aboutMetaRow">
+          <dt>{t.authorLabel}</dt>
+          <dd>Rihards Laškovs</dd>
+        </div>
+        <div className="aboutMetaRow">
+          <dt>{t.licenseLabel}</dt>
+          <dd>Apache License 2.0</dd>
+        </div>
+      </dl>
+
+      <a
+        className="aboutGithubLink"
+        href="https://github.com/Rambo19911/Domino-Poker"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={t.openOnGithub}
+        title={t.openOnGithub}
+      >
+        <GithubIcon />
+      </a>
+    </div>
+  );
+}
+
+function GithubIcon() {
+  return (
+    <span className="githubAssetIcon" aria-hidden="true">
+      <img
+        className="githubAssetIconFrame static"
+        src="/assets/icons/square-github.svg"
+        alt=""
+      />
+      <img
+        className="githubAssetIconFrame animated"
+        src="/assets/icons/square-github_brands_beat.svg"
+        alt=""
+      />
+    </span>
   );
 }
 
