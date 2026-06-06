@@ -50,17 +50,49 @@
   {
     "path": "package.json",
     "type": "config",
-    "purpose": "Root npm workspace scripts for build, test, typecheck, and web dev server.",
+    "purpose": "Root npm workspace scripts for build, test, typecheck, web dev server, multiplayer server dev command, and future simulation/load placeholders.",
     "importance": "high",
-    "related_files": ["apps/web/package.json", "packages/core/package.json"],
+    "related_files": ["apps/web/package.json", "apps/server/package.json", "packages/core/package.json", "packages/shared/package.json"],
+    "confidence": "high"
+  },
+  {
+    "path": "tsconfig.json",
+    "type": "config",
+    "purpose": "Root TypeScript project-reference entry for the new shared and server workspaces.",
+    "importance": "medium",
+    "related_files": ["tsconfig.base.json", "apps/server/tsconfig.json", "packages/shared/tsconfig.json"],
+    "confidence": "high"
+  },
+  {
+    "path": "tsconfig.base.json",
+    "type": "config",
+    "purpose": "Shared strict TypeScript compiler options inherited by workspaces.",
+    "importance": "high",
+    "related_files": ["tsconfig.json", "apps/web/tsconfig.json", "apps/server/tsconfig.json", "packages/core/tsconfig.json", "packages/shared/tsconfig.json"],
     "confidence": "high"
   },
   {
     "path": "package-lock.json",
     "type": "config",
-    "purpose": "Locked dependency tree for the local-only web and core workspaces.",
+    "purpose": "Locked dependency tree for all npm workspaces.",
     "importance": "high",
-    "related_files": ["package.json", "apps/web/package.json", "packages/core/package.json"],
+    "related_files": ["package.json", "apps/web/package.json", "apps/server/package.json", "packages/core/package.json", "packages/shared/package.json"],
+    "confidence": "high"
+  },
+  {
+    "path": ".gitignore",
+    "type": "config",
+    "purpose": "Repository ignore rules for dependencies, build outputs, local environment files, caches, reports, editor files, and local SQLite runtime data.",
+    "importance": "high",
+    "related_files": ["data/.gitkeep"],
+    "confidence": "high"
+  },
+  {
+    "path": "data/.gitkeep",
+    "type": "config",
+    "purpose": "Keeps the local runtime data directory present while ignoring future `data/*.sqlite` files.",
+    "importance": "low",
+    "related_files": [".gitignore"],
     "confidence": "high"
   },
   {
@@ -88,6 +120,134 @@
     "confidence": "high"
   },
   {
+    "path": "apps/server/package.json",
+    "type": "config",
+    "purpose": "Multiplayer server workspace package metadata, build/typecheck scripts, Node typings, and initial ws/zod dependencies.",
+    "importance": "high",
+    "related_files": ["package.json", "apps/server/tsconfig.json", "apps/server/src/index.ts", "packages/shared/package.json"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/tsconfig.json",
+    "type": "config",
+    "purpose": "TypeScript config for the server workspace, extending the repo base config, enabling Node types, and referencing packages/shared.",
+    "importance": "medium",
+    "related_files": ["tsconfig.base.json", "apps/server/package.json", "packages/shared/tsconfig.json"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/index.ts",
+    "type": "entrypoint",
+    "purpose": "Server entrypoint: loads config, builds the shared DisplayIdRegistry + CoreMessageRouter + WebSocketGateway, starts the HTTP health server, and attaches the WebSocket gateway on the same port via `upgrade` (decision B, path /ws).",
+    "importance": "medium",
+    "related_files": ["apps/server/src/config.ts", "apps/server/src/httpServer.ts", "apps/server/src/net/WebSocketGateway.ts", "apps/server/src/net/wsTransport.ts", "apps/server/package.json", "apps/server/tsconfig.json"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/config.ts",
+    "type": "config",
+    "purpose": "Server configuration loader for HTTP and future WebSocket ports, reading root `.env` values with 4000/4001 defaults.",
+    "importance": "medium",
+    "related_files": ["apps/server/src/index.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/httpServer.ts",
+    "type": "service",
+    "purpose": "Minimal Node HTTP server factory with `GET /health` returning `{ ok: true }`.",
+    "importance": "medium",
+    "related_files": ["apps/server/src/index.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/rooms/RoomEngine.ts",
+    "type": "service",
+    "purpose": "Phase 5.1 single-writer room engine: dispatch() is the only path that mutates one room's MultiplayerGameState, serialized through a re-entrancy queue over core.applyCommand. Assigns a contiguous room-level seq per event, keeps an in-memory event log, caches idempotency by playerId+requestId, overrides time-sensitive commands' now with the server clock, schedules/cancels the turn timeout via an injected TurnTimerScheduler, and exposes getSnapshotForPlayer/getPublicSnapshot.",
+    "importance": "high",
+    "related_files": ["apps/server/src/timers/TurnTimerScheduler.ts", "apps/server/src/timers/ManualTimerController.ts", "packages/core/src/multiplayer/applyCommand.ts", "packages/core/src/multiplayer/snapshots.ts", "apps/server/test/rooms/RoomEngine.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/timers/TurnTimerScheduler.ts",
+    "type": "utility",
+    "purpose": "Clock type and the single-turn TurnTimerScheduler interface (schedule/cancel). Mocked in Phase 5; a real setTimeout implementation plugs in behind it in Phase 7.",
+    "importance": "medium",
+    "related_files": ["apps/server/src/timers/ManualTimerController.ts", "apps/server/src/rooms/RoomEngine.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/timers/ManualTimerController.ts",
+    "type": "utility",
+    "purpose": "Deterministic now()+scheduler for tests/sims (no real setTimeout): advanceTo(target) fires the pending turn timer when its fireAt is reached, setting the clock to fireAt so the dispatched TURN_TIMEOUT sees now > deadlineAt.",
+    "importance": "medium",
+    "related_files": ["apps/server/src/timers/TurnTimerScheduler.ts", "apps/server/src/rooms/RoomEngine.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/rooms/RoomEngine.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage for RoomEngine: contiguous room seq, requestId idempotency, turn-timeout auto-resolution at deadline, timeout cancel on accepted bid, concurrent bid+timeout resolving the turn only once, personalized/unknown-player snapshots, and disconnect not pausing the game.",
+    "importance": "high",
+    "related_files": ["apps/server/src/rooms/RoomEngine.ts", "apps/server/src/timers/ManualTimerController.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/rooms/LobbyManager.ts",
+    "type": "service",
+    "purpose": "Phase 5.2/5.4 lobby + room lifecycle: owns the room registry and FSM (WAITING->STARTING->IN_GAME->FINISHED->DESTROYED). createRoom (unique code, createdAt, expiresAt=+1h, host at seat 0, visibility, numberOfRounds), listRooms (WAITING/IN_GAME only, private flagged), assignSeat (max 4 seats empty|human|bot), fillSeatsWithBots (host-only, WAITING-only, deterministic bot ids), leaveRoom with host migration (next human by seatIndex; DESTROYED when no humans), canStartGame/startGame (host-only, full table + >=1 human), markInGame/markFinished/destroyRoom, and destroyExpired TTL sweep (skips IN_GAME). Public views expose only displayId and room metadata; clock + id/code generators are injected for determinism.",
+    "importance": "high",
+    "related_files": ["apps/server/src/identity/DisplayIdRegistry.ts", "apps/server/src/timers/TurnTimerScheduler.ts", "apps/server/src/rooms/lobbyErrors.ts", "apps/server/test/rooms/LobbyManager.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/rooms/lobbyErrors.ts",
+    "type": "utility",
+    "purpose": "Structured LobbyError class and LobbyErrorCode union (Phase 5.6): ROOM_NOT_FOUND, ROOM_FULL, GAME_ALREADY_STARTED, NOT_HOST, ALREADY_IN_ROOM, FORBIDDEN plus ROOM_NOT_JOINABLE/NOT_ENOUGH_PLAYERS/PLAYER_NOT_IN_ROOM.",
+    "importance": "medium",
+    "related_files": ["apps/server/src/rooms/LobbyManager.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/rooms/LobbyManager.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage for LobbyManager: createRoom host/TTL/visibility/numberOfRounds, listRooms visibility (WAITING/IN_GAME shown, FINISHED/DESTROYED hidden, private flagged), seating + ROOM_FULL/ALREADY_IN_ROOM/ROOM_NOT_FOUND, deterministic bot-fill to a 4-player table, host-only fill/start, min-to-start (NOT_ENOUGH_PLAYERS), GAME_ALREADY_STARTED after start, host migration + empty-room DESTROYED, TTL sweep skipping IN_GAME, and displayId-only seat views (no playerId).",
+    "importance": "high",
+    "related_files": ["apps/server/src/rooms/LobbyManager.ts", "apps/server/src/rooms/lobbyErrors.ts", "apps/server/src/timers/ManualTimerController.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/rooms/RoomManager.ts",
+    "type": "service",
+    "purpose": "Phase 5.3 room router: wires LobbyManager (room metadata/seats) with per-room RoomEngine (game state). Tracks clientId->room membership (one room at a time, ALREADY_IN_ROOM), createRoom options (visibility, numberOfRounds), joinRoom by id (public) or code (private requires code), leaveRoom, findRoom/listRooms/getRoomView, fillSeatsWithBots, startGame (creates the engine + dispatches CREATE_GAME with gameId==roomId, human seats, and room numberOfRounds, then IN_GAME), routeMessageToRoomEngine (forwards only to the matching room; rejects mismatched gameId for room isolation), getSnapshotForClient (seat index -> core playerId via corePlayerIdForSeat, member-only), and destroyFinishedRoom. Each room gets its own TurnTimerScheduler (default no-op).",
+    "importance": "high",
+    "related_files": ["apps/server/src/rooms/LobbyManager.ts", "apps/server/src/rooms/RoomEngine.ts", "apps/server/src/rooms/lobbyErrors.ts", "apps/server/test/rooms/RoomManager.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/rooms/RoomManager.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage for RoomManager: one-room-at-a-time membership (ALREADY_IN_ROOM, re-join after leave, PLAYER_NOT_IN_ROOM), public-by-id vs private-by-code joins (FORBIDDEN/ROOM_NOT_FOUND), engine creation on start + command routing, routing rejected without an active game and for mismatched gameId (cross-room isolation leaving the other room untouched), member-only reconnect snapshot (seat 0 -> core player '1'), and destroyFinishedRoom removing the room/engine/membership.",
+    "importance": "high",
+    "related_files": ["apps/server/src/rooms/RoomManager.ts", "apps/server/src/rooms/RoomEngine.ts", "apps/server/src/timers/ManualTimerController.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/identity/DisplayIdRegistry.ts",
+    "type": "service",
+    "purpose": "Phase 5.5 identity: assigns public `#?????` (5-digit) displayIds derived deterministically from playerId via the core MP seeded RNG, unique within the registry (salt-based collision regeneration), stable per session, with release/get/has. Bots use the same format; full playerId/clientId stays internal.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/determinism.ts", "apps/server/test/identity/DisplayIdRegistry.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/identity/DisplayIdRegistry.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage for DisplayIdRegistry: #????? format, session stability, deterministic derivation, bot format, uniqueness with collision regeneration across 1000 players, release/reuse, get/has, and empty-playerId rejection.",
+    "importance": "high",
+    "related_files": ["apps/server/src/identity/DisplayIdRegistry.ts"],
+    "confidence": "high"
+  },
+  {
     "path": "apps/web/app/page.tsx",
     "type": "entrypoint",
     "purpose": "App Router page that renders the main AppShell.",
@@ -106,11 +266,12 @@
   {
     "path": "apps/web/components/AppShell.tsx",
     "type": "ui",
-    "purpose": "Main client app shell for lobby/game routing, localized rules dialog, disabled multiplayer button, locale switching, and shared audio settings.",
+    "purpose": "Main client app shell routing between 'lobby', 'game', and 'mp-lobby' screens, localized rules dialog, enabled multiplayer entry (opens the MP lobby), locale switching, and shared audio settings.",
     "importance": "critical",
     "related_files": [
       "apps/web/components/DominoPokerGame.tsx",
       "apps/web/components/LobbyWheel.tsx",
+      "apps/web/components/MultiplayerLobby.tsx",
       "apps/web/components/RulesDialog.tsx",
       "apps/web/components/AudioControls.tsx",
       "apps/web/lib/i18n.ts",
@@ -119,12 +280,26 @@
     "confidence": "high"
   },
   {
-    "path": "apps/web/components/LobbyWheel.tsx",
+    "path": "apps/web/components/MultiplayerLobby.tsx",
     "type": "ui",
-    "purpose": "Desktop lobby mode wheel, compact lobby panel, and shared round-count controls for single-player start.",
+    "purpose": "Multiplayer lobby screen (Phase 5 layout preview, pre-network): header with Sound/Exit, a 'Create room' action, and three columns (public rooms / private rooms / online chat) following docs/mockups/lobby-wireframe.html, themed with the app's dark-green/gold tokens. Uses placeholder data; only the Exit-to-lobby transition is functional. Real data and Create/Join/Send come in Phase 6/8.",
     "importance": "high",
     "related_files": [
       "apps/web/components/AppShell.tsx",
+      "apps/web/app/globals.css",
+      "apps/web/lib/i18n.ts",
+      "docs/mockups/lobby-wireframe.html"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/LobbyWheel.tsx",
+    "type": "ui",
+    "purpose": "Desktop lobby mode wheel and compact lobby panel with shared round-count controls; the single-player half starts the game (Play), the multiplayer half opens the MP lobby via onStartMultiplayer (circular 'Lobby' button on the wheel, enabled button in the compact panel).",
+    "importance": "high",
+    "related_files": [
+      "apps/web/components/AppShell.tsx",
+      "apps/web/components/MultiplayerLobby.tsx",
       "apps/web/app/globals.css",
       "tests/e2e/layout-regression.spec.ts",
       "tests/e2e/main-flow.spec.ts"
@@ -339,6 +514,78 @@
     "confidence": "high"
   },
   {
+    "path": "packages/shared/package.json",
+    "type": "config",
+    "purpose": "Shared multiplayer workspace package metadata and build/typecheck scripts.",
+    "importance": "medium",
+    "related_files": ["package.json", "packages/shared/tsconfig.json", "packages/shared/src/index.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/tsconfig.json",
+    "type": "config",
+    "purpose": "TypeScript config for future shared multiplayer contracts.",
+    "importance": "medium",
+    "related_files": ["tsconfig.base.json", "packages/shared/package.json"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/src/index.ts",
+    "type": "entrypoint",
+    "purpose": "Public export barrel for the shared WebSocket protocol: re-exports protocolVersion, errors, and clientMessages.",
+    "importance": "medium",
+    "related_files": ["packages/shared/src/protocolVersion.ts", "packages/shared/src/errors.ts", "packages/shared/src/clientMessages.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/src/protocolVersion.ts",
+    "type": "utility",
+    "purpose": "Phase 6.1: PROTOCOL_VERSION constant ('1') and isProtocolCompatible() exact-match check used by the HELLO/WELCOME handshake.",
+    "importance": "medium",
+    "related_files": ["packages/shared/src/index.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/src/errors.ts",
+    "type": "utility",
+    "purpose": "Phase 6.1: protocolErrorCodes union (transport/validation + lobby/room + turn codes), errorCodeSchema, and a safe errorPayloadSchema (code + message + optional requestId; no internal details).",
+    "importance": "medium",
+    "related_files": ["packages/shared/src/index.ts", "apps/server/src/rooms/lobbyErrors.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/src/clientMessages.ts",
+    "type": "schema",
+    "purpose": "Phase 6.1/6.2: Zod schemas for every client->server message as a discriminatedUnion on `type` (HELLO, LIST_ROOMS, CREATE_ROOM, JOIN_ROOM, LEAVE_ROOM, FILL_SEATS_WITH_BOTS, START_GAME, SUBMIT_BID, SUBMIT_MOVE, PLAYER_RESUME, REQUEST_SNAPSHOT, SEND_CHAT, PING), plus tile/move schemas and parseClientMessage() for safe untrusted-input parsing.",
+    "importance": "high",
+    "related_files": ["packages/shared/src/index.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/src/roomTypes.ts",
+    "type": "schema",
+    "purpose": "Phase 6 transport DTOs (moved out of the server): RoomStatus, RoomVisibility, SeatKind, RoomSeatView, RoomSummary, RoomView, and shared room-round constants — public room views with no playerId and with room metadata such as numberOfRounds. LobbyManager imports + re-exports these.",
+    "importance": "high",
+    "related_files": ["packages/shared/src/serverEvents.ts", "apps/server/src/rooms/LobbyManager.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/src/serverEvents.ts",
+    "type": "schema",
+    "purpose": "Phase 6.1/6.3: TypeScript types for every server->client event as a discriminated union ServerEvent (WELCOME, ROOM_LIST/CREATED/JOINED/LEFT, LOBBY_STATE, STATE_SNAPSHOT, GAME_EVENT, CHAT_MESSAGE, CHAT_HISTORY, ERROR, PONG). Embeds PlayerSnapshot/MultiplayerEvent via `import type` (erased) and room DTOs from roomTypes; trusted server output so no Zod.",
+    "importance": "high",
+    "related_files": ["packages/shared/src/roomTypes.ts", "packages/shared/src/errors.ts", "packages/core/src/multiplayer/snapshots.ts", "packages/core/src/multiplayer/events.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/test/protocol.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage for the shared protocol: version compatibility, error payload validation + required codes, client message parsing (valid/discriminated/out-of-range bid+pip/unknown type/missing field), and server event types composing into the ServerEvent union.",
+    "importance": "high",
+    "related_files": ["packages/shared/src/index.ts"],
+    "confidence": "high"
+  },
+  {
     "path": "packages/core/src/index.ts",
     "type": "entrypoint",
     "purpose": "Public exports for core Domino Poker rules and types.",
@@ -350,6 +597,253 @@
       "packages/core/src/aiService.ts",
       "packages/core/src/types.ts"
     ],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/index.ts",
+    "type": "entrypoint",
+    "purpose": "Public entrypoint for isolated core multiplayer helpers.",
+    "importance": "medium",
+    "related_files": ["packages/core/src/multiplayer/applyCommand.ts", "packages/core/src/multiplayer/autoBid.ts", "packages/core/src/multiplayer/autoMove.ts", "packages/core/src/multiplayer/determinism.ts", "packages/core/src/multiplayer/gameSetup.ts", "packages/core/src/multiplayer/inactivity.ts", "packages/core/src/multiplayer/replay.ts", "packages/core/src/multiplayer/snapshots.ts", "packages/core/src/multiplayer/types.ts", "packages/core/src/multiplayer/commands.ts", "packages/core/src/multiplayer/events.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/determinism.ts",
+    "type": "utility",
+    "purpose": "Seeded RNG and deterministic multiplayer domino shuffle that preserves the human-style shuffle shape without changing single-player shuffle/deal behavior.",
+    "importance": "high",
+    "related_files": ["packages/core/src/dominoTile.ts", "packages/core/test/multiplayer/determinism.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/determinism.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage for MP seeded RNG stability, deterministic shuffle identity by seed, full unique tile set, and empty-seed rejection.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/determinism.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/gameSetup.ts",
+    "type": "service",
+    "purpose": "Creates deterministic multiplayer game setup metadata, seed handling, initial deck, and dealer index while delegating rule state creation to existing core setup with explicit deck/dealer inputs.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/determinism.ts", "packages/core/src/gameState.ts", "packages/core/test/multiplayer/gameSetup.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/gameSetup.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage for MP setup seed metadata, deterministic identical initial hands, injected seed generation, dealer override, and validation failures.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/gameSetup.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/types.ts",
+    "type": "model",
+    "purpose": "MP-only game, player, turn, status, and connection-state types plus an initial wrapper factory around core GameState; turn allowedActionTypes use command names.",
+    "importance": "high",
+    "related_files": ["packages/core/src/types.ts", "packages/core/src/multiplayer/gameSetup.ts", "packages/core/test/multiplayer/types.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/types.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage for MP state metadata wrapping and player state defaults without mutating core player objects.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/types.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/commands.ts",
+    "type": "model",
+    "purpose": "MP command discriminated unions and command type list, including explicit START_NEXT_ROUND for round progression, START_TURN with injected `now`, and TURN_TIMEOUT with injected `now`; every command includes `gameId` and `requestId` for future idempotence.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/events.ts", "packages/core/src/multiplayer/types.ts", "packages/core/test/multiplayer/commandsEvents.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/events.ts",
+    "type": "model",
+    "purpose": "MP event discriminated unions and event type list, including AUTO_PLAY_ENABLED/AUTO_PLAY_DISABLED for explicit auto-play state transitions and AUTO_MOVE_FALLBACK for timeout states with no legal tile move; every event includes `gameId` and `eventSeq` for future replay ordering.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/commands.ts", "packages/core/src/multiplayer/types.ts", "packages/core/test/multiplayer/commandsEvents.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/commandsEvents.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage that MP command/event type lists match the corrected phase plan, including explicit auto-play transition events, and preserve `requestId`/`eventSeq` contract fields.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/commands.ts", "packages/core/src/multiplayer/events.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/applyCommand.ts",
+    "type": "service",
+    "purpose": "Initial MP command entrypoint and ApplyResult contract; currently handles CREATE_GAME, START_TURN deadline generation from injected now, deadline rejection for late SUBMIT_BID/SUBMIT_MOVE, TURN_TIMEOUT after deadline via autoBid/autoMove or AUTO_MOVE_FALLBACK when no legal tile move exists, timeout inactivity metadata updates with AUTO_PLAY_ENABLED when auto-play activates, on-time activity inactivity-score reduction, PLAYER_DISCONNECT (human-only connection flip emitting PLAYER_DISCONNECTED) and PLAYER_RESUME/DISABLE_AUTO_PLAY manual-control restoration with AUTO_PLAY_DISABLED for manual disable, START_NEXT_ROUND via deterministic startNextRound, REQUEST_SNAPSHOT, SUBMIT_BID via makeBid, SUBMIT_MOVE via playTile, completed tricks via completeTrick, explicit game-id validation, and explicit unimplemented-command errors.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/commands.ts", "packages/core/src/multiplayer/events.ts", "packages/core/src/multiplayer/types.ts", "packages/core/src/multiplayer/inactivity.ts", "packages/core/test/multiplayer/applyCommand.test.ts", "packages/core/test/multiplayer/disconnect.test.ts", "packages/core/test/multiplayer/eventCoverage.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/applyCommand.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage for initial MP applyCommand behavior: create game, missing state rejection, START_TURN deadline/event sequencing, late bid/move ACTION_TOO_LATE rejection, TURN_TIMEOUT too-early rejection, legal auto-bid/auto-move application with inactivity metadata updates, AUTO_PLAY_ENABLED emission on auto-play activation, AUTO_MOVE_FALLBACK when no legal move exists, on-time bid/move inactivity-score reduction, PLAYER_RESUME/DISABLE_AUTO_PLAY manual-control restoration and bot rejection, AUTO_PLAY_DISABLED emission on manual disable, inactivity metadata preservation across START_NEXT_ROUND, SUBMIT_BID makeBid delegation, bid rejection, SUBMIT_MOVE playTile delegation, move rejection, completeTrick delegation, deterministic START_NEXT_ROUND/startNextRound delegation, stale turn/wrong player rejection, snapshot no-op, and explicit unimplemented command errors.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/applyCommand.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/disconnect.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage for the MP PLAYER_DISCONNECT command: marks a human disconnected and emits PLAYER_DISCONNECTED, leaves inactivity score/status/auto-play untouched, round-trips back to connected via PLAYER_RESUME, and rejects bot seats and unknown players.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/applyCommand.ts", "packages/core/src/multiplayer/inactivity.ts", "packages/core/src/multiplayer/commands.ts"]
+  },
+  {
+    "path": "packages/core/test/multiplayer/eventCoverage.test.ts",
+    "type": "test",
+    "purpose": "Vitest audit coverage for implemented MP applyCommand state-changing commands: every successful state update emits one or more consecutive events and advances nextState.eventSeq to the final event; non-mutating snapshot and rejected commands remain eventless.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/applyCommand.ts", "packages/core/src/multiplayer/events.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/replay.ts",
+    "type": "service",
+    "purpose": "MP-only event replay that rebuilds core GameState from a deterministic seed and ordered MultiplayerEvent stream by applying core makeBid/playTile/completeTrick/startNextRound and ignoring transport-only MP events.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/events.ts", "packages/core/src/multiplayer/gameSetup.ts", "packages/core/src/multiplayer/determinism.ts", "packages/core/test/multiplayer/replay.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/replay.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage for MP replayEvents: replaying a captured applyCommand event stream with the same seed yields an identical core state, and non-consecutive eventSeq streams are rejected.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/replay.ts", "packages/core/src/multiplayer/applyCommand.ts", "packages/core/src/multiplayer/legalBids.ts", "packages/core/src/multiplayer/legalMoves.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/snapshots.ts",
+    "type": "service",
+    "purpose": "MP-only privacy-safe snapshot builders: createPublicSnapshot returns the full public game view with each seat's handCount but no hand tiles, and createPlayerSnapshot adds only the viewer's own hand plus the active turn deadline. The PublicPlayerSnapshot type structurally omits hand so opponents' tiles can never leak; covers all four seats including AI bot seats.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/types.ts", "packages/core/src/types.ts", "packages/core/test/multiplayer/snapshots.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/snapshots.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage for MP snapshots: public snapshot contains zero tile objects on a freshly dealt game, player snapshot exposes only the viewer's own hand for every seat, opponents' tiles never leak across the full four-player game (including AI bot seats), active turn deadline is included, and an unknown viewer playerId throws.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/snapshots.ts", "packages/core/src/multiplayer/applyCommand.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/legalMoves.ts",
+    "type": "utility",
+    "purpose": "MP-only legal move helper that returns playable tile choices for the current player, including required lead declarations, by reusing existing core move legality helpers.",
+    "importance": "high",
+    "related_files": ["packages/core/src/player.ts", "packages/core/src/gameState.ts", "packages/core/test/multiplayer/legalMoves.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/legalMoves.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage for MP legalMoves: non-playing phase, wrong player, lead declaration expansion, and active trick legality filtering, using applyCommand to set up MP moves.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/legalMoves.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/legalBids.ts",
+    "type": "utility",
+    "purpose": "MP-only legal bid helper that returns core-accepted bid values for the current bidding player.",
+    "importance": "high",
+    "related_files": ["packages/core/src/gameState.ts", "packages/core/test/multiplayer/legalBids.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/legalBids.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage for MP legalBids: current bidding player, wrong player, and non-bidding phase.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/legalBids.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/autoBid.ts",
+    "type": "utility",
+    "purpose": "MP-only deterministic auto-bid helper that chooses from legalBids using the existing core makeAIBid heuristic with a legal fallback.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/legalBids.ts", "packages/core/src/aiService.ts", "packages/core/test/multiplayer/autoBid.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/autoBid.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage for MP autoBid: current-player legal bid, wrong-player/no-phase rejection, and deterministic repeat behavior for the same seed.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/autoBid.ts", "packages/core/src/multiplayer/legalBids.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/autoMove.ts",
+    "type": "utility",
+    "purpose": "MP-only deterministic auto-move helper that chooses from legalMoves using the existing core selectAITile heuristic with opponent hands redacted and a legal fallback.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/legalMoves.ts", "packages/core/src/aiService.ts", "packages/core/test/multiplayer/autoMove.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/autoMove.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage for MP autoMove: current-player legal AI move, lead number declaration, wrong-player/no-phase rejection, and deterministic repeat behavior for the same seed.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/autoMove.ts", "packages/core/src/multiplayer/legalMoves.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/inactivity.ts",
+    "type": "utility",
+    "purpose": "MP-only inactivity metadata helper that advances human timeout status through active_with_warning, inactive, and auto_play, reduces inactivity after on-time activity, and restores manual control through player resume or disable-auto-play without changing core domino scoring or bot seat state.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/types.ts", "packages/core/src/multiplayer/applyCommand.ts", "packages/core/test/multiplayer/inactivity.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/inactivity.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage for MP timeout inactivity progression, autoPlayEnabled activation on third timeout, on-time activity score reduction, explicit resume/disable-auto-play behavior, scoring separation, and bot status preservation.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/inactivity.ts", "packages/core/src/multiplayer/types.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/invariants.ts",
+    "type": "utility",
+    "purpose": "MP-only invariant diagnostics and assertion helper for impossible state, duplicate active-turn action types, player/index mapping, and duplicate tile checks.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/types.ts", "packages/core/test/multiplayer/invariants.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/invariants.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage for MP invariants: valid initial state, duplicate tiles, impossible turn state, player/index mapping violations, and typed assertion errors.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/invariants.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/phaseFlow.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage that plays a one-round multiplayer game through applyCommand, legalBids, legalMoves, and invariants, verifying bidding -> playing -> roundEnd -> gameEnd without WebSocket and deterministic final results for a fixed seed.",
+    "importance": "high",
+    "related_files": ["packages/core/src/multiplayer/applyCommand.ts", "packages/core/src/multiplayer/legalBids.ts", "packages/core/src/multiplayer/legalMoves.ts", "packages/core/src/multiplayer/invariants.ts"],
     "confidence": "high"
   },
   {
@@ -398,6 +892,62 @@
     "purpose": "Vitest coverage for core rule behavior, public input validation, AI heuristic preservation, scoring, and round-flow edge cases.",
     "importance": "high",
     "related_files": ["packages/core/src/gameState.ts", "packages/core/src/player.ts", "packages/core/src/dominoTile.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "tools/simulators/src/playGame.ts",
+    "type": "service",
+    "purpose": "MP simulator engine: simulateRandomGame() drives one full game through applyCommand using random legal bids/moves, with optional timeoutProbability and disconnectProbability (each on its own seeded RNG stream) that resolve turns via TURN_TIMEOUT auto-actions and churn PLAYER_DISCONNECT/PLAYER_RESUME (disconnected players time out); asserts invariants after every command and enforces single-active-turn plus monotonic turnId; fully deterministic per seed and returns a decision log plus timeout/disconnect/reconnect counts.",
+    "importance": "high",
+    "related_files": ["tools/simulators/src/random.ts", "tools/simulators/src/runSimulations.ts", "packages/core/src/multiplayer/applyCommand.ts", "packages/core/src/multiplayer/invariants.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "tools/simulators/src/random.ts",
+    "type": "utility",
+    "purpose": "Deterministic simulation randomness built on the MP zone's createSeededRng plus a pick() helper; simulators never duplicate shuffle/RNG logic.",
+    "importance": "medium",
+    "related_files": ["packages/core/src/multiplayer/determinism.ts", "tools/simulators/src/playGame.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "tools/simulators/src/runSimulations.ts",
+    "type": "service",
+    "purpose": "Batch runner and CLI entrypoint for npm run simulate: runs N random full games (SIM_COUNT/SIM_SEED/SIM_ROUNDS/SIM_TIMEOUT_PROB/SIM_DISCONNECT_PROB env or argv), aggregates terminal-state reach, timeout and disconnect totals, and failures, and exits non-zero on any failure. Also exports runVolumeSuite (4-scenario mix of plain/timeout/disconnect/combined for the Phase 4.2 10000-game gate), runnable via SIM_SUITE=1.",
+    "importance": "high",
+    "related_files": ["tools/simulators/src/playGame.ts", "package.json"],
+    "confidence": "high"
+  },
+  {
+    "path": "tools/simulators/test/playGame.test.ts",
+    "type": "test",
+    "purpose": "Vitest coverage for the random simulator: single game reaches gameEnd, no two active turns and monotonic turnId, full determinism per seed, divergence across seeds, a 200-game batch all reaching terminal state, custom round counts, timeout simulation (fully-AFK terminal, mixed timeouts, separate-stream determinism, timeout-heavy batch, bad probability), and disconnect/reconnect simulation (terminal under churn, forced timeouts while disconnected, separate-stream determinism, combined timeout+disconnect batch, bad probability).",
+    "importance": "high",
+    "related_files": ["tools/simulators/src/playGame.ts", "tools/simulators/src/runSimulations.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "tools/simulators/test/volume.test.ts",
+    "type": "test",
+    "purpose": "Phase 4.2 volume gate: runs runVolumeSuite (default 2500/scenario = 10000 full games across plain/timeout/disconnect/combined, ~16s, overridable with SIM_VOLUME) and asserts all reach a legal terminal state with no invariant violations; extended 600s test timeout.",
+    "importance": "high",
+    "related_files": ["tools/simulators/src/runSimulations.ts", "tools/simulators/src/playGame.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "tools/simulators/vitest.config.ts",
+    "type": "config",
+    "purpose": "Vitest config aliasing @domino-poker/core/multiplayer to core source so simulator tests run without a prior core build.",
+    "importance": "medium",
+    "related_files": ["tools/simulators/tsconfig.json", "packages/core/src/multiplayer/index.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/scripts/fix-esm-imports.cjs",
+    "type": "build",
+    "purpose": "Postbuild step that recursively walks dist/ and appends .js (or /index.js) to every relative import/export specifier so emitted ESM resolves under Node, including the multiplayer subfolder consumed via the @domino-poker/core/multiplayer subpath export.",
+    "importance": "high",
+    "related_files": ["packages/core/package.json", "packages/core/tsconfig.json"],
     "confidence": "high"
   }
 ]

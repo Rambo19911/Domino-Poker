@@ -9,6 +9,7 @@ import { AudioControls } from "./AudioControls";
 import { Dialog } from "./Dialog";
 import { DominoPokerGame } from "./DominoPokerGame";
 import { CompactLobbyPanel, LobbyWheel } from "./LobbyWheel";
+import { MultiplayerLobby } from "./MultiplayerLobby";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
 import {
   defaultLocale,
@@ -18,15 +19,26 @@ import {
   type AppStrings,
   type Locale
 } from "../lib/i18n";
-import { readLocalStorage, writeLocalStorage } from "../lib/safeStorage";
+import {
+  readLocalStorage,
+  readSessionStorage,
+  writeLocalStorage,
+  writeSessionStorage
+} from "../lib/safeStorage";
 import { useAudioSettings } from "../lib/useAudioSettings";
 
-type AppScreen = "lobby" | "game";
+type AppScreen = "lobby" | "game" | "mp-lobby";
 
 const minRoundCount = 1;
 const maxRoundCount = 50;
 const defaultRoundCount = 7;
 const localeStorageKey = "domino-poker-locale";
+/** Saglabā, vai lietotājs bija MP lobby/spēlē, lai pēc refresh atgrieztos turp
+ *  (tad MP klients pārsavienojas un serveris atjauno istabu/spēli — Fāze 9.2).
+ *  Lieto `sessionStorage` (NE local): tas pārdzīvo tās pašas cilnes refresh, bet
+ *  jauna sesija/cilne vienmēr sākas ar SP galveno lobby (noklusējums). Citādi MP
+ *  lobby kļūtu par pastāvīgo sākuma ekrānu. */
+const screenStorageKey = "domino-poker-screen";
 
 export function AppShell() {
   const [screen, setScreen] = useState<AppScreen>("lobby");
@@ -48,6 +60,14 @@ export function AppShell() {
     }
   }, []);
 
+  // Pēc refresh atgriežamies MP lobby, ja lietotājs tur bija — tad MultiplayerLobby
+  // mountējas, MP klients pārsavienojas, un serveris atjauno istabu/spēli (9.2).
+  useEffect(() => {
+    if (readSessionStorage(screenStorageKey) === "mp-lobby") {
+      setScreen("mp-lobby");
+    }
+  }, []);
+
   const changeLocale = (nextLocale: Locale) => {
     setLocale(nextLocale);
     writeLocalStorage(localeStorageKey, nextLocale);
@@ -57,6 +77,25 @@ export function AppShell() {
     audio.play("uiClick");
     setScreen("game");
   };
+
+  const openMultiplayerLobby = () => {
+    audio.play("uiClick");
+    writeSessionStorage(screenStorageKey, "mp-lobby");
+    setScreen("mp-lobby");
+  };
+
+  if (screen === "mp-lobby") {
+    return (
+      <MultiplayerLobby
+        audio={audio}
+        labels={t}
+        onExit={() => {
+          writeSessionStorage(screenStorageKey, "lobby");
+          setScreen("lobby");
+        }}
+      />
+    );
+  }
 
   if (screen === "game") {
     return (
@@ -112,6 +151,7 @@ export function AppShell() {
           minRoundCount={minRoundCount}
           onRoundCountChange={setSelectedRoundCount}
           onStartSinglePlayer={startSinglePlayer}
+          onStartMultiplayer={openMultiplayerLobby}
           selectedRoundCount={selectedRoundCount}
         />
 
@@ -122,6 +162,7 @@ export function AppShell() {
           minRoundCount={minRoundCount}
           onRoundCountChange={setSelectedRoundCount}
           onStartSinglePlayer={startSinglePlayer}
+          onStartMultiplayer={openMultiplayerLobby}
           selectedRoundCount={selectedRoundCount}
         />
       </section>

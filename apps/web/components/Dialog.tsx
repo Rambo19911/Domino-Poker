@@ -35,16 +35,19 @@ export function Dialog({
 
   return (
     <div className={`modalBackdrop ${transparent ? "transparentBackdrop" : ""}`}>
-      <section
-        ref={dialogRef}
-        className={className}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={ariaLabelledBy}
-        tabIndex={-1}
-      >
-        {children}
-      </section>
+      {/* Ietinējs proporcionālai mērogošanai mobilajā (desktopā display:contents — bez ietekmes). */}
+      <div className="modalScale">
+        <section
+          ref={dialogRef}
+          className={className}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={ariaLabelledBy}
+          tabIndex={-1}
+        >
+          {children}
+        </section>
+      </div>
     </div>
   );
 }

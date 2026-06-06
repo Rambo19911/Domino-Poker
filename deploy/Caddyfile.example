@@ -1,0 +1,19 @@
+# Caddy reverse proxy paraugs Domino Poker (Fāze 12.2) — vienkāršāka alternatīva Nginx.
+# Caddy automātiski iegūst un atjauno TLS sertifikātus (Let's Encrypt) un automātiski
+# apstrādā WebSocket upgrade — nav jāraksta upgrade galvenes manuāli.
+#
+# Uzstādīšana:
+#   sudo cp deploy/Caddyfile.example /etc/caddy/Caddyfile
+#   # pielāgo domēnu, tad: sudo systemctl reload caddy
+
+tavs-domens.lv {
+    # Multiplayer WebSocket: /ws -> MP serveris (Caddy upgrade automātiski).
+    reverse_proxy /ws* 127.0.0.1:4000
+
+    # (pēc izvēles) metrikas tikai lokāli:
+    # @metrics path /metrics
+    # respond @metrics 403
+
+    # Viss pārējais -> web klients (Next.js).
+    reverse_proxy 127.0.0.1:3000
+}

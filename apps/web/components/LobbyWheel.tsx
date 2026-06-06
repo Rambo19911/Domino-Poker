@@ -10,6 +10,7 @@ export function LobbyWheel({
   minRoundCount,
   onRoundCountChange,
   onStartSinglePlayer,
+  onStartMultiplayer,
   selectedRoundCount
 }: {
   readonly disabled: boolean;
@@ -18,9 +19,11 @@ export function LobbyWheel({
   readonly minRoundCount: number;
   readonly onRoundCountChange: (roundCount: number) => void;
   readonly onStartSinglePlayer: () => void;
+  readonly onStartMultiplayer: () => void;
   readonly selectedRoundCount: number;
 }) {
   const playButtonPoint = getWheelPoint(348, 215);
+  const multiplayerButtonPoint = getWheelPoint(12, 215);
 
   return (
     <div className="modeWheel" aria-label={labels.gameModes}>
@@ -82,6 +85,22 @@ export function LobbyWheel({
         </button>
       </div>
 
+      <div className="multiModeControls">
+        <button
+          className="playButton multiplayerButton"
+          style={{
+            left: formatWheelPercent(multiplayerButtonPoint.x),
+            top: formatWheelPercent(multiplayerButtonPoint.y)
+          } as CSSProperties}
+          type="button"
+          disabled={disabled}
+          aria-label={labels.modeMultiplayer}
+          onClick={onStartMultiplayer}
+        >
+          {labels.mpEnter}
+        </button>
+      </div>
+
       <div className="modeWheelLogo">
         <img src="/assets/images/domino_poker_logo.png" alt="" />
       </div>
@@ -96,6 +115,7 @@ export function CompactLobbyPanel({
   minRoundCount,
   onRoundCountChange,
   onStartSinglePlayer,
+  onStartMultiplayer,
   selectedRoundCount
 }: {
   readonly disabled: boolean;
@@ -104,6 +124,7 @@ export function CompactLobbyPanel({
   readonly minRoundCount: number;
   readonly onRoundCountChange: (roundCount: number) => void;
   readonly onStartSinglePlayer: () => void;
+  readonly onStartMultiplayer: () => void;
   readonly selectedRoundCount: number;
 }) {
   return (
@@ -129,7 +150,12 @@ export function CompactLobbyPanel({
       >
         {labels.play}
       </button>
-      <button className="compactModeDisabled" type="button" disabled>
+      <button
+        className="compactMultiplayerButton"
+        type="button"
+        disabled={disabled}
+        onClick={onStartMultiplayer}
+      >
         {labels.modeMultiplayer}
       </button>
     </div>
@@ -327,12 +353,14 @@ function RoundArcSelector({
         }}
       >
         <path className="roundArcTrack" d={roundArcPath} pathLength={100} />
-        <path
-          className="roundArcActive"
-          d={roundArcPath}
-          pathLength={100}
-          strokeDasharray={`${formatNumber(progress * 100)} 100`}
-        />
+        {progress > 0 ? (
+          <path
+            className="roundArcActive"
+            d={roundArcPath}
+            pathLength={100}
+            strokeDasharray={`${formatNumber(progress * 100)} 100`}
+          />
+        ) : null}
         <circle
           className="roundArcThumbHalo"
           cx={formatNumber(thumb.x)}

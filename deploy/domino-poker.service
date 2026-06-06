@@ -1,0 +1,32 @@
+# systemd serviss Domino Poker multiplayer serverim.
+# Uzstādīšana (kā root uz VPS):
+#   sudo cp deploy/domino-poker.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now domino-poker
+# Pielāgo User / WorkingDirectory / ceļus savai videi.
+
+[Unit]
+Description=Domino Poker multiplayer server
+# Gaida tīklu pirms palaišanas.
+After=network.target
+
+[Service]
+Type=simple
+# Servisa lietotājs (izveido bez root tiesībām: `sudo adduser --system --group domino`).
+User=domino
+Group=domino
+# Mape, kur atrodas būvētais kods (npm ci && npm run build jau izpildīts).
+WorkingDirectory=/opt/domino-poker
+# Vides mainīgie no .env (SERVER_PORT, SERVER_HOST, DATABASE_URL, NODE_ENV, ...).
+EnvironmentFile=/opt/domino-poker/.env
+# Palaiž serveri. `/usr/bin/env node` atrod node neatkarīgi no instalācijas vietas.
+ExecStart=/usr/bin/env node apps/server/dist/index.js
+# Pārstartē, ja serveris nokrīt (ne pie tīšas apturēšanas).
+Restart=on-failure
+RestartSec=3
+# Drošības stiprinājumi.
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
