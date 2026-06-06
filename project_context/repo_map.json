@@ -50,7 +50,7 @@
   {
     "path": "package.json",
     "type": "config",
-    "purpose": "Root npm workspace scripts for build, test, typecheck, web dev server, multiplayer server dev command, and future simulation/load placeholders.",
+    "purpose": "Root npm workspace scripts for build, test, lint (ESLint 9 flat config), typecheck, web dev server, multiplayer server dev command (dev:server builds core -> shared -> server), simulation/load-test commands, and `test:postgres:docker` for disposable Docker PostgreSQL integration tests. Pins Node >= 22.5 via engines + .npmrc engine-strict.",
     "importance": "high",
     "related_files": ["apps/web/package.json", "apps/server/package.json", "packages/core/package.json", "packages/shared/package.json"],
     "confidence": "high"
@@ -98,9 +98,17 @@
   {
     "path": "start-domino-poker.bat",
     "type": "utility",
-    "purpose": "Windows launcher that checks Node.js/npm, installs dependencies when needed, starts the local web dev server, waits for readiness, and opens the game URL.",
+    "purpose": "Windows launcher that checks Node.js/npm, installs dependencies when needed, releases the configured web/server ports, starts the multiplayer server first (waits for `/health`), then starts the Next.js web client, waits for readiness, and opens the game URL unless `DOMINO_NO_OPEN=1`.",
     "importance": "medium",
-    "related_files": ["package.json", "apps/web/package.json"],
+    "related_files": ["package.json", "apps/server/package.json", "apps/web/package.json"],
+    "confidence": "high"
+  },
+  {
+    "path": "scripts/test-postgres-docker.mjs",
+    "type": "utility",
+    "purpose": "Starts a disposable Docker PostgreSQL container with tmpfs data, sets TEST_POSTGRES_DATABASE_URL, runs the server PostgreSQL integration tests, and removes the container/volumes afterward.",
+    "importance": "high",
+    "related_files": ["package.json", "apps/server/package.json", "apps/server/test/storage/PostgresStorage.integration.test.ts", "apps/server/test/net/PostgresEventBus.integration.test.ts"],
     "confidence": "high"
   },
   {
@@ -122,7 +130,7 @@
   {
     "path": "apps/server/package.json",
     "type": "config",
-    "purpose": "Multiplayer server workspace package metadata, build/typecheck scripts, Node typings, and initial ws/zod dependencies.",
+    "purpose": "Multiplayer server workspace package metadata, build/typecheck scripts, PostgreSQL integration test script, Node typings, and ws/pg/zod dependencies.",
     "importance": "high",
     "related_files": ["package.json", "apps/server/tsconfig.json", "apps/server/src/index.ts", "packages/shared/package.json"],
     "confidence": "high"
@@ -138,9 +146,9 @@
   {
     "path": "apps/server/src/index.ts",
     "type": "entrypoint",
-    "purpose": "Server entrypoint: loads config, builds the shared DisplayIdRegistry + CoreMessageRouter + WebSocketGateway, starts the HTTP health server, and attaches the WebSocket gateway on the same port via `upgrade` (decision B, path /ws).",
+    "purpose": "Server entrypoint: loads config/storage, wires MatchPersistence, PostgreSQL room leases/durable sessions/fanout bus when DATABASE_URL is PostgreSQL, builds CoreMessageRouter + WebSocketGateway, starts HTTP health/metrics, attaches WS /ws, and gracefully closes DB/fanout on shutdown.",
     "importance": "medium",
-    "related_files": ["apps/server/src/config.ts", "apps/server/src/httpServer.ts", "apps/server/src/net/WebSocketGateway.ts", "apps/server/src/net/wsTransport.ts", "apps/server/package.json", "apps/server/tsconfig.json"],
+    "related_files": ["apps/server/src/config.ts", "apps/server/src/httpServer.ts", "apps/server/src/net/WebSocketGateway.ts", "apps/server/src/net/PostgresEventBus.ts", "apps/server/src/net/wsTransport.ts", "apps/server/src/storage/PostgresStorage.ts", "apps/server/package.json", "apps/server/tsconfig.json"],
     "confidence": "high"
   },
   {
@@ -205,6 +213,30 @@
     "purpose": "Structured LobbyError class and LobbyErrorCode union (Phase 5.6): ROOM_NOT_FOUND, ROOM_FULL, GAME_ALREADY_STARTED, NOT_HOST, ALREADY_IN_ROOM, FORBIDDEN plus ROOM_NOT_JOINABLE/NOT_ENOUGH_PLAYERS/PLAYER_NOT_IN_ROOM.",
     "importance": "medium",
     "related_files": ["apps/server/src/rooms/LobbyManager.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/rooms/RoomOwnershipGuard.ts",
+    "type": "service",
+    "purpose": "Room ownership guard abstraction for horizontal scaling: no-op in single-instance mode, lease-backed through RoomLeaseStore/PostgresStorage when available, used by CoreMessageRouter before room-scoped commands, and renews owned room leases on a timer in PostgreSQL mode.",
+    "importance": "high",
+    "related_files": ["apps/server/src/net/messageRouter.ts", "apps/server/src/storage/RoomLeaseStore.ts", "apps/server/src/storage/PostgresStorage.ts", "apps/server/test/net/roomOwnershipRouting.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/net/PostgresEventBus.ts",
+    "type": "service",
+    "purpose": "PostgreSQL-backed cross-instance WebSocket fanout bus: stores full fanout messages in `server_event_fanout`, sends LISTEN/NOTIFY payloads containing only event ids, prunes old fanout rows, reconnects the LISTEN client after listener failures, catches up fanout rows missed during reconnect windows, skips local self-notification lookups, and delivers broadcast/player/supersede messages to local gateway sockets.",
+    "importance": "high",
+    "related_files": ["apps/server/src/net/ServerEventBus.ts", "apps/server/src/net/WebSocketGateway.ts", "apps/server/src/index.ts", "apps/server/test/net/PostgresEventBus.integration.test.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/sessions/DurableSessionStore.ts",
+    "type": "model",
+    "purpose": "Durable reconnect session store contract used by PostgreSQL mode so reconnectToken and displayId survive across server instances through the `player_sessions` table.",
+    "importance": "high",
+    "related_files": ["apps/server/src/sessions/SessionManager.ts", "apps/server/src/storage/PostgresStorage.ts", "apps/server/test/sessions/SessionManager.test.ts"],
     "confidence": "high"
   },
   {
@@ -282,7 +314,7 @@
   {
     "path": "apps/web/components/MultiplayerLobby.tsx",
     "type": "ui",
-    "purpose": "Multiplayer lobby screen (Phase 5 layout preview, pre-network): header with Sound/Exit, a 'Create room' action, and three columns (public rooms / private rooms / online chat) following docs/mockups/lobby-wireframe.html, themed with the app's dark-green/gold tokens. Uses placeholder data; only the Exit-to-lobby transition is functional. Real data and Create/Join/Send come in Phase 6/8.",
+    "purpose": "Multiplayer lobby screen (LIVE, network-wired): header with Sound/Exit, a 'Create room' action, and three columns (public rooms / private rooms / online chat), themed with the app's dark-green/gold tokens. Fully wired to the WS server via MultiplayerClient + the useMultiplayer hook: real LOBBY_STATE room list, Create/View/Join/Leave, seat selection, Start game, chat send/history, and reconnect.",
     "importance": "high",
     "related_files": [
       "apps/web/components/AppShell.tsx",
@@ -610,15 +642,15 @@
   {
     "path": "packages/core/src/multiplayer/determinism.ts",
     "type": "utility",
-    "purpose": "Seeded RNG and deterministic multiplayer domino shuffle that preserves the human-style shuffle shape without changing single-player shuffle/deal behavior.",
+    "purpose": "Seeded RNG and deterministic multiplayer domino shuffle. The MP path owns the seed source and delegates the shared cut-and-overhand shuffle shape to `shuffleAlgorithm.ts`, preserving server-side deterministic deal behavior.",
     "importance": "high",
-    "related_files": ["packages/core/src/dominoTile.ts", "packages/core/test/multiplayer/determinism.test.ts"],
+    "related_files": ["packages/core/src/shuffleAlgorithm.ts", "packages/core/src/dominoTile.ts", "packages/core/test/multiplayer/determinism.test.ts"],
     "confidence": "high"
   },
   {
     "path": "packages/core/test/multiplayer/determinism.test.ts",
     "type": "test",
-    "purpose": "Vitest coverage for MP seeded RNG stability, deterministic shuffle identity by seed, full unique tile set, and empty-seed rejection.",
+    "purpose": "Vitest coverage for MP seeded RNG stability, deterministic shuffle identity by seed, locked seeded shuffle order, full unique tile set, and empty-seed rejection.",
     "importance": "high",
     "related_files": ["packages/core/src/multiplayer/determinism.ts"],
     "confidence": "high"
@@ -857,9 +889,17 @@
   {
     "path": "packages/core/src/dominoTile.ts",
     "type": "service",
-    "purpose": "Domino tile representation, set creation, human-style shuffle, and tile comparison helpers.",
+    "purpose": "Domino tile representation, set creation, single-player `shuffleSet()` entrypoint (Math.random by default, injectable RNG for tests), and tile comparison helpers.",
     "importance": "critical",
-    "related_files": ["packages/core/src/player.ts", "packages/core/src/gameState.ts"],
+    "related_files": ["packages/core/src/shuffleAlgorithm.ts", "packages/core/src/player.ts", "packages/core/src/gameState.ts"],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/shuffleAlgorithm.ts",
+    "type": "utility",
+    "purpose": "Shared cut-and-overhand shuffle algorithm parameterized by an injected RNG. Used by SP `shuffleSet()` and MP seeded shuffle without sharing their RNG/deal ownership.",
+    "importance": "high",
+    "related_files": ["packages/core/src/dominoTile.ts", "packages/core/src/multiplayer/determinism.ts", "packages/core/test/dominoRules.test.ts", "packages/core/test/multiplayer/determinism.test.ts"],
     "confidence": "high"
   },
   {
@@ -889,9 +929,9 @@
   {
     "path": "packages/core/test/dominoRules.test.ts",
     "type": "test",
-    "purpose": "Vitest coverage for core rule behavior, public input validation, AI heuristic preservation, scoring, and round-flow edge cases.",
+    "purpose": "Vitest coverage for core rule behavior, public input validation, AI heuristic preservation, scoring, round-flow edge cases, and locked SP injected-RNG shuffle order.",
     "importance": "high",
-    "related_files": ["packages/core/src/gameState.ts", "packages/core/src/player.ts", "packages/core/src/dominoTile.ts"],
+    "related_files": ["packages/core/src/gameState.ts", "packages/core/src/player.ts", "packages/core/src/dominoTile.ts", "packages/core/src/shuffleAlgorithm.ts"],
     "confidence": "high"
   },
   {

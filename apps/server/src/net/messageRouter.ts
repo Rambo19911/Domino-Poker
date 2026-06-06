@@ -2,6 +2,11 @@ import type { ClientMessage, ProtocolErrorCode, ServerEvent } from "@domino-poke
 
 import type { LobbyChat } from "../chat/LobbyChat.js";
 import { LobbyError, type LobbyErrorCode } from "../rooms/lobbyErrors.js";
+import {
+  noopRoomOwnershipGuard,
+  type MaybePromise,
+  type RoomOwnershipGuard
+} from "../rooms/RoomOwnershipGuard.js";
 import type { RoomDispatchResult, SequencedRoomEvent } from "../rooms/RoomEngine.js";
 import type { RoomManager } from "../rooms/RoomManager.js";
 import { publishGameUpdate } from "./gameUpdateDelivery.js";
@@ -12,6 +17,15 @@ import type { SessionIdentity as ConnectionIdentity } from "../sessions/SessionM
 
 /** Visi klienta ziņojumi pēc handshake (HELLO apstrādā pats gateway). */
 export type PostHandshakeMessage = Exclude<ClientMessage, { type: "HELLO" }>;
+
+/**
+ * Istabu-izveides rate-limit (M5): token-bucket uz savienojumu, kā čatam. Ļauj
+ * cilvēcisku uzliesmojumu (līdz `ROOM_CREATE_BURST` istabām pēc kārtas), tad
+ * ierobežo līdz ~1 istabai ik `ROOM_CREATE_REFILL_MS` — pasargā no `create →
+ * leave → create` spama, neapgrūtinot normālu lietošanu.
+ */
+const ROOM_CREATE_BURST = 5;
+const ROOM_CREATE_REFILL_MS = 5000;
 
 export type { GatewayHub };
 
@@ -25,26 +39,31 @@ export interface RouteContext {
 }
 
 export interface MessageRouter {
-  route(ctx: RouteContext, message: PostHandshakeMessage): void;
+  route(ctx: RouteContext, message: PostHandshakeMessage): MaybePromise<void>;
   /** Pēc handshake: jauns lobby dalībnieks (čata vēsture + onlineCount push). */
-  onConnected(ctx: RouteContext): void;
+  onConnected(ctx: RouteContext): MaybePromise<void>;
   /**
    * Pēc savienojuma aizvēršanas: atjauno onlineCount pārējiem. Ja `disconnected`
    * padots (spēlētājs PILNĪBĀ atvienojies — nav cita aktīva socketa), un viņš sēž
    * spēlē, atzīmē `connectionState = disconnected` (spēle turpinās, sēdvieta paliek).
    */
-  onDisconnected(hub: GatewayHub, serverNow: number, disconnected?: ConnectionIdentity): void;
+  onDisconnected(
+    hub: GatewayHub,
+    serverNow: number,
+    disconnected?: ConnectionIdentity
+  ): MaybePromise<void>;
   /**
    * Periodiska istabu TTL izslaukšana (net slānis to sauc ar `setInterval`):
    * iznīcina istabas, kurām beidzies laiks, un, ja kāda iznīcināta, pārraida
    * jauno LOBBY_STATE (lai klienti noņem istabu no saraksta).
    */
-  sweepExpiredRooms(hub: GatewayHub, now: number): void;
+  sweepExpiredRooms(hub: GatewayHub, now: number): MaybePromise<void>;
 }
 
 export interface CoreMessageRouterOptions {
   readonly rooms: RoomManager;
   readonly chat: LobbyChat;
+  readonly roomOwnership?: RoomOwnershipGuard;
   /**
    * LOBBY_STATE broadcast koalescēšana (ms). 0 (noklusējums) = izsūta uzreiz
    * (testi paliek sinhroni). Produkcijā (`index.ts`) > 0: vairāki istabu izmaiņu
@@ -72,18 +91,22 @@ export interface CoreMessageRouterOptions {
 export class CoreMessageRouter implements MessageRouter {
   private readonly rooms: RoomManager;
   private readonly chat: LobbyChat;
+  private readonly roomOwnership: RoomOwnershipGuard;
   private readonly lobbyStateDebounceMs: number;
   /** Gaidošā debounce flush (ja kāda) + pēdējais hub LOBBY_STATE izsūtīšanai. */
   private lobbyFlushTimer: ReturnType<typeof setTimeout> | undefined;
   private pendingLobbyHub: GatewayHub | undefined;
+  /** Per-savienojuma istabu-izveides token-bucket (M5: novērš create-spam DoS). */
+  private readonly roomCreateBuckets = new Map<string, { tokens: number; updatedAt: number }>();
 
   constructor(options: CoreMessageRouterOptions) {
     this.rooms = options.rooms;
     this.chat = options.chat;
+    this.roomOwnership = options.roomOwnership ?? noopRoomOwnershipGuard;
     this.lobbyStateDebounceMs = Math.max(0, options.lobbyStateDebounceMs ?? 0);
   }
 
-  route(ctx: RouteContext, message: PostHandshakeMessage): void {
+  route(ctx: RouteContext, message: PostHandshakeMessage): MaybePromise<void> {
     switch (message.type) {
       case "PING":
         ctx.conn.send({ type: "PONG", clientTime: message.clientTime, serverNow: ctx.serverNow });
@@ -92,35 +115,26 @@ export class CoreMessageRouter implements MessageRouter {
         ctx.conn.send({ type: "ROOM_LIST", rooms: this.rooms.listRooms() });
         return;
       case "CREATE_ROOM":
-        this.handleCreateRoom(ctx, message);
-        return;
+        return this.handleCreateRoom(ctx, message);
       case "VIEW_ROOM":
         this.handleViewRoom(ctx, message);
         return;
       case "JOIN_ROOM":
-        this.handleJoinRoom(ctx, message);
-        return;
+        return this.handleJoinRoom(ctx, message);
       case "LEAVE_ROOM":
-        this.handleLeaveRoom(ctx);
-        return;
+        return this.handleLeaveRoom(ctx);
       case "FILL_SEATS_WITH_BOTS":
-        this.handleFillSeats(ctx);
-        return;
+        return this.handleFillSeats(ctx);
       case "START_GAME":
-        this.handleStartGame(ctx);
-        return;
+        return this.handleStartGame(ctx);
       case "SUBMIT_BID":
-        this.handleSubmitBid(ctx, message);
-        return;
+        return this.handleSubmitBid(ctx, message);
       case "SUBMIT_MOVE":
-        this.handleSubmitMove(ctx, message);
-        return;
+        return this.handleSubmitMove(ctx, message);
       case "REQUEST_SNAPSHOT":
-        this.handleRequestSnapshot(ctx, message);
-        return;
+        return this.handleRequestSnapshot(ctx, message);
       case "PLAYER_RESUME":
-        this.handlePlayerResume(ctx, message);
-        return;
+        return this.handlePlayerResume(ctx, message);
       case "SEND_CHAT":
         this.handleSendChat(ctx, message);
         return;
@@ -137,38 +151,53 @@ export class CoreMessageRouter implements MessageRouter {
   private handleCreateRoom(
     ctx: RouteContext,
     message: Extract<PostHandshakeMessage, { type: "CREATE_ROOM" }>
-  ): void {
-    this.guard(ctx, () => {
+  ): MaybePromise<void> {
+    return this.guard(ctx, () => {
+      // M5: rate-limits istabu izveidi pirms jebkādas state izmaiņas.
+      if (!this.consumeRoomCreateToken(ctx.identity.playerId, ctx.serverNow)) {
+        ctx.conn.send(errorEvent("RATE_LIMITED", "You are creating rooms too quickly."));
+        return;
+      }
       const room = this.rooms.createRoom(ctx.identity.playerId, {
         ...(message.visibility ? { visibility: message.visibility } : {}),
         ...(message.numberOfRounds !== undefined
           ? { numberOfRounds: message.numberOfRounds }
           : {})
       });
-      if (message.fillWithBots === true) {
-        this.rooms.fillSeatsWithBots(ctx.identity.playerId);
-      }
-      ctx.conn.send({ type: "ROOM_CREATED", room: this.rooms.getRoomView(room.id) });
-      this.pushLobbyState(ctx.hub);
+      return this.withNewRoomLease(ctx, room.id, () => {
+        if (message.fillWithBots === true) {
+          this.rooms.fillSeatsWithBots(ctx.identity.playerId);
+        }
+        ctx.conn.send({ type: "ROOM_CREATED", room: this.rooms.getRoomView(room.id) });
+        this.pushLobbyState(ctx.hub);
+      });
     });
   }
 
   private handleJoinRoom(
     ctx: RouteContext,
     message: Extract<PostHandshakeMessage, { type: "JOIN_ROOM" }>
-  ): void {
-    this.guard(ctx, () => {
+  ): MaybePromise<void> {
+    return this.guard(ctx, () => {
       const code = message.code?.trim();
-      const room = code
-        ? this.rooms.joinRoom(ctx.identity.playerId, { code, seatIndex: message.seatIndex })
+      const target = code
+        ? this.rooms.viewRoom({ code })
         : message.roomId !== undefined
-          ? this.rooms.joinRoom(ctx.identity.playerId, { roomId: message.roomId, seatIndex: message.seatIndex })
+          ? this.rooms.viewRoom({ roomId: message.roomId })
           : undefined;
-      if (room === undefined) {
+      if (target === undefined) {
         throw new LobbyError("ROOM_NOT_FOUND", "JOIN_ROOM requires roomId or code.");
       }
-      this.pushRoomView(ctx.hub, room.id);
-      this.pushLobbyState(ctx.hub);
+      return this.withOwnedRoom(ctx, target.id, () => {
+        const room = code
+          ? this.rooms.joinRoom(ctx.identity.playerId, { code, seatIndex: message.seatIndex })
+          : this.rooms.joinRoom(ctx.identity.playerId, {
+              roomId: target.id,
+              seatIndex: message.seatIndex
+            });
+        this.pushRoomView(ctx.hub, room.id);
+        this.pushLobbyState(ctx.hub);
+      });
     });
   }
 
@@ -190,21 +219,25 @@ export class CoreMessageRouter implements MessageRouter {
     });
   }
 
-  private handleLeaveRoom(ctx: RouteContext): void {
-    this.guard(ctx, () => {
-      const roomId = this.rooms.roomOf(ctx.identity.playerId);
+  private handleLeaveRoom(ctx: RouteContext): MaybePromise<void> {
+    return this.guard(ctx, () => {
+      const roomId = this.requireCurrentRoom(ctx);
       // Spēles laikā "Exit" = forfeit (sēdvieta → bots / istabu iznīcina); citādi
       // parastā WAITING pamešana.
-      if (roomId !== undefined && this.rooms.findRoom(roomId).status === "IN_GAME") {
-        this.handleForfeit(ctx);
-        return;
-      }
-      const room = this.rooms.leaveRoom(ctx.identity.playerId);
-      ctx.conn.send({ type: "ROOM_LEFT", roomId: room.id });
-      if (room.status !== "DESTROYED") {
-        this.pushRoomView(ctx.hub, room.id);
-      }
-      this.pushLobbyState(ctx.hub);
+      return this.withOwnedRoom(ctx, roomId, () => {
+        if (this.rooms.findRoom(roomId).status === "IN_GAME") {
+          this.handleForfeit(ctx);
+          return;
+        }
+        const room = this.rooms.leaveRoom(ctx.identity.playerId);
+        ctx.conn.send({ type: "ROOM_LEFT", roomId: room.id });
+        if (room.status !== "DESTROYED") {
+          this.pushRoomView(ctx.hub, room.id);
+        } else {
+          this.releaseRoomLease(room.id);
+        }
+        this.pushLobbyState(ctx.hub);
+      });
     });
   }
 
@@ -221,35 +254,43 @@ export class CoreMessageRouter implements MessageRouter {
       const advanceEvents = this.rooms.advanceGame(room.id);
       this.deliverGameUpdate(ctx, room.id, [...events, ...advanceEvents]);
       this.pushRoomView(ctx.hub, room.id);
+    } else {
+      this.releaseRoomLease(room.id);
     }
     this.pushLobbyState(ctx.hub);
   }
 
-  private handleFillSeats(ctx: RouteContext): void {
-    this.guard(ctx, () => {
+  private handleFillSeats(ctx: RouteContext): MaybePromise<void> {
+    return this.guard(ctx, () => {
       // Host aizpilda tukšās sēdvietas ar botiem; pieprasītājs saņem atjaunoto
       // istabas skatu (ROOM_JOINED kā istabas state atsvaidze); ja istabā ir
       // vairāki cilvēki, visi redz vienu un to pašu sēdvietu skatu.
-      const room = this.rooms.fillSeatsWithBots(ctx.identity.playerId);
-      this.pushRoomView(ctx.hub, room.id);
-      this.pushLobbyState(ctx.hub);
+      const roomId = this.requireCurrentRoom(ctx);
+      return this.withOwnedRoom(ctx, roomId, () => {
+        const room = this.rooms.fillSeatsWithBots(ctx.identity.playerId);
+        this.pushRoomView(ctx.hub, room.id);
+        this.pushLobbyState(ctx.hub);
+      });
     });
   }
 
-  private handleStartGame(ctx: RouteContext): void {
-    this.guard(ctx, () => {
-      const { room, startsAt } = this.rooms.startGame(ctx.identity.playerId);
-      this.pushRoomView(ctx.hub, room.id);
-      if (startsAt <= ctx.serverNow) {
+  private handleStartGame(ctx: RouteContext): MaybePromise<void> {
+    return this.guard(ctx, () => {
+      const roomId = this.requireCurrentRoom(ctx);
+      return this.withOwnedRoom(ctx, roomId, () => {
+        const { room, startsAt } = this.rooms.startGame(ctx.identity.playerId);
+        this.pushRoomView(ctx.hub, room.id);
+        if (startsAt <= ctx.serverNow) {
         // Bez pirms-spēles grace: sākam uzreiz (dzen līdz 1. cilvēka turnam).
-        const events = this.rooms.advanceGame(room.id);
-        this.deliverGameUpdate(ctx, room.id, events);
-      } else {
+          const events = this.rooms.advanceGame(room.id);
+          this.deliverGameUpdate(ctx, room.id, events);
+        } else {
         // Pirms-spēles grace: galds + atskaite; pirmo turnu atver servera timeris.
-        this.deliverGameStarting(ctx, room.id, startsAt);
-      }
+          this.deliverGameStarting(ctx, room.id, startsAt);
+        }
       // Istaba pārgāja IN_GAME → istabu saraksts mainījies.
-      this.pushLobbyState(ctx.hub);
+        this.pushLobbyState(ctx.hub);
+      });
     });
   }
 
@@ -279,8 +320,8 @@ export class CoreMessageRouter implements MessageRouter {
   private handleSubmitBid(
     ctx: RouteContext,
     message: Extract<PostHandshakeMessage, { type: "SUBMIT_BID" }>
-  ): void {
-    this.handleSubmit(ctx, message.roomId, message.requestId, (corePlayerId) => ({
+  ): MaybePromise<void> {
+    return this.handleSubmit(ctx, message.roomId, message.requestId, (corePlayerId) => ({
       type: "SUBMIT_BID",
       gameId: message.roomId,
       requestId: message.requestId,
@@ -294,8 +335,8 @@ export class CoreMessageRouter implements MessageRouter {
   private handleSubmitMove(
     ctx: RouteContext,
     message: Extract<PostHandshakeMessage, { type: "SUBMIT_MOVE" }>
-  ): void {
-    this.handleSubmit(ctx, message.roomId, message.requestId, (corePlayerId) => ({
+  ): MaybePromise<void> {
+    return this.handleSubmit(ctx, message.roomId, message.requestId, (corePlayerId) => ({
       type: "SUBMIT_MOVE",
       gameId: message.roomId,
       requestId: message.requestId,
@@ -320,14 +361,16 @@ export class CoreMessageRouter implements MessageRouter {
     roomId: string,
     requestId: string,
     buildCommand: (corePlayerId: string) => Parameters<RoomManager["routeMessageToRoomEngine"]>[1]
-  ): void {
-    this.guard(
+  ): MaybePromise<void> {
+    return this.guard(
       ctx,
       () => {
         this.requireMembership(ctx, roomId);
-        const corePlayerId = this.rooms.corePlayerIdForClient(roomId, ctx.identity.playerId);
-        const result = this.rooms.routeMessageToRoomEngine(roomId, buildCommand(corePlayerId));
-        this.completeSubmit(ctx, roomId, requestId, result);
+        return this.withOwnedRoom(ctx, roomId, () => {
+          const corePlayerId = this.rooms.corePlayerIdForClient(roomId, ctx.identity.playerId);
+          const result = this.rooms.routeMessageToRoomEngine(roomId, buildCommand(corePlayerId));
+          this.completeSubmit(ctx, roomId, requestId, result);
+        });
       },
       requestId
     );
@@ -360,7 +403,43 @@ export class CoreMessageRouter implements MessageRouter {
     roomId: string,
     events: readonly SequencedRoomEvent[]
   ): void {
-    publishGameUpdate(ctx.hub, this.rooms, roomId, events, ctx.serverNow);
+    this.publishAndFinalize(ctx.hub, roomId, events, ctx.serverNow);
+  }
+
+  /**
+   * Servera-iniciētā (pacētā botu izspēle / turn timeout) spēles atjauninājuma
+   * piegāde, ko `RoomManager` izsauc caur `setGameUpdateSink`. Tāpat kā
+   * klienta-iniciētajā ceļā, pabeigta partija (GAME_OVER) iznīcina istabu un
+   * atjauno lobby sarakstu.
+   */
+  deliverServerGameUpdate(
+    hub: GatewayHub,
+    roomId: string,
+    events: readonly SequencedRoomEvent[],
+    serverNow: number
+  ): void {
+    this.publishAndFinalize(hub, roomId, events, serverNow);
+  }
+
+  /**
+   * Izsūta spēles eventus + svaigus snapshotus, tad — ja partija beigusies
+   * (saņemts `GAME_OVER`) — iznīcina pabeigto istabu un pārraida jauno
+   * LOBBY_STATE. Citādi pabeigta partija paliktu IN_GAME mūžīgi (atmiņas/timeru
+   * noplūde), un tās spēlētāji būtu "iesprūduši" (nevarētu izveidot jaunu istabu).
+   * Iznīcināšana notiek PĒC piegādes, lai klienti saņem GAME_OVER + gala snapshotu.
+   */
+  private publishAndFinalize(
+    hub: GatewayHub,
+    roomId: string,
+    events: readonly SequencedRoomEvent[],
+    serverNow: number
+  ): void {
+    publishGameUpdate(hub, this.rooms, roomId, events, serverNow);
+    if (events.some((entry) => entry.event.type === "GAME_OVER")) {
+      this.rooms.destroyFinishedRoom(roomId);
+      this.releaseRoomLease(roomId);
+      this.pushLobbyState(hub);
+    }
   }
 
   /**
@@ -371,23 +450,25 @@ export class CoreMessageRouter implements MessageRouter {
   private handleRequestSnapshot(
     ctx: RouteContext,
     message: Extract<PostHandshakeMessage, { type: "REQUEST_SNAPSHOT" }>
-  ): void {
-    this.guard(ctx, () => {
+  ): MaybePromise<void> {
+    return this.guard(ctx, () => {
       this.requireMembership(ctx, message.roomId);
-      const recovery = this.rooms.getEventsSince(message.roomId, message.lastSeq);
-      if (recovery.mode === "incremental") {
-        for (const entry of recovery.events) {
-          ctx.conn.send({
-            type: "GAME_EVENT",
-            roomId: message.roomId,
-            seq: entry.seq,
-            event: entry.event,
-            serverNow: ctx.serverNow
-          });
+      return this.withOwnedRoom(ctx, message.roomId, () => {
+        const recovery = this.rooms.getEventsSince(message.roomId, message.lastSeq);
+        if (recovery.mode === "incremental") {
+          for (const entry of recovery.events) {
+            ctx.conn.send({
+              type: "GAME_EVENT",
+              roomId: message.roomId,
+              seq: entry.seq,
+              event: entry.event,
+              serverNow: ctx.serverNow
+            });
+          }
+          return;
         }
-        return;
-      }
-      ctx.conn.send(this.snapshotFor(ctx, message.roomId));
+        ctx.conn.send(this.snapshotFor(ctx, message.roomId));
+      });
     });
   }
 
@@ -400,28 +481,30 @@ export class CoreMessageRouter implements MessageRouter {
   private handlePlayerResume(
     ctx: RouteContext,
     message: Extract<PostHandshakeMessage, { type: "PLAYER_RESUME" }>
-  ): void {
-    this.guard(ctx, () => {
+  ): MaybePromise<void> {
+    return this.guard(ctx, () => {
       this.requireMembership(ctx, message.roomId);
-      const corePlayerId = this.rooms.corePlayerIdForClient(message.roomId, ctx.identity.playerId);
-      const result = this.rooms.routeMessageToRoomEngine(message.roomId, {
-        type: "PLAYER_RESUME",
-        gameId: message.roomId,
-        requestId: `resume:${ctx.identity.sessionId}`,
-        playerId: corePlayerId
-      });
+      return this.withOwnedRoom(ctx, message.roomId, () => {
+        const corePlayerId = this.rooms.corePlayerIdForClient(message.roomId, ctx.identity.playerId);
+        const result = this.rooms.routeMessageToRoomEngine(message.roomId, {
+          type: "PLAYER_RESUME",
+          gameId: message.roomId,
+          requestId: `resume:${ctx.identity.sessionId}`,
+          playerId: corePlayerId
+        });
 
-      if (result.idempotentReplay) {
+        if (result.idempotentReplay) {
         // Jau atjaunots šajā savienojumā → tikai resync snapshot pieprasītājam.
-        ctx.conn.send(this.snapshotFor(ctx, message.roomId));
-        return;
-      }
-      if (!result.accepted) {
-        ctx.conn.send(errorEvent("FORBIDDEN", firstErrorMessage(result.errors)));
-        return;
-      }
+          ctx.conn.send(this.snapshotFor(ctx, message.roomId));
+          return;
+        }
+        if (!result.accepted) {
+          ctx.conn.send(errorEvent("FORBIDDEN", firstErrorMessage(result.errors)));
+          return;
+        }
       // PLAYER_RESUMED dalībniekiem + svaigs personalizēts snapshot katram.
-      this.deliverGameUpdate(ctx, message.roomId, result.events);
+        this.deliverGameUpdate(ctx, message.roomId, result.events);
+      });
     });
   }
 
@@ -442,6 +525,14 @@ export class CoreMessageRouter implements MessageRouter {
     }
   }
 
+  private requireCurrentRoom(ctx: RouteContext): string {
+    const roomId = this.rooms.roomOf(ctx.identity.playerId);
+    if (roomId === undefined) {
+      throw new LobbyError("PLAYER_NOT_IN_ROOM", `Player ${ctx.identity.playerId} is not in a room.`);
+    }
+    return roomId;
+  }
+
   private handleSendChat(
     ctx: RouteContext,
     message: Extract<PostHandshakeMessage, { type: "SEND_CHAT" }>
@@ -455,10 +546,10 @@ export class CoreMessageRouter implements MessageRouter {
   }
 
   /** Pēc handshake: jaunajam dalībniekam čata vēsture + onlineCount push visiem. */
-  onConnected(ctx: RouteContext): void {
+  onConnected(ctx: RouteContext): MaybePromise<void> {
     ctx.conn.send({ type: "CHAT_HISTORY", messages: this.chat.history() });
     this.pushLobbyState(ctx.hub);
-    this.restoreRoomOnReconnect(ctx);
+    return this.restoreRoomOnReconnect(ctx);
   }
 
   /**
@@ -467,12 +558,12 @@ export class CoreMessageRouter implements MessageRouter {
    * notiek — connection state (`PLAYER_RESUMED`) + svaigu personalizētu snapshot
    * ar aktuālo `deadlineAt`. Pirmajā savienojumā (vēl nav istabā) — nekas.
    */
-  private restoreRoomOnReconnect(ctx: RouteContext): void {
+  private restoreRoomOnReconnect(ctx: RouteContext): MaybePromise<void> {
     const roomId = this.rooms.roomOf(ctx.identity.playerId);
     if (roomId === undefined) return;
     // Cilvēks atgriezās → atceļam pamešanas grace (istaba netiek iznīcināta).
     this.rooms.cancelAbandonGrace(roomId);
-    this.guard(ctx, () => {
+    return this.guard(ctx, () => this.withOwnedRoom(ctx, roomId, () => {
       ctx.conn.send({ type: "ROOM_JOINED", room: this.rooms.getRoomView(roomId) });
       if (this.rooms.findRoom(roomId).status !== "IN_GAME") return; // gaidītava — pietiek ar skatu
       const corePlayerId = this.rooms.corePlayerIdForClient(roomId, ctx.identity.playerId);
@@ -489,18 +580,31 @@ export class CoreMessageRouter implements MessageRouter {
         // Jau pieslēgts / idempotent → tikai resync pieprasītājam.
         ctx.conn.send(this.snapshotFor(ctx, roomId));
       }
-    });
+    }));
   }
 
   /** Pēc aizvēršanas: onlineCount samazinājies → atjauno pārējiem (+ disconnect mark). */
-  onDisconnected(hub: GatewayHub, serverNow: number, disconnected?: ConnectionIdentity): void {
+  onDisconnected(
+    hub: GatewayHub,
+    serverNow: number,
+    disconnected?: ConnectionIdentity
+  ): MaybePromise<void> {
+    let disconnectResult: MaybePromise<void> | undefined;
     if (disconnected !== undefined) {
-      this.markPlayerDisconnected(hub, serverNow, disconnected);
+      disconnectResult = this.markPlayerDisconnected(hub, serverNow, disconnected);
       this.maybeScheduleAbandon(hub, disconnected);
-      // Atbrīvojam čata rate-limit stāvokli (atmiņa neaug pie liela mēroga).
+      // Atbrīvojam čata + istabu-izveides rate-limit stāvokli (atmiņa neaug pie
+      // liela mēroga; atgriežoties spēlētājs sāk ar pilnu uzliesmojuma budžetu).
       this.chat.forget(disconnected.playerId);
+      this.roomCreateBuckets.delete(disconnected.playerId);
+      // M3 piezīme: durable sesiju (token + displayId) NEATBRĪVOJAM šeit — token
+      // apzināti pārdzīvo atvienojumu (reconnect grace + nepareiza-token impostora
+      // noraidīšana, sk. WebSocketGateway token validāciju). Atbrīvošana notiek
+      // pie dalības zaudēšanas offline spēlētājam (`onMemberDeparted` →
+      // `releaseSession`), kad istaba tiek pamesta/iznīcināta.
     }
     this.pushLobbyState(hub);
+    return disconnectResult;
   }
 
   /**
@@ -529,6 +633,7 @@ export class CoreMessageRouter implements MessageRouter {
       const anyOnline = this.rooms.getSeatedHumans(roomId).some((human) => hub.isOnline(human.clientId));
       if (anyOnline) return; // kāds atgriezās starplaikā
       this.rooms.destroyRoom(roomId);
+      this.releaseRoomLease(roomId);
       this.pushLobbyState(hub);
     } catch {
       // Istaba jau iznīcināta (piem. spēle beidzās) — nekas nav jādara.
@@ -544,21 +649,23 @@ export class CoreMessageRouter implements MessageRouter {
     hub: GatewayHub,
     serverNow: number,
     identity: ConnectionIdentity
-  ): void {
+  ): MaybePromise<void> {
     try {
       const roomId = this.rooms.roomOf(identity.playerId);
       if (roomId === undefined) return;
       if (this.rooms.findRoom(roomId).status !== "IN_GAME") return;
-      const corePlayerId = this.rooms.corePlayerIdForClient(roomId, identity.playerId);
-      const result = this.rooms.routeMessageToRoomEngine(roomId, {
-        type: "PLAYER_DISCONNECT",
-        gameId: roomId,
-        requestId: `disconnect:${identity.sessionId}`,
-        playerId: corePlayerId
+      return this.runOwnedRoomBestEffort(roomId, serverNow, () => {
+        const corePlayerId = this.rooms.corePlayerIdForClient(roomId, identity.playerId);
+        const result = this.rooms.routeMessageToRoomEngine(roomId, {
+          type: "PLAYER_DISCONNECT",
+          gameId: roomId,
+          requestId: `disconnect:${identity.sessionId}`,
+          playerId: corePlayerId
+        });
+        if (result.accepted && result.events.length > 0) {
+          publishGameUpdate(hub, this.rooms, roomId, result.events, serverNow);
+        }
       });
-      if (result.accepted && result.events.length > 0) {
-        publishGameUpdate(hub, this.rooms, roomId, result.events, serverNow);
-      }
     } catch {
       // Atvienojuma apstrāde nedrīkst sabrukt (piem. istaba jau iznīcināta).
     }
@@ -567,20 +674,126 @@ export class CoreMessageRouter implements MessageRouter {
   sweepExpiredRooms(hub: GatewayHub, now: number): void {
     const destroyed = this.rooms.destroyExpiredRooms(now);
     if (destroyed.length > 0) {
+      for (const roomId of destroyed) {
+        this.releaseRoomLease(roomId);
+      }
       this.pushLobbyState(hub);
     }
   }
 
+  /**
+   * Istabu-izveides token-bucket (M5): atjauno atļaujas pēc pagājušā laika (līdz
+   * `ROOM_CREATE_BURST`), tad mēģina patērēt vienu. Atgriež `true`, ja izveide
+   * atļauta. Atspoguļo `LobbyChat.consumeToken` loģiku; stāvoklis tiek iztīrīts
+   * pie pilnas atvienošanās (`onDisconnected`).
+   */
+  private consumeRoomCreateToken(playerId: string, now: number): boolean {
+    const bucket = this.roomCreateBuckets.get(playerId);
+    if (!bucket) {
+      this.roomCreateBuckets.set(playerId, { tokens: ROOM_CREATE_BURST - 1, updatedAt: now });
+      return true;
+    }
+    const elapsed = Math.max(0, now - bucket.updatedAt);
+    const replenished = Math.min(ROOM_CREATE_BURST, bucket.tokens + elapsed / ROOM_CREATE_REFILL_MS);
+    bucket.updatedAt = now;
+    if (replenished < 1) {
+      bucket.tokens = replenished; // saglabājam daļēju uzkrājumu
+      return false;
+    }
+    bucket.tokens = replenished - 1;
+    return true;
+  }
+
   /** Izpilda istabu mutāciju, pārvēršot `LobbyError` par drošu `ERROR` eventu. */
-  private guard(ctx: RouteContext, run: () => void, requestId?: string): void {
+  private guard(
+    ctx: RouteContext,
+    run: () => MaybePromise<void>,
+    requestId?: string
+  ): MaybePromise<void> {
     try {
-      run();
-    } catch (error) {
-      if (error instanceof LobbyError) {
-        ctx.conn.send(errorEvent(toProtocolErrorCode(error.code), error.message, requestId));
-        return;
+      const result = run();
+      if (isPromiseLike(result)) {
+        return result.catch((error: unknown) => this.handleGuardError(ctx, error, requestId));
       }
+      return result;
+    } catch (error) {
+      return this.handleGuardError(ctx, error, requestId);
+    }
+  }
+
+  private handleGuardError(ctx: RouteContext, error: unknown, requestId?: string): void {
+    if (error instanceof LobbyError) {
+      ctx.conn.send(errorEvent(toProtocolErrorCode(error.code), error.message, requestId));
+      return;
+    }
+    throw error;
+  }
+
+  private withOwnedRoom(
+    ctx: RouteContext,
+    roomId: string,
+    run: () => void
+  ): MaybePromise<void> {
+    const ownership = this.roomOwnership.ensureOwner(roomId, ctx.serverNow);
+    if (isPromiseLike(ownership)) {
+      return ownership.then(run);
+    }
+    run();
+  }
+
+  private withNewRoomLease(
+    ctx: RouteContext,
+    roomId: string,
+    run: () => void
+  ): MaybePromise<void> {
+    try {
+      const ownership = this.roomOwnership.ensureOwner(roomId, ctx.serverNow);
+      if (isPromiseLike(ownership)) {
+        return ownership.then(run, (error: unknown) => {
+          this.destroyRoomAfterFailedLease(ctx.hub, roomId);
+          throw error;
+        });
+      }
+    } catch (error) {
+      this.destroyRoomAfterFailedLease(ctx.hub, roomId);
       throw error;
+    }
+    run();
+  }
+
+  private runOwnedRoomBestEffort(
+    roomId: string,
+    now: number,
+    run: () => void
+  ): MaybePromise<void> {
+    try {
+      const ownership = this.roomOwnership.ensureOwner(roomId, now);
+      if (isPromiseLike(ownership)) {
+        return ownership.then(run).catch(() => {
+          // Best-effort lifecycle event: wrong-owner or already-destroyed room is ignored.
+        });
+      }
+      run();
+    } catch {
+      // Best-effort lifecycle event: wrong-owner or already-destroyed room is ignored.
+    }
+  }
+
+  private destroyRoomAfterFailedLease(hub: GatewayHub, roomId: string): void {
+    try {
+      this.rooms.destroyRoom(roomId);
+      this.pushLobbyState(hub);
+    } catch {
+      // Room may already have been destroyed by another code path.
+    }
+  }
+
+  private releaseRoomLease(roomId: string): void {
+    const released = this.roomOwnership.release(roomId);
+    if (isPromiseLike(released)) {
+      void released.catch((error: unknown) => {
+        console.error(`[room-ownership] failed to release lease for ${roomId}:`, error);
+      });
     }
   }
 
@@ -673,4 +886,8 @@ function toMoveErrorCode(errors: RoomDispatchResult["errors"]): ProtocolErrorCod
 
 function firstErrorMessage(errors: RoomDispatchResult["errors"]): string {
   return errors[0]?.message ?? "Action rejected.";
+}
+
+function isPromiseLike<T>(value: MaybePromise<T>): value is Promise<T> {
+  return typeof (value as { readonly then?: unknown } | undefined)?.then === "function";
 }

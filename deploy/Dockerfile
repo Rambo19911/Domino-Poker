@@ -21,9 +21,12 @@ COPY tools/load-test/package.json tools/load-test/
 
 RUN npm ci
 
-# Pārējais kods + būve (core → shared → server pareizā secībā).
+# Pārējais kods + būve. Konteiners palaiž TIKAI serveri, tāpēc būvējam tikai tā
+# atkarību ķēdi (core → shared → server) pareizā secībā — NEvis pilno `npm run build`,
+# kas lieki būvētu arī Next.js web / simulatorus / load-test (lēni, lielāks attēls,
+# un web `next build` neveiksme citādi bloķētu servera attēlu).
 COPY . .
-RUN npm run build
+RUN npm run build --workspace packages/core --workspace packages/shared --workspace apps/server
 
 ENV NODE_ENV=production
 EXPOSE 4000

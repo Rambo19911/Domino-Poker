@@ -1,7 +1,8 @@
 import { getFullSet } from "../dominoTile";
+import { shuffleWithCutAndOverhand, type ShuffleRng } from "../shuffleAlgorithm";
 import type { DominoTile } from "../types";
 
-export type MultiplayerRng = () => number;
+export type MultiplayerRng = ShuffleRng;
 
 export function createSeededRng(seed: string): MultiplayerRng {
   let state = hashSeed(seed);
@@ -17,9 +18,7 @@ export function createSeededRng(seed: string): MultiplayerRng {
 
 export function shuffleMultiplayerDominoSet(seed: string): DominoTile[] {
   const rng = createSeededRng(seed);
-  const cutTiles = randomCut(getFullSet(), rng);
-  const mixedTiles = overhandShuffle(cutTiles, rng);
-  return randomCut(mixedTiles, rng);
+  return shuffleWithCutAndOverhand(getFullSet(), rng);
 }
 
 function hashSeed(seed: string): number {
@@ -34,28 +33,4 @@ function hashSeed(seed: string): number {
   }
 
   return hash >>> 0;
-}
-
-function randomCut<T>(items: readonly T[], rng: MultiplayerRng): T[] {
-  if (items.length <= 1) return [...items];
-  const cutIndex = Math.floor(rng() * items.length);
-  return [...items.slice(cutIndex), ...items.slice(0, cutIndex)];
-}
-
-function overhandShuffle<T>(items: readonly T[], rng: MultiplayerRng): T[] {
-  const source = [...items];
-  let mixed: T[] = [];
-  const minPacketSize = 2;
-  const maxPacketSize = 6;
-
-  while (source.length > 0) {
-    const packetSize = Math.min(
-      source.length,
-      minPacketSize + Math.floor(rng() * (maxPacketSize - minPacketSize + 1))
-    );
-    const packet = source.splice(0, packetSize);
-    mixed = rng() < 0.75 ? [...packet, ...mixed] : [...mixed, ...packet];
-  }
-
-  return mixed;
 }

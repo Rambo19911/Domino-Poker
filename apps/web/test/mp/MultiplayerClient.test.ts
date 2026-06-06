@@ -1,5 +1,5 @@
 import type { ServerEvent } from "@domino-poker/shared";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { ClientView } from "../../lib/mp/clientView";
 import {
@@ -219,6 +219,20 @@ describe("MultiplayerClient reconnect (8.1)", () => {
     expect(sockets).toHaveLength(1); // nav jauna savienojuma
   });
 
+  it("ignores stale socket messages after an explicit close()", () => {
+    const { client, sockets, views } = buildHarness();
+    client.connect();
+    sockets[0]!.open();
+    welcomeEmit(sockets[0]!);
+    const viewCountAfterWelcome = views.length;
+
+    client.close();
+    sockets[0]!.emit({ type: "ROOM_JOINED", room: roomView("room-1") });
+
+    expect(views).toHaveLength(viewCountAfterWelcome);
+    expect(client.getView().room).toBeUndefined();
+  });
+
   it("stops reconnecting on PROTOCOL_VERSION_MISMATCH", () => {
     const { client, sockets, runTimers } = buildHarness();
     client.connect();
@@ -267,6 +281,29 @@ describe("MultiplayerClient liveness + recovery (8.1)", () => {
 
     const resync = sockets[0]!.sent.find((message) => message.type === "REQUEST_SNAPSHOT");
     expect(resync).toMatchObject({ type: "REQUEST_SNAPSHOT", roomId: "room-1", lastSeq: 5 });
+  });
+
+  it("deduplicates snapshot requests until recovery arrives", () => {
+    const { client, sockets } = buildHarness();
+    client.connect();
+    sockets[0]!.open();
+    welcomeEmit(sockets[0]!);
+    sockets[0]!.emit({ type: "ROOM_JOINED", room: roomView("room-1") });
+    sockets[0]!.emit(turnStarted(5, "turn-1"));
+    sockets[0]!.emit(turnStarted(9, "turn-2"));
+    sockets[0]!.emit(turnStarted(12, "turn-3"));
+
+    expect(snapshotRequests(sockets[0]!)).toEqual([
+      { type: "REQUEST_SNAPSHOT", roomId: "room-1", lastSeq: 5 }
+    ]);
+
+    sockets[0]!.emit(snapshotEvent(12));
+    sockets[0]!.emit(turnStarted(16, "turn-4"));
+
+    expect(snapshotRequests(sockets[0]!)).toEqual([
+      { type: "REQUEST_SNAPSHOT", roomId: "room-1", lastSeq: 5 },
+      { type: "REQUEST_SNAPSHOT", roomId: "room-1", lastSeq: 12 }
+    ]);
   });
 });
 
@@ -320,4 +357,18 @@ function turnStarted(seq: number, turnId: string): ServerEvent {
     },
     serverNow: 1
   } as ServerEvent;
+}
+
+function snapshotEvent(seq: number): ServerEvent {
+  return {
+    type: "STATE_SNAPSHOT",
+    roomId: "room-1",
+    seq,
+    snapshot: { hand: [], turnId: "turn-snapshot" },
+    serverNow: 1
+  } as unknown as ServerEvent;
+}
+
+function snapshotRequests(socket: FakeSocket): ParsedMessage[] {
+  return socket.sent.filter((message) => message.type === "REQUEST_SNAPSHOT");
 }

@@ -8,7 +8,7 @@ import {
 import { canPlayTile } from "./player";
 import {
   highestTrumpPriorityInTrick,
-  isStrongerTileWithContext
+  isStrongerTile
 } from "./gameState";
 import type { DominoTile, GameState, Player } from "./types";
 
@@ -109,11 +109,11 @@ function selectHardTile(
   }
 
   if (tricksNeeded === 0 && canWin) {
-    const weakest = getWeakestTile(validTiles);
-    if (!wouldWinTrick(weakest, gameState)) {
-      return weakest;
-    }
-    return weakest;
+    // Solījums izpildīts → izvairāmies vinnēt nevajadzīgu triku (overtricks sods):
+    // nometam vājāko kauliņu, kas NEuzvar triku. Ja katrs legālais kauliņš
+    // uzvarētu (piespiesti uzvarēt), nometam vājāko no visiem.
+    const losingTiles = validTiles.filter((tile) => !wouldWinTrick(tile, gameState));
+    return getWeakestTile(losingTiles.length > 0 ? losingTiles : validTiles);
   }
 
   return getWeakestTile(validTiles);
@@ -171,8 +171,13 @@ function canWinTrick(tiles: readonly DominoTile[], gameState: GameState): boolea
 }
 
 function wouldWinTrick(tile: DominoTile, gameState: GameState): boolean {
+  // Lieto to PAŠU autoritatīvo salīdzināšanu, ko dzinēja `determineTrickWinner`
+  // (`isStrongerTile`), lai AB prognoze sakristu ar faktisko uzvarētāju — ieskaitot
+  // 0-6 īpašo kauliņu (ace tikai, kad spēlēts/prasīts kā 0) un ace-neizšķirtu
+  // semantiku. `tile` ir rokas kauliņš (nav trikā), tāpēc tā ace statusu nosaka
+  // pašreizējais requiredNumber konteksts.
   for (const played of gameState.currentTrick) {
-    if (isStrongerTileForAi(played.tile, tile, gameState.requiredNumber)) {
+    if (isStrongerTile(gameState, played.tile, tile)) {
       return false;
     }
   }
@@ -182,17 +187,4 @@ function wouldWinTrick(tile: DominoTile, gameState: GameState): boolean {
 function getWinningTile(tiles: readonly DominoTile[], gameState: GameState): DominoTile {
   const winningTiles = tiles.filter((tile) => wouldWinTrick(tile, gameState));
   return winningTiles.length === 0 ? getWeakestTile(tiles) : getWeakestTile(winningTiles);
-}
-
-function isStrongerTileForAi(
-  tile1: DominoTile,
-  tile2: DominoTile,
-  requiredNumber: number | undefined
-): boolean {
-  return isStrongerTileWithContext(tile1, tile2, {
-    requiredNumber,
-    tile1IsAce: isAce(tile1),
-    tile2IsAce: isAce(tile2),
-    breakAceTiesByTotalValue: true
-  });
 }

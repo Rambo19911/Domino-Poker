@@ -1,4 +1,5 @@
 import type { DominoTile } from "./types";
+import { shuffleWithCutAndOverhand, type ShuffleRng } from "./shuffleAlgorithm";
 
 export const TRUMPS: readonly DominoTile[] = [
   { side1: 0, side2: 0 },
@@ -83,10 +84,8 @@ export function getFullSet(): DominoTile[] {
   return tiles;
 }
 
-export function shuffleSet(rng: () => number = Math.random): DominoTile[] {
-  const cutTiles = randomCut(getFullSet(), rng);
-  const mixedTiles = overhandShuffle(cutTiles, rng);
-  return randomCut(mixedTiles, rng);
+export function shuffleSet(rng: ShuffleRng = Math.random): DominoTile[] {
+  return shuffleWithCutAndOverhand(getFullSet(), rng);
 }
 
 function assertPip(value: number): void {
@@ -95,26 +94,3 @@ function assertPip(value: number): void {
   }
 }
 
-function randomCut<T>(items: readonly T[], rng: () => number): T[] {
-  if (items.length <= 1) return [...items];
-  const cutIndex = Math.floor(rng() * items.length);
-  return [...items.slice(cutIndex), ...items.slice(0, cutIndex)];
-}
-
-function overhandShuffle<T>(items: readonly T[], rng: () => number): T[] {
-  const source = [...items];
-  let mixed: T[] = [];
-  const minPacketSize = 2;
-  const maxPacketSize = 6;
-
-  while (source.length > 0) {
-    const packetSize = Math.min(
-      source.length,
-      minPacketSize + Math.floor(rng() * (maxPacketSize - minPacketSize + 1))
-    );
-    const packet = source.splice(0, packetSize);
-    mixed = rng() < 0.75 ? [...packet, ...mixed] : [...mixed, ...packet];
-  }
-
-  return mixed;
-}

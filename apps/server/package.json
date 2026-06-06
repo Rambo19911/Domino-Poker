@@ -7,17 +7,21 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "migrate": "node dist/storage/migrate.js",
     "test": "vitest run",
+    "test:postgres": "vitest run test/storage/PostgresStorage.integration.test.ts test/net/PostgresEventBus.integration.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@domino-poker/core": "1.0.0",
     "@domino-poker/shared": "1.0.0",
+    "pg": "8.21.0",
     "ws": "8.21.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "25.6.0",
+    "@types/pg": "8.20.0",
     "@types/ws": "^8.18.1",
     "typescript": "6.0.3",
     "vitest": "4.1.5"

@@ -6,6 +6,7 @@ import {
   protocolErrorCodes,
   errorPayloadSchema,
   clientMessageSchema,
+  maxIdentifierLength,
   parseClientMessage
 } from "../src/index.js";
 import type { RoomSummary, ServerEvent } from "../src/index.js";
@@ -94,6 +95,29 @@ describe("client message schemas", () => {
 
   it("rejects an unknown message type", () => {
     expect(parseClientMessage({ type: "TOTALLY_UNKNOWN" }).success).toBe(false);
+  });
+
+  it("bounds clientId/reconnectToken length (M4)", () => {
+    const base = { type: "HELLO", protocolVersion: "1", clientBuild: "dev" } as const;
+    // Robežas garumā joprojām pieņemts; pārsniegts → noraidīts.
+    expect(parseClientMessage({ ...base, clientId: "c".repeat(maxIdentifierLength) }).success).toBe(true);
+    expect(parseClientMessage({ ...base, clientId: "c".repeat(maxIdentifierLength + 1) }).success).toBe(false);
+    expect(parseClientMessage({ ...base, clientId: "" }).success).toBe(false); // joprojām non-empty
+    expect(
+      parseClientMessage({
+        ...base,
+        clientId: "c1",
+        reconnectToken: "t".repeat(maxIdentifierLength + 1)
+      }).success
+    ).toBe(false);
+    // PLAYER_RESUME reconnectToken arī robežots.
+    expect(
+      parseClientMessage({
+        type: "PLAYER_RESUME",
+        roomId: "room-1",
+        reconnectToken: "t".repeat(maxIdentifierLength + 1)
+      }).success
+    ).toBe(false);
   });
 
   it("rejects a message missing a required field", () => {

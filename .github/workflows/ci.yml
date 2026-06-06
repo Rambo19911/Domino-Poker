@@ -1,0 +1,57 @@
+name: CI
+
+# Palaiž katrā push uz main un katrā pull request uz main (t.i. pirms katra merge).
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # Īsts PostgreSQL serviss integrācijas testiem (LISTEN/NOTIFY, leases, JSONB,
+    # ON CONFLICT, migrācijas, concurrency) — tas, ko SQLite testi neatklāj.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: domino_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d domino_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # engine-strict + engines.node hard-fail uz vecāka Node; .nvmrc pin 24.
+      - run: npm ci
+
+      # Servera/shared vitest testi importē @domino-poker/shared (un core) no dist,
+      # tāpēc tos jābūvē pirms testiem (sk. ai_rules.md). Web/Next netiek būvēts.
+      - run: npm run build --workspace packages/core --workspace packages/shared --workspace apps/server
+
+      - run: npm run typecheck
+
+      - run: npm run lint
+
+      # Ātrā svīta: PG integrācijas testi paši skip, jo TEST_POSTGRES_DATABASE_URL nav.
+      - run: npm run test
+
+      # PG integrācija pret servisu — palaiž tikai šo soli ar env mainīgo, lai
+      # ātrā svīta paliek nodalīta no DB-atkarīgajiem testiem.
+      - run: npm run test:postgres --workspace apps/server
+        env:
+          TEST_POSTGRES_DATABASE_URL: postgres://postgres:postgres@localhost:5432/domino_test

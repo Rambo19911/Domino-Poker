@@ -1,4 +1,5 @@
-import type { DisplayIdRegistry } from "../identity/DisplayIdRegistry.js";
+import { deriveDisplayIdCandidate, type DisplayIdRegistry } from "../identity/DisplayIdRegistry.js";
+import type { DurableSessionStore } from "./DurableSessionStore.js";
 
 /**
  * Savienojumam piesaistītā identitāte. `playerId` = `HELLO.clientId` (stabils
@@ -32,7 +33,11 @@ export interface SessionManagerOptions {
   readonly displayIds: DisplayIdRegistry;
   readonly createSessionId?: () => string;
   readonly createReconnectToken?: () => string;
+  readonly durableStore?: DurableSessionStore;
+  readonly clock?: () => number;
 }
+
+export type MaybePromise<T> = T | Promise<T>;
 
 /**
  * Durable sesiju pārvaldnieks (Fāze 9.1). Atšķirībā no agrākā `SessionRegistry`,
@@ -58,11 +63,15 @@ export class SessionManager {
   private readonly displayIds: DisplayIdRegistry;
   private readonly createSessionId: () => string;
   private readonly createReconnectToken: () => string;
+  private readonly durableStore: DurableSessionStore | undefined;
+  private readonly clock: () => number;
 
   constructor(options: SessionManagerOptions) {
     this.displayIds = options.displayIds;
     this.createSessionId = options.createSessionId ?? defaultToken;
     this.createReconnectToken = options.createReconnectToken ?? defaultToken;
+    this.durableStore = options.durableStore;
+    this.clock = options.clock ?? (() => Date.now());
   }
 
   /**
@@ -76,6 +85,25 @@ export class SessionManager {
       throw new Error("SessionManager.register requires a non-empty clientId.");
     }
 
+    return this.registerLocal(connectionId, playerId, providedToken);
+  }
+
+  registerAsync(
+    connectionId: string,
+    clientId: string,
+    providedToken?: string
+  ): MaybePromise<RegisterResult> {
+    const playerId = clientId.trim();
+    if (playerId === "") {
+      throw new Error("SessionManager.register requires a non-empty clientId.");
+    }
+    if (this.durableStore !== undefined) {
+      return this.registerDurable(connectionId, playerId, providedToken);
+    }
+    return this.registerLocal(connectionId, playerId, providedToken);
+  }
+
+  private registerLocal(connectionId: string, playerId: string, providedToken?: string): RegisterResult {
     const existingToken = this.tokens.get(playerId);
     let reconnectToken: string;
     let isReconnect: boolean;
@@ -91,12 +119,84 @@ export class SessionManager {
       isReconnect = false;
     }
 
+    const bound = this.bindActiveConnection(connectionId, playerId, {
+      reconnectToken,
+      displayId: this.displayIds.assign(playerId)
+    });
+
+    return {
+      ok: true,
+      identity: bound.identity,
+      isReconnect,
+      replacedConnectionId: bound.replacedConnectionId
+    };
+  }
+
+  private async registerDurable(
+    connectionId: string,
+    playerId: string,
+    providedToken?: string
+  ): Promise<RegisterResult> {
+    if (this.durableStore === undefined) {
+      throw new Error("Durable session store is not configured.");
+    }
+
+    const existing = await this.durableStore.getSession(playerId);
+    if (existing !== undefined) {
+      if (providedToken !== existing.reconnectToken) {
+        return { ok: false, reason: "token_mismatch" };
+      }
+      const bound = this.bindActiveConnection(connectionId, playerId, existing);
+      return {
+        ok: true,
+        identity: bound.identity,
+        isReconnect: true,
+        replacedConnectionId: bound.replacedConnectionId
+      };
+    }
+
+    const now = this.clock();
+    const reconnectToken = this.createReconnectToken();
+    for (let salt = 0; salt < 100_000; salt += 1) {
+      const displayId = deriveDisplayIdCandidate(playerId, salt);
+      const result = await this.durableStore.createSessionIfAbsent({
+        playerId,
+        reconnectToken,
+        displayId,
+        createdAt: now,
+        updatedAt: now
+      });
+      if (result === "display_id_taken") {
+        continue;
+      }
+      if (result === "player_exists") {
+        return this.registerDurable(connectionId, playerId, providedToken);
+      }
+      const bound = this.bindActiveConnection(connectionId, playerId, {
+        reconnectToken,
+        displayId
+      });
+      return {
+        ok: true,
+        identity: bound.identity,
+        isReconnect: false,
+        replacedConnectionId: bound.replacedConnectionId
+      };
+    }
+    throw new Error("SessionManager exhausted the available displayId space.");
+  }
+
+  private bindActiveConnection(
+    connectionId: string,
+    playerId: string,
+    session: { readonly reconnectToken: string; readonly displayId: string }
+  ): { readonly identity: SessionIdentity; readonly replacedConnectionId: string | undefined } {
     const identity: SessionIdentity = {
       connectionId,
       sessionId: this.createSessionId(),
       playerId,
-      displayId: this.displayIds.assign(playerId),
-      reconnectToken
+      displayId: session.displayId,
+      reconnectToken: session.reconnectToken
     };
 
     const previous = this.activeByPlayer.get(playerId);
@@ -104,9 +204,9 @@ export class SessionManager {
     if (replacedConnectionId !== undefined) {
       this.byConnection.delete(replacedConnectionId);
     }
-    this.activeByPlayer.set(playerId, connectionId);
     this.byConnection.set(connectionId, identity);
-    return { ok: true, identity, isReconnect, replacedConnectionId };
+    this.activeByPlayer.set(playerId, connectionId);
+    return { identity, replacedConnectionId };
   }
 
   get(connectionId: string): SessionIdentity | undefined {
@@ -150,10 +250,11 @@ export class SessionManager {
    * Atbrīvo durable sesiju (pēc istabas pamešanas / spēles beigām): `reconnectToken`
    * un `displayId`. Pēc tā tas pats `clientId` saņem svaigu sesiju.
    */
-  release(playerId: string): void {
+  release(playerId: string): MaybePromise<void> {
     const key = playerId.trim();
     this.tokens.delete(key);
     this.displayIds.release(key);
+    return this.durableStore?.deleteSession(key);
   }
 
   /** Unikālu tiešsaistes (ar aktīvu socket) spēlētāju skaits. */

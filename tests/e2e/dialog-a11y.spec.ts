@@ -86,15 +86,6 @@ test.describe("dialog accessibility", () => {
   });
 });
 
-async function openGameAtBidDialog(page: Page): Promise<Locator> {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Play" }).click();
-
-  const bidDialog = page.getByRole("dialog", { name: /How many tricks/i });
-  await expect(bidDialog).toBeVisible({ timeout: 10_000 });
-  return bidDialog;
-}
-
 async function openHumanLeadGameAtBidDialog(page: Page): Promise<Locator> {
   await page.goto("/");
   await page.evaluate(() => {
@@ -106,7 +97,7 @@ async function openHumanLeadGameAtBidDialog(page: Page): Promise<Locator> {
       return randomCalls <= 64 ? 0 : browserRandom();
     };
   });
-  await page.getByRole("button", { name: "Play" }).click();
+  await page.getByRole("button", { name: "Play", exact: true }).click();
 
   const bidDialog = page.getByRole("dialog", { name: /How many tricks/i });
   await expect(bidDialog).toBeVisible({ timeout: 10_000 });

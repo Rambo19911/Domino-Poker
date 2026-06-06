@@ -14,17 +14,27 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "test:postgres:docker": "node scripts/test-postgres-docker.mjs",
     "test:web": "playwright test",
+    "lint": "eslint .",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "dev": "npm run dev --workspace apps/web",
-    "dev:server": "npm run build --workspace packages/core && npm run build --workspace apps/server && node apps/server/dist/index.js",
+    "dev:server": "npm run build --workspace packages/core && npm run build --workspace packages/shared && npm run build --workspace apps/server && node apps/server/dist/index.js",
     "simulate": "npm run build --workspace packages/core && npm run build --workspace tools/simulators && npm run simulate --workspace tools/simulators",
     "load:local": "npm run build --workspace packages/shared && npm run build --workspace tools/load-test && npm run load --workspace tools/load-test --"
   },
   "devDependencies": {
+    "@eslint/js": "9.39.4",
     "@playwright/test": "1.60.0",
     "@types/node": "25.6.0",
+    "eslint": "9.39.4",
+    "eslint-plugin-react-hooks": "5.2.0",
+    "globals": "15.15.0",
     "typescript": "6.0.3",
+    "typescript-eslint": "8.60.1",
     "vitest": "4.1.5"
+  },
+  "engines": {
+    "node": ">=22.5.0"
   }
 }

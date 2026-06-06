@@ -127,6 +127,34 @@ describe("SqliteStorage", () => {
         updatedAt: 200
       });
     });
+
+    it("increments player stats in one storage operation", async () => {
+      await storage.incrementPlayerStats({
+        playerId: "P-1",
+        gamesPlayedDelta: 1,
+        gamesWonDelta: 0,
+        updatedAt: 100
+      });
+      await storage.incrementPlayerStats({
+        playerId: "P-1",
+        gamesPlayedDelta: 1,
+        gamesWonDelta: 1,
+        updatedAt: 200
+      });
+      await storage.incrementPlayerStats({
+        playerId: "P-1",
+        gamesPlayedDelta: 1,
+        gamesWonDelta: 0,
+        updatedAt: 150
+      });
+
+      expect(await storage.getPlayerStats("P-1")).toEqual({
+        playerId: "P-1",
+        gamesPlayed: 3,
+        gamesWon: 1,
+        updatedAt: 200
+      });
+    });
   });
 
   describe("chat history (survives restart)", () => {

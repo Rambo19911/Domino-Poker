@@ -219,6 +219,30 @@ describe("LobbyManager TTL and identity", () => {
     expect(lobby.getRoom(playing.id).status).toBe("IN_GAME");
   });
 
+  it("prunes DESTROYED tombstones (and their codes) on a later sweep so ids/codes free up (M5)", () => {
+    let now = 1_000;
+    const ttlMs = 1_000;
+    // Fiksēts id/code: ja tombstone netiek iztīrīts, atkārtota izveide nevar
+    // saģenerēt unikālu id/code un mestu kļūdu.
+    const lobby = new LobbyManager({
+      clock: () => now,
+      ttlMs,
+      createRoomId: () => "room-1",
+      createRoomCode: () => "CODE1"
+    });
+
+    expect(lobby.createRoom({ hostPlayerId: "h1" }).id).toBe("room-1");
+    now = 1_000 + ttlMs + 1;
+
+    lobby.destroyExpired(now); // sweep #1: room-1 → DESTROYED (tombstone, code vēl aizņemts)
+    expect(lobby.getRoom("room-1").status).toBe("DESTROYED"); // vēl pieprasāms
+    expect(() => lobby.createRoom({ hostPlayerId: "h2" })).toThrow(); // id/code vēl aizņemts
+
+    lobby.destroyExpired(now); // sweep #2: tombstone + code iztīrīti
+    expect(() => lobby.getRoom("room-1")).toThrow(); // izņemts no kartes
+    expect(lobby.createRoom({ hostPlayerId: "h3" }).id).toBe("room-1"); // id/code atbrīvots
+  });
+
   it("uses server displayId for seat names and never exposes playerId in views", () => {
     const { lobby } = createLobby();
     const room = lobby.createRoom({ hostPlayerId: "secret-player-1" });

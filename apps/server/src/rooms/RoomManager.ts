@@ -98,6 +98,11 @@ export class RoomManager {
   private readonly clientRoom = new Map<string, string>();
   /** Piegādā servera-iniciētus (turn timeout) atjauninājumus; pieslēdz net slānis. */
   private gameUpdateSink: ((roomId: string, events: readonly SequencedRoomEvent[]) => void) | undefined;
+  /**
+   * Paziņo, kad `clientId` zaudē istabas dalību (pamet / forfeit / istabu iznīcina).
+   * Net slānis to izmanto, lai atbrīvotu offline spēlētāja durable sesiju (M3).
+   */
+  private memberDepartedHandler: ((clientId: string) => void) | undefined;
   private readonly clock: Clock;
   private readonly createTurnScheduler: () => TurnTimerScheduler;
   private readonly createSeed: () => string;
@@ -174,7 +179,7 @@ export class RoomManager {
   leaveRoom(clientId: string): Room {
     const roomId = this.requireRoomOf(clientId);
     const room = this.lobby.leaveRoom(roomId, clientId);
-    this.clientRoom.delete(clientId);
+    this.departMember(clientId);
     if (room.status === "DESTROYED") {
       this.disposeRoom(roomId);
     }
@@ -220,7 +225,7 @@ export class RoomManager {
     // 2. Lobby: sēdvieta → bots, vai iznīcina, ja nepaliek cilvēku.
     const updated = this.lobby.forfeitSeat(roomId, clientId);
     // 3. Notīra dalību (spēlētājs vairs nav istabā → nevar atgriezties).
-    this.clientRoom.delete(clientId);
+    this.departMember(clientId);
     // 4. Ja iznīcināta → noņem dzinēju + timerus.
     const destroyed = updated.status === "DESTROYED";
     if (destroyed) {
@@ -241,7 +246,7 @@ export class RoomManager {
     if (destroyed.length === 0) return destroyed;
     const destroyedSet = new Set(destroyed);
     for (const [clientId, roomId] of this.clientRoom) {
-      if (destroyedSet.has(roomId)) this.clientRoom.delete(clientId);
+      if (destroyedSet.has(roomId)) this.departMember(clientId);
     }
     for (const roomId of destroyed) this.disposeRoom(roomId);
     return destroyed;
@@ -284,7 +289,7 @@ export class RoomManager {
   /** Iznīcina istabu (lobby + dzinējs + timeri + dalība). Lieto pamestai istabai. */
   destroyRoom(roomId: string): void {
     for (const human of this.lobby.getRoom(roomId).seats) {
-      if (human.playerId) this.clientRoom.delete(human.playerId);
+      if (human.playerId) this.departMember(human.playerId);
     }
     this.lobby.destroyRoom(roomId);
     this.disposeRoom(roomId);
@@ -389,6 +394,22 @@ export class RoomManager {
   }
 
   /**
+   * Pieslēdz dalības-zaudēšanas novērotāju (M3). Izsaukts katru reizi, kad
+   * `clientId` tiek izņemts no dalības (pamet / forfeit / istabu iznīcina), lai
+   * net slānis varētu atbrīvot offline spēlētāja durable sesiju.
+   */
+  setMemberDepartedHandler(handler: (clientId: string) => void): void {
+    this.memberDepartedHandler = handler;
+  }
+
+  /** Izņem dalību un (ja tā tiešām pastāvēja) paziņo dalības-zaudēšanas novērotājam. */
+  private departMember(clientId: string): void {
+    if (this.clientRoom.delete(clientId)) {
+      this.memberDepartedHandler?.(clientId);
+    }
+  }
+
+  /**
    * Sastāda un izsūta partijas sākuma ierakstu persistencei (10.3). Sēdvietu
    * sastāvs (cilvēks/bots + displayId) tiek momentuzņemts partijas sākumā. Tukšas
    * sēdvietas neiekļaujam (startGame jau prasa pilnu galdu). Blakusefekts.
@@ -465,6 +486,12 @@ export class RoomManager {
       const result = director.step();
       if (result.events.length > 0) {
         this.gameUpdateSink?.(roomId, result.events);
+      }
+      // Piegāde (sink) pēc GAME_OVER var iznīcināt istabu — tad cilpa apstājas un
+      // timeri netiek atkārtoti ieplānoti (citādi rastos orfana timeris).
+      if (!this.directors.has(roomId)) {
+        this.clearPacing(roomId);
+        return;
       }
       if (result.status === "awaiting-human" || result.status === "game-over") {
         this.clearPacing(roomId);
@@ -559,20 +586,26 @@ export class RoomManager {
     return engine.getSnapshotForPlayer(corePlayerIdForSeat(seat.index));
   }
 
-  /** Pēc partijas beigām: FINISHED → DESTROYED, noņem dzinēju un dalības. */
+  /**
+   * Pēc partijas beigām (GAME_OVER): IN_GAME → FINISHED → DESTROYED. Atbrīvo
+   * dzinēju (atceļ gaidošo turn-timeout timeri caur `disposeRoom`), visus
+   * per-istabas timerus un sēdošo dalības, lai pabeigta partija neatstāj atmiņas
+   * noplūdi un spēlētāji atkal drīkst izveidot/pievienoties istabai. Idempotents:
+   * atkārtots izsaukums (jau DESTROYED) neko nedara.
+   */
   destroyFinishedRoom(roomId: string): void {
     const room = this.lobby.getRoom(roomId);
+    if (room.status === "DESTROYED") return;
     if (room.status === "IN_GAME") {
       this.lobby.markFinished(roomId);
     }
-    this.lobby.destroyRoom(roomId);
-    this.engines.delete(roomId);
-    this.directors.delete(roomId);
     for (const [clientId, rid] of this.clientRoom) {
       if (rid === roomId) {
-        this.clientRoom.delete(clientId);
+        this.departMember(clientId);
       }
     }
+    this.lobby.destroyRoom(roomId);
+    this.disposeRoom(roomId);
   }
 
   // ---- iekšējie palīgi ----

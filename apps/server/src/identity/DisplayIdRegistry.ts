@@ -64,7 +64,7 @@ export class DisplayIdRegistry {
 
   private deriveUnique(playerId: string): string {
     for (let salt = 0; salt < DISPLAY_ID_SPACE; salt += 1) {
-      const candidate = formatDisplayId(deriveNumber(playerId, salt));
+      const candidate = deriveDisplayIdCandidate(playerId, salt);
       if (!this.used.has(candidate)) {
         return candidate;
       }
@@ -76,6 +76,10 @@ export class DisplayIdRegistry {
 function deriveNumber(playerId: string, salt: number): number {
   const rng = createSeededRng(`displayId:${playerId}:${salt}`);
   return Math.floor(rng() * DISPLAY_ID_SPACE);
+}
+
+export function deriveDisplayIdCandidate(playerId: string, salt: number): string {
+  return formatDisplayId(deriveNumber(playerId, salt));
 }
 
 function formatDisplayId(value: number): string {

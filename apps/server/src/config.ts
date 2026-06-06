@@ -24,7 +24,7 @@ export interface ServerConfig {
   wsPort: number;
   /** Adrese, uz kuras serveris klausās (`SERVER_HOST`; noklusējums `0.0.0.0`). Aiz reverse proxy ieteicams `127.0.0.1`. */
   serverHost: string;
-  /** SQLite faila ceļš vai `:memory:` (no `DATABASE_URL`; noklusējums `./data/dev.sqlite`). */
+  /** SQLite faila ceļš, `:memory:` vai PostgreSQL URL (no `DATABASE_URL`; noklusējums `./data/dev.sqlite`). */
   databaseUrl: string;
   /** Vide (`NODE_ENV`; noklusējums `development`). Produkcijā `production`. */
   nodeEnv: string;
@@ -82,10 +82,8 @@ function readNonEmpty(value: string | undefined, fallback: string): string {
 }
 
 /**
- * Atvasina SQLite faila ceļu no `DATABASE_URL`. Pieņem tīru ceļu, `:memory:`
- * (testiem) vai `file:` prefiksu (`file:./data/dev.sqlite`). PostgreSQL URL
- * (`postgres://...`) šeit nav atbalstīts — to apstrādās atsevišķs adapteris
- * (Fāze 12.3); tāpēc šeit to noraidām skaidri.
+ * Normalizē `DATABASE_URL`. Pieņem tīru SQLite ceļu, `:memory:` (testiem),
+ * `file:` prefiksu (`file:./data/dev.sqlite`) vai PostgreSQL URL.
  */
 function readDatabaseUrl(value: string | undefined): string {
   if (value === undefined || value.trim() === "") {
@@ -95,11 +93,6 @@ function readDatabaseUrl(value: string | undefined): string {
   const trimmed = value.trim();
   if (trimmed === ":memory:") {
     return trimmed;
-  }
-  if (/^postgres(ql)?:\/\//iu.test(trimmed)) {
-    throw new Error(
-      "DATABASE_URL is a PostgreSQL URL; SqliteStorage expects a file path or ':memory:'."
-    );
   }
   if (trimmed.startsWith("file:")) {
     return trimmed.slice("file:".length);

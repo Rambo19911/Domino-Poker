@@ -36,7 +36,6 @@ function startTurnForCurrentPlayer(
   action: "SUBMIT_BID" | "SUBMIT_MOVE",
   turnId: string
 ): MultiplayerGameState {
-  const currentPlayer = state.coreState.players[state.coreState.currentPlayerIndex]!;
   const result = applyCommand(state, {
     type: "START_TURN",
     gameId: state.gameId,
@@ -531,7 +530,6 @@ describe("applyCommand", () => {
 
   it("rejects SUBMIT_BID from the wrong player", () => {
     const state = createGame();
-    const currentPlayer = state.coreState.players[state.coreState.currentPlayerIndex]!;
     const turnResult = applyCommand(state, {
       type: "START_TURN",
       gameId: "game-1",

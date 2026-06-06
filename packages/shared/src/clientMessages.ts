@@ -8,6 +8,15 @@ import {
 // ---- Atkārtoti lietotie primitīvi ----
 const nonEmpty = z.string().min(1);
 const pip = z.number().int().min(0).max(6);
+/**
+ * Identitātes virkņu garuma robeža (M4). `clientId`/`reconnectToken` ir klienta
+ * kontrolētas un kļūst par durable map atslēgām un log laukiem, tāpēc bez robežas
+ * neautentificēts klients varētu sūtīt vairāku megabaitu virkni un pastiprināt
+ * atmiņas/žurnālu patēriņu. UUID (faktiskais formāts) ir ~36 rakstzīmes.
+ */
+export const maxIdentifierLength = 128;
+const clientId = z.string().min(1).max(maxIdentifierLength);
+const reconnectToken = z.string().max(maxIdentifierLength);
 
 export const tileSchema = z.object({
   side1: pip,
@@ -26,8 +35,8 @@ export const helloSchema = z.object({
   type: z.literal("HELLO"),
   protocolVersion: nonEmpty,
   clientBuild: z.string(),
-  clientId: nonEmpty,
-  reconnectToken: z.string().optional()
+  clientId,
+  reconnectToken: reconnectToken.optional()
 });
 
 export const listRoomsSchema = z.object({ type: z.literal("LIST_ROOMS") });
@@ -81,7 +90,7 @@ export const submitMoveSchema = z.object({
 export const playerResumeSchema = z.object({
   type: z.literal("PLAYER_RESUME"),
   roomId: nonEmpty,
-  reconnectToken: z.string().optional()
+  reconnectToken: reconnectToken.optional()
 });
 
 export const requestSnapshotSchema = z.object({

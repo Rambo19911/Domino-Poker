@@ -1,23 +1,41 @@
+import { randomUUID } from "node:crypto";
+
 import { LobbyChat } from "./chat/LobbyChat.js";
 import { loadServerConfig } from "./config.js";
 import { createHealthHttpServer } from "./httpServer.js";
 import { DisplayIdRegistry } from "./identity/DisplayIdRegistry.js";
-import { publishGameUpdate } from "./net/gameUpdateDelivery.js";
 import { CoreMessageRouter } from "./net/messageRouter.js";
+import { PostgresEventBus } from "./net/PostgresEventBus.js";
 import { WebSocketGateway } from "./net/WebSocketGateway.js";
 import { attachWebSocketGateway } from "./net/wsTransport.js";
 import { RoomManager } from "./rooms/RoomManager.js";
+import { isRoomLeaseStore, LeaseBackedRoomOwnershipGuard } from "./rooms/RoomOwnershipGuard.js";
 import { MatchPersistence } from "./storage/MatchPersistence.js";
-import { openSqliteStorage } from "./storage/index.js";
+import { PostgresStorage } from "./storage/PostgresStorage.js";
+import { openStorage } from "./storage/index.js";
 import { SystemTurnTimerScheduler } from "./timers/SystemTurnTimerScheduler.js";
 
 const config = loadServerConfig();
 const clock: () => number = () => Date.now();
 
-// Fāze 10: lokālā persistence (SQLite). Koordinators ir fire-and-forget — DB
-// kļūda nedrīkst aizkavēt vai salauzt spēles plūsmu.
-const storage = openSqliteStorage(config.databaseUrl);
+// Fāze 10/12.3: persistence aiz StoragePort (SQLite lokāli, PostgreSQL pēc URL).
+// Koordinators ir fire-and-forget — DB kļūda nedrīkst aizkavēt vai salauzt spēles plūsmu.
+const storage = await openStorage(config.databaseUrl);
 const persistence = new MatchPersistence({ storage, clock });
+const instanceId = randomUUID();
+const roomOwnership = isRoomLeaseStore(storage)
+  ? new LeaseBackedRoomOwnershipGuard({
+      store: storage,
+      ownerInstanceId: instanceId,
+      ttlMs: 30_000,
+      clock
+    })
+  : undefined;
+roomOwnership?.startRenewing();
+const eventBus =
+  storage instanceof PostgresStorage
+    ? await PostgresEventBus.open({ connectionString: config.databaseUrl, instanceId })
+    : undefined;
 
 // Kopīgs DisplayIdRegistry: gateway (WELCOME) un RoomManager (sēdvietas) rāda
 // vienu un to pašu publisko `displayId`.
@@ -60,13 +78,47 @@ try {
 }
 // Produkcijā koalescējam LOBBY_STATE broadcastus (200ms), lai pie liela klientu
 // skaita (1000+) istabu izmaiņu plūsma neveidotu fanout pārslodzi.
-const router = new CoreMessageRouter({ rooms, chat, lobbyStateDebounceMs: 200 });
-const gateway = new WebSocketGateway({ clock, displayIds, router });
+const router = new CoreMessageRouter({
+  rooms,
+  chat,
+  lobbyStateDebounceMs: 200,
+  ...(roomOwnership ? { roomOwnership } : {})
+});
+const gateway = new WebSocketGateway({
+  clock,
+  displayIds,
+  router,
+  ...(storage instanceof PostgresStorage ? { durableSessionStore: storage } : {}),
+  ...(eventBus ? { eventBus } : {})
+});
+await eventBus?.start((message) => {
+  if (message.kind === "broadcast") {
+    gateway.deliverRemoteBroadcast(message.event);
+    return;
+  }
+  if (message.kind === "supersede") {
+    gateway.closeRemoteSupersededPlayer(message.playerId);
+    return;
+  }
+  gateway.deliverRemoteToPlayer(message.playerId, message.event);
+});
 
-// Servera-iniciēti (turn timeout) atjauninājumi → piegāde sēdošajiem cilvēkiem.
+// Servera-iniciēti (pacētā izspēle / turn timeout) atjauninājumi → piegāde
+// sēdošajiem cilvēkiem; GAME_OVER pie šī ceļa iznīcina pabeigto istabu (router).
 rooms.setGameUpdateSink((roomId, events) =>
-  publishGameUpdate(gateway, rooms, roomId, events, clock())
+  router.deliverServerGameUpdate(gateway, roomId, events, clock())
 );
+// M3: kad spēlētājs zaudē istabas dalību (pamet / forfeit / istabu iznīcina) un
+// nav tiešsaistē, atbrīvojam viņa durable sesiju (token + displayId), lai
+// `tokens`/displayId neaugtu neierobežoti.
+rooms.setMemberDepartedHandler((clientId) => {
+  const released = gateway.releaseSession(clientId);
+  if (released !== undefined && typeof released.then === "function") {
+    void released.catch((error: unknown) => {
+      console.error(`[sessions] failed to release session for ${clientId}:`, error);
+    });
+  }
+});
 
 // `/metrics` ziņo aktīvo savienojumu skaitu (slodzes testam + VPS uzraudzībai).
 const server = createHealthHttpServer({ connectionCount: () => gateway.onlineCount() });
@@ -87,6 +139,12 @@ async function shutdown(signal: string): Promise<void> {
   shuttingDown = true;
   console.log(`Received ${signal}, shutting down...`);
   server.close();
+  roomOwnership?.stopRenewing();
+  try {
+    await eventBus?.close();
+  } catch (error) {
+    console.error("[fanout] close failed:", error);
+  }
   try {
     await storage.close();
   } catch (error) {
