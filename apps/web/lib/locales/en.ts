@@ -1,6 +1,6 @@
 export const en = {
   localeCode: "en",
-  metadataTitle: "Domino Poker Single Player",
+  metadataTitle: "Domino Poker",
   metadataDescription: "Single-player Domino Poker rebuilt with Next.js and TypeScript.",
   appTitle: "Domino Poker",
   lobbyTitle: "Domino Poker",

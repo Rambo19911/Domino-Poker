@@ -4,7 +4,7 @@ type LocaleMessages = Record<keyof typeof en, string>;
 
 export const lv = {
   localeCode: "lv",
-  metadataTitle: "Domino Poker vienam spēlētājam",
+  metadataTitle: "Domino Poker",
   metadataDescription: "Domino Poker vienam spēlētājam, pārbūvēts ar Next.js un TypeScript.",
   appTitle: "Domino Poker",
   lobbyTitle: "Domino Poker",
