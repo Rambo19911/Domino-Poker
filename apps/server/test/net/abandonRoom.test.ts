@@ -165,4 +165,30 @@ describe("Abandoned room destroy on last-human disconnect (9.3-b)", () => {
     expect(rooms.findRoom("room-1").status).toBe("IN_GAME");
     expect(rooms.roomOf("guest")).toBe("room-1");
   });
+
+  it("destroys the room when the last ONLINE human exits while another human is disconnected", () => {
+    const { gateway, rooms, timer } = buildHarness();
+    const host = connect(gateway, "c1", "host");
+    send(gateway, host, { type: "CREATE_ROOM" });
+    const guest = connect(gateway, "c2", "guest");
+    send(gateway, guest, { type: "JOIN_ROOM", roomId: "room-1", seatIndex: 1 });
+    send(gateway, host, { type: "FILL_SEATS_WITH_BOTS" });
+    send(gateway, host, { type: "START_GAME" });
+
+    // guest aizver tabu (atvienojas), host vēl tiešsaistē → grace vēl nav.
+    gateway.close(guest);
+    expect(rooms.listRooms().some((room) => room.id === "room-1")).toBe(true);
+
+    // host nospiež Exit (forfeit) — tagad NEVIENS tiešsaistes cilvēks nepaliek.
+    // forfeitSeat istabu neiznīcina (atvienotais guest joprojām "human" sēdvieta),
+    // bet tagad jābūt ieplānotai pamešanas grace.
+    send(gateway, host, { type: "LEAVE_ROOM" });
+    expect(rooms.roomOf("host")).toBeUndefined(); // forfeit notīra host dalību
+    expect(rooms.listRooms().some((room) => room.id === "room-1")).toBe(true);
+
+    timer.advanceTo(5_000); // grace beidzas
+    // Neviens neatgriezās → istaba iznīcināta (arī no lobby saraksta).
+    expect(rooms.listRooms().some((room) => room.id === "room-1")).toBe(false);
+    expect(rooms.roomOf("guest")).toBeUndefined();
+  });
 });

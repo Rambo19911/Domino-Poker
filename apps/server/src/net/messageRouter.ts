@@ -253,6 +253,10 @@ export class CoreMessageRouter implements MessageRouter {
       const advanceEvents = this.rooms.advanceGame(room.id);
       this.deliverGameUpdate(ctx, room.id, [...events, ...advanceEvents]);
       this.pushRoomView(ctx.hub, room.id);
+      // Ja pēc Exit istabā nepalika neviena tiešsaistes cilvēka (otrs jau atvienojies),
+      // ieplāno pamešanas grace → istaba pazūd pēc īsa perioda (konsekventi ar
+      // atvienojuma ceļu), nevis paliek līdz TTL / spēles beigām.
+      this.maybeScheduleAbandonForRoom(ctx.hub, room.id);
     } else {
       this.releaseRoomLease(room.id);
     }
@@ -615,13 +619,24 @@ export class CoreMessageRouter implements MessageRouter {
     try {
       const roomId = this.rooms.roomOf(identity.playerId);
       if (roomId === undefined) return;
-      if (this.rooms.findRoom(roomId).status !== "IN_GAME") return;
-      const anyOnline = this.rooms.getSeatedHumans(roomId).some((human) => hub.isOnline(human.clientId));
-      if (anyOnline) return; // vismaz viens cilvēks tiešsaistē → spēle turpinās
-      this.rooms.scheduleAbandonGrace(roomId, () => this.destroyAbandonedRoom(hub, roomId));
+      this.maybeScheduleAbandonForRoom(hub, roomId);
     } catch {
       // Best-effort: atvienojuma apstrāde nedrīkst sabrukt.
     }
+  }
+
+  /**
+   * Ja istaba ir IN_GAME un tajā NAV neviena tiešsaistes cilvēka, ieplāno pamešanas
+   * grace → iznīcina pēc perioda. Izsaukts gan no atvienojuma ceļa, gan pēc explicit
+   * Exit/forfeit: kad pamet pēdējais TIEŠSAISTES cilvēks, kamēr otrs jau atvienojies,
+   * `forfeitSeat` istabu neiznīcina (atvienotais joprojām ir "human" sēdvieta), tāpēc
+   * šeit ieplānojam grace — citādi istaba paliktu sarakstā līdz TTL / spēles beigām.
+   */
+  private maybeScheduleAbandonForRoom(hub: GatewayHub, roomId: string): void {
+    if (this.rooms.findRoom(roomId).status !== "IN_GAME") return;
+    const anyOnline = this.rooms.getSeatedHumans(roomId).some((human) => hub.isOnline(human.clientId));
+    if (anyOnline) return; // vismaz viens cilvēks tiešsaistē → spēle turpinās
+    this.rooms.scheduleAbandonGrace(roomId, () => this.destroyAbandonedRoom(hub, roomId));
   }
 
   /** Grace beidzies: ja joprojām neviens cilvēks nav tiešsaistē → iznīcina istabu. */
