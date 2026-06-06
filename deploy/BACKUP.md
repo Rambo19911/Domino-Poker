@@ -24,11 +24,26 @@ pg_dump "$DATABASE_URL" --format=plain --file="domino-$(date +%F).sql"
 
 ### Automātisks ikdienas backup (cron)
 
+> Cron NEatbalsta `\` rindu turpinājumus (katra rinda = atsevišķs ieraksts), `%`
+> ir īpaša rakstzīme, un vide ir minimāla (`$DATABASE_URL` nav iestatīts). Tāpēc
+> komandu liek **wrapper skriptā**, kas ielādē secrets, un cron ieraksts ir **viena rinda**.
+
+Wrapper `/usr/local/bin/domino-backup.sh` (`chmod 750`):
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+# backup.env satur DATABASE_URL (chmod 600, glabā droši — necommit).
+source /etc/domino/backup.env
+dest="/var/backups/domino/domino-$(date +%F).dump"
+pg_dump "$DATABASE_URL" --format=custom --file="$dest"
+find /var/backups/domino -name 'domino-*.dump' -mtime +14 -delete
+```
+
+Cron ieraksts `/etc/cron.d/domino-backup` (viena rinda, katru dienu 03:15):
+
 ```cron
-# /etc/cron.d/domino-backup — katru dienu 03:15, glabā 14 dienas
-15 3 * * *  domino  pg_dump "$DATABASE_URL" --format=custom \
-  --file=/var/backups/domino/domino-$(date +\%F).dump \
-  && find /var/backups/domino -name 'domino-*.dump' -mtime +14 -delete
+15 3 * * *  domino  /usr/local/bin/domino-backup.sh >> /var/log/domino-backup.log 2>&1
 ```
 
 Backup failus glabā **ārpus** servera diska (piem. cita VPS, S3, vai atsevišķs
