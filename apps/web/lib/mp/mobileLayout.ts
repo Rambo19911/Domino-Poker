@@ -38,6 +38,8 @@ export const MP_MOBILE_POS = {
   // lai uzraksts nepārklājas pāri galdam. ~26px atstarpe līdz galdam.
   trumpLabel: { cx: 0.5, cy: 0.373 },
   summary: { cx: 0.5037, cy: 0.0823 },
+  // Atlikušo raundu skaitlis — kreisajā ailē, vertikāli vienā līmenī ar tabulu.
+  roundCount: { cx: 0.083, cy: 0.0823 },
   leave: { cx: 0.9222, cy: 0.0329 },
   trick: {
     N: { cx: 0.5, cy: 0.4476 },

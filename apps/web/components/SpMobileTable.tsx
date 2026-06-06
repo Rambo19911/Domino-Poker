@@ -16,6 +16,7 @@ import { formatTemplate } from "../lib/mp/seatLabel";
 import { useMobileStageLayout } from "../lib/mobileStage";
 import { DominoTileView } from "./DominoTileView";
 import { ExitIcon } from "./GameDialogs";
+import { MobileRoundCount } from "./MobileRoundCount";
 
 type SpPlayer = GameState["players"][number];
 
@@ -62,6 +63,8 @@ export function SpMobileTable({
         </button>
 
         <SpmSummaryTable labels={t} players={gameState.players} activeIndex={gameState.currentPlayerIndex} />
+
+        <MobileRoundCount labels={t} currentRound={gameState.currentRound} totalRounds={gameState.totalRounds} />
 
         <section
           className="mpmTable"

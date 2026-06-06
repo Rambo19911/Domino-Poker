@@ -16,6 +16,7 @@ import { formatTemplate, seatLabel } from "../../lib/mp/seatLabel";
 import { useMobileStageLayout } from "../../lib/mobileStage";
 import { DominoTileView } from "../DominoTileView";
 import { ExitIcon } from "../GameDialogs";
+import { MobileRoundCount } from "../MobileRoundCount";
 
 /**
  * Portrēta (telefonu) izkārtojums MP galdam. Atsevišķs renderēšanas ceļš no
@@ -72,6 +73,8 @@ export function MpMobileTable({
       </button>
 
       <MpmSummaryTable labels={t} seats={table.seats} activeSeatIndex={activeSeatIndex} />
+
+      <MobileRoundCount labels={t} currentRound={table.currentRound} totalRounds={table.totalRounds} />
 
       <section
         className="mpmTable"
