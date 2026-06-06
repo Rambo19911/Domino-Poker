@@ -24,6 +24,7 @@ import { HelpIcon, RulesDialog } from "../RulesDialog";
 import { ConnectionBanner } from "./ConnectionBanner";
 import { MpMobileTable } from "./MpMobileTable";
 import { formatTemplate, seatLabel } from "../../lib/mp/seatLabel";
+import { useIsPhonePortrait } from "../../lib/mobileStage";
 
 const CANVAS_WIDTH = 1920;
 const CANVAS_HEIGHT = 1080;
@@ -728,17 +729,3 @@ function getStageContainLayout(): StageContainLayout {
   };
 }
 
-/** Telefona portrēts → mobilais izkārtojums; citur (ainava/desktop) → fiksētā skatuve. */
-const PHONE_PORTRAIT_QUERY = "(orientation: portrait) and (max-width: 768px)";
-
-function useIsPhonePortrait(): boolean {
-  const [isPhonePortrait, setIsPhonePortrait] = useState(false);
-  useEffect(() => {
-    const media = window.matchMedia(PHONE_PORTRAIT_QUERY);
-    const update = () => setIsPhonePortrait(media.matches);
-    update();
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
-  }, []);
-  return isPhonePortrait;
-}

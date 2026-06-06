@@ -30,7 +30,9 @@ import {
 import { InfoPanel } from "./InfoPanel";
 import { PlayerSeat } from "./PlayerSeat";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
+import { SpMobileTable } from "./SpMobileTable";
 import type { AppStrings } from "../lib/i18n";
+import { useIsPhonePortrait } from "../lib/mobileStage";
 import type { AudioSettings } from "../lib/useAudioSettings";
 
 const CANVAS_WIDTH = 1920;
@@ -101,6 +103,19 @@ export function DominoPokerGame({
     }
     return getValidTiles(currentPlayer, gameState).map(tileKey);
   }, [currentPlayer, gameState, isProcessingTrick]);
+
+  // Mobilais (portrēta telefons) renderē atsevišķu SpMobileTable izkārtojumu (kā MP).
+  const isPhonePortrait = useIsPhonePortrait();
+  const isViewerTurn =
+    gameState.phase === "playing" && !!currentPlayer && !currentPlayer.isAI && !isProcessingTrick;
+  const validTileKeySet = useMemo<ReadonlySet<string>>(
+    () => new Set(validHumanTiles),
+    [validHumanTiles]
+  );
+  const openExitDialog = useCallback(() => {
+    audio.play("uiClick");
+    setShowExitDialog(true);
+  }, [audio]);
 
   const clearTimer = (timerRef: React.MutableRefObject<number | null>) => {
     if (timerRef.current !== null) {
@@ -288,6 +303,16 @@ export function DominoPokerGame({
 
   return (
     <main className="gameShell">
+      {isPhonePortrait ? (
+        <SpMobileTable
+          labels={labels}
+          gameState={gameState}
+          validTileKeys={validTileKeySet}
+          isViewerTurn={isViewerTurn}
+          onTileClick={handleTileClick}
+          onLeave={openExitDialog}
+        />
+      ) : (
       <div className="stageClip">
         <div
           className="fixedStage"
@@ -342,7 +367,9 @@ export function DominoPokerGame({
           ) : null}
         </div>
       </div>
+      )}
 
+      {!isPhonePortrait ? (
       <div className="safeControls">
         <SoundMenu audio={audio} labels={labels} />
         <button
@@ -369,6 +396,7 @@ export function DominoPokerGame({
           <ExitIcon />
         </button>
       </div>
+      ) : null}
 
       {gameState.phase === "bidding" && currentPlayer && !currentPlayer.isAI ? (
         <BidDialog labels={labels} onBid={makeHumanBid} />

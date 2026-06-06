@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 import { calculateRoundScore, tileKey } from "@domino-poker/core";
 import type { DominoTile } from "@domino-poker/core";
 
@@ -15,53 +13,9 @@ import {
   centerPoint
 } from "../../lib/mp/mobileLayout";
 import { formatTemplate, seatLabel } from "../../lib/mp/seatLabel";
+import { useMobileStageLayout } from "../../lib/mobileStage";
 import { DominoTileView } from "../DominoTileView";
 import { ExitIcon } from "../GameDialogs";
-
-/** Mobilā dizaina skatuve (px). Sk. `mp-layout-spec.json` (9:16). */
-const MOBILE_CANVAS_WIDTH = 1080;
-const MOBILE_CANVAS_HEIGHT = 2340;
-
-type StageLayout = { readonly scale: number; readonly left: number; readonly top: number };
-
-function getMobileStageLayout(): StageLayout {
-  if (typeof window === "undefined") return { scale: 0, left: 0, top: 0 };
-  // visualViewport seko iOS Safari joslu rādīšanai/slēpšanai (innerHeight ne vienmēr).
-  const vw = window.visualViewport?.width ?? window.innerWidth;
-  const vh = window.visualViewport?.height ?? window.innerHeight;
-  const scale = Math.min(vw / MOBILE_CANVAS_WIDTH, vh / MOBILE_CANVAS_HEIGHT);
-  return {
-    scale,
-    left: (vw - MOBILE_CANVAS_WIDTH * scale) / 2,
-    top: (vh - MOBILE_CANVAS_HEIGHT * scale) / 2
-  };
-}
-
-/**
- * Mērogo 1080×2340 skatuvi `contain` (kā desktop 1920×1080). Vienmērīga mērogošana
- * → izkārtojums nekad nepārklājas, lai kāda būtu telefona malu attiecība; uz citas
- * attiecības paliek tikai tukšas malas (letterbox).
- */
-function useMobileStageLayout(): StageLayout {
-  const [layout, setLayout] = useState<StageLayout>(() => getMobileStageLayout());
-  useEffect(() => {
-    const update = () => setLayout(getMobileStageLayout());
-    update();
-    // Tikai izmēra izmaiņas pārrēķina skatuvi. NEklausāmies `visualViewport`
-    // `scroll` — iOS Safari to uzbāž nepārtraukti URL-joslas/klaviatūras pārejās,
-    // kas izraisītu re-render/letterbox jank; augstuma izmaiņas jau sedz
-    // `visualViewport` `resize` (+ `resize`/`orientationchange`).
-    window.addEventListener("resize", update);
-    window.addEventListener("orientationchange", update);
-    window.visualViewport?.addEventListener("resize", update);
-    return () => {
-      window.removeEventListener("resize", update);
-      window.removeEventListener("orientationchange", update);
-      window.visualViewport?.removeEventListener("resize", update);
-    };
-  }, []);
-  return layout;
-}
 
 /**
  * Portrēta (telefonu) izkārtojums MP galdam. Atsevišķs renderēšanas ceļš no
