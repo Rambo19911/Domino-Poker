@@ -314,13 +314,38 @@
   {
     "path": "apps/web/components/MultiplayerLobby.tsx",
     "type": "ui",
-    "purpose": "Multiplayer lobby screen (LIVE, network-wired): header with Sound/Exit, a 'Create room' action, and three columns (public rooms / private rooms / online chat), themed with the app's dark-green/gold tokens. Fully wired to the WS server via MultiplayerClient + the useMultiplayer hook: real LOBBY_STATE room list, Create/View/Join/Leave, seat selection, Start game, chat send/history, and reconnect.",
+    "purpose": "Multiplayer lobby screen (LIVE, network-wired): header with Sound/Exit, a 'Create room' action, and three columns (public rooms / private rooms / online chat), themed with the app's dark-green/gold tokens. Fully wired to the WS server via MultiplayerClient + the useMultiplayer hook: real LOBBY_STATE room list, Create/View/Join/Leave, seat selection, Start game, chat send/history, and reconnect. PHONE PORTRAIT: when isPhonePortrait && !currentRoom it renders the dedicated MpMobileLobby (fixed 1080x2340 width-fit stage) instead of the desktop columns; the waiting room and create/join/rules dialogs stay desktop-responsive.",
     "importance": "high",
     "related_files": [
       "apps/web/components/AppShell.tsx",
+      "apps/web/components/mp/MpMobileLobby.tsx",
       "apps/web/app/globals.css",
       "apps/web/lib/i18n.ts",
       "docs/mockups/lobby-wireframe.html"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/mp/MpMobileLobby.tsx",
+    "type": "ui",
+    "purpose": "Phone-portrait MP lobby room-list view as a PLAIN RESPONSIVE CSS screen (.mplShell position:fixed flex column; NOT a scaled design stage — a scaled stage was tried and reverted, see module_map Web App note). Reuses the app's button/icon classes (iconButton+mpHeaderIconButton for 48px rules/sound/exit, mpPrimaryButton/mpRoomButton for actions) so sizes match other screens. Public/private accordion sections (one open at a time) with internal overflow-y scroll bounded to the viewport; room rows (#shortId + seats/rounds/TTL/status/join/start); a viewport-level full-screen chat overlay (height follows visualViewport so the input stays above the keyboard) opened by a right-edge fixed FAB with an unread green dot; a top slide-down error toast. PSD (MP-lobby-layout.json) is only a proportion reference.",
+    "importance": "high",
+    "related_files": [
+      "apps/web/components/MultiplayerLobby.tsx",
+      "apps/web/components/mp/ConnectionBanner.tsx",
+      "apps/web/app/globals.css",
+      "docs/mockups/MP-lobby-layout.json"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/mobileStage.ts",
+    "type": "utility",
+    "purpose": "Phone-portrait detection + game-table design-stage scaling: useIsPhonePortrait() (orientation portrait & max-width 768) and useMobileStageLayout() (CONTAIN scaling for the immersive MP/SP game table). MOBILE_CANVAS_WIDTH/HEIGHT = 1080/2340. NOTE: the MP lobby does NOT use this (it is plain responsive CSS).",
+    "importance": "high",
+    "related_files": [
+      "apps/web/components/mp/MpMobileTable.tsx",
+      "apps/web/components/SpMobileTable.tsx"
     ],
     "confidence": "high"
   },

@@ -21,8 +21,10 @@ import { VolumeIcon, VolumeOffIcon } from "./AudioControls";
 import { Dialog } from "./Dialog";
 import { ConnectionBanner } from "./mp/ConnectionBanner";
 import { MpGameTable } from "./mp/MpGameTable";
+import { MpMobileLobby } from "./mp/MpMobileLobby";
 import { HelpIcon } from "./RulesDialog";
 import { getMpRulesDoc } from "../lib/mpRulesContent";
+import { useIsPhonePortrait } from "../lib/mobileStage";
 
 const CHAT_MAX_LENGTH = 200;
 const ROOM_CODE_MAX_LENGTH = 12;
@@ -37,6 +39,7 @@ export function MultiplayerLobby({
   readonly onExit: () => void;
 }) {
   const { view, actions } = useMultiplayer();
+  const isPhonePortrait = useIsPhonePortrait();
   const [chatDraft, setChatDraft] = useState("");
   const [chatError, setChatError] = useState<string | null>(null);
   const [lobbyError, setLobbyError] = useState<string | null>(null);
@@ -124,6 +127,55 @@ export function MultiplayerLobby({
 
   return (
     <main className="mpLobby">
+      {isPhonePortrait && !currentRoom ? (
+        <MpMobileLobby
+          labels={t}
+          connection={view.connection}
+          onlineCount={view.lobby.onlineCount}
+          chatMessages={view.lobby.chat}
+          publicRooms={publicRooms}
+          privateRooms={privateRooms}
+          selfDisplayId={view.identity?.displayId}
+          activeRoomId={activeRoom?.id}
+          hasHiddenRoom={hasHiddenRoom}
+          isConnected={view.connection === "connected"}
+          nowMs={nowMs}
+          lobbyError={lobbyError}
+          chatError={chatError}
+          isMuted={audio.isMuted}
+          onCreateRoom={() => {
+            audio.play("uiClick");
+            setIsCreateOpen(true);
+          }}
+          onJoinWithCode={() => {
+            audio.play("uiClick");
+            setIsJoinCodeOpen(true);
+          }}
+          onOpenHiddenRoom={() => {
+            audio.play("uiClick");
+            setIsRoomScreenHidden(false);
+          }}
+          onViewRoom={(roomId) => {
+            audio.play("uiClick");
+            actions.viewRoom(roomId);
+          }}
+          onStartGame={() => {
+            audio.play("uiClick");
+            actions.startGame();
+          }}
+          onSendChat={(text) => {
+            audio.play("uiClick");
+            actions.sendChat(text);
+          }}
+          onOpenRules={() => {
+            audio.play("uiClick");
+            setIsRulesOpen(true);
+          }}
+          onToggleMute={() => audio.toggleMute()}
+          onExit={clickThenExit}
+        />
+      ) : (
+      <>
       <header className="mpLobbyHeader">
         <h1 className="mpLobbyTitle">
           {t.mpLobbyTitle}
@@ -349,6 +401,8 @@ export function MultiplayerLobby({
             </section>
           </div>
         </>
+      )}
+      </>
       )}
 
       {isCreateOpen ? (

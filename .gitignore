@@ -39,6 +39,12 @@ logs/
 .claude/
 .playwright-mcp/
 
+# tools/ — lokāli vienreizēji darbarīki netiek publicēti;
+# izsekotie workspace (simulators, load-test) paliek izsekoti.
+/tools/*
+!/tools/simulators/
+!/tools/load-test/
+
 # docs/ — publiski tikai 4 spēles noteikumu/stratēģijas faili; pārējais
 # (deploy, scaling, DB migrācija, TODO, mockups, u.c.) paliek lokāls.
 docs/*
