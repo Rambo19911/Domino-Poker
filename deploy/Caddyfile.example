@@ -10,6 +10,10 @@ tavs-domens.lv {
     # Multiplayer WebSocket: /ws -> MP serveris (Caddy upgrade automātiski).
     reverse_proxy /ws* 127.0.0.1:4000
 
+    # Opcionālā autentifikācija + paroles atjaunošana: /auth/* -> MP serveris.
+    # (Klients atvasina HTTP bāzi no WS URL, tāpēc /auth iet uz to pašu domēnu.)
+    reverse_proxy /auth/* 127.0.0.1:4000
+
     # (pēc izvēles) metrikas tikai lokāli:
     # @metrics path /metrics
     # respond @metrics 403
