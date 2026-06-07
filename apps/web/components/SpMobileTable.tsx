@@ -29,6 +29,7 @@ type SpPlayer = GameState["players"][number];
 export function SpMobileTable({
   labels: t,
   gameState,
+  humanProfile,
   validTileKeys,
   isViewerTurn,
   onTileClick,
@@ -36,6 +37,10 @@ export function SpMobileTable({
 }: {
   readonly labels: AppStrings;
   readonly gameState: GameState;
+  readonly humanProfile: {
+    readonly avatarUrl: string | null;
+    readonly title: string | null;
+  };
   readonly validTileKeys: ReadonlySet<string>;
   readonly isViewerTurn: boolean;
   readonly onTileClick: (tile: DominoTile) => void;
@@ -105,6 +110,8 @@ export function SpMobileTable({
             seatIndex={index as VisualSeat}
             isActive={gameState.currentPlayerIndex === index}
             isDealer={gameState.dealerIndex === index}
+            avatarUrl={index === 0 ? humanProfile.avatarUrl : null}
+            title={index === 0 ? humanProfile.title : null}
           />
         ))}
 
@@ -136,13 +143,17 @@ function SpmSeat({
   player,
   seatIndex,
   isActive,
-  isDealer
+  isDealer,
+  avatarUrl,
+  title
 }: {
   readonly labels: AppStrings;
   readonly player: SpPlayer;
   readonly seatIndex: VisualSeat;
   readonly isActive: boolean;
   readonly isDealer: boolean;
+  readonly avatarUrl: string | null;
+  readonly title: string | null;
 }) {
   const pos = MP_MOBILE_POS.seats[seatIndex];
   const hasBid = player.bid >= 0;
@@ -160,10 +171,13 @@ function SpmSeat({
   return (
     <>
       <div
-        className={`mpmProfile ${isActive ? "active" : ""} ${isDealer ? "dealer" : ""}`}
+        className={`mpmProfile ${avatarUrl ? "hasAvatar" : ""} ${isActive ? "active" : ""} ${isDealer ? "dealer" : ""}`}
         style={centerBox(pos.profile, MP_MOBILE_SIZE.profilePx, 1)}
         aria-label={player.name}
-      />
+      >
+        {avatarUrl ? <img className="mpmProfileAvatar" src={avatarUrl} alt="" aria-hidden="true" /> : null}
+        {title ? <span className="mpmProfileTitle">{title}</span> : null}
+      </div>
 
       <div
         className={`mpmBadge mpmBidWon ${bidWonState}`}

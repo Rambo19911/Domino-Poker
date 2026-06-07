@@ -1,5 +1,18 @@
+import type { TitleId } from "@domino-poker/shared";
+
 import { deriveDisplayIdCandidate, type DisplayIdRegistry } from "../identity/DisplayIdRegistry.js";
 import type { DurableSessionStore } from "./DurableSessionStore.js";
+
+/**
+ * Reģistrēta spēlētāja publiskais profils (Fāze 4), ko citi redz seat'os. Kešots
+ * pēc `clientId` un PĀRDZĪVO atvienojumu (līdz `release`) — atvienota spēlētāja
+ * sēdvieta joprojām rāda viņa avataru/titulu/lietotājvārdu. Atrisināts HELLO laikā.
+ */
+export interface SeatProfile {
+  readonly username: string;
+  readonly avatar: string;
+  readonly title: TitleId;
+}
 
 /**
  * Savienojumam piesaistītā identitāte. `playerId` = `HELLO.clientId` (stabils
@@ -13,6 +26,12 @@ export interface SessionIdentity {
   readonly playerId: string;
   readonly displayId: string;
   readonly reconnectToken: string;
+  /**
+   * Autentificēta lietotāja id (opcionāls). Aizpildīts tikai, ja HELLO nesa derīgu
+   * `authToken`. Tad `displayId` ir pārrakstīts ar `username`. Anonīmam `undefined`.
+   * Lieto statistikas attiecināšanai (Fāze 3) un publiskā lietotājvārda rādīšanai.
+   */
+  readonly userId?: string;
 }
 
 /**
@@ -56,6 +75,8 @@ export type MaybePromise<T> = T | Promise<T>;
 export class SessionManager {
   /** Durable: `playerId → reconnectToken` (saglabājas pāri atvienojumiem). */
   private readonly tokens = new Map<string, string>();
+  /** Publiskie profili (`playerId → SeatProfile`); pārdzīvo atvienojumu līdz `release`. */
+  private readonly publicProfiles = new Map<string, SeatProfile>();
   /** Aktīvais savienojums katram spēlētājam (viens socket). */
   private readonly activeByPlayer = new Map<string, string>();
   /** Aktīvo savienojumu identitātes. */
@@ -229,6 +250,25 @@ export class SessionManager {
     return this.activeByPlayer.has(playerId.trim());
   }
 
+  /** Aktīvā savienojuma autentificētais `userId` šim `clientId` (vai `undefined`). */
+  getUserId(playerId: string): string | undefined {
+    const connectionId = this.activeByPlayer.get(playerId.trim());
+    if (connectionId === undefined) {
+      return undefined;
+    }
+    return this.byConnection.get(connectionId)?.userId;
+  }
+
+  /** Saglabā publisko profilu (HELLO laikā); pārdzīvo atvienojumu līdz `release`. */
+  setPublicProfile(playerId: string, profile: SeatProfile): void {
+    this.publicProfiles.set(playerId.trim(), profile);
+  }
+
+  /** Publiskais profils seat attēlošanai (vai `undefined`, ja anonīms/atbrīvots). */
+  getPublicProfile(playerId: string): SeatProfile | undefined {
+    return this.publicProfiles.get(playerId.trim());
+  }
+
   /**
    * Noņem AKTĪVO savienojumu (socket close). Durable `reconnectToken` **paliek**
    * (reconnect validācijai), līdz `release`. Aizstātam (vecam) savienojumam
@@ -254,6 +294,7 @@ export class SessionManager {
     const key = playerId.trim();
     this.tokens.delete(key);
     this.displayIds.release(key);
+    this.publicProfiles.delete(key);
     return this.durableStore?.deleteSession(key);
   }
 

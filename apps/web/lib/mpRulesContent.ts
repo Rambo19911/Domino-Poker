@@ -143,6 +143,12 @@ const en: MpRulesDoc = {
         "Each player receives only their own hand. Other players' hidden tiles are not included in their snapshots. Public information includes bids, tricks won, total scores, current trick, completed tricks, player statuses, and each player's remaining tile count.",
         "The multiplayer deal is generated from a server-side seed. This makes matches reproducible from the seed and event history, which helps with fairness checks, replay, debugging, and recovery."
       ]
+    },
+    {
+      title: "Statistics",
+      blocks: [
+        "Statistics are counted only from multiplayer games where all four seats are taken by four distinct registered (logged-in) players."
+      ]
     }
   ]
 };
@@ -273,6 +279,12 @@ const lv: MpRulesDoc = {
         "Daudzspēlētāju serveris ir autoritatīvs. Tam pieder sajauktā kava, spēles stāvoklis, taimera termiņi, likumīgo gājienu pārbaude, punktu skaitīšana un raundu virzība.",
         "Katrs spēlētājs saņem tikai savu roku. Citu spēlētāju slēptie kauliņi nav iekļauti viņu momentuzņēmumos. Publiskā informācija ietver solījumus, paņemtos stiķus, kopējos punktus, pašreizējo stiķi, pabeigtos stiķus, spēlētāju statusus un katra spēlētāja atlikušo kauliņu skaitu.",
         "Daudzspēlētāju dalīšana tiek ģenerēta no servera puses sēklas. Tas padara spēles atkārtojamas no sēklas un notikumu vēstures, kas palīdz godīguma pārbaudēs, atkārtošanā, atkļūdošanā un atjaunošanā."
+      ]
+    },
+    {
+      title: "Statistika",
+      blocks: [
+        "Statistika tiek uzskaitīta tikai no Multiplayer spēlēm, kurās visas 4 vietas aizņem atšķirīgi reģistrēti (ielogoti) spēlētāji."
       ]
     }
   ]

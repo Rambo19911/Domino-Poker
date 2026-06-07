@@ -40,6 +40,9 @@ class RecordingStorage implements StoragePort {
   async getPlayerStats(): Promise<undefined> {
     return undefined;
   }
+  async recordUserMatchOutcome(): Promise<boolean> {
+    return true;
+  }
   async appendChatMessage(): Promise<void> {}
   async loadRecentChatMessages(): Promise<[]> {
     return [];

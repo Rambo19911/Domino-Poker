@@ -1,7 +1,9 @@
+import { getStandings } from "@domino-poker/core";
 import type {
   MultiplayerCommand,
   PlayerSnapshot
 } from "@domino-poker/core/multiplayer";
+import type { SeatProfile } from "../sessions/SessionManager.js";
 
 import { DisplayIdRegistry } from "../identity/DisplayIdRegistry.js";
 import type { MatchSeatRecord, MatchStartedRecord } from "../storage/StoragePort.js";
@@ -80,6 +82,22 @@ export interface RoomManagerOptions {
    */
   readonly onMatchStarted?: (record: MatchStartedRecord) => void;
   readonly onMatchEvents?: (events: readonly SequencedRoomEvent[]) => void;
+  /**
+   * Partija pabeigta ar GAME_OVER (Fāze 3). `standings` ir core spēlētāju id rangā
+   * (1. vieta → pēdējā), aprēķināts no dzinēja gala stāvokļa. Lieto kontu MP
+   * iznākuma reģistrēšanai (`OutcomeRecorder.gameOver`). Fire-and-forget.
+   */
+  readonly onMatchFinished?: (matchId: string, standings: readonly string[]) => void;
+  /**
+   * Spēlētājs forfeitēja (apzināts exit vai auto-forfeit pēc grace) — `lose` šim
+   * core spēlētājam (Fāze 3, 5.5/5.6). Fire-and-forget.
+   */
+  readonly onPlayerForfeited?: (matchId: string, corePlayerId: string) => void;
+  /**
+   * Istaba pamesta/iznīcināta MID-GAME bez GAME_OVER — `lose` visiem vēl
+   * nereģistrētajiem + recorder stāvokļa tīrīšana (Fāze 3, 5.6). Fire-and-forget.
+   */
+  readonly onRoomAbandoned?: (matchId: string) => void;
 }
 
 /**
@@ -103,6 +121,13 @@ export class RoomManager {
    * Net slānis to izmanto, lai atbrīvotu offline spēlētāja durable sesiju (M3).
    */
   private memberDepartedHandler: ((clientId: string) => void) | undefined;
+  /**
+   * Atrisina `clientId` → autentificētā `userId` (vai `undefined`, ja anonīms).
+   * Pieslēdz net slānis no sesijām. Lieto partijas sākumā statistikas attiecināšanai.
+   */
+  private resolveUserId: ((clientId: string) => string | undefined) | undefined;
+  /** Atrisina `clientId` → publiskais profils (username/avatar/tituls) seat skatam (Fāze 4). */
+  private resolveSeatProfile: ((clientId: string) => SeatProfile | undefined) | undefined;
   private readonly clock: Clock;
   private readonly createTurnScheduler: () => TurnTimerScheduler;
   private readonly createSeed: () => string;
@@ -115,12 +140,25 @@ export class RoomManager {
   private readonly onMatchEvents:
     | ((events: readonly SequencedRoomEvent[]) => void)
     | undefined;
+  private readonly onMatchFinished:
+    | ((matchId: string, standings: readonly string[]) => void)
+    | undefined;
+  private readonly onPlayerForfeited:
+    | ((matchId: string, corePlayerId: string) => void)
+    | undefined;
+  private readonly onRoomAbandoned: ((matchId: string) => void) | undefined;
   /** Per-istabas vienreizējais pirms-spēles timeris (atver pirmo turnu pēc grace). */
   private readonly preGameTimers = new Map<string, TurnTimerScheduler>();
   /** Per-istabas pacēšanas timeris (izspēlē botus pa vienam ar aizturi). */
   private readonly pacingTimers = new Map<string, TurnTimerScheduler>();
   /** Per-istabas pamešanas grace timeris (visi cilvēki atvienojušies → iznīcina). */
   private readonly abandonTimers = new Map<string, TurnTimerScheduler>();
+  /**
+   * Per-sēdvietas atvienojuma grace timeri (roomId → clientId → timeris). Ja
+   * spēlētājs paliek offline ≥ grace, viņa sēdvietu auto-forfeitē (5.6). Atceļ pie
+   * reconnect. Atsevišķi no `abandonTimers` (kas apstrādā PILNAS istabas pamešanu).
+   */
+  private readonly seatForfeitTimers = new Map<string, Map<string, TurnTimerScheduler>>();
 
   constructor(options: RoomManagerOptions) {
     this.clock = options.clock;
@@ -133,6 +171,9 @@ export class RoomManager {
     this.turnDurationMs = options.turnDurationMs;
     this.onMatchStarted = options.onMatchStarted;
     this.onMatchEvents = options.onMatchEvents;
+    this.onMatchFinished = options.onMatchFinished;
+    this.onPlayerForfeited = options.onPlayerForfeited;
+    this.onRoomAbandoned = options.onRoomAbandoned;
     this.lobby = new LobbyManager({
       clock: options.clock,
       ...(options.displayIds ? { displayIds: options.displayIds } : {}),
@@ -222,13 +263,17 @@ export class RoomManager {
       }
     }
 
+    // Fāze 3: forfeitētājs (šī sēdvieta) saņem `lose` (5.5/5.6).
+    this.onPlayerForfeited?.(roomId, corePlayerIdForSeat(seat.index));
+
     // 2. Lobby: sēdvieta → bots, vai iznīcina, ja nepaliek cilvēku.
     const updated = this.lobby.forfeitSeat(roomId, clientId);
     // 3. Notīra dalību (spēlētājs vairs nav istabā → nevar atgriezties).
     this.departMember(clientId);
-    // 4. Ja iznīcināta → noņem dzinēju + timerus.
+    // 4. Ja iznīcināta MID-GAME (bez GAME_OVER) → reģistrē atlikušos + tīra recorder; noņem dzinēju.
     const destroyed = updated.status === "DESTROYED";
     if (destroyed) {
+      this.onRoomAbandoned?.(roomId);
       this.disposeRoom(roomId);
     }
     return { room: updated, events, destroyed };
@@ -261,6 +306,7 @@ export class RoomManager {
     this.preGameTimers.delete(roomId);
     this.clearPacing(roomId);
     this.cancelAbandonGrace(roomId);
+    this.cancelAllDisconnectForfeits(roomId);
   }
 
   /**
@@ -286,8 +332,44 @@ export class RoomManager {
     this.abandonTimers.delete(roomId);
   }
 
+  /**
+   * Ieplāno atvienota spēlētāja sēdvietas auto-forfeit pēc grace (5.6). `run` (net
+   * slāņa puses) izpilda re-pārbaudes + forfeit + piegādi. Atkārtots izsaukums tam
+   * pašam (roomId, clientId) atjauno timeri. Grace ≤ 0 → atspējots (testi).
+   */
+  scheduleDisconnectForfeit(roomId: string, clientId: string, run: (now: number) => void): void {
+    if (this.abandonGraceMs <= 0) return;
+    const perRoom = this.seatForfeitTimers.get(roomId) ?? new Map<string, TurnTimerScheduler>();
+    perRoom.get(clientId)?.cancel();
+    const timer = this.createTurnScheduler();
+    perRoom.set(clientId, timer);
+    this.seatForfeitTimers.set(roomId, perRoom);
+    timer.schedule(this.clock() + this.abandonGraceMs, () => {
+      perRoom.delete(clientId);
+      run(this.clock());
+    });
+  }
+
+  /** Atceļ atvienojuma auto-forfeit timeri (piem. spēlētājs atgriezās). */
+  cancelDisconnectForfeit(roomId: string, clientId: string): void {
+    const perRoom = this.seatForfeitTimers.get(roomId);
+    perRoom?.get(clientId)?.cancel();
+    perRoom?.delete(clientId);
+  }
+
+  /** Atceļ VISUS šīs istabas atvienojuma auto-forfeit timerus (pie istabas iznīcināšanas). */
+  private cancelAllDisconnectForfeits(roomId: string): void {
+    const perRoom = this.seatForfeitTimers.get(roomId);
+    if (!perRoom) return;
+    for (const timer of perRoom.values()) timer.cancel();
+    this.seatForfeitTimers.delete(roomId);
+  }
+
   /** Iznīcina istabu (lobby + dzinējs + timeri + dalība). Lieto pamestai istabai. */
   destroyRoom(roomId: string): void {
+    // Fāze 3 (5.6): pamesta MID-GAME istaba → `lose` visiem vēl nereģistrētajiem
+    // reģistrētajiem spēlētājiem PIRMS iznīcināšanas (no-op, ja nav skaitāmas partijas).
+    this.onRoomAbandoned?.(roomId);
     for (const human of this.lobby.getRoom(roomId).seats) {
       if (human.playerId) this.departMember(human.playerId);
     }
@@ -304,7 +386,24 @@ export class RoomManager {
   }
 
   getRoomView(roomId: string): RoomView {
-    return this.lobby.getRoomView(roomId);
+    const view = this.lobby.getRoomView(roomId);
+    if (this.resolveSeatProfile === undefined) {
+      return view;
+    }
+    // Fāze 4: bagātinām cilvēku sēdvietas ar reģistrētā spēlētāja profilu (avatars/
+    // tituls) un pārrakstām publisko displayId ar username (atrisinot Fāzes 2 robu).
+    // clientId nāk no iekšējā Room (publiskais skats to neatklāj). Anonīmiem/botiem nekas.
+    const internal = this.lobby.getRoom(roomId);
+    return {
+      ...view,
+      seats: view.seats.map((seat) => {
+        if (seat.kind !== "human") return seat;
+        const clientId = internal.seats[seat.index]?.playerId;
+        const profile = clientId !== undefined ? this.resolveSeatProfile?.(clientId) : undefined;
+        if (profile === undefined) return seat;
+        return { ...seat, displayId: profile.username, avatar: profile.avatar, title: profile.title };
+      })
+    };
   }
 
   roomOf(clientId: string): string | undefined {
@@ -337,7 +436,14 @@ export class RoomManager {
       scheduler: this.createTurnScheduler(),
       onTurnTimeout: (events) => this.handleTurnTimeout(roomId, events),
       // Persistence (10.3): visi room eventi no dzinēja vienīgā numerācijas punkta.
-      onEventsAppended: (events) => this.onMatchEvents?.(events)
+      onEventsAppended: (events) => {
+        this.onMatchEvents?.(events);
+        // Fāze 3: pie GAME_OVER aprēķinām pilnu rangu no dzinēja gala stāvokļa
+        // (core `getStandings`) un paziņojam kontu iznākuma reģistrētājam.
+        if (this.onMatchFinished && events.some((entry) => entry.event.type === "GAME_OVER")) {
+          this.onMatchFinished(roomId, getStandings(engine.getGameState().coreState));
+        }
+      }
     });
     // Satveram seed mainīgajā, lai to gan padotu dzinējam (determinisms), gan
     // saglabātu match metadata (atkārtotai izspēlei). Maisīšanas loģika nemainās.
@@ -405,6 +511,16 @@ export class RoomManager {
     this.memberDepartedHandler = handler;
   }
 
+  /** Pieslēdz `clientId` → `userId` atrisinātāju (no sesijām) statistikas attiecināšanai. */
+  setUserIdResolver(resolver: (clientId: string) => string | undefined): void {
+    this.resolveUserId = resolver;
+  }
+
+  /** Pieslēdz `clientId` → publiskā profila atrisinātāju (avatars/tituls/username) seat skatam. */
+  setSeatProfileResolver(resolver: (clientId: string) => SeatProfile | undefined): void {
+    this.resolveSeatProfile = resolver;
+  }
+
   /** Izņem dalību un (ja tā tiešām pastāvēja) paziņo dalības-zaudēšanas novērotājam. */
   private departMember(clientId: string): void {
     if (this.clientRoom.delete(clientId)) {
@@ -421,15 +537,23 @@ export class RoomManager {
     if (!this.onMatchStarted) return;
     const players: MatchSeatRecord[] = room.seats
       .filter((seat) => seat.kind !== "empty")
-      .map((seat) => ({
-        seatIndex: seat.index,
-        corePlayerId: corePlayerIdForSeat(seat.index),
-        kind: seat.kind === "bot" ? "bot" : "human",
-        // Cilvēka `seat.playerId` ir stabilais clientId (reconnect identitāte) — to
-        // lieto statistikas atslēgai (F5). Botiem to neiekļaujam.
-        ...(seat.kind !== "bot" && seat.playerId !== undefined ? { clientId: seat.playerId } : {}),
-        ...(seat.displayId !== undefined ? { displayId: seat.displayId } : {})
-      }));
+      .map((seat) => {
+        const isHuman = seat.kind !== "bot";
+        // Momentuzņemam autentificēto userId (ja ielogojies) cilvēka sēdvietai —
+        // tieši partijas sākumā, lai vēlāka login/logout nemainītu vēsturi (Fāze 3).
+        const userId =
+          isHuman && seat.playerId !== undefined ? this.resolveUserId?.(seat.playerId) : undefined;
+        return {
+          seatIndex: seat.index,
+          corePlayerId: corePlayerIdForSeat(seat.index),
+          kind: seat.kind === "bot" ? "bot" : "human",
+          // Cilvēka `seat.playerId` ir stabilais clientId (reconnect identitāte) — to
+          // lieto statistikas atslēgai (F5). Botiem to neiekļaujam.
+          ...(isHuman && seat.playerId !== undefined ? { clientId: seat.playerId } : {}),
+          ...(seat.displayId !== undefined ? { displayId: seat.displayId } : {}),
+          ...(userId !== undefined ? { userId } : {})
+        };
+      });
     this.onMatchStarted({
       matchId: roomId,
       seed,

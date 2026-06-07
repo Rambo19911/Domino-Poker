@@ -1,6 +1,8 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import process from "node:process";
 
+import type { AuthHandler } from "./http/authRoutes.js";
+
 interface PoolCounts {
   readonly total: number;
   readonly idle: number;
@@ -29,6 +31,11 @@ export interface HealthHttpServerOptions {
    * `index.ts` no `PostgresStorage.healthCheck`; SQLite režīmā netiek dota.
    */
   readonly dbHealth?: () => Promise<DbHealthSnapshot>;
+  /**
+   * Opcionāls auth HTTP maršrutu apstrādātājs (`/auth/*`). Injicē `index.ts` no
+   * `createAuthHandler`. Atgriež `true`, ja apstrādāja ceļu, citādi `false` → 404.
+   */
+  readonly authHandler?: AuthHandler;
 }
 
 /**
@@ -56,6 +63,23 @@ function handleRequest(
       .catch((error: unknown) => {
         console.error("[metrics] failed to collect metrics:", error);
         writeJson(response, 500, { error: "metrics_failed" });
+      });
+    return;
+  }
+
+  if (options.authHandler !== undefined) {
+    void options
+      .authHandler(request, response)
+      .then((handled) => {
+        if (!handled) {
+          writeJson(response, 404, { error: "Not found" });
+        }
+      })
+      .catch((error: unknown) => {
+        console.error("[auth] handler failed:", error);
+        if (!response.headersSent) {
+          writeJson(response, 500, { error: "internal_error" });
+        }
       });
     return;
   }

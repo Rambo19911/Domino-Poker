@@ -2,8 +2,10 @@
 
 import { calculateRoundScore, tileKey } from "@domino-poker/core";
 import type { DominoTile } from "@domino-poker/core";
+import { avatarFilePath } from "@domino-poker/shared";
 
 import type { AppStrings } from "../../lib/i18n";
+import { titleLabel } from "../../lib/auth/titleLabel";
 import type { MpGameTableView, MpTableSeat, MpTrickPlay } from "../../lib/mp/gameTableView";
 import {
   MP_MOBILE_POS,
@@ -164,6 +166,7 @@ function MpmSeat({
   const isDisconnected = seat.connectionState === "disconnected" && !seat.isAI;
   const showTimer = seat.isActive && remainingSeconds !== undefined;
   const label = seatLabel(seat.displayId, seat.isAI, seat.gameSeatIndex, t);
+  const avatarUrl = seat.avatar ? avatarFilePath(seat.avatar) : null;
   const hasBid = seat.bid >= 0;
   // Tekošā raunda punkti (kopsumma ir augšējā tabulā). Pirms solījuma — "–".
   const roundScore = hasBid ? calculateRoundScore({ bid: seat.bid, tricksWon: seat.tricksWon }) : null;
@@ -172,12 +175,16 @@ function MpmSeat({
 
   return (
     <>
-      {/* Aplis paliek tukšs (nākotnē profila bilde); identitāte — tabulā augšā. */}
+      {/* Aplis: reģistrēta spēlētāja avatars + tituls (overlay apakšā); citādi tukšs.
+          Identitāte (vārds + kopsumma) ir arī augšējā tabulā. */}
       <div
-        className={`mpmProfile ${isActive ? "active" : ""} ${seat.isDealer ? "dealer" : ""} ${isDisconnected ? "disconnected" : ""}`}
+        className={`mpmProfile ${avatarUrl ? "hasAvatar" : ""} ${isActive ? "active" : ""} ${seat.isDealer ? "dealer" : ""} ${isDisconnected ? "disconnected" : ""}`}
         style={centerBox(pos.profile, MP_MOBILE_SIZE.profilePx, 1)}
         aria-label={label}
-      />
+      >
+        {avatarUrl ? <img className="mpmProfileAvatar" src={avatarUrl} alt="" aria-hidden="true" /> : null}
+        {seat.title ? <span className="mpmProfileTitle">{titleLabel(t, seat.title)}</span> : null}
+      </div>
 
       {/* Pieteiktie/paņemtie stiķi (bid/won). Aplis neitrāls; cipari maina krāsu. */}
       <div

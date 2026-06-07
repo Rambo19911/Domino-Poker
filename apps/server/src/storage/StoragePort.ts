@@ -53,6 +53,20 @@ export interface StoragePort {
   /** Spēlētāja statistika vai `undefined`, ja vēl nav ierakstu. */
   getPlayerStats(playerId: string): Promise<PlayerStatsRecord | undefined>;
 
+  /**
+   * Atomiski (vienā transakcijā) reģistrē lietotāja iznākumu vienai partijai
+   * (`match_user_outcomes`) UN inkrementē `user_stats`. Idempotents pēc
+   * `(matchId, userId)`: atkārtots izsaukums neko nemaina. Atgriež `true`, ja
+   * iznākums tika tikko ierakstīts; `false`, ja šim lietotājam šajā partijā jau bija.
+   * Tā tiek garantēts TIEŠI VIENS iznākums uz spēli uz lietotāju (anti-cheat 5.7).
+   */
+  recordUserMatchOutcome(
+    matchId: string,
+    userId: string,
+    outcome: MatchOutcome,
+    now: number
+  ): Promise<boolean>;
+
   /** Pievieno lobby čata ziņu append-only žurnālam (pārdzīvo restartu). */
   appendChatMessage(message: ChatMessage): Promise<void>;
 
@@ -81,6 +95,12 @@ export interface MatchSeatRecord {
   readonly clientId?: string | undefined;
   /** Publiskais `displayId` (ja zināms; boti to var nesniegt). */
   readonly displayId?: string | undefined;
+  /**
+   * Autentificētā lietotāja id (Fāze 3), momentuzņemts partijas SĀKUMĀ no sesijas.
+   * Aizpildīts tikai cilvēka sēdvietai, ja spēlētājs tobrīd bija ielogojies; citādi
+   * `undefined`. Lieto kontu MP statistikas attiecināšanai (`user_stats`).
+   */
+  readonly userId?: string | undefined;
 }
 
 /** Partijas sākuma ieraksts: pietiekami, lai partiju deterministiski atkārtotu. */
@@ -148,6 +168,19 @@ export interface PlayerStatsIncrementRecord {
   readonly playerId: string;
   readonly gamesPlayedDelta: number;
   readonly gamesWonDelta: number;
+  /** Servera laiks (ms) pēdējam atjauninājumam. */
+  readonly updatedAt: number;
+}
+
+/** Konta MP iznākums vienai partijai (Fāze 3): uzvara (1./2. vieta) vai zaudējums. */
+export type MatchOutcome = "win" | "lose";
+
+/** Agregēta konta MP statistika (`user_stats`). */
+export interface UserStatsRecord {
+  readonly userId: string;
+  readonly gamesPlayed: number;
+  readonly wins: number;
+  readonly losses: number;
   /** Servera laiks (ms) pēdējam atjauninājumam. */
   readonly updatedAt: number;
 }

@@ -12,7 +12,9 @@ describe("loadServerConfig", () => {
       databaseUrl: "./data/dev.sqlite",
       nodeEnv: "development",
       turnDurationMs: 10_000,
-      pg: { max: 10, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 0 }
+      pg: { max: 10, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 0 },
+      webOrigins: ["http://localhost:3000"],
+      email: { resendApiKey: undefined, from: undefined, appBaseUrl: "http://localhost:3000" }
     });
   });
 
@@ -33,8 +35,36 @@ describe("loadServerConfig", () => {
       databaseUrl: "./data/dev.sqlite",
       nodeEnv: "production",
       turnDurationMs: 5000,
-      pg: { max: 10, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 0 }
+      pg: { max: 10, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 0 },
+      webOrigins: ["http://localhost:3000"],
+      email: { resendApiKey: undefined, from: undefined, appBaseUrl: "http://localhost:3000" }
     });
+  });
+
+  it("reads password-reset email config (Resend key, from, base URL)", () => {
+    expect(
+      loadServerConfig(
+        {
+          RESEND_API_KEY: "re_test_key",
+          EMAIL_FROM: "no-reply@domino-poker.com",
+          APP_BASE_URL: "https://domino-poker.com"
+        },
+        missingEnvPath
+      ).email
+    ).toEqual({
+      resendApiKey: "re_test_key",
+      from: "no-reply@domino-poker.com",
+      appBaseUrl: "https://domino-poker.com"
+    });
+  });
+
+  it("parses a comma-separated WEB_ORIGIN allowlist", () => {
+    expect(
+      loadServerConfig(
+        { WEB_ORIGIN: "https://domino-poker.com, https://www.domino-poker.com" },
+        missingEnvPath
+      ).webOrigins
+    ).toEqual(["https://domino-poker.com", "https://www.domino-poker.com"]);
   });
 
   it("reads configurable PostgreSQL pool limits", () => {

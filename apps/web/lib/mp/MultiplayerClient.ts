@@ -49,6 +49,11 @@ export interface MultiplayerClientOptions {
   /** Saglabātais reconnectToken (Fāze 9); atgriež `undefined`, ja vēl nav. */
   readonly getReconnectToken?: () => string | undefined;
   readonly onReconnectToken?: (token: string) => void;
+  /**
+   * Opcionālais auth tokens (ielogots lietotājs); atgriež `undefined`, ja anonīms.
+   * Tiek sūtīts HELLO; serveris atrisina lietotāju un pārraksta publisko displayId.
+   */
+  readonly getAuthToken?: () => string | undefined;
   readonly now?: () => number;
   readonly setTimeoutFn?: (run: () => void, delayMs: number) => TimerHandle;
   readonly clearTimeoutFn?: (handle: TimerHandle) => void;
@@ -217,22 +222,16 @@ export class MultiplayerClient {
   private handleOpen(): void {
     this.socketOpen = true;
     const reconnectToken = this.options.getReconnectToken?.();
-    this.send(
-      reconnectToken !== undefined
-        ? {
-            type: "HELLO",
-            protocolVersion: PROTOCOL_VERSION,
-            clientBuild: this.options.clientBuild,
-            clientId: this.options.clientId,
-            reconnectToken
-          }
-        : {
-            type: "HELLO",
-            protocolVersion: PROTOCOL_VERSION,
-            clientBuild: this.options.clientBuild,
-            clientId: this.options.clientId
-          }
-    );
+    const authToken = this.options.getAuthToken?.();
+    const hello: Extract<ClientMessage, { type: "HELLO" }> = {
+      type: "HELLO",
+      protocolVersion: PROTOCOL_VERSION,
+      clientBuild: this.options.clientBuild,
+      clientId: this.options.clientId,
+      ...(reconnectToken !== undefined ? { reconnectToken } : {}),
+      ...(authToken !== undefined ? { authToken } : {})
+    };
+    this.send(hello);
     this.startPing();
   }
 

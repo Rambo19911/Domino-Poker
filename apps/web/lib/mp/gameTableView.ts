@@ -1,6 +1,6 @@
 import { canPlayTile, isTrump, tileKey, trumpPriority } from "@domino-poker/core";
 import type { DominoTile, Player } from "@domino-poker/core";
-import type { RoomView } from "@domino-poker/shared";
+import type { RoomView, TitleId } from "@domino-poker/shared";
 
 import type { GameSnapshot } from "./clientView";
 
@@ -32,8 +32,11 @@ export interface MpTableSeat {
   readonly gameSeatIndex: number;
   /** Pozīcija pie galda pēc pagriešanas (skatītājs = 0). */
   readonly visualSeat: VisualSeat;
-  /** Cilvēka `displayId` (#?????); botiem/tukšām vietām `undefined`. */
+  /** Cilvēka `displayId` (vai reģistrētam — username); botiem/tukšām vietām `undefined`. */
   readonly displayId: string | undefined;
+  /** Reģistrēta spēlētāja avatara id un MP tituls (Fāze 4); citādi `undefined`. */
+  readonly avatar: string | undefined;
+  readonly title: TitleId | undefined;
   readonly isViewer: boolean;
   readonly isAI: boolean;
   readonly isHost: boolean;
@@ -119,9 +122,13 @@ export function toGameTableView(
   )?.seatIndex ?? 0;
 
   const displayIdBySeat = new Map<number, string | undefined>();
+  const avatarBySeat = new Map<number, string | undefined>();
+  const titleBySeat = new Map<number, TitleId | undefined>();
   const hostSeats = new Set<number>();
   for (const seat of room?.seats ?? []) {
     displayIdBySeat.set(seat.index, seat.displayId);
+    avatarBySeat.set(seat.index, seat.avatar);
+    titleBySeat.set(seat.index, seat.title);
     if (seat.isHost) hostSeats.add(seat.index);
   }
 
@@ -130,6 +137,8 @@ export function toGameTableView(
       gameSeatIndex: player.seatIndex,
       visualSeat: toVisualSeat(player.seatIndex, viewerSeatIndex),
       displayId: player.isAI ? undefined : displayIdBySeat.get(player.seatIndex),
+      avatar: player.isAI ? undefined : avatarBySeat.get(player.seatIndex),
+      title: player.isAI ? undefined : titleBySeat.get(player.seatIndex),
       isViewer: player.playerId === snapshot.viewerPlayerId,
       isAI: player.isAI,
       isHost: hostSeats.has(player.seatIndex),

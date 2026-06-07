@@ -364,17 +364,32 @@ export function startNextRound(
   };
 }
 
+/**
+ * Pilns gala rangs (1. vieta → pēdējā) kā spēlētāju `id` saraksts, izmantojot TO
+ * PAŠU tiebreaker secību kā `getWinner` (totalScore → bid → tricksWon → dīleris).
+ * Atkārtoti izvēlas labāko no atlikušajiem. Tukšs, ja partija vēl nav beigusies.
+ * Lieto MP statistikas vietu-balstītam iznākumam (1./2. = win, 3./4. = lose).
+ */
+export function getStandings(state: GameState): readonly string[] {
+  if (state.phase !== "gameEnd") return [];
+  const remaining = state.players.map((_unused, index) => index);
+  const ranked: number[] = [];
+  while (remaining.length > 0) {
+    const candidates = keepBest(
+      remaining,
+      (index) => state.players[index]?.totalScore ?? Number.NEGATIVE_INFINITY
+    );
+    const nextIndex =
+      candidates.length === 1 ? candidates[0]! : chooseRoundWinnerByTiebreakers(state, candidates);
+    ranked.push(nextIndex);
+    remaining.splice(remaining.indexOf(nextIndex), 1);
+  }
+  return ranked.map((index) => state.players[index]!.id);
+}
+
 export function getWinner(state: GameState): Player | undefined {
-  if (state.phase !== "gameEnd") return undefined;
-  const candidates = keepBest(
-    state.players.map((_, index) => index),
-    (index) => state.players[index]?.totalScore ?? Number.NEGATIVE_INFINITY
-  );
-  const winnerIndex =
-    candidates.length === 1
-      ? candidates[0]
-      : chooseRoundWinnerByTiebreakers(state, candidates);
-  return winnerIndex === undefined ? undefined : state.players[winnerIndex];
+  const topId = getStandings(state)[0];
+  return topId === undefined ? undefined : state.players.find((player) => player.id === topId);
 }
 
 export function highestTrumpPriorityInTrick(state: GameState): number | undefined {

@@ -5,8 +5,10 @@ import type { CSSProperties } from "react";
 
 import { isTrump, tileKey } from "@domino-poker/core";
 import type { DominoTile } from "@domino-poker/core";
+import { avatarFilePath } from "@domino-poker/shared";
 
 import type { AppStrings } from "../../lib/i18n";
+import { titleLabel } from "../../lib/auth/titleLabel";
 import type { ClientView } from "../../lib/mp/clientView";
 import type {
   MpGameTableView,
@@ -465,16 +467,24 @@ function MpPlayerProfile({
   readonly isActive: boolean;
 }) {
   const isDisconnected = seat.connectionState === "disconnected" && !seat.isAI;
+  // Reģistrēta spēlētāja avatars + tituls plūst no servera (RoomSeatView); botiem/
+  // anonīmiem — undefined. Tituls (TitleId) lokalizēts klientā; Lūzers NETIEK rādīts
+  // sēdvietās (paliek tikai main-lobby profilā).
+  const avatarUrl = seat.avatar ? avatarFilePath(seat.avatar) : null;
   return (
     <div
-      className={`playerProfile ${isActive ? "active" : ""} ${seat.isDealer ? "dealer" : ""}`}
+      className={`playerProfile ${avatarUrl ? "hasAvatar" : ""} ${isActive ? "active" : ""} ${seat.isDealer ? "dealer" : ""}`}
       style={{ ...getProfileStyle(seat.visualSeat), width: profileSize, height: profileSize }}
     >
+      {avatarUrl ? (
+        <img className="profileAvatarImage" src={avatarUrl} alt="" aria-hidden="true" />
+      ) : null}
       <div className="profileBottom">
         <div className={`profileName ${isActive ? "activeName" : ""}`}>
           {seat.isHost ? <span className="mpHostMark" aria-label={t.mpHost}>★</span> : null}
           {seatLabel(seat.displayId, seat.isAI, seat.gameSeatIndex, t)}
         </div>
+        {seat.title ? <div className="profileTitle">{titleLabel(t, seat.title)}</div> : null}
         {seat.isDealer ? <div className="dealerBadge">{t.dealer}</div> : null}
         {isDisconnected ? <div className="mpSeatStatus">{t.mpDisconnected}</div> : null}
       </div>

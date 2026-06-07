@@ -8,6 +8,8 @@ import { ManualTimerController } from "../../src/timers/ManualTimerController.js
 interface Captured {
   readonly started: MatchStartedRecord[];
   readonly events: SequencedRoomEvent[];
+  readonly forfeited: Array<{ matchId: string; corePlayerId: string }>;
+  readonly abandoned: string[];
 }
 
 function createManager(): { manager: RoomManager; captured: Captured } {
@@ -15,14 +17,16 @@ function createManager(): { manager: RoomManager; captured: Captured } {
   let roomSeq = 0;
   let codeSeq = 0;
   let seedSeq = 0;
-  const captured: Captured = { started: [], events: [] };
+  const captured: Captured = { started: [], events: [], forfeited: [], abandoned: [] };
   const manager = new RoomManager({
     clock: timer.now,
     createRoomId: () => `room-${(roomSeq += 1)}`,
     createRoomCode: () => `code${(codeSeq += 1)}`,
     createSeed: () => `seed-${(seedSeq += 1)}`,
     onMatchStarted: (record) => captured.started.push(record),
-    onMatchEvents: (events) => captured.events.push(...events)
+    onMatchEvents: (events) => captured.events.push(...events),
+    onPlayerForfeited: (matchId, corePlayerId) => captured.forfeited.push({ matchId, corePlayerId }),
+    onRoomAbandoned: (matchId) => captured.abandoned.push(matchId)
   });
   return { manager, captured };
 }
@@ -59,6 +63,32 @@ describe("RoomManager persistence emission (10.3)", () => {
     expect([...seqs]).toEqual([...seqs].sort((a, b) => a - b));
     // Tver dažādu ceļu eventus (vismaz turna sākums parādās).
     expect(captured.events.some((entry) => entry.event.type === "TURN_STARTED")).toBe(true);
+  });
+
+  it("fires onPlayerForfeited (lose) when a player exits while others keep playing", () => {
+    const { manager, captured } = createManager();
+    manager.createRoom("host");
+    manager.joinRoom("p2", { roomId: "room-1", seatIndex: 1 });
+    manager.fillSeatsWithBots("host");
+    manager.startGame("host");
+
+    manager.forfeitInGame("host"); // host = sēdvieta 0 → corePlayerId "1"
+
+    expect(captured.forfeited).toEqual([{ matchId: "room-1", corePlayerId: "1" }]);
+    // p2 vēl spēlē → istaba NEtiek pamesta.
+    expect(captured.abandoned).toEqual([]);
+  });
+
+  it("fires onRoomAbandoned (cleanup) when the last human exits mid-game", () => {
+    const { manager, captured } = createManager();
+    manager.createRoom("host");
+    manager.fillSeatsWithBots("host"); // host + 3 boti
+    manager.startGame("host");
+
+    manager.forfeitInGame("host"); // vienīgais cilvēks → istaba iznīcināta
+
+    expect(captured.forfeited).toEqual([{ matchId: "room-1", corePlayerId: "1" }]);
+    expect(captured.abandoned).toEqual(["room-1"]);
   });
 
   it("does not emit when no persistence callbacks are configured", () => {

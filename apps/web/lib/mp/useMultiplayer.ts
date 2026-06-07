@@ -36,10 +36,22 @@ export interface MultiplayerApi {
  * (safeStorage), un atklāj `ClientView` + stabilas darbības komponentiem.
  * Visa protokola loģika paliek `MultiplayerClient` (jau testēta).
  */
-export function useMultiplayer(): MultiplayerApi {
+export interface UseMultiplayerOptions {
+  /** Pašreizējais auth tokens (vai `null`). Maiņa (login/logout) → reconnect. */
+  readonly authToken?: string | null;
+  /** Stabils tokena lasītājs HELLO vajadzībām (lasa jaunāko vērtību). */
+  readonly getAuthToken?: () => string | undefined;
+}
+
+export function useMultiplayer(options: UseMultiplayerOptions = {}): MultiplayerApi {
+  const { authToken = null, getAuthToken } = options;
   const [view, setView] = useState<ClientView>(initialClientView);
   const clientRef = useRef<MultiplayerClient | undefined>(undefined);
+  // Ref, lai HELLO vienmēr lasa jaunāko tokenu bez efekta atkārtotas palaišanas.
+  const getAuthTokenRef = useRef(getAuthToken);
+  getAuthTokenRef.current = getAuthToken;
 
+  // `authToken` atkarībā: login/logout maiņa pārveido savienojumu ar svaigu HELLO.
   useEffect(() => {
     const client = new MultiplayerClient({
       url: resolveServerUrl({ envUrl: process.env.NEXT_PUBLIC_MP_WS_URL }),
@@ -50,7 +62,8 @@ export function useMultiplayer(): MultiplayerApi {
       getReconnectToken: () => readLocalStorage(RECONNECT_TOKEN_KEY) ?? undefined,
       onReconnectToken: (token) => {
         writeLocalStorage(RECONNECT_TOKEN_KEY, token);
-      }
+      },
+      getAuthToken: () => getAuthTokenRef.current?.()
     });
     clientRef.current = client;
     client.connect();
@@ -58,7 +71,7 @@ export function useMultiplayer(): MultiplayerApi {
       client.close();
       clientRef.current = undefined;
     };
-  }, []);
+  }, [authToken]);
 
   // Stabilas darbības, kas vienmēr deleģē uz pašreizējo klientu.
   const actions = useMemo<MultiplayerActions>(

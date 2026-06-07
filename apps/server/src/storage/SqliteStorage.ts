@@ -8,13 +8,24 @@ import type { ChatMessage } from "@domino-poker/shared";
 import type {
   MatchEventRecord,
   MatchFinishedRecord,
+  MatchOutcome,
   MatchStartedRecord,
   MatchSummaryRecord,
   PlayerStatsIncrementRecord,
   PlayerStatsRecord,
   StoragePort,
-  UnfinishedMatch
+  UnfinishedMatch,
+  UserStatsRecord
 } from "./StoragePort.js";
+import type {
+  AuthStore,
+  AuthTokenRecord,
+  CreateUserResult,
+  PasswordResetTokenRecord,
+  ProfileUpdate,
+  UpdateProfileResult,
+  UserRecord
+} from "../auth/AuthStore.js";
 
 export interface SqliteStorageOptions {
   /**
@@ -34,7 +45,7 @@ export interface SqliteStorageOptions {
  * (state ir atjaunojams no `seed`), pamata statistiku un lobby čatu (pārdzīvo
  * restartu). Nekādu dzīvu objektu vai spēles state šeit.
  */
-export class SqliteStorage implements StoragePort {
+export class SqliteStorage implements StoragePort, AuthStore {
   private readonly db: DatabaseSync;
 
   constructor(options: SqliteStorageOptions) {
@@ -82,6 +93,64 @@ export class SqliteStorage implements StoragePort {
       );
 
       CREATE INDEX IF NOT EXISTS idx_matches_started_at ON matches (started_at);
+
+      CREATE TABLE IF NOT EXISTS users (
+        id            TEXT PRIMARY KEY,
+        username      TEXT NOT NULL,
+        username_norm TEXT NOT NULL UNIQUE,
+        email         TEXT,
+        email_norm    TEXT,
+        password_hash TEXT NOT NULL,
+        avatar        TEXT NOT NULL,
+        created_at    INTEGER NOT NULL,
+        updated_at    INTEGER NOT NULL
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_norm
+        ON users (email_norm) WHERE email_norm IS NOT NULL;
+
+      CREATE TABLE IF NOT EXISTS auth_tokens (
+        token_hash   TEXT PRIMARY KEY,
+        user_id      TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        created_at   INTEGER NOT NULL,
+        last_used_at INTEGER NOT NULL,
+        expires_at   INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_auth_tokens_user_id ON auth_tokens (user_id);
+      CREATE INDEX IF NOT EXISTS idx_auth_tokens_expires_at ON auth_tokens (expires_at);
+
+      CREATE TABLE IF NOT EXISTS user_stats (
+        user_id      TEXT PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
+        games_played INTEGER NOT NULL DEFAULT 0,
+        wins         INTEGER NOT NULL DEFAULT 0,
+        losses       INTEGER NOT NULL DEFAULT 0,
+        updated_at   INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS match_user_outcomes (
+        match_id    TEXT NOT NULL,
+        user_id     TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        outcome     TEXT NOT NULL CHECK (outcome IN ('win', 'lose')),
+        recorded_at INTEGER NOT NULL,
+        PRIMARY KEY (match_id, user_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_match_user_outcomes_user_id
+        ON match_user_outcomes (user_id);
+
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        token_hash TEXT PRIMARY KEY,
+        user_id    TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        created_at INTEGER NOT NULL,
+        expires_at INTEGER NOT NULL,
+        used_at    INTEGER
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id
+        ON password_reset_tokens (user_id);
+      CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_expires_at
+        ON password_reset_tokens (expires_at);
     `);
   }
 
@@ -252,6 +321,224 @@ export class SqliteStorage implements StoragePort {
       .reverse();
   }
 
+  async createUser(record: UserRecord): Promise<CreateUserResult> {
+    try {
+      this.db
+        .prepare(
+          `INSERT INTO users
+             (id, username, username_norm, email, email_norm, password_hash, avatar, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          record.id,
+          record.username,
+          record.usernameNorm,
+          record.email ?? null,
+          record.emailNorm ?? null,
+          record.passwordHash,
+          record.avatar,
+          record.createdAt,
+          record.updatedAt
+        );
+      return "created";
+    } catch (error) {
+      if (isSqliteUniqueViolation(error)) {
+        return "conflict";
+      }
+      throw error;
+    }
+  }
+
+  async getUserById(id: string): Promise<UserRecord | undefined> {
+    const row = this.db.prepare(`${USER_SELECT} WHERE id = ?`).get(id) as UserRow | undefined;
+    return row ? rowToUser(row) : undefined;
+  }
+
+  async getUserByUsernameNorm(usernameNorm: string): Promise<UserRecord | undefined> {
+    const row = this.db
+      .prepare(`${USER_SELECT} WHERE username_norm = ?`)
+      .get(usernameNorm) as UserRow | undefined;
+    return row ? rowToUser(row) : undefined;
+  }
+
+  async getUserByEmailNorm(emailNorm: string): Promise<UserRecord | undefined> {
+    const row = this.db
+      .prepare(`${USER_SELECT} WHERE email_norm = ?`)
+      .get(emailNorm) as UserRow | undefined;
+    return row ? rowToUser(row) : undefined;
+  }
+
+  async updateUserProfile(id: string, update: ProfileUpdate): Promise<UpdateProfileResult> {
+    try {
+      const result = this.db
+        .prepare(
+          `UPDATE users
+              SET username = ?, username_norm = ?, avatar = ?, updated_at = ?
+            WHERE id = ?`
+        )
+        .run(update.username, update.usernameNorm, update.avatar, update.updatedAt, id);
+      return Number(result.changes) > 0 ? "updated" : "not_found";
+    } catch (error) {
+      if (isSqliteUniqueViolation(error)) {
+        return "username_taken";
+      }
+      throw error;
+    }
+  }
+
+  async createAuthToken(record: AuthTokenRecord): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT INTO auth_tokens (token_hash, user_id, created_at, last_used_at, expires_at)
+         VALUES (?, ?, ?, ?, ?)`
+      )
+      .run(record.tokenHash, record.userId, record.createdAt, record.lastUsedAt, record.expiresAt);
+  }
+
+  async getAuthToken(tokenHash: string): Promise<AuthTokenRecord | undefined> {
+    const row = this.db
+      .prepare(
+        `SELECT token_hash, user_id, created_at, last_used_at, expires_at
+           FROM auth_tokens WHERE token_hash = ?`
+      )
+      .get(tokenHash) as AuthTokenRow | undefined;
+    if (!row) {
+      return undefined;
+    }
+    return {
+      tokenHash: row.token_hash,
+      userId: row.user_id,
+      createdAt: Number(row.created_at),
+      lastUsedAt: Number(row.last_used_at),
+      expiresAt: Number(row.expires_at)
+    };
+  }
+
+  async touchAuthToken(tokenHash: string, lastUsedAt: number, expiresAt: number): Promise<void> {
+    this.db
+      .prepare(`UPDATE auth_tokens SET last_used_at = ?, expires_at = ? WHERE token_hash = ?`)
+      .run(lastUsedAt, expiresAt, tokenHash);
+  }
+
+  async deleteAuthToken(tokenHash: string): Promise<void> {
+    this.db.prepare(`DELETE FROM auth_tokens WHERE token_hash = ?`).run(tokenHash);
+  }
+
+  async deleteExpiredAuthTokens(now: number): Promise<void> {
+    this.db.prepare(`DELETE FROM auth_tokens WHERE expires_at <= ?`).run(now);
+  }
+
+  async createPasswordResetToken(record: PasswordResetTokenRecord): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT INTO password_reset_tokens (token_hash, user_id, created_at, expires_at, used_at)
+         VALUES (?, ?, ?, ?, NULL)`
+      )
+      .run(record.tokenHash, record.userId, record.createdAt, record.expiresAt);
+  }
+
+  async deleteUnusedPasswordResetTokens(userId: string): Promise<void> {
+    this.db
+      .prepare(`DELETE FROM password_reset_tokens WHERE user_id = ? AND used_at IS NULL`)
+      .run(userId);
+  }
+
+  async resetPasswordWithToken(
+    tokenHash: string,
+    newPasswordHash: string,
+    now: number
+  ): Promise<string | undefined> {
+    // node:sqlite ir sinhrons → transakcija ir droša (bez interleaving).
+    this.db.exec("BEGIN");
+    try {
+      // Atomiski "claim" tokenu: tikai ja neizmantots UN nav beidzies (race-aizsardzība).
+      const claimed = this.db
+        .prepare(
+          `UPDATE password_reset_tokens SET used_at = ?
+            WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?`
+        )
+        .run(now, tokenHash, now);
+      if (Number(claimed.changes) === 0) {
+        this.db.exec("ROLLBACK");
+        return undefined;
+      }
+      const row = this.db
+        .prepare(`SELECT user_id FROM password_reset_tokens WHERE token_hash = ?`)
+        .get(tokenHash) as { user_id: string };
+      this.db
+        .prepare(`UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?`)
+        .run(newPasswordHash, now, row.user_id);
+      // Atsauc visas aktīvās sesijas + visus šī lietotāja reset tokenus (force re-login).
+      this.db.prepare(`DELETE FROM auth_tokens WHERE user_id = ?`).run(row.user_id);
+      this.db.prepare(`DELETE FROM password_reset_tokens WHERE user_id = ?`).run(row.user_id);
+      this.db.exec("COMMIT");
+      return row.user_id;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  async deleteExpiredPasswordResetTokens(now: number): Promise<void> {
+    this.db.prepare(`DELETE FROM password_reset_tokens WHERE expires_at <= ?`).run(now);
+  }
+
+  async recordUserMatchOutcome(
+    matchId: string,
+    userId: string,
+    outcome: MatchOutcome,
+    now: number
+  ): Promise<boolean> {
+    // node:sqlite ir sinhrons → transakcija ir droša (bez interleaving).
+    this.db.exec("BEGIN");
+    try {
+      const inserted = this.db
+        .prepare(
+          `INSERT OR IGNORE INTO match_user_outcomes (match_id, user_id, outcome, recorded_at)
+           VALUES (?, ?, ?, ?)`
+        )
+        .run(matchId, userId, outcome, now);
+      const isNew = Number(inserted.changes) > 0;
+      if (isNew) {
+        this.db
+          .prepare(
+            `INSERT INTO user_stats (user_id, games_played, wins, losses, updated_at)
+             VALUES (?, 1, ?, ?, ?)
+             ON CONFLICT(user_id) DO UPDATE SET
+               games_played = user_stats.games_played + 1,
+               wins         = user_stats.wins + excluded.wins,
+               losses       = user_stats.losses + excluded.losses,
+               updated_at   = excluded.updated_at`
+          )
+          .run(userId, outcome === "win" ? 1 : 0, outcome === "lose" ? 1 : 0, now);
+      }
+      this.db.exec("COMMIT");
+      return isNew;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  async getUserStats(userId: string): Promise<UserStatsRecord | undefined> {
+    const row = this.db
+      .prepare(
+        `SELECT user_id, games_played, wins, losses, updated_at
+           FROM user_stats WHERE user_id = ?`
+      )
+      .get(userId) as UserStatsRow | undefined;
+    if (!row) {
+      return undefined;
+    }
+    return {
+      userId: row.user_id,
+      gamesPlayed: Number(row.games_played),
+      wins: Number(row.wins),
+      losses: Number(row.losses),
+      updatedAt: Number(row.updated_at)
+    };
+  }
+
   async close(): Promise<void> {
     this.db.close();
   }
@@ -306,4 +593,55 @@ function clampLimit(limit: number): number {
     return 1;
   }
   return Math.max(1, Math.min(1000, Math.floor(limit)));
+}
+
+const USER_SELECT = `SELECT id, username, username_norm, email, email_norm, password_hash, avatar, created_at, updated_at FROM users`;
+
+interface UserRow {
+  readonly id: string;
+  readonly username: string;
+  readonly username_norm: string;
+  readonly email: string | null;
+  readonly email_norm: string | null;
+  readonly password_hash: string;
+  readonly avatar: string;
+  readonly created_at: number;
+  readonly updated_at: number;
+}
+
+interface AuthTokenRow {
+  readonly token_hash: string;
+  readonly user_id: string;
+  readonly created_at: number;
+  readonly last_used_at: number;
+  readonly expires_at: number;
+}
+
+interface UserStatsRow {
+  readonly user_id: string;
+  readonly games_played: number;
+  readonly wins: number;
+  readonly losses: number;
+  readonly updated_at: number;
+}
+
+function rowToUser(row: UserRow): UserRecord {
+  return {
+    id: row.id,
+    username: row.username,
+    usernameNorm: row.username_norm,
+    email: row.email ?? undefined,
+    emailNorm: row.email_norm ?? undefined,
+    passwordHash: row.password_hash,
+    avatar: row.avatar,
+    createdAt: Number(row.created_at),
+    updatedAt: Number(row.updated_at)
+  };
+}
+
+/** node:sqlite met UNIQUE pārkāpumu kā Error ar ziņu "UNIQUE constraint failed". */
+function isSqliteUniqueViolation(error: unknown): boolean {
+  return (
+    error instanceof Error && /UNIQUE constraint failed/iu.test(error.message)
+  );
 }

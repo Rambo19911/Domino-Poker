@@ -3,7 +3,8 @@ import {
   parseClientMessage,
   PROTOCOL_VERSION,
   type ClientMessage,
-  type ServerEvent
+  type ServerEvent,
+  type TitleId
 } from "@domino-poker/shared";
 
 import type { DisplayIdRegistry } from "../identity/DisplayIdRegistry.js";
@@ -18,6 +19,7 @@ import {
   SessionManager,
   type MaybePromise,
   type RegisterResult,
+  type SeatProfile,
   type SessionIdentity
 } from "../sessions/SessionManager.js";
 
@@ -38,6 +40,17 @@ const DEFAULT_SLOW_CLIENT_BUFFER_CAP = 1024 * 1024; // 1 MB
 /** Cik bieži (ms) izslaucīt istabas, kurām beidzies TTL (1h). 60s ir pietiekami. */
 const ROOM_SWEEP_INTERVAL_MS = 60_000;
 
+/** Atrisinātā autentifikācija (opcionālais auth slānis); `undefined` = anonīms. */
+export interface ResolvedAuthInfo {
+  readonly userId: string;
+  readonly username: string;
+  readonly avatar: string;
+  readonly title: TitleId;
+}
+
+/** HELLO `authToken` atrisinātājs (injicē `index.ts` no `AuthService.resolvePublic`). */
+export type AuthResolver = (token: string) => Promise<ResolvedAuthInfo | undefined>;
+
 export interface WebSocketGatewayOptions {
   readonly clock: Clock;
   readonly displayIds: DisplayIdRegistry;
@@ -50,6 +63,8 @@ export interface WebSocketGatewayOptions {
   readonly missedPongThreshold?: number;
   /** Lēna-klienta backpressure robeža baitos (noklusējums 1 MB). */
   readonly slowClientBufferCap?: number;
+  /** Opcionālā autentifikācija: ja dots, HELLO `authToken` tiek atrisināts. */
+  readonly resolveAuth?: AuthResolver;
 }
 
 /**
@@ -73,6 +88,7 @@ export class WebSocketGateway implements GatewayHub {
   private readonly missedPongThreshold: number;
   private readonly slowClientBufferCap: number;
   private readonly eventBus: ServerEventBus | undefined;
+  private readonly resolveAuth: AuthResolver | undefined;
 
   constructor(options: WebSocketGatewayOptions) {
     this.clock = options.clock;
@@ -81,6 +97,7 @@ export class WebSocketGateway implements GatewayHub {
     this.missedPongThreshold = options.missedPongThreshold ?? DEFAULT_MISSED_PONG_THRESHOLD;
     this.slowClientBufferCap = options.slowClientBufferCap ?? DEFAULT_SLOW_CLIENT_BUFFER_CAP;
     this.eventBus = options.eventBus;
+    this.resolveAuth = options.resolveAuth;
     this.sessions = new SessionManager({
       displayIds: options.displayIds,
       ...(options.createSessionId ? { createSessionId: options.createSessionId } : {}),
@@ -193,6 +210,16 @@ export class WebSocketGateway implements GatewayHub {
   /** Vai spēlētājam (clientId) ir aktīvs savienojums. */
   isOnline(playerId: string): boolean {
     return this.sessions.hasActiveConnection(playerId);
+  }
+
+  /** Autentificētais `userId` aktīvajam `clientId` (vai `undefined`, ja anonīms). */
+  getUserId(playerId: string): string | undefined {
+    return this.sessions.getUserId(playerId);
+  }
+
+  /** Publiskais profils (username/avatar/tituls) seat attēlošanai; pārdzīvo disconnect. */
+  getSeatProfile(playerId: string): SeatProfile | undefined {
+    return this.sessions.getPublicProfile(playerId);
   }
 
   /**
@@ -355,14 +382,31 @@ export class WebSocketGateway implements GatewayHub {
       return;
     }
 
-    const result = this.sessions.registerAsync(ctx.conn.id, message.clientId, message.reconnectToken);
-    if (isPromiseLike(result)) {
-      return result.then((resolved) => this.completeHello(ctx, resolved));
+    // Opcionālā autentifikācija: atrisinām paralēli sesijas reģistrācijai. Nederīgs/
+    // iztrūkstošs tokens → `undefined` → anonīms (NEKAD nebloķē spēli).
+    const auth =
+      message.authToken !== undefined && this.resolveAuth !== undefined
+        ? this.resolveAuth(message.authToken)
+        : undefined;
+    const register = this.sessions.registerAsync(
+      ctx.conn.id,
+      message.clientId,
+      message.reconnectToken
+    );
+    if (isPromiseLike(auth) || isPromiseLike(register)) {
+      return Promise.all([Promise.resolve(auth), Promise.resolve(register)]).then(
+        ([resolvedAuth, resolvedRegister]) =>
+          this.completeHello(ctx, resolvedRegister, resolvedAuth)
+      );
     }
-    this.completeHello(ctx, result);
+    this.completeHello(ctx, register, undefined);
   }
 
-  private completeHello(ctx: ConnectionContext, result: RegisterResult): void {
+  private completeHello(
+    ctx: ConnectionContext,
+    result: RegisterResult,
+    auth: ResolvedAuthInfo | undefined
+  ): void {
     if (!result.ok) {
       // reconnectToken nesakrīt ar zināmo clientId → noraidām (neuzdodas par citu).
       ctx.conn.send(errorEvent("FORBIDDEN", "Reconnect token does not match this client."));
@@ -371,15 +415,32 @@ export class WebSocketGateway implements GatewayHub {
       return;
     }
 
-    const identity = result.identity;
+    // Ielogotam: pārrakstām publisko displayId ar username un piesaistām userId
+    // (citi spēlētāji redz lietotājvārdu; statistika attiecināma — Fāze 3).
+    // Anonīmam viss paliek kā šodien (displayId = `#?????`).
+    const identity: SessionIdentity = auth
+      ? { ...result.identity, displayId: auth.username, userId: auth.userId }
+      : result.identity;
     ctx.identity = identity;
+    // Fāze 4: kešo publisko profilu (username/avatar/tituls) seat attēlošanai citiem;
+    // pārdzīvo atvienojumu līdz `release` (atvienota spēlētāja sēdvieta saglabā profilu).
+    if (auth) {
+      this.sessions.setPublicProfile(identity.playerId, {
+        username: auth.username,
+        avatar: auth.avatar,
+        title: auth.title
+      });
+    }
     ctx.conn.send({
       type: "WELCOME",
       sessionId: identity.sessionId,
       playerId: identity.playerId,
       displayId: identity.displayId,
       reconnectToken: identity.reconnectToken,
-      serverNow: this.clock()
+      serverNow: this.clock(),
+      ...(auth
+        ? { userId: auth.userId, username: auth.username, avatar: auth.avatar, isRegistered: true }
+        : {})
     });
     // Jauns lobby dalībnieks: čata vēsture + onlineCount push pārējiem.
     if (result.isReconnect || result.replacedConnectionId !== undefined) {

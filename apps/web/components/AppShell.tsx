@@ -6,11 +6,17 @@ import {
   useState
 } from "react";
 import { AudioControls } from "./AudioControls";
+import { AuthDialog } from "./auth/AuthDialog";
+import { LobbyProfile } from "./auth/LobbyProfile";
+import { ResetPasswordScreen } from "./auth/ResetPasswordScreen";
 import { Dialog } from "./Dialog";
 import { DominoPokerGame } from "./DominoPokerGame";
 import { CompactLobbyPanel, LobbyWheel } from "./LobbyWheel";
 import { MultiplayerLobby } from "./MultiplayerLobby";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
+import { avatarFilePath, titleForWins } from "@domino-poker/shared";
+import { titleLabel } from "../lib/auth/titleLabel";
+import { useAuthUser } from "../lib/auth/useAuthUser";
 import {
   defaultLocale,
   getAppStrings,
@@ -46,8 +52,17 @@ export function AppShell() {
   const [rulesOpen, setRulesOpen] = useState(false);
   const [locale, setLocale] = useState<Locale>(defaultLocale);
   const [selectedRoundCount, setSelectedRoundCount] = useState(defaultRoundCount);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [resetToken, setResetToken] = useState<string | null>(null);
   const audio = useAudioSettings();
+  const auth = useAuthUser();
+  const refreshAuth = auth.refresh;
   const t = getAppStrings(locale);
+
+  const openAuth = () => {
+    audio.play("uiClick");
+    setAuthOpen(true);
+  };
 
   useEffect(() => {
     document.documentElement.lang = t.localeCode;
@@ -68,6 +83,28 @@ export function AppShell() {
     }
   }, []);
 
+  // Fāze 5: paroles atjaunošanas links (`#reset=<token>`) → reset ekrāns. Tokenu
+  // lasām no URL hash (nenonāk servera/proxy logos), turam tikai state, un uzreiz
+  // iztīram URL, lai tas nepaliek adreses joslā / pārlūka vēsturē.
+  useEffect(() => {
+    const marker = "#reset=";
+    if (window.location.hash.startsWith(marker)) {
+      const token = window.location.hash.slice(marker.length);
+      if (token) {
+        setResetToken(decodeURIComponent(token));
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      }
+    }
+  }, []);
+
+  // Fāze 3: atgriežoties galvenajā lobby (piem. pēc MP spēles), pārlādē profila
+  // statistiku no servera. Anonīmam `refresh` ir no-op.
+  useEffect(() => {
+    if (screen === "lobby") {
+      refreshAuth();
+    }
+  }, [screen, refreshAuth]);
+
   const changeLocale = (nextLocale: Locale) => {
     setLocale(nextLocale);
     writeLocalStorage(localeStorageKey, nextLocale);
@@ -84,11 +121,24 @@ export function AppShell() {
     setScreen("mp-lobby");
   };
 
+  if (resetToken !== null) {
+    return (
+      <ResetPasswordScreen
+        labels={t}
+        token={resetToken}
+        playClick={() => audio.play("uiClick")}
+        onDone={() => setResetToken(null)}
+      />
+    );
+  }
+
   if (screen === "mp-lobby") {
     return (
       <MultiplayerLobby
         audio={audio}
         labels={t}
+        authToken={auth.token}
+        getAuthToken={auth.getToken}
         onExit={() => {
           writeSessionStorage(screenStorageKey, "lobby");
           setScreen("lobby");
@@ -98,13 +148,20 @@ export function AppShell() {
   }
 
   if (screen === "game") {
+    // Ielogotam SP cilvēkam sēdvietā rāda viņa avataru + lietotājvārdu + titulu
+    // (atvasinātu no uzvaru skaita). Anonīmam — noklusējums (bez avatara, "Tu").
+    const humanProfile =
+      auth.status === "authenticated" && auth.user
+        ? {
+            avatarUrl: avatarFilePath(auth.user.avatar),
+            displayName: auth.user.username,
+            title: titleLabel(t, titleForWins(auth.stats?.wins ?? 0))
+          }
+        : { avatarUrl: null, displayName: t.you, title: null };
     return (
       <DominoPokerGame
         audio={audio}
-        humanProfile={{
-          avatarUrl: null,
-          displayName: t.you
-        }}
+        humanProfile={humanProfile}
         labels={t}
         numberOfRounds={selectedRoundCount}
         onExitToLobby={() => {
@@ -117,6 +174,17 @@ export function AppShell() {
   return (
     <main className="lobbyShell">
       <header className="lobbyTopBar">
+        {auth.status !== "authenticated" ? (
+          <button
+            className="iconButton lobbyLoginButton"
+            type="button"
+            aria-label={t.logIn}
+            title={t.logIn}
+            onClick={openAuth}
+          >
+            <LoginIcon />
+          </button>
+        ) : null}
         <button
           className="iconButton lobbyHelpButton"
           type="button"
@@ -144,6 +212,13 @@ export function AppShell() {
 
       <section className="lobbyContent" aria-labelledby="lobby-title">
         <h1 className="srOnly" id="lobby-title">{t.lobbyTitle}</h1>
+        <LobbyProfile
+          labels={t}
+          status={auth.status}
+          user={auth.user}
+          {...(auth.stats ? { stats: { wins: auth.stats.wins, losses: auth.stats.losses } } : {})}
+          onOpen={openAuth}
+        />
         <LobbyWheel
           disabled={false}
           labels={t}
@@ -182,6 +257,21 @@ export function AppShell() {
           audio={audio}
           labels={t}
           onClose={() => setRulesOpen(false)}
+        />
+      ) : null}
+
+      {authOpen ? (
+        <AuthDialog
+          labels={t}
+          locale={locale}
+          status={auth.status}
+          user={auth.user}
+          register={auth.register}
+          login={auth.login}
+          logout={auth.logout}
+          updateProfile={auth.updateProfile}
+          playClick={() => audio.play("uiClick")}
+          onClose={() => setAuthOpen(false)}
         />
       ) : null}
     </main>
@@ -363,6 +453,10 @@ function LanguageSelector({
 
 function SettingsIcon() {
   return <span className="settingsAssetIcon" aria-hidden="true" />;
+}
+
+function LoginIcon() {
+  return <span className="loginAssetIcon" aria-hidden="true" />;
 }
 
 function CloseIcon() {

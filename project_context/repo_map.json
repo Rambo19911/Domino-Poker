@@ -1,82 +1,18 @@
 [
   {
-    "path": "README.md",
-    "type": "docs",
-    "purpose": "Public GitHub landing documentation with project overview, screenshots, setup commands, gameplay summary, and license link.",
-    "importance": "high",
-    "related_files": ["LICENSE", "Screenshots/Lobby-screen.png", "Screenshots/playing-room-screen.png", "Screenshots/settings-screen.png", "Screenshots/gamerules-screen.png"],
-    "confidence": "high"
-  },
-  {
-    "path": "LICENSE",
-    "type": "docs",
-    "purpose": "Apache License 2.0 terms for the public project.",
-    "importance": "high",
-    "related_files": ["README.md"],
-    "confidence": "high"
-  },
-  {
-    "path": "Screenshots/Lobby-screen.png",
-    "type": "docs",
-    "purpose": "Main full-width README screenshot of the Domino Poker lobby.",
-    "importance": "medium",
-    "related_files": ["README.md"],
-    "confidence": "high"
-  },
-  {
-    "path": "Screenshots/playing-room-screen.png",
-    "type": "docs",
-    "purpose": "README screenshot of the active game room.",
-    "importance": "medium",
-    "related_files": ["README.md"],
-    "confidence": "high"
-  },
-  {
-    "path": "Screenshots/settings-screen.png",
-    "type": "docs",
-    "purpose": "README screenshot of the settings dialog.",
-    "importance": "medium",
-    "related_files": ["README.md"],
-    "confidence": "high"
-  },
-  {
-    "path": "Screenshots/gamerules-screen.png",
-    "type": "docs",
-    "purpose": "README screenshot of the game rules dialog.",
-    "importance": "medium",
-    "related_files": ["README.md"],
-    "confidence": "high"
-  },
-  {
-    "path": "package.json",
+    "path": ".dockerignore",
     "type": "config",
-    "purpose": "Root npm workspace scripts for build, test, lint (ESLint 9 flat config), typecheck, web dev server, multiplayer server dev command (dev:server builds core -> shared -> server), simulation/load-test commands, and `test:postgres:docker` for disposable Docker PostgreSQL integration tests. Pins Node >= 22.5 via engines + .npmrc engine-strict.",
-    "importance": "high",
-    "related_files": ["apps/web/package.json", "apps/server/package.json", "packages/core/package.json", "packages/shared/package.json"],
-    "confidence": "high"
-  },
-  {
-    "path": "tsconfig.json",
-    "type": "config",
-    "purpose": "Root TypeScript project-reference entry for the new shared and server workspaces.",
+    "purpose": "Important project file referenced by module_map: .dockerignore.",
     "importance": "medium",
-    "related_files": ["tsconfig.base.json", "apps/server/tsconfig.json", "packages/shared/tsconfig.json"],
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "tsconfig.base.json",
+    "path": ".env.example",
     "type": "config",
-    "purpose": "Shared strict TypeScript compiler options inherited by workspaces.",
-    "importance": "high",
-    "related_files": ["tsconfig.json", "apps/web/tsconfig.json", "apps/server/tsconfig.json", "packages/core/tsconfig.json", "packages/shared/tsconfig.json"],
-    "confidence": "high"
-  },
-  {
-    "path": "package-lock.json",
-    "type": "config",
-    "purpose": "Locked dependency tree for all npm workspaces.",
-    "importance": "high",
-    "related_files": ["package.json", "apps/web/package.json", "apps/server/package.json", "packages/core/package.json", "packages/shared/package.json"],
+    "purpose": "Environment template for server port/host, DATABASE_URL, TURN_DURATION_MS, WEB_ORIGIN, and PostgreSQL pool settings.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   },
   {
@@ -84,143 +20,230 @@
     "type": "config",
     "purpose": "Repository ignore rules for dependencies, build outputs, local environment files, caches, reports, editor files, and local SQLite runtime data.",
     "importance": "high",
-    "related_files": ["data/.gitkeep"],
+    "related_files": [
+      "data/.gitkeep"
+    ],
     "confidence": "high"
   },
   {
-    "path": "data/.gitkeep",
+    "path": ".node-version",
     "type": "config",
-    "purpose": "Keeps the local runtime data directory present while ignoring future `data/*.sqlite` files.",
-    "importance": "low",
-    "related_files": [".gitignore"],
-    "confidence": "high"
-  },
-  {
-    "path": "start-domino-poker.bat",
-    "type": "utility",
-    "purpose": "Windows launcher that checks Node.js/npm, installs dependencies when needed, releases the configured web/server ports, starts the multiplayer server first (waits for `/health`), then starts the Next.js web client, waits for readiness, and opens the game URL unless `DOMINO_NO_OPEN=1`.",
+    "purpose": "Important project file referenced by module_map: .node-version.",
     "importance": "medium",
-    "related_files": ["package.json", "apps/server/package.json", "apps/web/package.json"],
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "scripts/test-postgres-docker.mjs",
-    "type": "utility",
-    "purpose": "Starts a disposable Docker PostgreSQL container with tmpfs data, sets TEST_POSTGRES_DATABASE_URL, runs the server PostgreSQL integration tests, and removes the container/volumes afterward.",
-    "importance": "high",
-    "related_files": ["package.json", "apps/server/package.json", "apps/server/test/storage/PostgresStorage.integration.test.ts", "apps/server/test/net/PostgresEventBus.integration.test.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "playwright.config.ts",
+    "path": ".npmrc",
     "type": "config",
-    "purpose": "Playwright smoke-test configuration that starts the Next.js web app and runs desktop Chromium e2e checks.",
+    "purpose": "Important project file referenced by module_map: .npmrc.",
     "importance": "medium",
-    "related_files": ["tests/e2e/main-flow.spec.ts", "package.json", "apps/web/package.json"],
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "apps/web/package.json",
+    "path": ".nvmrc",
     "type": "config",
-    "purpose": "Next.js web workspace package scripts and dependencies.",
-    "importance": "high",
-    "related_files": ["package.json", "apps/web/next.config.ts", "apps/web/tsconfig.json"],
+    "purpose": "Important project file referenced by module_map: .nvmrc.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   },
   {
     "path": "apps/server/package.json",
     "type": "config",
-    "purpose": "Multiplayer server workspace package metadata, build/typecheck scripts, PostgreSQL integration test script, Node typings, and ws/pg/zod dependencies.",
+    "purpose": "Important project file referenced by module_map: apps/server/package.json.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/auth/AuthService.ts",
+    "type": "service",
+    "purpose": "Optional account service: register (email required)/login/token resolution/logout/profile/stats plus password reset (requestPasswordReset anti-enumeration + resetPassword) using hashed passwords and opaque DB tokens.",
     "importance": "high",
-    "related_files": ["package.json", "apps/server/tsconfig.json", "apps/server/src/index.ts", "packages/shared/package.json"],
+    "related_files": [
+      "apps/server/src/http/authRoutes.ts",
+      "apps/server/src/auth/EmailSender.ts",
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
+    ],
     "confidence": "high"
   },
   {
-    "path": "apps/server/tsconfig.json",
-    "type": "config",
-    "purpose": "TypeScript config for the server workspace, extending the repo base config, enabling Node types, and referencing packages/shared.",
+    "path": "apps/server/src/auth/EmailSender.ts",
+    "type": "service",
+    "purpose": "Email delivery abstraction for password reset (Phase 5): ConsoleEmailSender (dev) / ResendEmailSender (prod via Resend HTTP API); createEmailSender returns undefined in prod without RESEND_API_KEY so the feature is disabled. Reset email content is bilingual (LV+EN).",
     "importance": "medium",
-    "related_files": ["tsconfig.base.json", "apps/server/package.json", "packages/shared/tsconfig.json"],
+    "related_files": [
+      "apps/server/src/auth/AuthService.ts",
+      "apps/server/src/config.ts",
+      "apps/server/src/index.ts"
+    ],
     "confidence": "high"
   },
   {
-    "path": "apps/server/src/index.ts",
-    "type": "entrypoint",
-    "purpose": "Server entrypoint: loads config/storage, wires MatchPersistence, PostgreSQL room leases/durable sessions/fanout bus when DATABASE_URL is PostgreSQL, builds CoreMessageRouter + WebSocketGateway, starts HTTP health/metrics, attaches WS /ws, and gracefully closes DB/fanout on shutdown.",
+    "path": "apps/server/src/auth/AuthStore.ts",
+    "type": "service",
+    "purpose": "Storage capability interface for users, auth tokens, profile updates, and account stats.",
     "importance": "medium",
-    "related_files": ["apps/server/src/config.ts", "apps/server/src/httpServer.ts", "apps/server/src/net/WebSocketGateway.ts", "apps/server/src/net/PostgresEventBus.ts", "apps/server/src/net/wsTransport.ts", "apps/server/src/storage/PostgresStorage.ts", "apps/server/package.json", "apps/server/tsconfig.json"],
+    "related_files": [
+      "apps/server/src/http/authRoutes.ts",
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/auth/passwords.ts",
+    "type": "service",
+    "purpose": "scrypt password hashing and verification helpers.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/http/authRoutes.ts",
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/chat/LobbyChat.ts",
+    "type": "service",
+    "purpose": "Important project file referenced by module_map: apps/server/src/chat/LobbyChat.ts.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   },
   {
     "path": "apps/server/src/config.ts",
     "type": "config",
-    "purpose": "Server configuration loader for HTTP and future WebSocket ports, reading root `.env` values with 4000/4001 defaults.",
+    "purpose": "Server configuration loader for SERVER_PORT/HTTP_PORT, SERVER_HOST, DATABASE_URL, NODE_ENV, TURN_DURATION_MS, PostgreSQL pool limits, and WEB_ORIGIN CORS allowlist. WebSocket shares the HTTP port via upgrade.",
     "importance": "medium",
-    "related_files": ["apps/server/src/index.ts"],
+    "related_files": [
+      "apps/server/src/index.ts",
+      ".env.example"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/http/authRoutes.ts",
+    "type": "route",
+    "purpose": "Raw HTTP /auth/* routes with Zod validation, rate limits, bearer tokens, and CORS allowlisting.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/httpServer.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/http/rateLimiter.ts",
+    "type": "route",
+    "purpose": "Small in-memory rate limiter for auth route brute-force protection.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/httpServer.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/http/readJsonBody.ts",
+    "type": "route",
+    "purpose": "Bounded JSON body reader for auth HTTP requests.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/httpServer.ts",
+      "apps/server/src/index.ts"
+    ],
     "confidence": "high"
   },
   {
     "path": "apps/server/src/httpServer.ts",
-    "type": "service",
-    "purpose": "Minimal Node HTTP server factory with `GET /health` returning `{ ok: true }`.",
+    "type": "route",
+    "purpose": "Raw Node HTTP server for GET /health, GET /metrics, optional /auth/* routing, and default 404 handling.",
     "importance": "medium",
-    "related_files": ["apps/server/src/index.ts"],
+    "related_files": [
+      "apps/server/src/index.ts",
+      "apps/server/src/http/authRoutes.ts"
+    ],
     "confidence": "high"
   },
   {
-    "path": "apps/server/src/rooms/RoomEngine.ts",
-    "type": "service",
-    "purpose": "Phase 5.1 single-writer room engine: dispatch() is the only path that mutates one room's MultiplayerGameState, serialized through a re-entrancy queue over core.applyCommand. Assigns a contiguous room-level seq per event, keeps an in-memory event log, caches idempotency by playerId+requestId, overrides time-sensitive commands' now with the server clock, schedules/cancels the turn timeout via an injected TurnTimerScheduler, and exposes getSnapshotForPlayer/getPublicSnapshot.",
-    "importance": "high",
-    "related_files": ["apps/server/src/timers/TurnTimerScheduler.ts", "apps/server/src/timers/ManualTimerController.ts", "packages/core/src/multiplayer/applyCommand.ts", "packages/core/src/multiplayer/snapshots.ts", "apps/server/test/rooms/RoomEngine.test.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/timers/TurnTimerScheduler.ts",
-    "type": "utility",
-    "purpose": "Clock type and the single-turn TurnTimerScheduler interface (schedule/cancel). Mocked in Phase 5; a real setTimeout implementation plugs in behind it in Phase 7.",
+    "path": "apps/server/src/identity/DisplayIdRegistry.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: apps/server/src/identity/DisplayIdRegistry.ts.",
     "importance": "medium",
-    "related_files": ["apps/server/src/timers/ManualTimerController.ts", "apps/server/src/rooms/RoomEngine.ts"],
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "apps/server/src/timers/ManualTimerController.ts",
-    "type": "utility",
-    "purpose": "Deterministic now()+scheduler for tests/sims (no real setTimeout): advanceTo(target) fires the pending turn timer when its fireAt is reached, setting the clock to fireAt so the dispatched TURN_TIMEOUT sees now > deadlineAt.",
+    "path": "apps/server/src/index.ts",
+    "type": "model",
+    "purpose": "Server entrypoint: loads config/storage/auth, wires MatchPersistence, OutcomeRecorder, optional AuthService, PostgreSQL leases/durable sessions/fanout, CoreMessageRouter, WebSocketGateway, HTTP health/metrics/auth routes, WS /ws, and graceful shutdown.",
     "importance": "medium",
-    "related_files": ["apps/server/src/timers/TurnTimerScheduler.ts", "apps/server/src/rooms/RoomEngine.ts"],
+    "related_files": [
+      "apps/server/src/config.ts",
+      "apps/server/src/httpServer.ts",
+      "apps/server/src/auth/AuthService.ts",
+      "apps/server/src/storage/OutcomeRecorder.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
     "confidence": "high"
   },
   {
-    "path": "apps/server/test/rooms/RoomEngine.test.ts",
-    "type": "test",
-    "purpose": "Vitest coverage for RoomEngine: contiguous room seq, requestId idempotency, turn-timeout auto-resolution at deadline, timeout cancel on accepted bid, concurrent bid+timeout resolving the turn only once, personalized/unknown-player snapshots, and disconnect not pausing the game.",
-    "importance": "high",
-    "related_files": ["apps/server/src/rooms/RoomEngine.ts", "apps/server/src/timers/ManualTimerController.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/rooms/LobbyManager.ts",
+    "path": "apps/server/src/net/gameUpdateDelivery.ts",
     "type": "service",
-    "purpose": "Phase 5.2/5.4 lobby + room lifecycle: owns the room registry and FSM (WAITING->STARTING->IN_GAME->FINISHED->DESTROYED). createRoom (unique code, createdAt, expiresAt=+1h, host at seat 0, visibility, numberOfRounds), listRooms (WAITING/IN_GAME only, private flagged), assignSeat (max 4 seats empty|human|bot), fillSeatsWithBots (host-only, WAITING-only, deterministic bot ids), leaveRoom with host migration (next human by seatIndex; DESTROYED when no humans), canStartGame/startGame (host-only, full table + >=1 human), markInGame/markFinished/destroyRoom, and destroyExpired TTL sweep (skips IN_GAME). Public views expose only displayId and room metadata; clock + id/code generators are injected for determinism.",
-    "importance": "high",
-    "related_files": ["apps/server/src/identity/DisplayIdRegistry.ts", "apps/server/src/timers/TurnTimerScheduler.ts", "apps/server/src/rooms/lobbyErrors.ts", "apps/server/test/rooms/LobbyManager.test.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/rooms/lobbyErrors.ts",
-    "type": "utility",
-    "purpose": "Structured LobbyError class and LobbyErrorCode union (Phase 5.6): ROOM_NOT_FOUND, ROOM_FULL, GAME_ALREADY_STARTED, NOT_HOST, ALREADY_IN_ROOM, FORBIDDEN plus ROOM_NOT_JOINABLE/NOT_ENOUGH_PLAYERS/PLAYER_NOT_IN_ROOM.",
+    "purpose": "Server WebSocket gateway/routing/fanout file: apps/server/src/net/gameUpdateDelivery.ts.",
     "importance": "medium",
-    "related_files": ["apps/server/src/rooms/LobbyManager.ts"],
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
     "confidence": "high"
   },
   {
-    "path": "apps/server/src/rooms/RoomOwnershipGuard.ts",
+    "path": "apps/server/src/net/GatewayConnection.ts",
     "type": "service",
-    "purpose": "Room ownership guard abstraction for horizontal scaling: no-op in single-instance mode, lease-backed through RoomLeaseStore/PostgresStorage when available, used by CoreMessageRouter before room-scoped commands, and renews owned room leases on a timer in PostgreSQL mode.",
+    "purpose": "Server WebSocket gateway/routing/fanout file: apps/server/src/net/GatewayConnection.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/net/gatewayEvents.ts",
+    "type": "service",
+    "purpose": "Server WebSocket gateway/routing/fanout file: apps/server/src/net/gatewayEvents.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/net/GatewayHub.ts",
+    "type": "service",
+    "purpose": "Server WebSocket gateway/routing/fanout file: apps/server/src/net/GatewayHub.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/net/messageRouter.ts",
+    "type": "service",
+    "purpose": "Server WebSocket gateway/routing/fanout file: apps/server/src/net/messageRouter.ts.",
     "importance": "high",
-    "related_files": ["apps/server/src/net/messageRouter.ts", "apps/server/src/storage/RoomLeaseStore.ts", "apps/server/src/storage/PostgresStorage.ts", "apps/server/test/net/roomOwnershipRouting.test.ts"],
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
     "confidence": "high"
   },
   {
@@ -228,7 +251,98 @@
     "type": "service",
     "purpose": "PostgreSQL-backed cross-instance WebSocket fanout bus: stores full fanout messages in `server_event_fanout`, sends LISTEN/NOTIFY payloads containing only event ids, prunes old fanout rows, reconnects the LISTEN client after listener failures, catches up fanout rows missed during reconnect windows, skips local self-notification lookups, and delivers broadcast/player/supersede messages to local gateway sockets.",
     "importance": "high",
-    "related_files": ["apps/server/src/net/ServerEventBus.ts", "apps/server/src/net/WebSocketGateway.ts", "apps/server/src/index.ts", "apps/server/test/net/PostgresEventBus.integration.test.ts"],
+    "related_files": [
+      "apps/server/src/net/ServerEventBus.ts",
+      "apps/server/src/net/WebSocketGateway.ts",
+      "apps/server/src/index.ts",
+      "apps/server/test/net/PostgresEventBus.integration.test.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/net/ServerEventBus.ts",
+    "type": "service",
+    "purpose": "Server event bus contract for local and PostgreSQL-backed WebSocket fanout delivery.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/net/PostgresEventBus.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/net/WebSocketGateway.ts",
+    "type": "service",
+    "purpose": "Server WebSocket gateway/routing/fanout file: apps/server/src/net/WebSocketGateway.ts.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/net/wsTransport.ts",
+    "type": "service",
+    "purpose": "Server WebSocket gateway/routing/fanout file: apps/server/src/net/wsTransport.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/rooms/GameDirector.ts",
+    "type": "service",
+    "purpose": "Server room lifecycle or game-loop file: apps/server/src/rooms/GameDirector.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/rooms/lobbyErrors.ts",
+    "type": "service",
+    "purpose": "Server room lifecycle or game-loop file: apps/server/src/rooms/lobbyErrors.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/rooms/LobbyManager.ts",
+    "type": "service",
+    "purpose": "Server room lifecycle or game-loop file: apps/server/src/rooms/LobbyManager.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/rooms/RoomEngine.ts",
+    "type": "service",
+    "purpose": "Server room lifecycle or game-loop file: apps/server/src/rooms/RoomEngine.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/rooms/RoomManager.ts",
+    "type": "service",
+    "purpose": "Server room lifecycle or game-loop file: apps/server/src/rooms/RoomManager.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/rooms/RoomOwnershipGuard.ts",
+    "type": "service",
+    "purpose": "Room ownership guard abstraction for horizontal scaling: no-op in single-instance mode, lease-backed through RoomLeaseStore/PostgresStorage when available, used by CoreMessageRouter before room-scoped commands, and renews owned room leases on a timer in PostgreSQL mode.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/storage/RoomLeaseStore.ts",
+      "apps/server/src/storage/PostgresStorage.ts",
+      "apps/server/test/net/roomOwnershipRouting.test.ts"
+    ],
     "confidence": "high"
   },
   {
@@ -236,55 +350,504 @@
     "type": "model",
     "purpose": "Durable reconnect session store contract used by PostgreSQL mode so reconnectToken and displayId survive across server instances through the `player_sessions` table.",
     "importance": "high",
-    "related_files": ["apps/server/src/sessions/SessionManager.ts", "apps/server/src/storage/PostgresStorage.ts", "apps/server/test/sessions/SessionManager.test.ts"],
+    "related_files": [
+      "apps/server/src/sessions/SessionManager.ts",
+      "apps/server/src/storage/PostgresStorage.ts",
+      "apps/server/test/sessions/SessionManager.test.ts"
+    ],
     "confidence": "high"
   },
   {
-    "path": "apps/server/test/rooms/LobbyManager.test.ts",
-    "type": "test",
-    "purpose": "Vitest coverage for LobbyManager: createRoom host/TTL/visibility/numberOfRounds, listRooms visibility (WAITING/IN_GAME shown, FINISHED/DESTROYED hidden, private flagged), seating + ROOM_FULL/ALREADY_IN_ROOM/ROOM_NOT_FOUND, deterministic bot-fill to a 4-player table, host-only fill/start, min-to-start (NOT_ENOUGH_PLAYERS), GAME_ALREADY_STARTED after start, host migration + empty-room DESTROYED, TTL sweep skipping IN_GAME, and displayId-only seat views (no playerId).",
-    "importance": "high",
-    "related_files": ["apps/server/src/rooms/LobbyManager.ts", "apps/server/src/rooms/lobbyErrors.ts", "apps/server/src/timers/ManualTimerController.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/rooms/RoomManager.ts",
+    "path": "apps/server/src/sessions/SessionManager.ts",
     "type": "service",
-    "purpose": "Phase 5.3 room router: wires LobbyManager (room metadata/seats) with per-room RoomEngine (game state). Tracks clientId->room membership (one room at a time, ALREADY_IN_ROOM), createRoom options (visibility, numberOfRounds), joinRoom by id (public) or code (private requires code), leaveRoom, findRoom/listRooms/getRoomView, fillSeatsWithBots, startGame (creates the engine + dispatches CREATE_GAME with gameId==roomId, human seats, and room numberOfRounds, then IN_GAME), routeMessageToRoomEngine (forwards only to the matching room; rejects mismatched gameId for room isolation), getSnapshotForClient (seat index -> core playerId via corePlayerIdForSeat, member-only), and destroyFinishedRoom. Each room gets its own TurnTimerScheduler (default no-op).",
-    "importance": "high",
-    "related_files": ["apps/server/src/rooms/LobbyManager.ts", "apps/server/src/rooms/RoomEngine.ts", "apps/server/src/rooms/lobbyErrors.ts", "apps/server/test/rooms/RoomManager.test.ts"],
+    "purpose": "Important project file referenced by module_map: apps/server/src/sessions/SessionManager.ts.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "apps/server/test/rooms/RoomManager.test.ts",
-    "type": "test",
-    "purpose": "Vitest coverage for RoomManager: one-room-at-a-time membership (ALREADY_IN_ROOM, re-join after leave, PLAYER_NOT_IN_ROOM), public-by-id vs private-by-code joins (FORBIDDEN/ROOM_NOT_FOUND), engine creation on start + command routing, routing rejected without an active game and for mismatched gameId (cross-room isolation leaving the other room untouched), member-only reconnect snapshot (seat 0 -> core player '1'), and destroyFinishedRoom removing the room/engine/membership.",
-    "importance": "high",
-    "related_files": ["apps/server/src/rooms/RoomManager.ts", "apps/server/src/rooms/RoomEngine.ts", "apps/server/src/timers/ManualTimerController.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/identity/DisplayIdRegistry.ts",
+    "path": "apps/server/src/storage/index.ts",
     "type": "service",
-    "purpose": "Phase 5.5 identity: assigns public `#?????` (5-digit) displayIds derived deterministically from playerId via the core MP seeded RNG, unique within the registry (salt-based collision regeneration), stable per session, with release/get/has. Bots use the same format; full playerId/clientId stays internal.",
+    "purpose": "Server persistence layer file: apps/server/src/storage/index.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/storage/MatchPersistence.ts",
+    "type": "service",
+    "purpose": "Server persistence layer file: apps/server/src/storage/MatchPersistence.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/storage/migrate.ts",
+    "type": "service",
+    "purpose": "Server persistence layer file: apps/server/src/storage/migrate.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/storage/migrations.ts",
+    "type": "service",
+    "purpose": "PostgreSQL migration source of truth, including auth and user stats schemas.",
     "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/determinism.ts", "apps/server/test/identity/DisplayIdRegistry.test.ts"],
+    "related_files": [
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/storage/OutcomeRecorder.ts",
+    "type": "service",
+    "purpose": "Account win/loss outcome recorder for countable registered-user multiplayer games.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/storage/PostgresStorage.ts",
+    "type": "service",
+    "purpose": "Server persistence layer file: apps/server/src/storage/PostgresStorage.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/storage/RoomLeaseStore.ts",
+    "type": "service",
+    "purpose": "Server persistence layer file: apps/server/src/storage/RoomLeaseStore.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/storage/SqliteStorage.ts",
+    "type": "service",
+    "purpose": "Server persistence layer file: apps/server/src/storage/SqliteStorage.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/storage/StoragePort.ts",
+    "type": "service",
+    "purpose": "Server persistence layer file: apps/server/src/storage/StoragePort.ts.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/timers/ManualTimerController.ts",
+    "type": "model",
+    "purpose": "Server turn timer file: apps/server/src/timers/ManualTimerController.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/timers/SystemTurnTimerScheduler.ts",
+    "type": "model",
+    "purpose": "Server turn timer file: apps/server/src/timers/SystemTurnTimerScheduler.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/timers/TurnTimerScheduler.ts",
+    "type": "model",
+    "purpose": "Server turn timer file: apps/server/src/timers/TurnTimerScheduler.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/auth/AuthService.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/auth/AuthService.test.ts.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/http/authRoutes.ts",
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/chat/LobbyChat.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/chat/LobbyChat.test.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/http/authRoutes.integration.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/http/authRoutes.integration.test.ts.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/httpServer.ts",
+      "apps/server/src/index.ts"
+    ],
     "confidence": "high"
   },
   {
     "path": "apps/server/test/identity/DisplayIdRegistry.test.ts",
     "type": "test",
-    "purpose": "Vitest coverage for DisplayIdRegistry: #????? format, session stability, deterministic derivation, bot format, uniqueness with collision regeneration across 1000 players, release/reuse, get/has, and empty-playerId rejection.",
-    "importance": "high",
-    "related_files": ["apps/server/src/identity/DisplayIdRegistry.ts"],
+    "purpose": "Automated test coverage for apps/server/test/identity/DisplayIdRegistry.test.ts.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "apps/web/app/page.tsx",
-    "type": "entrypoint",
-    "purpose": "App Router page that renders the main AppShell.",
+    "path": "apps/server/test/net/abandonRoom.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/net/abandonRoom.test.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/net/authHandshake.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/net/authHandshake.test.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/net/chatRouting.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/net/chatRouting.test.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/net/forfeitRouting.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/net/forfeitRouting.test.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/net/gameMoveRouting.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/net/gameMoveRouting.test.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/net/gameStartRouting.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/net/gameStartRouting.test.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/net/heartbeat.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/net/heartbeat.test.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/net/lobbyRouting.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/net/lobbyRouting.test.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/net/playerResumeRouting.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/net/playerResumeRouting.test.ts.",
     "importance": "high",
-    "related_files": ["apps/web/components/AppShell.tsx"],
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/net/reconnectRouting.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/net/reconnectRouting.test.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/net/snapshotRecoveryRouting.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/net/snapshotRecoveryRouting.test.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/net/turnTimeoutRouting.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/net/turnTimeoutRouting.test.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/net/WebSocketGateway.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/net/WebSocketGateway.test.ts.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/net/wsTransport.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/net/wsTransport.test.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/net/messageRouter.ts",
+      "apps/server/src/net/WebSocketGateway.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/rooms/GameDirector.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/rooms/GameDirector.test.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/rooms/LobbyManager.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/rooms/LobbyManager.test.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/rooms/RoomEngine.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/rooms/RoomEngine.test.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/rooms/RoomManager.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/rooms/RoomManager.test.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/rooms/RoomManagerPersistence.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/rooms/RoomManagerPersistence.test.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/sessions/SessionManager.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/sessions/SessionManager.test.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/storage/MatchPersistence.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/storage/MatchPersistence.test.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/storage/OutcomeRecorder.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/storage/OutcomeRecorder.test.ts.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/storage/PostgresStorage.integration.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/storage/PostgresStorage.integration.test.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/storage/PostgresStorage.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/storage/PostgresStorage.test.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/storage/RoomLeaseStore.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/storage/RoomLeaseStore.test.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/storage/SqliteStorage.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/storage/SqliteStorage.test.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/storage/userStats.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/storage/userStats.test.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/timers/SystemTurnTimerScheduler.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/server/test/timers/SystemTurnTimerScheduler.test.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/tsconfig.build.json",
+    "type": "config",
+    "purpose": "Important project file referenced by module_map: apps/server/tsconfig.build.json.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/tsconfig.json",
+    "type": "config",
+    "purpose": "Server workspace no-emit TypeScript config using source path mappings for local typecheck/tests; tsconfig.build.json controls build output.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/tsconfig.build.json",
+      "tsconfig.base.json",
+      "packages/shared/tsconfig.json"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/vitest.config.ts",
+    "type": "config",
+    "purpose": "Important project file referenced by module_map: apps/server/vitest.config.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/app/globals.css",
+    "type": "ui",
+    "purpose": "Important project file referenced by module_map: apps/web/app/globals.css.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   },
   {
@@ -292,194 +855,401 @@
     "type": "entrypoint",
     "purpose": "Root layout and metadata for the Next.js web app.",
     "importance": "medium",
-    "related_files": ["apps/web/app/globals.css"],
+    "related_files": [
+      "apps/web/app/globals.css"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/app/manifest.ts",
+    "type": "ui",
+    "purpose": "Important project file referenced by module_map: apps/web/app/manifest.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/app/page.tsx",
+    "type": "ui",
+    "purpose": "Important project file referenced by module_map: apps/web/app/page.tsx.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   },
   {
     "path": "apps/web/components/AppShell.tsx",
     "type": "ui",
-    "purpose": "Main client app shell routing between 'lobby', 'game', and 'mp-lobby' screens, localized rules dialog, enabled multiplayer entry (opens the MP lobby), locale switching, and shared audio settings.",
-    "importance": "critical",
-    "related_files": [
-      "apps/web/components/DominoPokerGame.tsx",
-      "apps/web/components/LobbyWheel.tsx",
-      "apps/web/components/MultiplayerLobby.tsx",
-      "apps/web/components/RulesDialog.tsx",
-      "apps/web/components/AudioControls.tsx",
-      "apps/web/lib/i18n.ts",
-      "apps/web/app/globals.css"
-    ],
+    "purpose": "Important project file referenced by module_map: apps/web/components/AppShell.tsx.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "apps/web/components/MultiplayerLobby.tsx",
+    "path": "apps/web/components/AudioControls.tsx",
     "type": "ui",
-    "purpose": "Multiplayer lobby screen (LIVE, network-wired): header with Sound/Exit, a 'Create room' action, and three columns (public rooms / private rooms / online chat), themed with the app's dark-green/gold tokens. Fully wired to the WS server via MultiplayerClient + the useMultiplayer hook: real LOBBY_STATE room list, Create/View/Join/Leave, seat selection, Start game, chat send/history, and reconnect. PHONE PORTRAIT: when isPhonePortrait && !currentRoom it renders the dedicated MpMobileLobby (fixed 1080x2340 width-fit stage) instead of the desktop columns; the waiting room and create/join/rules dialogs stay desktop-responsive.",
-    "importance": "high",
-    "related_files": [
-      "apps/web/components/AppShell.tsx",
-      "apps/web/components/mp/MpMobileLobby.tsx",
-      "apps/web/app/globals.css",
-      "apps/web/lib/i18n.ts",
-      "docs/mockups/lobby-wireframe.html"
-    ],
+    "purpose": "Important project file referenced by module_map: apps/web/components/AudioControls.tsx.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "apps/web/components/mp/MpMobileLobby.tsx",
+    "path": "apps/web/components/auth/AuthDialog.tsx",
     "type": "ui",
-    "purpose": "Phone-portrait MP lobby room-list view as a PLAIN RESPONSIVE CSS screen (.mplShell position:fixed flex column; NOT a scaled design stage — a scaled stage was tried and reverted, see module_map Web App note). Reuses the app's button/icon classes (iconButton+mpHeaderIconButton for 48px rules/sound/exit, mpPrimaryButton/mpRoomButton for actions) so sizes match other screens. Public/private accordion sections (one open at a time) with internal overflow-y scroll bounded to the viewport; room rows (#shortId + seats/rounds/TTL/status/join/start); a viewport-level full-screen chat overlay (height follows visualViewport so the input stays above the keyboard) opened by a right-edge fixed FAB with an unread green dot; a top slide-down error toast. PSD (MP-lobby-layout.json) is only a proportion reference.",
-    "importance": "high",
+    "purpose": "Login/register/profile dialog with localized errors and avatar picker; register requires email; includes the 'Forgot password?' link + forgot-password form (anti-enumeration generic confirmation).",
+    "importance": "medium",
     "related_files": [
-      "apps/web/components/MultiplayerLobby.tsx",
-      "apps/web/components/mp/ConnectionBanner.tsx",
-      "apps/web/app/globals.css",
-      "docs/mockups/MP-lobby-layout.json"
+      "apps/server/src/http/authRoutes.ts",
+      "apps/web/components/auth/ResetPasswordScreen.tsx",
+      "apps/web/lib/auth/authApi.ts",
+      "apps/server/src/index.ts"
     ],
     "confidence": "high"
   },
   {
-    "path": "apps/web/lib/mobileStage.ts",
-    "type": "utility",
-    "purpose": "Phone-portrait detection + game-table design-stage scaling: useIsPhonePortrait() (orientation portrait & max-width 768) and useMobileStageLayout() (CONTAIN scaling for the immersive MP/SP game table). MOBILE_CANVAS_WIDTH/HEIGHT = 1080/2340. NOTE: the MP lobby does NOT use this (it is plain responsive CSS).",
-    "importance": "high",
-    "related_files": [
-      "apps/web/components/mp/MpMobileTable.tsx",
-      "apps/web/components/SpMobileTable.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/LobbyWheel.tsx",
+    "path": "apps/web/components/auth/ResetPasswordScreen.tsx",
     "type": "ui",
-    "purpose": "Desktop lobby mode wheel and compact lobby panel with shared round-count controls; the single-player half starts the game (Play), the multiplayer half opens the MP lobby via onStartMultiplayer (circular 'Lobby' button on the wheel, enabled button in the compact panel).",
-    "importance": "high",
-    "related_files": [
-      "apps/web/components/AppShell.tsx",
-      "apps/web/components/MultiplayerLobby.tsx",
-      "apps/web/app/globals.css",
-      "tests/e2e/layout-regression.spec.ts",
-      "tests/e2e/main-flow.spec.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/RulesDialog.tsx",
-    "type": "ui",
-    "purpose": "Shared localized game rules dialog and animated question-mark icon used by the lobby and game room.",
+    "purpose": "Standalone password-reset screen (Phase 5). AppShell shows it when the URL hash is #reset=<token>; reads the token from the hash, keeps it only in state, clears the URL via history.replaceState; submits a new password via apiResetPassword.",
     "importance": "medium",
     "related_files": [
       "apps/web/components/AppShell.tsx",
-      "apps/web/components/DominoPokerGame.tsx",
-      "apps/web/lib/locales/en.ts",
-      "apps/web/lib/locales/lv.ts",
-      "apps/web/app/globals.css"
+      "apps/web/lib/auth/authApi.ts",
+      "apps/server/src/http/authRoutes.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/auth/LobbyProfile.tsx",
+    "type": "ui",
+    "purpose": "Authenticated lobby profile panel showing avatar and account stats.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/http/authRoutes.ts",
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
     ],
     "confidence": "high"
   },
   {
     "path": "apps/web/components/Dialog.tsx",
     "type": "ui",
-    "purpose": "Shared modal wrapper that applies dialog semantics, backdrop styling, Escape wiring, optional scroll reset, and focus management.",
-    "importance": "high",
-    "related_files": [
-      "apps/web/components/useDialogFocus.ts",
-      "apps/web/components/AppShell.tsx",
-      "apps/web/components/DominoPokerGame.tsx",
-      "apps/web/components/RulesDialog.tsx",
-      "tests/e2e/dialog-a11y.spec.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/useDialogFocus.ts",
-    "type": "utility",
-    "purpose": "Small client hook for modal initial focus, Tab focus trapping, Escape handling, and focus restoration.",
+    "purpose": "Important project file referenced by module_map: apps/web/components/Dialog.tsx.",
     "importance": "medium",
-    "related_files": [
-      "apps/web/components/Dialog.tsx",
-      "apps/web/components/AppShell.tsx",
-      "apps/web/components/DominoPokerGame.tsx",
-      "apps/web/components/RulesDialog.tsx"
-    ],
+    "related_files": [],
     "confidence": "high"
   },
   {
     "path": "apps/web/components/DominoPokerGame.tsx",
     "type": "ui",
-    "purpose": "Interactive single-player Domino Poker table, tile-play orchestration, AI turn timers, trick completion, round summaries, and game-over flow.",
-    "importance": "critical",
-    "related_files": [
-      "packages/core/src/gameState.ts",
-      "packages/core/src/player.ts",
-      "packages/core/src/aiService.ts",
-      "apps/web/components/AppShell.tsx",
-      "apps/web/components/GameDialogs.tsx",
-      "apps/web/components/PlayerSeat.tsx",
-      "apps/web/components/InfoPanel.tsx",
-      "apps/web/components/DominoTileView.tsx",
-      "apps/web/app/globals.css"
-    ],
+    "purpose": "Important project file referenced by module_map: apps/web/components/DominoPokerGame.tsx.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/DominoTileView.tsx",
+    "type": "ui",
+    "purpose": "Important project file referenced by module_map: apps/web/components/DominoTileView.tsx.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   },
   {
     "path": "apps/web/components/GameDialogs.tsx",
     "type": "ui",
-    "purpose": "Game-specific bidding, number-selection, round-summary, game-end, and exit confirmation dialogs.",
+    "purpose": "Important project file referenced by module_map: apps/web/components/GameDialogs.tsx.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/InfoPanel.tsx",
+    "type": "ui",
+    "purpose": "Important project file referenced by module_map: apps/web/components/InfoPanel.tsx.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/LobbyWheel.tsx",
+    "type": "ui",
+    "purpose": "Important project file referenced by module_map: apps/web/components/LobbyWheel.tsx.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/MobileRoundCount.tsx",
+    "type": "ui",
+    "purpose": "Important project file referenced by module_map: apps/web/components/MobileRoundCount.tsx.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/mp/ConnectionBanner.tsx",
+    "type": "ui",
+    "purpose": "Multiplayer UI component: apps/web/components/mp/ConnectionBanner.tsx.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/MultiplayerLobby.tsx",
+      "packages/shared/src/serverEvents.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/mp/MpGameTable.tsx",
+    "type": "ui",
+    "purpose": "Live multiplayer game table rendering authoritative server snapshots and sending bid/move/leave intents.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/MultiplayerLobby.tsx",
+      "packages/shared/src/serverEvents.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/mp/MpMobileLobby.tsx",
+    "type": "ui",
+    "purpose": "Phone-portrait multiplayer lobby implemented as responsive CSS, not a scaled game stage.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/MultiplayerLobby.tsx",
+      "packages/shared/src/serverEvents.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/mp/MpMobileTable.tsx",
+    "type": "ui",
+    "purpose": "Multiplayer UI component: apps/web/components/mp/MpMobileTable.tsx.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/MultiplayerLobby.tsx",
+      "packages/shared/src/serverEvents.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/MultiplayerLobby.tsx",
+    "type": "ui",
+    "purpose": "Live multiplayer lobby and room screen wired to useMultiplayer: room list, create/join/code join, seats, start, chat, phone responsive lobby, and transition into MpGameTable.",
     "importance": "high",
     "related_files": [
-      "apps/web/components/DominoPokerGame.tsx",
-      "apps/web/components/Dialog.tsx",
-      "packages/core/src/gameState.ts",
-      "tests/e2e/dialog-a11y.spec.ts"
+      "apps/web/lib/mp/useMultiplayer.ts",
+      "apps/web/components/mp/MpMobileLobby.tsx",
+      "apps/web/components/mp/MpGameTable.tsx"
     ],
     "confidence": "high"
   },
   {
     "path": "apps/web/components/PlayerSeat.tsx",
     "type": "ui",
-    "purpose": "Shared game-table seat renderer for the human player, AI players, visible hand buttons, hidden opponent tiles, profile cards, and turn indicator.",
-    "importance": "high",
-    "related_files": [
-      "apps/web/components/DominoPokerGame.tsx",
-      "apps/web/components/DominoTileView.tsx",
-      "packages/core/src/player.ts",
-      "tests/e2e/main-flow.spec.ts",
-      "tests/e2e/layout-regression.spec.ts"
-    ],
+    "purpose": "Important project file referenced by module_map: apps/web/components/PlayerSeat.tsx.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "apps/web/components/InfoPanel.tsx",
+    "path": "apps/web/components/PwaRegister.tsx",
     "type": "ui",
-    "purpose": "Game status and score panel for current round, trick count, bid/won values, round score, and total score.",
+    "purpose": "Important project file referenced by module_map: apps/web/components/PwaRegister.tsx.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/RulesDialog.tsx",
+    "type": "ui",
+    "purpose": "Important project file referenced by module_map: apps/web/components/RulesDialog.tsx.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/SpMobileTable.tsx",
+    "type": "ui",
+    "purpose": "Important project file referenced by module_map: apps/web/components/SpMobileTable.tsx.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/useDialogFocus.ts",
+    "type": "ui",
+    "purpose": "Important project file referenced by module_map: apps/web/components/useDialogFocus.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/auth/authApi.ts",
+    "type": "service",
+    "purpose": "Client HTTP API wrapper for /auth routes.",
     "importance": "medium",
     "related_files": [
-      "apps/web/components/DominoPokerGame.tsx",
-      "packages/core/src/gameState.ts",
-      "tests/e2e/layout-regression.spec.ts"
+      "apps/server/src/http/authRoutes.ts",
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
     ],
     "confidence": "high"
   },
   {
-    "path": "apps/web/components/DominoTileView.tsx",
-    "type": "ui",
-    "purpose": "Shared visual renderer for visible domino tiles and hidden opponent tile backs.",
+    "path": "apps/web/lib/auth/useAuthUser.ts",
+    "type": "service",
+    "purpose": "React auth hook storing token via safeStorage and hydrating /auth/me.",
     "importance": "high",
     "related_files": [
-      "apps/web/components/DominoPokerGame.tsx",
-      "apps/web/components/PlayerSeat.tsx",
-      "packages/core/src/dominoTile.ts",
-      "apps/web/app/globals.css"
+      "apps/server/src/http/authRoutes.ts",
+      "apps/server/src/storage/StoragePort.ts",
+      "apps/server/src/index.ts"
     ],
     "confidence": "high"
   },
   {
-    "path": "apps/web/components/AudioControls.tsx",
-    "type": "ui",
-    "purpose": "Shared audio controls and background music element for lobby and game.",
+    "path": "apps/web/lib/i18n.ts",
+    "type": "utility",
+    "purpose": "Important project file referenced by module_map: apps/web/lib/i18n.ts.",
     "importance": "medium",
-    "related_files": ["apps/web/lib/useAudioSettings.ts", "apps/web/components/AppShell.tsx"],
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/locales/en.ts",
+    "type": "utility",
+    "purpose": "Important project file referenced by module_map: apps/web/lib/locales/en.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/locales/lv.ts",
+    "type": "utility",
+    "purpose": "Important project file referenced by module_map: apps/web/lib/locales/lv.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/mobileStage.ts",
+    "type": "utility",
+    "purpose": "Important project file referenced by module_map: apps/web/lib/mobileStage.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/mp/clientId.ts",
+    "type": "utility",
+    "purpose": "Multiplayer web client helper: apps/web/lib/mp/clientId.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/MultiplayerLobby.tsx",
+      "packages/shared/src/serverEvents.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/mp/clientView.ts",
+    "type": "utility",
+    "purpose": "Multiplayer web client helper: apps/web/lib/mp/clientView.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/MultiplayerLobby.tsx",
+      "packages/shared/src/serverEvents.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/mp/gameTableView.ts",
+    "type": "utility",
+    "purpose": "Multiplayer web client helper: apps/web/lib/mp/gameTableView.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/MultiplayerLobby.tsx",
+      "packages/shared/src/serverEvents.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/mp/mobileLayout.ts",
+    "type": "utility",
+    "purpose": "Multiplayer web client helper: apps/web/lib/mp/mobileLayout.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/MultiplayerLobby.tsx",
+      "packages/shared/src/serverEvents.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/mp/MultiplayerClient.ts",
+    "type": "utility",
+    "purpose": "WebSocket multiplayer client with HELLO auth token support, reconnect, ping, typed sends, and snapshot recovery.",
+    "importance": "high",
+    "related_files": [
+      "apps/web/components/MultiplayerLobby.tsx",
+      "packages/shared/src/serverEvents.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/mp/seatLabel.ts",
+    "type": "utility",
+    "purpose": "Multiplayer web client helper: apps/web/lib/mp/seatLabel.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/MultiplayerLobby.tsx",
+      "packages/shared/src/serverEvents.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/mp/serverUrl.ts",
+    "type": "utility",
+    "purpose": "Multiplayer web client helper: apps/web/lib/mp/serverUrl.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/MultiplayerLobby.tsx",
+      "packages/shared/src/serverEvents.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/mp/useMultiplayer.ts",
+    "type": "utility",
+    "purpose": "React hook owning MultiplayerClient lifecycle, reconnect token persistence, and auth-token-driven reconnect.",
+    "importance": "high",
+    "related_files": [
+      "apps/web/components/MultiplayerLobby.tsx",
+      "packages/shared/src/serverEvents.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/mp/webSocketAdapter.ts",
+    "type": "utility",
+    "purpose": "Multiplayer web client helper: apps/web/lib/mp/webSocketAdapter.ts.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/MultiplayerLobby.tsx",
+      "packages/shared/src/serverEvents.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/mpRulesContent.ts",
+    "type": "utility",
+    "purpose": "Important project file referenced by module_map: apps/web/lib/mpRulesContent.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/safeStorage.ts",
+    "type": "utility",
+    "purpose": "Important project file referenced by module_map: apps/web/lib/safeStorage.ts.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   },
   {
@@ -487,79 +1257,257 @@
     "type": "utility",
     "purpose": "Browser localStorage-backed audio preference hook.",
     "importance": "medium",
-    "related_files": ["apps/web/components/AudioControls.tsx", "apps/web/lib/safeStorage.ts"],
+    "related_files": [
+      "apps/web/components/AudioControls.tsx",
+      "apps/web/lib/safeStorage.ts"
+    ],
     "confidence": "high"
   },
   {
-    "path": "apps/web/lib/safeStorage.ts",
-    "type": "utility",
-    "purpose": "Small safe localStorage wrapper that converts unavailable, blocked, or throwing browser storage reads/writes into null/false results.",
-    "importance": "high",
-    "related_files": ["apps/web/components/AppShell.tsx", "apps/web/lib/useAudioSettings.ts", "tests/e2e/storage-resilience.spec.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/i18n.ts",
-    "type": "utility",
-    "purpose": "Locale registry and locale persistence helpers.",
+    "path": "apps/web/next.config.ts",
+    "type": "config",
+    "purpose": "Important project file referenced by module_map: apps/web/next.config.ts.",
     "importance": "medium",
-    "related_files": ["apps/web/lib/locales/en.ts", "apps/web/lib/locales/lv.ts"],
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "apps/web/lib/locales/en.ts",
-    "type": "utility",
-    "purpose": "English UI strings.",
+    "path": "apps/web/package.json",
+    "type": "config",
+    "purpose": "Next.js web workspace package scripts and dependencies.",
+    "importance": "high",
+    "related_files": [
+      "package.json",
+      "apps/web/next.config.ts",
+      "apps/web/tsconfig.json"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/public/sw.js",
+    "type": "unknown",
+    "purpose": "Important project file referenced by module_map: apps/web/public/sw.js.",
     "importance": "medium",
-    "related_files": ["apps/web/lib/i18n.ts", "apps/web/lib/locales/lv.ts"],
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "apps/web/lib/locales/lv.ts",
-    "type": "utility",
-    "purpose": "Latvian UI strings.",
+    "path": "apps/web/test/mp/clientId.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for apps/web/test/mp/clientId.test.ts.",
     "importance": "medium",
-    "related_files": ["apps/web/lib/i18n.ts", "apps/web/lib/locales/en.ts"],
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "apps/web/app/globals.css",
-    "type": "ui",
-    "purpose": "Global app styling, lobby layout, rules/settings dialog styling, fixed table layout, and domino rendering.",
-    "importance": "high",
-    "related_files": ["apps/web/components/AppShell.tsx", "apps/web/components/DominoPokerGame.tsx"],
-    "confidence": "high"
-  },
-  {
-    "path": "tests/e2e/main-flow.spec.ts",
+    "path": "apps/web/test/mp/clientView.test.ts",
     "type": "test",
-    "purpose": "Playwright smoke test for the main single-player flow from lobby start through bid, tile play, optional suit choice, and first trick completion.",
-    "importance": "high",
-    "related_files": ["playwright.config.ts", "apps/web/components/AppShell.tsx", "apps/web/components/DominoPokerGame.tsx"],
+    "purpose": "Automated test coverage for apps/web/test/mp/clientView.test.ts.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "tests/e2e/layout-regression.spec.ts",
+    "path": "apps/web/test/mp/gameTableView.test.ts",
     "type": "test",
-    "purpose": "Playwright layout regression coverage for Lobby and Game views across desktop and tablet target viewports.",
-    "importance": "high",
-    "related_files": ["playwright.config.ts", "apps/web/components/AppShell.tsx", "apps/web/components/DominoPokerGame.tsx", "apps/web/app/globals.css"],
+    "purpose": "Automated test coverage for apps/web/test/mp/gameTableView.test.ts.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "tests/e2e/dialog-a11y.spec.ts",
+    "path": "apps/web/test/mp/MultiplayerClient.test.ts",
     "type": "test",
-    "purpose": "Playwright dialog accessibility coverage for modal semantics, initial focus, Tab focus trapping, Escape handling, focus restoration, and mandatory dialog behavior.",
+    "purpose": "Automated test coverage for apps/web/test/mp/MultiplayerClient.test.ts.",
     "importance": "high",
-    "related_files": ["playwright.config.ts", "apps/web/components/Dialog.tsx", "apps/web/components/useDialogFocus.ts", "apps/web/components/AppShell.tsx", "apps/web/components/DominoPokerGame.tsx", "apps/web/components/RulesDialog.tsx"],
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "tests/e2e/storage-resilience.spec.ts",
+    "path": "apps/web/test/mp/serverUrl.test.ts",
     "type": "test",
-    "purpose": "Playwright coverage for malformed localStorage values and blocked/throwing localStorage behavior across locale, audio, and game start paths.",
+    "purpose": "Automated test coverage for apps/web/test/mp/serverUrl.test.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/tsconfig.json",
+    "type": "config",
+    "purpose": "Important project file referenced by module_map: apps/web/tsconfig.json.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/vitest.config.ts",
+    "type": "config",
+    "purpose": "Important project file referenced by module_map: apps/web/vitest.config.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "data/.gitkeep",
+    "type": "unknown",
+    "purpose": "Important project file referenced by module_map: data/.gitkeep.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "deploy.sh",
+    "type": "unknown",
+    "purpose": "Important project file referenced by module_map: deploy.sh.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "deploy/BACKUP.md",
+    "type": "docs",
+    "purpose": "PostgreSQL backup and restore notes for deployed environments.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "deploy/Caddyfile.example",
+    "type": "docs",
+    "purpose": "Example Caddy reverse proxy config with TLS/WebSocket support.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "deploy/Dockerfile",
+    "type": "docs",
+    "purpose": "Production Docker image definition.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "deploy/domino-poker.service",
+    "type": "docs",
+    "purpose": "Example systemd service for running the production server.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "deploy/nginx.conf.example",
+    "type": "docs",
+    "purpose": "Example nginx reverse proxy config for web and WebSocket routing.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "docs/auth-plan.md",
+    "type": "docs",
+    "purpose": "Living local plan/status document for optional accounts, auth, avatars, and user stats.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "docs/DB_MIGRATION.md",
+    "type": "docs",
+    "purpose": "Documentation/reference file: docs/DB_MIGRATION.md.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "docs/DEPLOYMENT.md",
+    "type": "docs",
+    "purpose": "Documentation/reference file: docs/DEPLOYMENT.md.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "docs/Domino pokera Noteikumi.md",
+    "type": "docs",
+    "purpose": "Documentation/reference file: docs/Domino pokera Noteikumi.md.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "docs/domino_poker_rules_summary.md",
+    "type": "docs",
+    "purpose": "Documentation/reference file: docs/domino_poker_rules_summary.md.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "docs/game_strategy.md",
+    "type": "docs",
+    "purpose": "Documentation/reference file: docs/game_strategy.md.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "docs/PUNKTU_SISTEMA_PIEMERI.md",
+    "type": "docs",
+    "purpose": "Documentation/reference file: docs/PUNKTU_SISTEMA_PIEMERI.md.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "docs/SCALING.md",
+    "type": "docs",
+    "purpose": "Documentation/reference file: docs/SCALING.md.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "eslint.config.mjs",
+    "type": "config",
+    "purpose": "ESLint 9 flat config for TypeScript and React Hooks linting.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "LICENSE",
+    "type": "docs",
+    "purpose": "Important project file referenced by module_map: LICENSE.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "package-lock.json",
+    "type": "config",
+    "purpose": "Locked dependency tree for all npm workspaces.",
     "importance": "high",
-    "related_files": ["playwright.config.ts", "apps/web/lib/safeStorage.ts", "apps/web/components/AppShell.tsx", "apps/web/lib/useAudioSettings.ts"],
+    "related_files": [
+      "package.json",
+      "apps/web/package.json",
+      "apps/server/package.json",
+      "packages/core/package.json",
+      "packages/shared/package.json"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "package.json",
+    "type": "config",
+    "purpose": "Root npm workspace scripts for build, test, lint (ESLint 9 flat config), typecheck, web dev server, multiplayer server dev command (dev:server builds core -> shared -> server), simulation/load-test commands, and `test:postgres:docker` for disposable Docker PostgreSQL integration tests. Pins Node >= 22.5 via engines + .npmrc engine-strict.",
+    "importance": "high",
+    "related_files": [
+      "apps/web/package.json",
+      "apps/server/package.json",
+      "packages/core/package.json",
+      "packages/shared/package.json"
+    ],
     "confidence": "high"
   },
   {
@@ -567,79 +1515,45 @@
     "type": "config",
     "purpose": "Core workspace build and test scripts.",
     "importance": "high",
-    "related_files": ["packages/core/tsconfig.json", "packages/core/scripts/fix-esm-imports.cjs"],
+    "related_files": [
+      "packages/core/tsconfig.json",
+      "packages/core/scripts/fix-esm-imports.cjs"
+    ],
     "confidence": "high"
   },
   {
-    "path": "packages/shared/package.json",
-    "type": "config",
-    "purpose": "Shared multiplayer workspace package metadata and build/typecheck scripts.",
-    "importance": "medium",
-    "related_files": ["package.json", "packages/shared/tsconfig.json", "packages/shared/src/index.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/tsconfig.json",
-    "type": "config",
-    "purpose": "TypeScript config for future shared multiplayer contracts.",
-    "importance": "medium",
-    "related_files": ["tsconfig.base.json", "packages/shared/package.json"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/src/index.ts",
-    "type": "entrypoint",
-    "purpose": "Public export barrel for the shared WebSocket protocol: re-exports protocolVersion, errors, and clientMessages.",
-    "importance": "medium",
-    "related_files": ["packages/shared/src/protocolVersion.ts", "packages/shared/src/errors.ts", "packages/shared/src/clientMessages.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/src/protocolVersion.ts",
+    "path": "packages/core/scripts/fix-esm-imports.cjs",
     "type": "utility",
-    "purpose": "Phase 6.1: PROTOCOL_VERSION constant ('1') and isProtocolCompatible() exact-match check used by the HELLO/WELCOME handshake.",
+    "purpose": "Postbuild step that recursively walks dist/ and appends .js (or /index.js) to every relative import/export specifier so emitted ESM resolves under Node, including the multiplayer subfolder consumed via the @domino-poker/core/multiplayer subpath export.",
+    "importance": "high",
+    "related_files": [
+      "packages/core/package.json",
+      "packages/core/tsconfig.json"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/aiService.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/core/src/aiService.ts.",
     "importance": "medium",
-    "related_files": ["packages/shared/src/index.ts"],
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "packages/shared/src/errors.ts",
-    "type": "utility",
-    "purpose": "Phase 6.1: protocolErrorCodes union (transport/validation + lobby/room + turn codes), errorCodeSchema, and a safe errorPayloadSchema (code + message + optional requestId; no internal details).",
-    "importance": "medium",
-    "related_files": ["packages/shared/src/index.ts", "apps/server/src/rooms/lobbyErrors.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/src/clientMessages.ts",
-    "type": "schema",
-    "purpose": "Phase 6.1/6.2: Zod schemas for every client->server message as a discriminatedUnion on `type` (HELLO, LIST_ROOMS, CREATE_ROOM, JOIN_ROOM, LEAVE_ROOM, FILL_SEATS_WITH_BOTS, START_GAME, SUBMIT_BID, SUBMIT_MOVE, PLAYER_RESUME, REQUEST_SNAPSHOT, SEND_CHAT, PING), plus tile/move schemas and parseClientMessage() for safe untrusted-input parsing.",
+    "path": "packages/core/src/dominoTile.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/core/src/dominoTile.ts.",
     "importance": "high",
-    "related_files": ["packages/shared/src/index.ts"],
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "packages/shared/src/roomTypes.ts",
-    "type": "schema",
-    "purpose": "Phase 6 transport DTOs (moved out of the server): RoomStatus, RoomVisibility, SeatKind, RoomSeatView, RoomSummary, RoomView, and shared room-round constants — public room views with no playerId and with room metadata such as numberOfRounds. LobbyManager imports + re-exports these.",
+    "path": "packages/core/src/gameState.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/core/src/gameState.ts.",
     "importance": "high",
-    "related_files": ["packages/shared/src/serverEvents.ts", "apps/server/src/rooms/LobbyManager.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/src/serverEvents.ts",
-    "type": "schema",
-    "purpose": "Phase 6.1/6.3: TypeScript types for every server->client event as a discriminated union ServerEvent (WELCOME, ROOM_LIST/CREATED/JOINED/LEFT, LOBBY_STATE, STATE_SNAPSHOT, GAME_EVENT, CHAT_MESSAGE, CHAT_HISTORY, ERROR, PONG). Embeds PlayerSnapshot/MultiplayerEvent via `import type` (erased) and room DTOs from roomTypes; trusted server output so no Zod.",
-    "importance": "high",
-    "related_files": ["packages/shared/src/roomTypes.ts", "packages/shared/src/errors.ts", "packages/core/src/multiplayer/snapshots.ts", "packages/core/src/multiplayer/events.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/test/protocol.test.ts",
-    "type": "test",
-    "purpose": "Vitest coverage for the shared protocol: version compatibility, error payload validation + required codes, client message parsing (valid/discriminated/out-of-range bid+pip/unknown type/missing field), and server event types composing into the ServerEvent union.",
-    "importance": "high",
-    "related_files": ["packages/shared/src/index.ts"],
+    "related_files": [],
     "confidence": "high"
   },
   {
@@ -657,99 +1571,195 @@
     "confidence": "high"
   },
   {
-    "path": "packages/core/src/multiplayer/index.ts",
-    "type": "entrypoint",
-    "purpose": "Public entrypoint for isolated core multiplayer helpers.",
-    "importance": "medium",
-    "related_files": ["packages/core/src/multiplayer/applyCommand.ts", "packages/core/src/multiplayer/autoBid.ts", "packages/core/src/multiplayer/autoMove.ts", "packages/core/src/multiplayer/determinism.ts", "packages/core/src/multiplayer/gameSetup.ts", "packages/core/src/multiplayer/inactivity.ts", "packages/core/src/multiplayer/replay.ts", "packages/core/src/multiplayer/snapshots.ts", "packages/core/src/multiplayer/types.ts", "packages/core/src/multiplayer/commands.ts", "packages/core/src/multiplayer/events.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/determinism.ts",
-    "type": "utility",
-    "purpose": "Seeded RNG and deterministic multiplayer domino shuffle. The MP path owns the seed source and delegates the shared cut-and-overhand shuffle shape to `shuffleAlgorithm.ts`, preserving server-side deterministic deal behavior.",
-    "importance": "high",
-    "related_files": ["packages/core/src/shuffleAlgorithm.ts", "packages/core/src/dominoTile.ts", "packages/core/test/multiplayer/determinism.test.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/test/multiplayer/determinism.test.ts",
-    "type": "test",
-    "purpose": "Vitest coverage for MP seeded RNG stability, deterministic shuffle identity by seed, locked seeded shuffle order, full unique tile set, and empty-seed rejection.",
-    "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/determinism.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/gameSetup.ts",
-    "type": "service",
-    "purpose": "Creates deterministic multiplayer game setup metadata, seed handling, initial deck, and dealer index while delegating rule state creation to existing core setup with explicit deck/dealer inputs.",
-    "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/determinism.ts", "packages/core/src/gameState.ts", "packages/core/test/multiplayer/gameSetup.test.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/test/multiplayer/gameSetup.test.ts",
-    "type": "test",
-    "purpose": "Vitest coverage for MP setup seed metadata, deterministic identical initial hands, injected seed generation, dealer override, and validation failures.",
-    "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/gameSetup.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/types.ts",
+    "path": "packages/core/src/multiplayer/applyCommand.ts",
     "type": "model",
-    "purpose": "MP-only game, player, turn, status, and connection-state types plus an initial wrapper factory around core GameState; turn allowedActionTypes use command names.",
+    "purpose": "Important project file referenced by module_map: packages/core/src/multiplayer/applyCommand.ts.",
     "importance": "high",
-    "related_files": ["packages/core/src/types.ts", "packages/core/src/multiplayer/gameSetup.ts", "packages/core/test/multiplayer/types.test.ts"],
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "packages/core/test/multiplayer/types.test.ts",
-    "type": "test",
-    "purpose": "Vitest coverage for MP state metadata wrapping and player state defaults without mutating core player objects.",
+    "path": "packages/core/src/multiplayer/autoBid.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/core/src/multiplayer/autoBid.ts.",
     "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/types.ts"],
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/autoMove.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/core/src/multiplayer/autoMove.ts.",
+    "importance": "high",
+    "related_files": [],
     "confidence": "high"
   },
   {
     "path": "packages/core/src/multiplayer/commands.ts",
     "type": "model",
-    "purpose": "MP command discriminated unions and command type list, including explicit START_NEXT_ROUND for round progression, START_TURN with injected `now`, and TURN_TIMEOUT with injected `now`; every command includes `gameId` and `requestId` for future idempotence.",
+    "purpose": "Important project file referenced by module_map: packages/core/src/multiplayer/commands.ts.",
     "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/events.ts", "packages/core/src/multiplayer/types.ts", "packages/core/test/multiplayer/commandsEvents.test.ts"],
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/determinism.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/core/src/multiplayer/determinism.ts.",
+    "importance": "high",
+    "related_files": [],
     "confidence": "high"
   },
   {
     "path": "packages/core/src/multiplayer/events.ts",
     "type": "model",
-    "purpose": "MP event discriminated unions and event type list, including AUTO_PLAY_ENABLED/AUTO_PLAY_DISABLED for explicit auto-play state transitions and AUTO_MOVE_FALLBACK for timeout states with no legal tile move; every event includes `gameId` and `eventSeq` for future replay ordering.",
+    "purpose": "Important project file referenced by module_map: packages/core/src/multiplayer/events.ts.",
     "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/commands.ts", "packages/core/src/multiplayer/types.ts", "packages/core/test/multiplayer/commandsEvents.test.ts"],
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "packages/core/test/multiplayer/commandsEvents.test.ts",
+    "path": "packages/core/src/multiplayer/gameSetup.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/core/src/multiplayer/gameSetup.ts.",
+    "importance": "high",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/inactivity.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/core/src/multiplayer/inactivity.ts.",
+    "importance": "high",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/index.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/core/src/multiplayer/index.ts.",
+    "importance": "high",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/invariants.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/core/src/multiplayer/invariants.ts.",
+    "importance": "high",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/legalBids.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/core/src/multiplayer/legalBids.ts.",
+    "importance": "high",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/legalMoves.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/core/src/multiplayer/legalMoves.ts.",
+    "importance": "high",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/replay.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/core/src/multiplayer/replay.ts.",
+    "importance": "high",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/snapshots.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/core/src/multiplayer/snapshots.ts.",
+    "importance": "high",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/multiplayer/types.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/core/src/multiplayer/types.ts.",
+    "importance": "high",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/player.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/core/src/player.ts.",
+    "importance": "high",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/shuffleAlgorithm.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/core/src/shuffleAlgorithm.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/src/types.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/core/src/types.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/dominoRules.test.ts",
     "type": "test",
-    "purpose": "Vitest coverage that MP command/event type lists match the corrected phase plan, including explicit auto-play transition events, and preserve `requestId`/`eventSeq` contract fields.",
-    "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/commands.ts", "packages/core/src/multiplayer/events.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/applyCommand.ts",
-    "type": "service",
-    "purpose": "Initial MP command entrypoint and ApplyResult contract; currently handles CREATE_GAME, START_TURN deadline generation from injected now, deadline rejection for late SUBMIT_BID/SUBMIT_MOVE, TURN_TIMEOUT after deadline via autoBid/autoMove or AUTO_MOVE_FALLBACK when no legal tile move exists, timeout inactivity metadata updates with AUTO_PLAY_ENABLED when auto-play activates, on-time activity inactivity-score reduction, PLAYER_DISCONNECT (human-only connection flip emitting PLAYER_DISCONNECTED) and PLAYER_RESUME/DISABLE_AUTO_PLAY manual-control restoration with AUTO_PLAY_DISABLED for manual disable, START_NEXT_ROUND via deterministic startNextRound, REQUEST_SNAPSHOT, SUBMIT_BID via makeBid, SUBMIT_MOVE via playTile, completed tricks via completeTrick, explicit game-id validation, and explicit unimplemented-command errors.",
-    "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/commands.ts", "packages/core/src/multiplayer/events.ts", "packages/core/src/multiplayer/types.ts", "packages/core/src/multiplayer/inactivity.ts", "packages/core/test/multiplayer/applyCommand.test.ts", "packages/core/test/multiplayer/disconnect.test.ts", "packages/core/test/multiplayer/eventCoverage.test.ts"],
+    "purpose": "Automated test coverage for packages/core/test/dominoRules.test.ts.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   },
   {
     "path": "packages/core/test/multiplayer/applyCommand.test.ts",
     "type": "test",
-    "purpose": "Vitest coverage for initial MP applyCommand behavior: create game, missing state rejection, START_TURN deadline/event sequencing, late bid/move ACTION_TOO_LATE rejection, TURN_TIMEOUT too-early rejection, legal auto-bid/auto-move application with inactivity metadata updates, AUTO_PLAY_ENABLED emission on auto-play activation, AUTO_MOVE_FALLBACK when no legal move exists, on-time bid/move inactivity-score reduction, PLAYER_RESUME/DISABLE_AUTO_PLAY manual-control restoration and bot rejection, AUTO_PLAY_DISABLED emission on manual disable, inactivity metadata preservation across START_NEXT_ROUND, SUBMIT_BID makeBid delegation, bid rejection, SUBMIT_MOVE playTile delegation, move rejection, completeTrick delegation, deterministic START_NEXT_ROUND/startNextRound delegation, stale turn/wrong player rejection, snapshot no-op, and explicit unimplemented command errors.",
+    "purpose": "Automated test coverage for packages/core/test/multiplayer/applyCommand.test.ts.",
     "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/applyCommand.ts"],
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/autoBid.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for packages/core/test/multiplayer/autoBid.test.ts.",
+    "importance": "high",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/autoMove.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for packages/core/test/multiplayer/autoMove.test.ts.",
+    "importance": "high",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/commandsEvents.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for packages/core/test/multiplayer/commandsEvents.test.ts.",
+    "importance": "high",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/determinism.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for packages/core/test/multiplayer/determinism.test.ts.",
+    "importance": "high",
+    "related_files": [],
     "confidence": "high"
   },
   {
@@ -757,262 +1767,467 @@
     "type": "test",
     "purpose": "Vitest coverage for the MP PLAYER_DISCONNECT command: marks a human disconnected and emits PLAYER_DISCONNECTED, leaves inactivity score/status/auto-play untouched, round-trips back to connected via PLAYER_RESUME, and rejects bot seats and unknown players.",
     "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/applyCommand.ts", "packages/core/src/multiplayer/inactivity.ts", "packages/core/src/multiplayer/commands.ts"]
+    "related_files": [
+      "packages/core/src/multiplayer/applyCommand.ts",
+      "packages/core/src/multiplayer/inactivity.ts",
+      "packages/core/src/multiplayer/commands.ts"
+    ],
+    "confidence": "high"
   },
   {
     "path": "packages/core/test/multiplayer/eventCoverage.test.ts",
     "type": "test",
-    "purpose": "Vitest audit coverage for implemented MP applyCommand state-changing commands: every successful state update emits one or more consecutive events and advances nextState.eventSeq to the final event; non-mutating snapshot and rejected commands remain eventless.",
+    "purpose": "Automated test coverage for packages/core/test/multiplayer/eventCoverage.test.ts.",
     "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/applyCommand.ts", "packages/core/src/multiplayer/events.ts"],
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "packages/core/src/multiplayer/replay.ts",
-    "type": "service",
-    "purpose": "MP-only event replay that rebuilds core GameState from a deterministic seed and ordered MultiplayerEvent stream by applying core makeBid/playTile/completeTrick/startNextRound and ignoring transport-only MP events.",
-    "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/events.ts", "packages/core/src/multiplayer/gameSetup.ts", "packages/core/src/multiplayer/determinism.ts", "packages/core/test/multiplayer/replay.test.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/test/multiplayer/replay.test.ts",
+    "path": "packages/core/test/multiplayer/gameSetup.test.ts",
     "type": "test",
-    "purpose": "Vitest coverage for MP replayEvents: replaying a captured applyCommand event stream with the same seed yields an identical core state, and non-consecutive eventSeq streams are rejected.",
+    "purpose": "Automated test coverage for packages/core/test/multiplayer/gameSetup.test.ts.",
     "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/replay.ts", "packages/core/src/multiplayer/applyCommand.ts", "packages/core/src/multiplayer/legalBids.ts", "packages/core/src/multiplayer/legalMoves.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/snapshots.ts",
-    "type": "service",
-    "purpose": "MP-only privacy-safe snapshot builders: createPublicSnapshot returns the full public game view with each seat's handCount but no hand tiles, and createPlayerSnapshot adds only the viewer's own hand plus the active turn deadline. The PublicPlayerSnapshot type structurally omits hand so opponents' tiles can never leak; covers all four seats including AI bot seats.",
-    "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/types.ts", "packages/core/src/types.ts", "packages/core/test/multiplayer/snapshots.test.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/test/multiplayer/snapshots.test.ts",
-    "type": "test",
-    "purpose": "Vitest coverage for MP snapshots: public snapshot contains zero tile objects on a freshly dealt game, player snapshot exposes only the viewer's own hand for every seat, opponents' tiles never leak across the full four-player game (including AI bot seats), active turn deadline is included, and an unknown viewer playerId throws.",
-    "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/snapshots.ts", "packages/core/src/multiplayer/applyCommand.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/legalMoves.ts",
-    "type": "utility",
-    "purpose": "MP-only legal move helper that returns playable tile choices for the current player, including required lead declarations, by reusing existing core move legality helpers.",
-    "importance": "high",
-    "related_files": ["packages/core/src/player.ts", "packages/core/src/gameState.ts", "packages/core/test/multiplayer/legalMoves.test.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/test/multiplayer/legalMoves.test.ts",
-    "type": "test",
-    "purpose": "Vitest coverage for MP legalMoves: non-playing phase, wrong player, lead declaration expansion, and active trick legality filtering, using applyCommand to set up MP moves.",
-    "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/legalMoves.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/legalBids.ts",
-    "type": "utility",
-    "purpose": "MP-only legal bid helper that returns core-accepted bid values for the current bidding player.",
-    "importance": "high",
-    "related_files": ["packages/core/src/gameState.ts", "packages/core/test/multiplayer/legalBids.test.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/test/multiplayer/legalBids.test.ts",
-    "type": "test",
-    "purpose": "Vitest coverage for MP legalBids: current bidding player, wrong player, and non-bidding phase.",
-    "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/legalBids.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/autoBid.ts",
-    "type": "utility",
-    "purpose": "MP-only deterministic auto-bid helper that chooses from legalBids using the existing core makeAIBid heuristic with a legal fallback.",
-    "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/legalBids.ts", "packages/core/src/aiService.ts", "packages/core/test/multiplayer/autoBid.test.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/test/multiplayer/autoBid.test.ts",
-    "type": "test",
-    "purpose": "Vitest coverage for MP autoBid: current-player legal bid, wrong-player/no-phase rejection, and deterministic repeat behavior for the same seed.",
-    "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/autoBid.ts", "packages/core/src/multiplayer/legalBids.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/autoMove.ts",
-    "type": "utility",
-    "purpose": "MP-only deterministic auto-move helper that chooses from legalMoves using the existing core selectAITile heuristic with opponent hands redacted and a legal fallback.",
-    "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/legalMoves.ts", "packages/core/src/aiService.ts", "packages/core/test/multiplayer/autoMove.test.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/test/multiplayer/autoMove.test.ts",
-    "type": "test",
-    "purpose": "Vitest coverage for MP autoMove: current-player legal AI move, lead number declaration, wrong-player/no-phase rejection, and deterministic repeat behavior for the same seed.",
-    "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/autoMove.ts", "packages/core/src/multiplayer/legalMoves.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/inactivity.ts",
-    "type": "utility",
-    "purpose": "MP-only inactivity metadata helper that advances human timeout status through active_with_warning, inactive, and auto_play, reduces inactivity after on-time activity, and restores manual control through player resume or disable-auto-play without changing core domino scoring or bot seat state.",
-    "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/types.ts", "packages/core/src/multiplayer/applyCommand.ts", "packages/core/test/multiplayer/inactivity.test.ts"],
+    "related_files": [],
     "confidence": "high"
   },
   {
     "path": "packages/core/test/multiplayer/inactivity.test.ts",
     "type": "test",
-    "purpose": "Vitest coverage for MP timeout inactivity progression, autoPlayEnabled activation on third timeout, on-time activity score reduction, explicit resume/disable-auto-play behavior, scoring separation, and bot status preservation.",
+    "purpose": "Automated test coverage for packages/core/test/multiplayer/inactivity.test.ts.",
     "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/inactivity.ts", "packages/core/src/multiplayer/types.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/invariants.ts",
-    "type": "utility",
-    "purpose": "MP-only invariant diagnostics and assertion helper for impossible state, duplicate active-turn action types, player/index mapping, and duplicate tile checks.",
-    "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/types.ts", "packages/core/test/multiplayer/invariants.test.ts"],
+    "related_files": [],
     "confidence": "high"
   },
   {
     "path": "packages/core/test/multiplayer/invariants.test.ts",
     "type": "test",
-    "purpose": "Vitest coverage for MP invariants: valid initial state, duplicate tiles, impossible turn state, player/index mapping violations, and typed assertion errors.",
+    "purpose": "Automated test coverage for packages/core/test/multiplayer/invariants.test.ts.",
     "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/invariants.ts"],
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/legalBids.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for packages/core/test/multiplayer/legalBids.test.ts.",
+    "importance": "high",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/legalMoves.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for packages/core/test/multiplayer/legalMoves.test.ts.",
+    "importance": "high",
+    "related_files": [],
     "confidence": "high"
   },
   {
     "path": "packages/core/test/multiplayer/phaseFlow.test.ts",
     "type": "test",
-    "purpose": "Vitest coverage that plays a one-round multiplayer game through applyCommand, legalBids, legalMoves, and invariants, verifying bidding -> playing -> roundEnd -> gameEnd without WebSocket and deterministic final results for a fixed seed.",
+    "purpose": "Automated test coverage for packages/core/test/multiplayer/phaseFlow.test.ts.",
     "importance": "high",
-    "related_files": ["packages/core/src/multiplayer/applyCommand.ts", "packages/core/src/multiplayer/legalBids.ts", "packages/core/src/multiplayer/legalMoves.ts", "packages/core/src/multiplayer/invariants.ts"],
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "packages/core/src/gameState.ts",
-    "type": "service",
-    "purpose": "Game creation, public dealer/deck input validation, shared trick tile comparison, bidding and play progression, trick resolution, scoring, round transitions, and game-over logic.",
-    "importance": "critical",
-    "related_files": ["packages/core/src/types.ts", "packages/core/src/dominoTile.ts", "packages/core/test/dominoRules.test.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/dominoTile.ts",
-    "type": "service",
-    "purpose": "Domino tile representation, set creation, single-player `shuffleSet()` entrypoint (Math.random by default, injectable RNG for tests), and tile comparison helpers.",
-    "importance": "critical",
-    "related_files": ["packages/core/src/shuffleAlgorithm.ts", "packages/core/src/player.ts", "packages/core/src/gameState.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/shuffleAlgorithm.ts",
-    "type": "utility",
-    "purpose": "Shared cut-and-overhand shuffle algorithm parameterized by an injected RNG. Used by SP `shuffleSet()` and MP seeded shuffle without sharing their RNG/deal ownership.",
-    "importance": "high",
-    "related_files": ["packages/core/src/dominoTile.ts", "packages/core/src/multiplayer/determinism.ts", "packages/core/test/dominoRules.test.ts", "packages/core/test/multiplayer/determinism.test.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/player.ts",
-    "type": "service",
-    "purpose": "Player creation, hand management, legal-play validation, structured invalid move reasons, and tile selection helpers.",
-    "importance": "critical",
-    "related_files": ["packages/core/src/types.ts", "packages/core/src/gameState.ts", "packages/core/test/dominoRules.test.ts", "apps/web/components/DominoPokerGame.tsx"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/aiService.ts",
-    "type": "service",
-    "purpose": "CPU bidding and tile-play heuristics, using core trick tile comparison with AI-specific ace context.",
-    "importance": "high",
-    "related_files": ["packages/core/src/gameState.ts", "packages/core/src/player.ts"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/types.ts",
-    "type": "model",
-    "purpose": "Core Domino Poker types, invalid move reason contracts, and game-state interfaces.",
-    "importance": "high",
-    "related_files": ["packages/core/src/player.ts", "packages/core/src/gameState.ts", "apps/web/components/DominoPokerGame.tsx"],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/test/dominoRules.test.ts",
+    "path": "packages/core/test/multiplayer/replay.test.ts",
     "type": "test",
-    "purpose": "Vitest coverage for core rule behavior, public input validation, AI heuristic preservation, scoring, round-flow edge cases, and locked SP injected-RNG shuffle order.",
+    "purpose": "Automated test coverage for packages/core/test/multiplayer/replay.test.ts.",
     "importance": "high",
-    "related_files": ["packages/core/src/gameState.ts", "packages/core/src/player.ts", "packages/core/src/dominoTile.ts", "packages/core/src/shuffleAlgorithm.ts"],
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/snapshots.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for packages/core/test/multiplayer/snapshots.test.ts.",
+    "importance": "high",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/test/multiplayer/types.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for packages/core/test/multiplayer/types.test.ts.",
+    "importance": "high",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/core/tsconfig.json",
+    "type": "config",
+    "purpose": "Important project file referenced by module_map: packages/core/tsconfig.json.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/package.json",
+    "type": "config",
+    "purpose": "Important project file referenced by module_map: packages/shared/package.json.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/src/avatarCatalog.ts",
+    "type": "model",
+    "purpose": "Single source of truth for avatar ids, default avatar, validation, and public avatar paths.",
+    "importance": "high",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/src/clientMessages.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/shared/src/clientMessages.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/src/errors.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/shared/src/errors.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/src/index.ts",
+    "type": "entrypoint",
+    "purpose": "Shared package barrel exporting protocol version, avatar catalog, errors, client message schemas, room DTOs, and server event types.",
+    "importance": "medium",
+    "related_files": [
+      "packages/shared/src/avatarCatalog.ts",
+      "packages/shared/src/clientMessages.ts",
+      "packages/shared/src/roomTypes.ts",
+      "packages/shared/src/serverEvents.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/src/protocolVersion.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/shared/src/protocolVersion.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/src/roomTypes.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/shared/src/roomTypes.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/src/serverEvents.ts",
+    "type": "model",
+    "purpose": "Important project file referenced by module_map: packages/shared/src/serverEvents.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/test/protocol.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for packages/shared/test/protocol.test.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/tsconfig.json",
+    "type": "config",
+    "purpose": "Important project file referenced by module_map: packages/shared/tsconfig.json.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/tsconfig.typecheck.json",
+    "type": "config",
+    "purpose": "Important project file referenced by module_map: packages/shared/tsconfig.typecheck.json.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "playwright.config.ts",
+    "type": "unknown",
+    "purpose": "Important project file referenced by module_map: playwright.config.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "README.md",
+    "type": "docs",
+    "purpose": "Important project file referenced by module_map: README.md.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "Screenshots/gamerules-screen.png",
+    "type": "unknown",
+    "purpose": "Important project file referenced by module_map: Screenshots/gamerules-screen.png.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "Screenshots/Lobby-screen.png",
+    "type": "unknown",
+    "purpose": "Important project file referenced by module_map: Screenshots/Lobby-screen.png.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "Screenshots/playing-room-screen.png",
+    "type": "unknown",
+    "purpose": "Important project file referenced by module_map: Screenshots/playing-room-screen.png.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "Screenshots/settings-screen.png",
+    "type": "unknown",
+    "purpose": "Important project file referenced by module_map: Screenshots/settings-screen.png.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "scripts/test-postgres-docker.mjs",
+    "type": "utility",
+    "purpose": "Starts a disposable Docker PostgreSQL container with tmpfs data, sets TEST_POSTGRES_DATABASE_URL, runs the server PostgreSQL integration tests, and removes the container/volumes afterward.",
+    "importance": "high",
+    "related_files": [
+      "package.json",
+      "apps/server/package.json",
+      "apps/server/test/storage/PostgresStorage.integration.test.ts",
+      "apps/server/test/net/PostgresEventBus.integration.test.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "start-domino-poker.bat",
+    "type": "utility",
+    "purpose": "Windows launcher that checks Node.js/npm, installs dependencies when needed, releases the configured web/server ports, starts the multiplayer server first (waits for `/health`), then starts the Next.js web client, waits for readiness, and opens the game URL unless `DOMINO_NO_OPEN=1`.",
+    "importance": "medium",
+    "related_files": [
+      "package.json",
+      "apps/server/package.json",
+      "apps/web/package.json"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "tests/e2e/dialog-a11y.spec.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for tests/e2e/dialog-a11y.spec.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "tests/e2e/layout-regression.spec.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for tests/e2e/layout-regression.spec.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "tests/e2e/main-flow.spec.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for tests/e2e/main-flow.spec.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "tests/e2e/storage-resilience.spec.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for tests/e2e/storage-resilience.spec.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "tools/load-test/package.json",
+    "type": "config",
+    "purpose": "Important project file referenced by module_map: tools/load-test/package.json.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "tools/load-test/src/metrics.ts",
+    "type": "utility",
+    "purpose": "Important project file referenced by module_map: tools/load-test/src/metrics.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "tools/load-test/src/runLoadTest.ts",
+    "type": "utility",
+    "purpose": "Load-test CLI that drives real WebSocket clients, checks /health, polls /metrics, and reports stability/latency/resource stats.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "tools/load-test/src/VirtualClient.ts",
+    "type": "utility",
+    "purpose": "Important project file referenced by module_map: tools/load-test/src/VirtualClient.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "tools/load-test/test/metrics.test.ts",
+    "type": "test",
+    "purpose": "Automated test coverage for tools/load-test/test/metrics.test.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "tools/load-test/tsconfig.build.json",
+    "type": "config",
+    "purpose": "Important project file referenced by module_map: tools/load-test/tsconfig.build.json.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "tools/load-test/tsconfig.json",
+    "type": "config",
+    "purpose": "Important project file referenced by module_map: tools/load-test/tsconfig.json.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "tools/load-test/vitest.config.ts",
+    "type": "config",
+    "purpose": "Important project file referenced by module_map: tools/load-test/vitest.config.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "tools/simulators/package.json",
+    "type": "config",
+    "purpose": "Important project file referenced by module_map: tools/simulators/package.json.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   },
   {
     "path": "tools/simulators/src/playGame.ts",
-    "type": "service",
-    "purpose": "MP simulator engine: simulateRandomGame() drives one full game through applyCommand using random legal bids/moves, with optional timeoutProbability and disconnectProbability (each on its own seeded RNG stream) that resolve turns via TURN_TIMEOUT auto-actions and churn PLAYER_DISCONNECT/PLAYER_RESUME (disconnected players time out); asserts invariants after every command and enforces single-active-turn plus monotonic turnId; fully deterministic per seed and returns a decision log plus timeout/disconnect/reconnect counts.",
-    "importance": "high",
-    "related_files": ["tools/simulators/src/random.ts", "tools/simulators/src/runSimulations.ts", "packages/core/src/multiplayer/applyCommand.ts", "packages/core/src/multiplayer/invariants.ts"],
+    "type": "utility",
+    "purpose": "Important project file referenced by module_map: tools/simulators/src/playGame.ts.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   },
   {
     "path": "tools/simulators/src/random.ts",
     "type": "utility",
-    "purpose": "Deterministic simulation randomness built on the MP zone's createSeededRng plus a pick() helper; simulators never duplicate shuffle/RNG logic.",
+    "purpose": "Important project file referenced by module_map: tools/simulators/src/random.ts.",
     "importance": "medium",
-    "related_files": ["packages/core/src/multiplayer/determinism.ts", "tools/simulators/src/playGame.ts"],
+    "related_files": [],
     "confidence": "high"
   },
   {
     "path": "tools/simulators/src/runSimulations.ts",
-    "type": "service",
-    "purpose": "Batch runner and CLI entrypoint for npm run simulate: runs N random full games (SIM_COUNT/SIM_SEED/SIM_ROUNDS/SIM_TIMEOUT_PROB/SIM_DISCONNECT_PROB env or argv), aggregates terminal-state reach, timeout and disconnect totals, and failures, and exits non-zero on any failure. Also exports runVolumeSuite (4-scenario mix of plain/timeout/disconnect/combined for the Phase 4.2 10000-game gate), runnable via SIM_SUITE=1.",
-    "importance": "high",
-    "related_files": ["tools/simulators/src/playGame.ts", "package.json"],
+    "type": "utility",
+    "purpose": "Important project file referenced by module_map: tools/simulators/src/runSimulations.ts.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   },
   {
     "path": "tools/simulators/test/playGame.test.ts",
     "type": "test",
-    "purpose": "Vitest coverage for the random simulator: single game reaches gameEnd, no two active turns and monotonic turnId, full determinism per seed, divergence across seeds, a 200-game batch all reaching terminal state, custom round counts, timeout simulation (fully-AFK terminal, mixed timeouts, separate-stream determinism, timeout-heavy batch, bad probability), and disconnect/reconnect simulation (terminal under churn, forced timeouts while disconnected, separate-stream determinism, combined timeout+disconnect batch, bad probability).",
-    "importance": "high",
-    "related_files": ["tools/simulators/src/playGame.ts", "tools/simulators/src/runSimulations.ts"],
+    "purpose": "Automated test coverage for tools/simulators/test/playGame.test.ts.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   },
   {
     "path": "tools/simulators/test/volume.test.ts",
     "type": "test",
-    "purpose": "Phase 4.2 volume gate: runs runVolumeSuite (default 2500/scenario = 10000 full games across plain/timeout/disconnect/combined, ~16s, overridable with SIM_VOLUME) and asserts all reach a legal terminal state with no invariant violations; extended 600s test timeout.",
-    "importance": "high",
-    "related_files": ["tools/simulators/src/runSimulations.ts", "tools/simulators/src/playGame.ts"],
+    "purpose": "Automated test coverage for tools/simulators/test/volume.test.ts.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "tools/simulators/tsconfig.build.json",
+    "type": "config",
+    "purpose": "Important project file referenced by module_map: tools/simulators/tsconfig.build.json.",
+    "importance": "medium",
+    "related_files": [],
+    "confidence": "high"
+  },
+  {
+    "path": "tools/simulators/tsconfig.json",
+    "type": "config",
+    "purpose": "Important project file referenced by module_map: tools/simulators/tsconfig.json.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   },
   {
     "path": "tools/simulators/vitest.config.ts",
     "type": "config",
-    "purpose": "Vitest config aliasing @domino-poker/core/multiplayer to core source so simulator tests run without a prior core build.",
+    "purpose": "Important project file referenced by module_map: tools/simulators/vitest.config.ts.",
     "importance": "medium",
-    "related_files": ["tools/simulators/tsconfig.json", "packages/core/src/multiplayer/index.ts"],
+    "related_files": [],
     "confidence": "high"
   },
   {
-    "path": "packages/core/scripts/fix-esm-imports.cjs",
-    "type": "build",
-    "purpose": "Postbuild step that recursively walks dist/ and appends .js (or /index.js) to every relative import/export specifier so emitted ESM resolves under Node, including the multiplayer subfolder consumed via the @domino-poker/core/multiplayer subpath export.",
+    "path": "tsconfig.base.json",
+    "type": "config",
+    "purpose": "Shared strict TypeScript compiler options inherited by workspaces.",
     "importance": "high",
-    "related_files": ["packages/core/package.json", "packages/core/tsconfig.json"],
+    "related_files": [
+      "tsconfig.json",
+      "apps/web/tsconfig.json",
+      "apps/server/tsconfig.json",
+      "packages/core/tsconfig.json",
+      "packages/shared/tsconfig.json"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "tsconfig.json",
+    "type": "config",
+    "purpose": "Root TypeScript project-reference entry for the new shared and server workspaces.",
+    "importance": "medium",
+    "related_files": [
+      "tsconfig.base.json",
+      "apps/server/tsconfig.json",
+      "packages/shared/tsconfig.json"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "VERSION",
+    "type": "config",
+    "purpose": "Important project file referenced by module_map: VERSION.",
+    "importance": "medium",
+    "related_files": [],
     "confidence": "high"
   }
 ]

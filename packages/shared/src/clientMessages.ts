@@ -42,7 +42,10 @@ export const helloSchema = z.object({
   protocolVersion: nonEmpty,
   clientBuild: z.string().max(maxIdentifierLength),
   clientId,
-  reconnectToken: reconnectToken.optional()
+  reconnectToken: reconnectToken.optional(),
+  // Opcionālā autentifikācija: ja dots derīgs tokens, serveris atrisina lietotāju
+  // un pārraksta publisko displayId ar username. Nederīgs/iztrūkstošs → anonīms.
+  authToken: z.string().max(maxIdentifierLength).optional()
 });
 
 export const listRoomsSchema = z.object({ type: z.literal("LIST_ROOMS") });

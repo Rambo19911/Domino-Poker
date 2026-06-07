@@ -57,6 +57,10 @@ export function RulesDialog({
     {
       title: labels.rulesWinTitle,
       body: [labels.rulesWinBody]
+    },
+    {
+      title: labels.rulesStatsTitle,
+      body: [labels.rulesStatsBody]
     }
   ] as const;
 

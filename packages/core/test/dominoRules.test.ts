@@ -8,6 +8,7 @@ import {
   determineTrickWinner,
   getFullSet,
   getInvalidMoveReason,
+  getStandings,
   getWinner,
   isAce,
   isStrongerTile,
@@ -381,6 +382,28 @@ describe("round flow", () => {
     };
 
     expect(getWinner(state)?.id).toBe("2");
+  });
+
+  it("ranks all players with the same tiebreakers (getStandings)", () => {
+    const state: GameState = {
+      ...createNewGame({ dealerIndex: 0, deck: getFullSet() }),
+      phase: "gameEnd",
+      players: [
+        { ...createPlayer({ id: "1", name: "You", playerType: "human" }), totalScore: 100, bid: 2, tricksWon: 2 },
+        { ...createPlayer({ id: "2", name: "AI 1", isAI: true }), totalScore: 100, bid: 4, tricksWon: 2 },
+        { ...createPlayer({ id: "3", name: "AI 2", isAI: true }), totalScore: 90, bid: 7, tricksWon: 7 },
+        { ...createPlayer({ id: "4", name: "AI 3", isAI: true }), totalScore: 100, bid: 3, tricksWon: 5 }
+      ]
+    };
+
+    // 100/bid4 → 100/bid3 → 100/bid2 → 90; pirmais sakrīt ar getWinner.
+    expect(getStandings(state)).toEqual(["2", "4", "1", "3"]);
+    expect(getStandings(state)[0]).toBe(getWinner(state)?.id);
+  });
+
+  it("returns empty standings before the game ends", () => {
+    const state = createNewGame({ dealerIndex: 0, deck: getFullSet() });
+    expect(getStandings(state)).toEqual([]);
   });
 });
 

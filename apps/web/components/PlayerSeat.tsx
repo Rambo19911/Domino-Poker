@@ -42,6 +42,7 @@ const seatLayout = {
 export function PlayerSeat({
   gameState,
   humanAvatarUrl = null,
+  humanTitle = null,
   isWinnerGlow,
   labels,
   onTileClick,
@@ -51,6 +52,7 @@ export function PlayerSeat({
 }: {
   readonly gameState: GameState;
   readonly humanAvatarUrl?: string | null;
+  readonly humanTitle?: string | null;
   readonly isWinnerGlow: boolean;
   readonly labels: AppStrings;
   readonly onTileClick?: (tile: DominoTile) => void;
@@ -65,6 +67,7 @@ export function PlayerSeat({
       <HumanSeat
         gameState={gameState}
         humanAvatarUrl={humanAvatarUrl}
+        humanTitle={humanTitle}
         isWinnerGlow={isWinnerGlow}
         labels={labels}
         onTileClick={onTileClick}
@@ -120,6 +123,7 @@ function AiSeat({
 function HumanSeat({
   gameState,
   humanAvatarUrl,
+  humanTitle,
   isWinnerGlow,
   labels,
   onTileClick,
@@ -128,6 +132,7 @@ function HumanSeat({
 }: {
   readonly gameState: GameState;
   readonly humanAvatarUrl: string | null;
+  readonly humanTitle: string | null;
   readonly isWinnerGlow: boolean;
   readonly labels: AppStrings;
   readonly onTileClick: ((tile: DominoTile) => void) | undefined;
@@ -143,6 +148,7 @@ function HumanSeat({
         playerIndex={0}
         gameState={gameState}
         avatarUrl={humanAvatarUrl}
+        title={humanTitle}
         labels={labels}
         isWinnerGlow={isWinnerGlow}
         style={{ left: seatLayout.player0ProfileLeft, top: seatLayout.player0ProfileTop }}
@@ -251,6 +257,7 @@ function PlayerProfile({
   playerIndex,
   gameState,
   avatarUrl = null,
+  title = null,
   labels,
   isWinnerGlow,
   style
@@ -259,6 +266,7 @@ function PlayerProfile({
   readonly playerIndex: number;
   readonly gameState: GameState;
   readonly avatarUrl?: string | null;
+  readonly title?: string | null;
   readonly labels: AppStrings;
   readonly isWinnerGlow: boolean;
   readonly style: CSSProperties;
@@ -277,6 +285,7 @@ function PlayerProfile({
       ) : null}
       <div className="profileBottom">
         <div className={`profileName ${isActive ? "activeName" : ""}`}>{player.name}</div>
+        {title ? <div className="profileTitle">{title}</div> : null}
         {isDealer ? <div className="dealerBadge">{labels.dealer}</div> : null}
       </div>
     </div>

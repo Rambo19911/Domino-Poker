@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import {
+  avatarFilePath,
   defaultRoomNumberOfRounds,
   maxRoomNumberOfRounds,
   minRoomNumberOfRounds,
@@ -32,13 +33,21 @@ const ROOM_CODE_MAX_LENGTH = 12;
 export function MultiplayerLobby({
   audio,
   labels: t,
-  onExit
+  onExit,
+  authToken,
+  getAuthToken
 }: {
   readonly audio: AudioSettings;
   readonly labels: AppStrings;
   readonly onExit: () => void;
+  /** Auth tokens (vai `null`); maiņa → WS reconnect ar svaigu HELLO. */
+  readonly authToken?: string | null;
+  readonly getAuthToken?: () => string | undefined;
 }) {
-  const { view, actions } = useMultiplayer();
+  const { view, actions } = useMultiplayer({
+    authToken: authToken ?? null,
+    ...(getAuthToken ? { getAuthToken } : {})
+  });
   const isPhonePortrait = useIsPhonePortrait();
   const [chatDraft, setChatDraft] = useState("");
   const [chatError, setChatError] = useState<string | null>(null);
@@ -571,7 +580,13 @@ function SeatCard({
     <article className={`mpSeatCard ${seat.kind === "empty" ? "isEmpty" : "isFilled"}`}>
       <span className="mpSeatIndex">{seat.index + 1}</span>
       <div className="mpSeatAvatar" aria-hidden="true">
-        {seat.kind === "empty" ? "·" : displayName.slice(0, 1)}
+        {seat.kind === "empty" ? (
+          "·"
+        ) : seat.avatar !== undefined ? (
+          <img src={avatarFilePath(seat.avatar)} alt="" />
+        ) : (
+          displayName.slice(0, 1)
+        )}
       </div>
       <div className="mpSeatInfo">
         <strong>{displayName}</strong>

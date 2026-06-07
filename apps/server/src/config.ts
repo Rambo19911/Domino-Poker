@@ -6,6 +6,8 @@ const DEFAULT_HTTP_PORT = 4000;
 const DEFAULT_DATABASE_URL = "./data/dev.sqlite";
 const DEFAULT_SERVER_HOST = "0.0.0.0";
 const DEFAULT_NODE_ENV = "development";
+// CORS allowlist auth maršrutiem; dev Next.js noklusējuma izcelsme.
+const DEFAULT_WEB_ORIGIN = "http://localhost:3000";
 const DEFAULT_TURN_DURATION_MS = 10_000;
 const MIN_TURN_DURATION_MS = 100;
 const MAX_TURN_DURATION_MS = 600_000;
@@ -45,6 +47,23 @@ export interface ServerConfig {
   turnDurationMs: number;
   /** PostgreSQL pool limiti (tikai PG režīmā; SQLite tos ignorē). */
   pg: PgPoolConfig;
+  /**
+   * CORS atļauto izcelšu saraksts auth HTTP maršrutiem (`WEB_ORIGIN`, ar komatu
+   * atdalīts). Noklusējums dev Next.js izcelsme. NEKAD `*` (drošības standarts).
+   */
+  webOrigins: readonly string[];
+  /** Paroles atjaunošanas e-pasta konfigurācija (Fāze 5). */
+  email: EmailConfig;
+}
+
+/** Paroles atjaunošanas e-pasta konfigurācija (Fāze 5). */
+export interface EmailConfig {
+  /** Resend API key (`RESEND_API_KEY`); `undefined` → e-pasta funkcija prod ATSPĒJOTA. */
+  resendApiKey: string | undefined;
+  /** Sūtītāja adrese (`EMAIL_FROM`, piem. `no-reply@domino-poker.com`); verificētā domēnā. */
+  from: string | undefined;
+  /** Web bāzes URL reset linkam (`APP_BASE_URL`; noklusējums dev web izcelsme). */
+  appBaseUrl: string;
 }
 
 interface EnvValues {
@@ -82,8 +101,33 @@ export function loadServerConfig(
         env.PG_POOL_CONNECTION_TIMEOUT_MS ?? fileEnv.PG_POOL_CONNECTION_TIMEOUT_MS,
         DEFAULT_PG_CONNECTION_TIMEOUT_MS
       )
+    },
+    webOrigins: readOrigins(env.WEB_ORIGIN ?? fileEnv.WEB_ORIGIN),
+    email: {
+      resendApiKey: readOptional(env.RESEND_API_KEY ?? fileEnv.RESEND_API_KEY),
+      from: readOptional(env.EMAIL_FROM ?? fileEnv.EMAIL_FROM),
+      appBaseUrl: readNonEmpty(env.APP_BASE_URL ?? fileEnv.APP_BASE_URL, DEFAULT_WEB_ORIGIN)
     }
   };
+}
+
+/** Trimota vērtība vai `undefined`, ja tukša/nav (opcionāli secrets/konfigurācija). */
+function readOptional(value: string | undefined): string | undefined {
+  if (value === undefined || value.trim() === "") {
+    return undefined;
+  }
+  return value.trim();
+}
+
+/** CORS izcelšu saraksts no komatu atdalīta `WEB_ORIGIN`; noklusējums dev izcelsme. */
+function readOrigins(value: string | undefined): readonly string[] {
+  if (value === undefined || value.trim() === "") {
+    return [DEFAULT_WEB_ORIGIN];
+  }
+  return value
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
 }
 
 /** Vesels skaitlis ≥ 1 vai noklusējums, ja tukšs/nav. */

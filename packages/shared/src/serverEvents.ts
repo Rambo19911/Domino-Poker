@@ -22,6 +22,15 @@ export interface WelcomeEvent {
   readonly displayId: string;
   readonly reconnectToken: string;
   readonly serverNow: number;
+  /**
+   * Opcionālā autentifikācija (aditīva, atpakaļsaderīga): aizpildīti tikai, ja
+   * `HELLO` nesa derīgu `authToken`. Anonīmam šie ir `undefined` un `displayId`
+   * paliek `#?????`. Ielogotam `displayId` jau ir `username` (serveris pārraksta).
+   */
+  readonly userId?: string;
+  readonly username?: string;
+  readonly avatar?: string;
+  readonly isRegistered?: boolean;
 }
 
 export interface RoomListEvent {

@@ -74,6 +74,8 @@ function buildHarness() {
   const timer = new MultiManualTimer();
   const displayIds = new DisplayIdRegistry();
   let tokenSeq = 0;
+  const forfeits: string[] = [];
+  const abandons: string[] = [];
   const rooms = new RoomManager({
     clock: timer.now,
     displayIds,
@@ -81,7 +83,9 @@ function buildHarness() {
     createRoomCode: () => "CODE1",
     createSeed: () => "seed-fixed",
     createTurnScheduler: () => timer.create(),
-    abandonGraceMs: 5_000 // grace < turn deadline (10001), lai pamešana izšaujas pirmā
+    abandonGraceMs: 5_000, // grace < turn deadline (10001), lai pamešana izšaujas pirmā
+    onPlayerForfeited: (_matchId, corePlayerId) => forfeits.push(corePlayerId),
+    onRoomAbandoned: (matchId) => abandons.push(matchId)
   });
   const chat = new LobbyChat({ clock: timer.now });
   const gateway = new WebSocketGateway({
@@ -92,7 +96,7 @@ function buildHarness() {
     createReconnectToken: () => `token-${(tokenSeq += 1)}`
   });
   rooms.setGameUpdateSink((roomId, events) => publishGameUpdate(gateway, rooms, roomId, events, timer.now()));
-  return { gateway, rooms, timer };
+  return { gateway, rooms, timer, forfeits, abandons };
 }
 
 function connect(gateway: WebSocketGateway, id: string, clientId: string, reconnectToken?: string): FakeConnection {
@@ -117,7 +121,7 @@ function send(gateway: WebSocketGateway, conn: FakeConnection, message: Record<s
 
 describe("Abandoned room destroy on last-human disconnect (9.3-b)", () => {
   it("destroys an in-game room after the grace period when all humans disconnect", () => {
-    const { gateway, rooms, timer } = buildHarness();
+    const { gateway, rooms, timer, abandons } = buildHarness();
     const host = connect(gateway, "c1", "host");
     send(gateway, host, { type: "CREATE_ROOM" });
     send(gateway, host, { type: "FILL_SEATS_WITH_BOTS" });
@@ -131,6 +135,8 @@ describe("Abandoned room destroy on last-human disconnect (9.3-b)", () => {
     // Neviens neatgriezās → istaba iznīcināta (arī no lobby saraksta).
     expect(rooms.listRooms().some((room) => room.id === "room-1")).toBe(false);
     expect(rooms.roomOf("host")).toBeUndefined();
+    // Fāze 3 (5.6): abandon firē onRoomAbandoned (iznākumu reģistrēšanai pirms destroy).
+    expect(abandons).toContain("room-1");
   });
 
   it("does not destroy the room if the player reconnects within the grace window", () => {
@@ -164,6 +170,45 @@ describe("Abandoned room destroy on last-human disconnect (9.3-b)", () => {
     // Istaba turpinās (guest spēlē); netika ieplānota iznīcināšana.
     expect(rooms.findRoom("room-1").status).toBe("IN_GAME");
     expect(rooms.roomOf("guest")).toBe("room-1");
+  });
+
+  it("auto-forfeits a disconnected player's seat after grace while others keep playing (5.6)", () => {
+    const { gateway, rooms, timer, forfeits } = buildHarness();
+    const host = connect(gateway, "c1", "host");
+    send(gateway, host, { type: "CREATE_ROOM" });
+    const guest = connect(gateway, "c2", "guest");
+    send(gateway, guest, { type: "JOIN_ROOM", roomId: "room-1", seatIndex: 1 });
+    send(gateway, host, { type: "FILL_SEATS_WITH_BOTS" });
+    send(gateway, host, { type: "START_GAME" });
+
+    gateway.close(host); // host atvienojas, guest paliek tiešsaistē
+    expect(rooms.getSeatedHumans("room-1").some((h) => h.clientId === "host")).toBe(true);
+
+    timer.advanceTo(5_000); // grace beidzas → per-sēdvietas auto-forfeit
+
+    // host sēdvieta forfeitēta (kļuva par botu), guest turpina; istaba IN_GAME.
+    expect(forfeits).toContain("1"); // host = sēdvieta 0 → corePlayerId "1" → lose
+    expect(rooms.getSeatedHumans("room-1").some((h) => h.clientId === "host")).toBe(false);
+    expect(rooms.findRoom("room-1").status).toBe("IN_GAME");
+    expect(rooms.roomOf("guest")).toBe("room-1");
+  });
+
+  it("does NOT auto-forfeit if the disconnected player reconnects within grace (5.6)", () => {
+    const { gateway, rooms, timer, forfeits } = buildHarness();
+    const host = connect(gateway, "c1", "host"); // token-1
+    send(gateway, host, { type: "CREATE_ROOM" });
+    const guest = connect(gateway, "c2", "guest");
+    send(gateway, guest, { type: "JOIN_ROOM", roomId: "room-1", seatIndex: 1 });
+    send(gateway, host, { type: "FILL_SEATS_WITH_BOTS" });
+    send(gateway, host, { type: "START_GAME" });
+
+    gateway.close(host);
+    timer.advanceTo(2_000); // grace laikā
+    connect(gateway, "c3", "host", "token-1"); // reconnect → atceļ auto-forfeit
+
+    timer.advanceTo(8_000); // pāri sākotnējam grace
+    expect(forfeits).not.toContain("1"); // NEtika forfeitēts
+    expect(rooms.getSeatedHumans("room-1").some((h) => h.clientId === "host")).toBe(true);
   });
 
   it("destroys the room when the last ONLINE human exits while another human is disconnected", () => {

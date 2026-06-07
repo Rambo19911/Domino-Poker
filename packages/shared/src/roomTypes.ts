@@ -4,6 +4,8 @@
  * `Room`/`Seat` (ar `playerId`) paliek `apps/server` (LobbyManager).
  */
 
+import type { TitleId } from "./titles.js";
+
 export type RoomStatus =
   | "WAITING"
   | "STARTING"
@@ -25,6 +27,14 @@ export interface RoomSeatView {
   readonly displayId: string | undefined;
   readonly isHost: boolean;
   readonly isAI: boolean;
+  /**
+   * Reģistrēta (ielogota) spēlētāja profila avatara `id` (sk. `avatarCatalog`) un
+   * MP tituls (Fāze 4). `undefined` botiem un anonīmiem. Serveris atrisina no
+   * sesijas publiskā profila keša (pārdzīvo disconnect). Klients to rāda gan
+   * waiting-room, gan spēles galda sēdvietās.
+   */
+  readonly avatar?: string | undefined;
+  readonly title?: TitleId | undefined;
 }
 
 export interface RoomSummary {

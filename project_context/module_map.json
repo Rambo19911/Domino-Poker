@@ -2,7 +2,7 @@
   {
     "name": "Web App",
     "folder": "apps/web",
-    "purpose": "Next.js App Router application with the main lobby, localized rules dialog, settings dialog, shared audio controls, locale switching, the single-player Domino Poker game UI, and the multiplayer lobby + game table (MP zone under components/mp + lib/mp; renders server snapshots only, sends intents).",
+    "purpose": "Next.js App Router application with the main lobby, optional account/profile UI, localized rules/settings dialogs, shared audio controls, the single-player game UI, PWA shell, and the live multiplayer lobby + game table.",
     "main_files": [
       "apps/web/app/page.tsx",
       "apps/web/components/AppShell.tsx",
@@ -46,10 +46,30 @@
       "tests/e2e/layout-regression.spec.ts",
       "tests/e2e/dialog-a11y.spec.ts",
       "tests/e2e/storage-resilience.spec.ts",
-      "playwright.config.ts"
+      "playwright.config.ts",
+      "apps/web/next.config.ts",
+      "apps/web/tsconfig.json",
+      "apps/web/vitest.config.ts",
+      "apps/web/app/manifest.ts",
+      "apps/web/components/PwaRegister.tsx",
+      "apps/web/public/sw.js",
+      "apps/web/components/auth/AuthDialog.tsx",
+      "apps/web/components/auth/LobbyProfile.tsx",
+      "apps/web/components/auth/ResetPasswordScreen.tsx",
+      "apps/web/lib/auth/authApi.ts",
+      "apps/web/lib/auth/useAuthUser.ts",
+      "apps/web/lib/auth/titleLabel.ts",
+      "apps/web/lib/mp/seatLabel.ts",
+      "apps/web/lib/mpRulesContent.ts"
     ],
-    "depends_on": ["Core Rules"],
-    "used_by": ["Browser users", "Next.js runtime"],
+    "depends_on": [
+      "Core Rules",
+      "Shared Multiplayer Contracts"
+    ],
+    "used_by": [
+      "Browser users",
+      "Next.js runtime"
+    ],
     "risks": [
       "AppShell owns lobby/game state, locale, audio settings, and screen transitions.",
       "The lobby has separate desktop wheel and compact viewport layouts; keep both flows wired to the same selected round count and start-game handler.",
@@ -62,7 +82,13 @@
       "Local storage access should go through safeStorage and remain best-effort when browser storage is malformed, blocked, or throwing.",
       "The GAME TABLE uses uniform contain scaling of the fixed 1920x1080 (desktop) / 1080x2340 (phone) design stage because it is an immersive canvas (MpGameTable/SpMobileTable use lib/mobileStage.ts useMobileStageLayout() = CONTAIN, min(vw/1080,vh/2340), letterbox). The MP LOBBY does NOT use a scaled stage: MpMobileLobby is a PLAIN RESPONSIVE CSS screen (real px + viewport units), because a lobby is a list/control screen, not a composed canvas. History: a scaled-stage lobby (contain, then width-fit) was tried and REVERTED — it caused (a) header icons that scaled with viewport and mismatched the rest of the app's fixed 48px buttons, (b) an unbounded room list (the design stage was 2340px tall, not the viewport), and (c) the chat input rendering off-screen below the scaled stage. The fix (Codex-reviewed, variant A): MpMobileLobby uses a .mplShell (position:fixed; inset:0; flex column) that REUSES the app's existing button/icon classes (iconButton + mpHeaderIconButton + mpHelpButton/mpSoundButton/mpExitButton for the 48px header buttons; mpPrimaryButton/mpRoomButton for actions) so sizes match every other screen. Room sections are an accordion (one open at a time) whose open .mplSectionBody is flex:1 with internal overflow-y scroll, so the list stays within the viewport height regardless of room count. The chat is a VIEWPORT-LEVEL overlay (.mplChatOverlay position:fixed; height follows window.visualViewport so the input stays above the mobile keyboard; feed auto-scrolls to bottom) opened by a right-edge FAB (.mplChatFab, position:fixed) with an unread green dot; error notices slide down from the top (.mplErrorToast position:fixed). Room rows show a short #id derived from the room UUID + seats/rounds/TTL/status/join/start. The WAITING ROOM and create/join/rules dialogs reuse the existing desktop-responsive components; at phone portrait the waiting room renders via MultiplayerLobby's desktop branch (because currentRoom is set), so it shares the mpLobbyHeader. Mobile polish applied to it via responsive CSS only (no separate component): the shared header at <=560px stays one row (title left via .mpLobbyTitle flex:1, icons right; not stacked) and .mpSeatGrid keeps its base 2-column grid (2x2 seats) instead of collapsing to 1 column. The title tag (.mpLobbyTitleTag) is now uppercase + same size/weight as MULTIPLAYER (so it reads 'MULTIPLAYER LOBBY', dot separator removed in JSX) — this is a GLOBAL header change affecting desktop too. MultiplayerLobby.tsx switches to MpMobileLobby only when isPhonePortrait && !currentRoom; desktop and in-game paths are unchanged. docs/mockups/MP-lobby-layout.json is now only a PROPORTION/POSITION reference, not pixel-exact geometry. NOTE: HelpIcon renders a .helpAssetIcon (img), not .iconSvg — reusing mpHeaderIconButton handles its sizing.",
       "The main-lobby multiplayer entry is now enabled: the mode wheel has a circular 'Lobby' button on the bottom (multiplayer) half mirroring the single-player Play button, and the compact panel's multiplayer button is enabled; both call onStartMultiplayer to switch AppShell screen to 'mp-lobby'.",
-      "Client MP zone (Phase 8, apps/web/lib/mp/, kept under lib/ to match the existing no-src layout) holds the non-UI networking foundation, never single-player rules. clientId.ts: getOrCreateClientId() returns a stable per-browser UUID persisted in safeStorage under 'domino-poker-client-id' (the private connection id sent in HELLO; only the server displayId is shown publicly). clientView.ts: reduceServerEvent(view, event) is a PURE reducer folding all 12 ServerEvent types into ClientView {connection, identity, lobby{rooms,onlineCount,chat}, room, game{snapshot,seq}, lastError} - no rules logic (game.snapshot is the server's authoritative truth; GAME_EVENT only advances seq for gap detection; GameSnapshot type is derived as Extract<ServerEvent,{type:'STATE_SNAPSHOT'}>['snapshot'] to avoid importing core subpaths). apps/web depends on @domino-poker/shared (protocol contracts, single source of truth) and has vitest (apps/web/test/mp/). MultiplayerClient.ts is the transport-agnostic WebSocket client: HELLO handshake, auto-reconnect + PING, folds ServerEvents through reduceServerEvent, and exposes typed send methods. createRoom sends {visibility, numberOfRounds, fillWithBots}; submitBid/submitMove read roomId+turnId from the view. Recovery: seq gap or post-reconnect WELCOME in a room triggers REQUEST_SNAPSHOT(lastSeq); protocol mismatch stops reconnect. webSocketAdapter.ts is the only real browser WebSocket wrapper. useMultiplayer.ts builds/connects the client and exposes {view, actions}. MultiplayerLobby.tsx is LIVE-wired: ConnectionBanner, public/private room columns + onlineCount, working chat (React text, never innerHTML), and L2 CreateRoomDialog using the shared Dialog/focus trap with visibility, rounds, and AI-fill controls. Join/L3 waiting room/L4 code join and MP game table are still next slices. NOTE: server LobbyChat stores raw text; React text rendering is the XSS layer. Phase 12 4-player-test fixes: (1) errors are TRANSIENT everywhere - reduceServerEvent clears lastError on ROOM_LEFT (so a game error like NOT_YOUR_TURN 'does not own the current turn' cannot leak into the lobby after the game), and MultiplayerLobby auto-dismisses the top error note (6s) + chat error note (4s); MpGameTable already shows errors as a self-dismissing toast. (2) MpGameTable auto-closes the declared-number dialog when table.turnAction !== 'move' (i.e. the viewer's turn ended, e.g. via the server 10s timeout auto-play) so a late declared-number choice can't fire a stale-turn rejection."
+      "Join-by-code, waiting room, and MpGameTable are implemented; keep them wired through MultiplayerLobby/useMultiplayer and preserve server-authoritative action flow.",
+      "Optional account UI is additive: anonymous single-player and anonymous multiplayer must remain playable. Auth tokens live in localStorage via safeStorage and are sent to the MP server only as HELLO authToken.",
+      "Registration now REQUIRES email (Phase 5: email is the only password-reset channel). RegisterInput.email is a required string in authApi.ts and AuthDialog forces a required email field; the old emailOptional i18n key was removed. Existing accounts without email keep working but cannot reset their password.",
+      "Password reset UI (Phase 5): AuthDialog has a 'Forgot password?' link -> forgot form (email -> generic 'if an account exists' confirmation, anti-enumeration); ResetPasswordScreen is a standalone screen AppShell shows when the URL hash is #reset=<token>. The token is read from the hash (NOT query string, so it does not leak to logs/Referer), kept only in component state, and the URL is immediately cleared via history.replaceState. apiForgotPassword/apiResetPassword in authApi.ts; all strings i18n LV+EN.",
+      "Seat avatars + win-tier titles (Phase 4) render in the game table seats (MpGameTable/MpMobileTable desktop+mobile via .playerProfile/.profileTitle and .mpmProfile*; SP via PlayerSeat humanTitle + SpMobileTable). MP data flows from RoomSeatView.avatar/title; SP human title is derived client-side from auth.stats and passed via humanProfile.title (already-localized string). The Loser badge is NOT shown on seats (only in the main-lobby LobbyProfile).",
+      "MpGameTable must render authoritative server snapshots and send intents only; do not move rule acceptance or rejection into the browser client.",
+      "PWA files (manifest, service worker, icons) are public browser assets; changes need browser verification because stale service-worker caches can mask UI changes."
     ],
     "confidence": "high"
   },
@@ -82,7 +108,9 @@
       "packages/core/test/multiplayer/determinism.test.ts"
     ],
     "depends_on": [],
-    "used_by": ["Web App"],
+    "used_by": [
+      "Web App"
+    ],
     "risks": [
       "Rule changes can alter scoring, legal-play validation, dealer rotation, and AI decisions.",
       "`shuffleAlgorithm.ts` is shared by SP `shuffleSet()` and MP seeded shuffle, but RNG/deal ownership stays separate: SP defaults to Math.random; MP supplies `createSeededRng(seed)` and keeps deterministic server-side setup.",
@@ -131,8 +159,14 @@
       "packages/core/test/multiplayer/snapshots.test.ts",
       "packages/core/test/multiplayer/phaseFlow.test.ts"
     ],
-    "depends_on": ["Core Rules"],
-    "used_by": ["Future Multiplayer Server", "Future room engine", "Multiplayer Simulators"],
+    "depends_on": [
+      "Core Rules"
+    ],
+    "used_by": [
+      "Multiplayer Server",
+      "Web App UI hints",
+      "Multiplayer Simulators"
+    ],
     "risks": [
       "Must not alter single-player shuffle/deal behavior.",
       "MP state/player/turn fields belong in multiplayer wrappers, not in core single-player types.",
@@ -156,7 +190,7 @@
   {
     "name": "Shared Multiplayer Contracts",
     "folder": "packages/shared",
-    "purpose": "Transport-neutral WebSocket protocol shared by server and client (Phase 6.1/6.2/6.3). Contains the protocol version + compatibility check, structured error codes/payload, Zod schemas for all client->server messages (discriminated union), the public room DTO types (RoomSummary/RoomView/etc.), and TypeScript types for all server->client events (ServerEvent union).",
+    "purpose": "Transport-neutral protocol shared by server and web client: protocol version, avatar catalog, errors, Zod client message schemas, room DTOs, and server event types.",
     "main_files": [
       "packages/shared/package.json",
       "packages/shared/tsconfig.json",
@@ -167,23 +201,29 @@
       "packages/shared/src/clientMessages.ts",
       "packages/shared/src/roomTypes.ts",
       "packages/shared/src/serverEvents.ts",
-      "packages/shared/test/protocol.test.ts"
+      "packages/shared/test/protocol.test.ts",
+      "packages/shared/src/avatarCatalog.ts"
     ],
     "depends_on": [],
-    "used_by": ["Multiplayer Server", "Future multiplayer web client"],
+    "used_by": [
+      "Multiplayer Server",
+      "Web App",
+      "Multiplayer Load Test"
+    ],
     "risks": [
       "Keep transport-neutral: protocol/message/DTO types only, never game rules (those live in packages/core).",
       "Client->server messages are untrusted input - keep strict Zod validation (parseClientMessage); the gateway returns INVALID_MESSAGE on failure. SUBMIT_MOVE carries move={tile,declaredNumber?}, distinct from the core command shape (the gateway translates). Server->client events are trusted server output, so they are TypeScript types (not Zod).",
       "Public room DTOs (RoomStatus/RoomVisibility/SeatKind/RoomSeatView/RoomSummary/RoomView) and room-round constants live here and are the single transport contract; RoomSummary/RoomView include numberOfRounds. LobbyManager imports + re-exports DTOs and keeps only the internal Room/Seat (with playerId) local.",
       "serverEvents.ts embeds core payload types (PlayerSnapshot/MultiplayerEvent) via `import type` only (erased) so the runtime dependency stays zod-only.",
-      "Build uses the composite tsconfig.json (referenced by the root); typecheck uses tsconfig.typecheck.json (noEmit, includes tests, paths->core source). zod is a runtime dependency; relative imports must keep .js extensions (no postbuild fix script here)."
+      "Build uses the composite tsconfig.json (referenced by the root); typecheck uses tsconfig.typecheck.json (noEmit, includes tests, paths->core source). zod is a runtime dependency; relative imports must keep .js extensions (no postbuild fix script here).",
+      "HELLO authToken is optional and backward-compatible: invalid or missing tokens must fall back to anonymous identity rather than blocking play."
     ],
     "confidence": "high"
   },
   {
     "name": "Multiplayer Server",
     "folder": "apps/server",
-    "purpose": "Authoritative multiplayer server workspace. Phase 5 (room engine + lobby) is complete: RoomEngine (single-writer per-room dispatch over core.applyCommand, mocked turn timers), LobbyManager (rooms, seats, host, bot-fill, host migration, FSM, TTL), RoomManager (membership, routing, room<->engine wiring, reconnect snapshot, lifecycle), DisplayIdRegistry identity, and structured lobby error codes. Phase 6.4 adds the WebSocket gateway (net/): transport-agnostic WebSocketGateway (HELLO handshake, protocol-version check, JSON+Zod validation, identity binding via SessionManager - the original Phase 6.4 net/SessionRegistry has been removed as dead code, PING/PONG) plus a ws transport adapter mounted on the same HTTP server/port via `upgrade` (decision B, path /ws). Phase 6.5 wires CoreMessageRouter to RoomManager for the lobby commands (LIST_ROOMS/CREATE_ROOM/JOIN_ROOM/LEAVE_ROOM/FILL_SEATS_WITH_BOTS): the requester gets the matching reply event and any room-list change broadcasts LOBBY_STATE via the gateway's GatewayHub; ALREADY_IN_ROOM is enforced by RoomManager. Phase 6.6 adds the lobby chat (LobbyChat) wired through SEND_CHAT + connect/disconnect lifecycle hooks (CHAT_HISTORY on join, LOBBY_STATE/onlineCount on connect+disconnect). Phase 10.1-10.2 add the DB-agnostic persistence layer (storage/): StoragePort is an async (Promise-based, SQLite/PostgreSQL parity) contract over serializable DTOs (match start+seed, append-only event log, match result, basic player stats, lobby chat history); SqliteStorage implements it with the built-in node:sqlite (no native deps) using INSERT OR IGNORE / upsert idempotency and a WAL-mode file DB; PostgresStorage implements the same contract via pg, JSONB payloads, BIGINT ms timestamps, ON CONFLICT DO NOTHING idempotency, and atomic ON CONFLICT DO UPDATE stats increments (updated_at uses max/GREATEST under concurrent writes); config.readDatabaseUrl accepts SQLite paths/:memory:/file: prefixes and PostgreSQL URLs; openStorage routes by DATABASE_URL scheme. PostgreSQL multi-instance foundations are wired: RoomLeaseStore + RoomOwnershipGuard use `room_leases` with atomic acquire/renew/release SQL and CoreMessageRouter enforces ownership before room-scoped commands; DurableSessionStore uses `player_sessions` so reconnectToken/displayId are shared across instances; PostgresEventBus uses `server_event_fanout` + LISTEN/NOTIFY so broadcast/player/supersede fanout reaches sockets on other instances without republish loops. PostgresEventBus prunes old fanout rows, reconnects the LISTEN client after listener errors, catches up fanout rows missed during reconnect windows, skips local self-notification lookups, and writes INSERT+NOTIFY as one SQL CTE. Active room state still lives in the owning Node process, so full multi-instance room failover still needs room-affinity/owner routing or explicit state rehydration/command forwarding. Phase 10.3 wires match-lifecycle persistence into the live flow: RoomEngine emits events to MatchPersistence, RoomManager records match starts/events, LobbyChat persists/hydrates chat history, and GAME_OVER updates player stats via StoragePort.incrementPlayerStats. PostgreSQL mode is covered by `npm run test:postgres:docker` (disposable Docker DB) plus optional TEST_POSTGRES_DATABASE_URL tests.",
+    "purpose": "Authoritative Node.js multiplayer server: raw HTTP health/metrics/auth routes, WebSocket gateway, optional account authentication, lobby/chat, room lifecycle, server-driven timers, persistence, account stats, PostgreSQL leases/durable sessions/fanout, and game-result outcome recording.",
     "main_files": [
       "apps/server/package.json",
       "apps/server/tsconfig.json",
@@ -242,16 +282,41 @@
       "apps/server/test/storage/PostgresStorage.integration.test.ts",
       "apps/server/test/storage/RoomLeaseStore.test.ts",
       "apps/server/test/storage/MatchPersistence.test.ts",
-      "apps/server/test/rooms/RoomManagerPersistence.test.ts"
+      "apps/server/test/rooms/RoomManagerPersistence.test.ts",
+      "apps/server/src/auth/AuthService.ts",
+      "apps/server/src/auth/AuthStore.ts",
+      "apps/server/src/auth/passwords.ts",
+      "apps/server/src/auth/EmailSender.ts",
+      "apps/server/src/http/authRoutes.ts",
+      "apps/server/src/http/rateLimiter.ts",
+      "apps/server/src/http/readJsonBody.ts",
+      "apps/server/src/storage/migrations.ts",
+      "apps/server/src/storage/migrate.ts",
+      "apps/server/src/storage/OutcomeRecorder.ts",
+      "apps/server/src/net/PostgresEventBus.ts",
+      "apps/server/src/net/ServerEventBus.ts",
+      "apps/server/test/auth/AuthService.test.ts",
+      "apps/server/test/auth/passwordReset.test.ts",
+      "apps/server/test/http/authRoutes.integration.test.ts",
+      "apps/server/test/net/authHandshake.test.ts",
+      "apps/server/test/storage/OutcomeRecorder.test.ts",
+      "apps/server/test/storage/userStats.test.ts",
+      "apps/server/test/storage/authTokenCleanup.test.ts",
+      "apps/server/test/config.test.ts"
     ],
-    "depends_on": ["Core Multiplayer Helpers", "Shared Multiplayer Contracts"],
-    "used_by": ["Future multiplayer web client"],
+    "depends_on": [
+      "Core Multiplayer Helpers",
+      "Shared Multiplayer Contracts"
+    ],
+    "used_by": [
+      "Web App"
+    ],
     "risks": [
       "RoomEngine.dispatch is the single state-mutation path (single-writer); never mutate room state elsewhere. It serializes commands through a re-entrancy queue, assigns a contiguous room-level seq per event, keeps an in-memory event log, caches idempotency by playerId+requestId, and overrides each time-sensitive command's now with the server clock (server is the time authority). Acceptance is decided by result.errors.length===0, NOT by nextState (Phase 6.7 fix): core fail(...) keeps nextState=current state, so illegal commands were previously mis-accepted with their errors dropped. getGameState() exposes the trusted full MP state for the GameDirector (never sent to clients).",
       "Turn timeout uses an injected TurnTimerScheduler (ManualTimerController for tests; SystemTurnTimerScheduler = real setTimeout in production, Phase 7) scheduled at deadlineAt+1 on TURN_STARTED and cancelled when the turn ends; stale timeouts are guarded by pendingTurnId and core turnId validation. Phase 7 integration: RoomEngine.onTurnTimeout fires AFTER a self-fired timeout's accepted dispatch with its events; RoomManager wires it to handleTurnTimeout -> advanceGame -> gameUpdateSink. The sink (set via setGameUpdateSink) is provided by index.ts as publishGameUpdate(gateway, rooms, ...), so timer-driven updates reach seated humans with the same delivery as client-initiated moves. publishGameUpdate lives in net/gameUpdateDelivery.ts and is shared by the router (deliverGameUpdate) and the timeout sink; GatewayHub was extracted to net/GatewayHub.ts to avoid an import cycle. TURN_STARTED already carries turn.deadlineAt/startedAt and the GAME_EVENT wrapper carries serverNow (Phase 7.2 - client countdown data).",
       "Server consumes core via @domino-poker/core/multiplayer and the protocol/DTOs via @domino-poker/shared. Typecheck (tsconfig.json, noEmit) resolves BOTH to source via `paths` and intentionally has NO project `references` (references force built dist and cause TS6305/TS2307); the composite build (tsconfig.build.json) keeps the shared reference and resolves to dist, so `npm run build` must build core+shared first (workspace order handles it). LobbyManager imports room DTO types from @domino-poker/shared (type-only, erased) and re-exports them.",
       "Server-side multiplayer must remain authoritative and must not leak private GameState snapshots (getSnapshotForPlayer uses createPlayerSnapshot; getPublicSnapshot omits hands).",
-      "DisplayIdRegistry (Phase 5.5) assigns public `#??` ids derived deterministically from playerId via the core MP seeded RNG, unique with salt-based collision regeneration and stable per session; the same format covers bots, and full playerId/clientId is never the public identifier. LobbyManager now wires displayId into seat names; clientId one-room-at-a-time (ALREADY_IN_ROOM) comes with RoomManager.",
+      "DisplayIdRegistry assigns public anonymous ids in the format # plus five digits (for example #04217); registered users can override the public displayId with username through valid authToken.",
       "LobbyManager (Phase 5.2/5.4) owns the room registry and FSM (WAITING->STARTING->IN_GAME->FINISHED->DESTROYED): createRoom (code + createdAt + expiresAt = +1h, host at seat 0, visibility, numberOfRounds), listRooms (WAITING/IN_GAME only, private rooms flagged), assignSeat (max 4 seats empty|human|bot), fillSeatsWithBots (host-only, WAITING-only, deterministic bot ids), host migration on leave (next human by seatIndex; DESTROYED when no humans), startGame (host-only, needs 4 filled + >=1 human), and destroyExpired (TTL sweep that skips IN_GAME). Public views expose displayId and room metadata, never playerId; injected clock + room id/code generators keep it deterministic in tests.",
       "lobbyErrors.ts defines LobbyError + LobbyErrorCode (ROOM_NOT_FOUND, ROOM_FULL, GAME_ALREADY_STARTED, NOT_HOST, ALREADY_IN_ROOM, FORBIDDEN, plus ROOM_NOT_JOINABLE/NOT_ENOUGH_PLAYERS/PLAYER_NOT_IN_ROOM); reused by LobbyManager and RoomManager.",
       "RoomManager (Phase 5.3) wires LobbyManager + per-room RoomEngine: tracks clientId->room membership (one room at a time, ALREADY_IN_ROOM), createRoom accepts visibility/numberOfRounds, join by id (public) or code (private requires code), startGame creates the room's engine and dispatches CREATE_GAME (gameId == roomId) passing humanSeatIndices and room numberOfRounds, routeMessageToRoomEngine forwards only to the matching room and rejects mismatched gameId, getSnapshotForClient maps seat index -> core playerId and rejects non-members, and destroyFinishedRoom does FINISHED->DESTROYED + drops engine + membership. Each room gets its own TurnTimerScheduler.",
@@ -262,7 +327,14 @@
       "SUBMIT_BID/SUBMIT_MOVE routing (Phase 6.7): handleSubmitBid/handleSubmitMove share handleSubmit, whose server validation order is the transport layer (roomId membership via requireMembership + clientId->corePlayerId via corePlayerIdForClient) then the core/RoomEngine (current player, turnId match, deadline, requestId idempotency, legality). The client NEVER sends a playerId (the schema has none) so the acting player is authoritative from identity+seat. completeSubmit branches: idempotentReplay -> resync the requester with a STATE_SNAPSHOT only; rejected -> ERROR with mapped code (toMoveErrorCode: wrong_player/turn_not_started/turn_id_mismatch -> NOT_YOUR_TURN, ACTION_TOO_LATE -> ACTION_TOO_LATE, else MOVE_REJECTED) + echoed requestId; accepted -> advanceGame then deliverGameUpdate (GAME_EVENTs then a fresh personalized STATE_SNAPSHOT per seated human, so new secret hands after START_NEXT_ROUND are covered). guard() now echoes requestId on LobbyError.",
       "START_GAME delivery (Phase 6.7): RoomManager holds a GameDirector per room; startGame creates engine+director (no advance, backward compatible) and advanceGame(roomId) runs the loop and returns events (reused after every human SUBMIT). The router's handleStartGame calls startGame+advanceGame+getSeq+getSeatedHumans, then delivers a personalized STATE_SNAPSHOT (per human via getSnapshotForClient) plus the opening GAME_EVENTs (incl. TURN_STARTED carrying the turnId needed for SUBMIT_BID) ONLY to seated humans via the new GatewayHub.sendToPlayer (game state/events never leak to lobby users outside the room), then pushes LOBBY_STATE. getSeatedHumans maps human seats -> {clientId, corePlayerId}; getSeq exposes the engine room-event seq for snapshot correlation; directors are cleaned up on room destroy/leave.",
       "Lobby chat (Phase 6.6, src/chat/LobbyChat.ts) is a deliberately state-free in-memory service: it only handles {id, authorDisplayId, text, serverNow} and has NO access to RoomEngine/GameState/tiles. submit(authorPlayerId, authorDisplayId, rawText) trims then rejects empty->INVALID_MESSAGE and >maxLength(200)->INVALID_MESSAGE (length checked on trimmed pre-escape text so HTML escaping can't push a legal message over the limit), enforces a per-player TOKEN-BUCKET rate limit (Phase 10.3 scalability fix, replacing the old fixed 1500ms gap which rejected normal fast typing): burstCapacity default 5 messages in a row, refillMs default 2000 (~1 msg/2s sustained); only accepted sends consume a token; bucket state per playerId is cleaned up via forget(playerId) when the player FULLY disconnects (router.onDisconnected) so memory does not grow unbounded at scale -> RATE_LIMITED on empty bucket. Stores the RAW text (Phase 8: no server-side HTML-escaping - the client renders chat as React text, which is the XSS layer; server escaping double-escaped) into a ring buffer capped at historyLimit(50). The author is the server displayId (client cannot spoof). Phase 10.3 persistence: onMessage observer pushes accepted messages to the DB (MatchPersistence) and hydrate() preloads the buffer from DB at startup so CHAT_HISTORY survives a server restart. CoreMessageRouter SEND_CHAT broadcasts CHAT_MESSAGE on success (ERROR with echoed requestId on reject); the router lifecycle hooks onConnected (sends CHAT_HISTORY to the newcomer + broadcasts LOBBY_STATE for the bumped onlineCount) and onDisconnected (forget chat bucket + broadcasts LOBBY_STATE) are called by the gateway. SCALE NOTE: this is a single GLOBAL lobby chat broadcast to all clients. Phase 11 load testing exposed a broadcast-fanout OOM at ~1000 clients (every CHAT_MESSAGE + LOBBY_STATE fanned out to all N sockets; ws outbound buffers grew unbounded -> 3.8GB heap OOM). HARDENED with three layers: (1) LOBBY_STATE debounce/coalescing in CoreMessageRouter (lobbyStateDebounceMs, prod 200ms; default 0 keeps tests synchronous) so hundreds of room-change broadcasts collapse to one per window; (2) slow-client backpressure in WebSocketGateway.deliver (skip a send when conn.bufferedAmount() > slowClientBufferCap, default 1MB) so memory stays bounded - skipped game clients resync via REQUEST_SNAPSHOT seq-gap, skipped lobby/chat is non-critical; (3) broadcast pre-serialization - WebSocketGateway.broadcast JSON.stringify's the event ONCE and sends the same string to all via GatewayConnection.sendSerialized (wsTransport ws.send(payload); fallback to send(event) for fakes), eliminating N redundant stringifies per fanout. PostgreSQL mode now adds PostgresEventBus for cross-instance broadcast/player/supersede fanout. Validated: 100=~86MB, 500=~100MB/RTT63ms/no-leak, 1000=~120MB/0-dropped/survives (RTT saturated ~3s on one event loop, halved by pre-serialize).",
-      "Lobby routing (CoreMessageRouter) takes RoomManager and RouteContext {identity, conn, hub, serverNow}. Mapping: LIST_ROOMS->ROOM_LIST; CREATE_ROOM({visibility,numberOfRounds,fillWithBots?})->ROOM_CREATED+LOBBY_STATE, optionally filling bots immediately; JOIN_ROOM(roomId|code)->ROOM_JOINED+LOBBY_STATE; LEAVE_ROOM->ROOM_LEFT+LOBBY_STATE; FILL_SEATS_WITH_BOTS->ROOM_JOINED(room-view refresh)+LOBBY_STATE. identity.playerId is the RoomManager membership key (== HELLO clientId). JOIN seatIndex is currently ignored. RoomManager LobbyError is caught in guard() and mapped to ProtocolErrorCode."
+      "Lobby routing (CoreMessageRouter) takes RoomManager and RouteContext {identity, conn, hub, serverNow}. Mapping: LIST_ROOMS->ROOM_LIST; CREATE_ROOM({visibility,numberOfRounds,fillWithBots?})->ROOM_CREATED+LOBBY_STATE, optionally filling bots immediately; JOIN_ROOM(roomId|code)->ROOM_JOINED+LOBBY_STATE; LEAVE_ROOM->ROOM_LEFT+LOBBY_STATE; FILL_SEATS_WITH_BOTS->ROOM_JOINED(room-view refresh)+LOBBY_STATE. identity.playerId is the RoomManager membership key (== HELLO clientId). JOIN seatIndex is currently ignored. RoomManager LobbyError is caught in guard() and mapped to ProtocolErrorCode.",
+      "Optional auth is additive: /auth/* and HELLO authToken provide username/avatar/userId when valid, but anonymous clients must continue to work through clientId + reconnectToken.",
+      "Auth tokens are opaque random tokens; storage keeps only sha256(token). Never log raw tokens or expose passwordHash/email to other players.",
+      "WEB_ORIGIN is the production CORS allowlist for /auth/*; dev mode allows localhost/127.0.0.1 origins. Do not use Access-Control-Allow-Origin: * for auth routes.",
+      "OutcomeRecorder records account win/loss only for countable games: 4 seats, 4 humans, 4 distinct registered userIds captured at match start. Forfeit/abandon decisions must not be overwritten by later GAME_OVER standings.",
+      "Password reset by email (Phase 5): migration 0004_password_reset_tokens (PG migrations.ts + SqliteStorage.migrate; stores only sha256(token), 1h expiry, single-use via used_at). AuthStore.resetPasswordWithToken is ATOMIC (SQLite transaction / PG single CTE): claim token WHERE used_at IS NULL AND expires_at > now -> change password_hash -> revoke ALL the user's auth + reset tokens (force re-login). AuthService.requestPasswordReset is anti-enumeration (always generic, sends only if account+email exist, catches email-send errors); resetPassword hashes + delegates to the atomic store method. EmailSender.ts abstracts delivery: dev=ConsoleEmailSender (logs the link), prod=ResendEmailSender (Resend HTTP API via fetch, no SDK); if prod has no RESEND_API_KEY the sender is undefined and the feature is DISABLED (routes return 503, never a silent pseudo-send). HTTP POST /auth/forgot-password + /auth/reset-password (Zod, rate-limited). Config: RESEND_API_KEY/EMAIL_FROM/APP_BASE_URL (config.email). The reset link uses the URL hash (#reset=<token>), never a query string.",
+      "Expired-token cleanup (Phase 5): index.ts runs a periodic setInterval (every 6h + a sweep at startup, unref'd, cleared on shutdown) calling storage.deleteExpiredAuthTokens AND deleteExpiredPasswordResetTokens. Best-effort: a DB error is logged, never crashes the server. Token validation already rejects expired tokens; this is hygiene so the tables do not grow unbounded.",
+      "MP per-game action log (apps/server/src/rooms/mpActionLog.ts) is opt-in via MP_ACTION_LOG=1 (default OFF, also in prod) because appendFileSync is on the command path; when enabled it writes one .txt per game to logs/ (override MP_ACTION_LOG_DIR). There is NO rotation/cleanup of those files. Console logs go to systemd journald (journalctl -u domino-poker), which rotates automatically."
     ],
     "confidence": "high"
   },
@@ -289,14 +361,23 @@
       "deploy/Dockerfile",
       "deploy/nginx.conf.example",
       "deploy/Caddyfile.example",
-      ".dockerignore"
+      ".dockerignore",
+      "docs/auth-plan.md",
+      "deploy/BACKUP.md",
+      "deploy.sh"
     ],
     "depends_on": [],
-    "used_by": ["Developers", "Design/reference work"],
+    "used_by": [
+      "Developers",
+      "Design/reference work"
+    ],
     "risks": [
       "Some documentation may lag behind tested code behavior.",
       "Use docs as reference material, not as proof that implementation is current.",
-      "docs/SCALING.md, docs/DEPLOYMENT.md, docs/DB_MIGRATION.md and docs/mockups/* are intentionally git-IGNORED (local-only, per .gitignore + commit efa63fc 'keep only game rules/strategy public'). Only the four game-rules/strategy docs are tracked. Do NOT link the ignored docs from the public README (they 404 on GitHub); keep them as local references only."
+      "docs/SCALING.md, docs/DEPLOYMENT.md, docs/DB_MIGRATION.md and docs/mockups/* are intentionally git-IGNORED (local-only, per .gitignore + commit efa63fc 'keep only game rules/strategy public'). Only the four game-rules/strategy docs are tracked. Do NOT link the ignored docs from the public README (they 404 on GitHub); keep them as local references only.",
+      "Some docs under docs/ are ignored/local planning artifacts (SCALING, DEPLOYMENT, DB_MIGRATION, TODO, mockups); four game rules/strategy docs are public tracked references.",
+      "docs/auth-plan.md is a living implementation/status plan; verify against code before treating old checklist text as current truth.",
+      "deploy.sh is environment-specific and may contain deployment assumptions; prefer .env.example plus deploy/* examples for portable guidance."
     ],
     "confidence": "medium"
   },
@@ -304,9 +385,13 @@
     "name": "Local Runtime Data",
     "folder": "data",
     "purpose": "Local runtime data directory for the default live multiplayer SQLite database (path from DATABASE_URL when it is a file path). PostgreSQL deployments use an external database URL instead.",
-    "main_files": ["data/.gitkeep"],
+    "main_files": [
+      "data/.gitkeep"
+    ],
     "depends_on": [],
-    "used_by": ["Multiplayer Server (apps/server) persistence (MatchPersistence + SqliteStorage/PostgresStorage)"],
+    "used_by": [
+      "Multiplayer Server (apps/server) persistence (MatchPersistence + SqliteStorage/PostgresStorage)"
+    ],
     "risks": [
       "Runtime SQLite files must stay ignored and must not be committed.",
       "Persistence is live (match event log + player stats + chat history); do not treat this directory as an unused placeholder."
@@ -328,8 +413,13 @@
       "tools/simulators/test/playGame.test.ts",
       "tools/simulators/test/volume.test.ts"
     ],
-    "depends_on": ["Core Multiplayer Helpers"],
-    "used_by": ["npm run simulate", "Gate 1 core_ready checks"],
+    "depends_on": [
+      "Core Multiplayer Helpers"
+    ],
+    "used_by": [
+      "npm run simulate",
+      "Gate 1 core_ready checks"
+    ],
     "risks": [
       "Imports MP only through `@domino-poker/core/multiplayer`; must never reach into single-player APIs or duplicate shuffle/RNG logic (it reuses createSeededRng from the MP zone).",
       "Determinism contract: same seed must reproduce the same game; randomness must come only from the seeded MP RNG, never Math.random or Date.now (the CLI may use Date.now solely for timing logs, not decisions). Timeout and disconnect decisions each use a separate seeded stream (`${seed}:timeouts`, `${seed}:disconnect`) so enabling either never disturbs the bid/move decision stream.",
@@ -353,13 +443,55 @@
       "tools/load-test/src/runLoadTest.ts",
       "tools/load-test/test/metrics.test.ts"
     ],
-    "depends_on": ["Shared Multiplayer Contracts", "Multiplayer Server"],
-    "used_by": ["npm run load:local", "Phase 11 load tests", "Gate 4 local_mvp_ready"],
+    "depends_on": [
+      "Shared Multiplayer Contracts",
+      "Multiplayer Server"
+    ],
+    "used_by": [
+      "npm run load:local",
+      "Phase 11 load tests",
+      "Gate 4 local_mvp_ready"
+    ],
     "risks": [
       "It is a TOOL/load generator, not the MP server determinism path, so Date.now()/randomness are allowed here (unlike the server/core MP zone). It must never import single-player APIs.",
       "It speaks the protocol only through @domino-poker/shared contracts (no duplicated message shapes); typecheck resolves shared to src via tsconfig paths + vitest alias, build resolves to dist via a project reference, so load:local builds shared first.",
-      "Server RSS/CPU is NOT yet measured (Chunk 2 adds a /metrics endpoint); the report's peak RSS is the GENERATOR process, clearly labelled. Liveness/crash is detected via /health polling.",
-      "Requires a running MP server (npm run dev:server); the CLI aborts early if /health is unreachable. Run it against a throwaway DATABASE_URL so load chat traffic does not pollute dev.sqlite."
+      "runLoadTest polls the server /metrics endpoint and reports server RSS/CPU/connection peaks; generator metrics are separate from server resource metrics.",
+      "Requires a running MP server (npm run dev:server); the CLI aborts early if /health is unreachable. Run it against a throwaway DATABASE_URL so load chat traffic does not pollute dev.sqlite.",
+      "runLoadTest polls the server /metrics endpoint and reports server RSS/CPU/connection peaks; treat high latency as saturation signal, while survival and dropped sockets are the stability pass/fail indicators."
+    ],
+    "confidence": "high"
+  },
+  {
+    "name": "Repo Tooling And Deployment",
+    "folder": ".",
+    "purpose": "Root workspace configuration, lint/typecheck/build/test scripts, runtime version pins, environment template, and deployment examples.",
+    "main_files": [
+      "package.json",
+      "package-lock.json",
+      "tsconfig.json",
+      "tsconfig.base.json",
+      "eslint.config.mjs",
+      ".npmrc",
+      ".nvmrc",
+      ".node-version",
+      ".env.example",
+      ".dockerignore",
+      "VERSION",
+      "deploy/Dockerfile",
+      "deploy/domino-poker.service",
+      "deploy/nginx.conf.example",
+      "deploy/Caddyfile.example",
+      "deploy/BACKUP.md"
+    ],
+    "depends_on": [],
+    "used_by": [
+      "All workspaces",
+      "CI/local development",
+      "Deployment"
+    ],
+    "risks": [
+      "Node version pins and engine-strict are required because server SQLite uses node:sqlite; do not relax them without rerunning storage/server tests.",
+      "Deployment examples must not expose secrets; keep real DATABASE_URL/passwords out of source and docs."
     ],
     "confidence": "high"
   }

@@ -6,12 +6,14 @@ import type { ChatMessage } from "@domino-poker/shared";
 import type {
   MatchEventRecord,
   MatchFinishedRecord,
+  MatchOutcome,
   MatchStartedRecord,
   MatchSummaryRecord,
   PlayerStatsIncrementRecord,
   PlayerStatsRecord,
   StoragePort,
-  UnfinishedMatch
+  UnfinishedMatch,
+  UserStatsRecord
 } from "./StoragePort.js";
 import { runMigrations } from "./migrations.js";
 import type { RoomLeaseRecord, RoomLeaseRequest, RoomLeaseStore } from "./RoomLeaseStore.js";
@@ -21,6 +23,15 @@ import type {
   DurableSessionStore,
   NewDurableSessionRecord
 } from "../sessions/DurableSessionStore.js";
+import type {
+  AuthStore,
+  AuthTokenRecord,
+  CreateUserResult,
+  PasswordResetTokenRecord,
+  ProfileUpdate,
+  UpdateProfileResult,
+  UserRecord
+} from "../auth/AuthStore.js";
 
 interface PgPool {
   query<T extends QueryResultRow = QueryResultRow>(
@@ -66,7 +77,9 @@ export interface DbHealthReport {
   readonly tables: Record<string, { readonly rows: number; readonly bytes: number }>;
 }
 
-export class PostgresStorage implements StoragePort, RoomLeaseStore, DurableSessionStore {
+export class PostgresStorage
+  implements StoragePort, RoomLeaseStore, DurableSessionStore, AuthStore
+{
   private constructor(private readonly pool: PgPool) {}
 
   static async open(
@@ -409,6 +422,211 @@ export class PostgresStorage implements StoragePort, RoomLeaseStore, DurableSess
     return tables;
   }
 
+  async createUser(record: UserRecord): Promise<CreateUserResult> {
+    try {
+      await this.pool.query(
+        `INSERT INTO users
+           (id, username, username_norm, email, email_norm, password_hash, avatar, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          record.id,
+          record.username,
+          record.usernameNorm,
+          record.email ?? null,
+          record.emailNorm ?? null,
+          record.passwordHash,
+          record.avatar,
+          record.createdAt,
+          record.updatedAt
+        ]
+      );
+      return "created";
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        return "conflict";
+      }
+      throw error;
+    }
+  }
+
+  async getUserById(id: string): Promise<UserRecord | undefined> {
+    const result = await this.pool.query<UserRow>(`${USER_SELECT} WHERE id = $1`, [id]);
+    return result.rows[0] ? rowToUser(result.rows[0]) : undefined;
+  }
+
+  async getUserByUsernameNorm(usernameNorm: string): Promise<UserRecord | undefined> {
+    const result = await this.pool.query<UserRow>(`${USER_SELECT} WHERE username_norm = $1`, [
+      usernameNorm
+    ]);
+    return result.rows[0] ? rowToUser(result.rows[0]) : undefined;
+  }
+
+  async getUserByEmailNorm(emailNorm: string): Promise<UserRecord | undefined> {
+    const result = await this.pool.query<UserRow>(`${USER_SELECT} WHERE email_norm = $1`, [
+      emailNorm
+    ]);
+    return result.rows[0] ? rowToUser(result.rows[0]) : undefined;
+  }
+
+  async updateUserProfile(id: string, update: ProfileUpdate): Promise<UpdateProfileResult> {
+    try {
+      const result = await this.pool.query(
+        `UPDATE users
+            SET username = $1, username_norm = $2, avatar = $3, updated_at = $4
+          WHERE id = $5`,
+        [update.username, update.usernameNorm, update.avatar, update.updatedAt, id]
+      );
+      return (result.rowCount ?? 0) > 0 ? "updated" : "not_found";
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        return "username_taken";
+      }
+      throw error;
+    }
+  }
+
+  async createAuthToken(record: AuthTokenRecord): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO auth_tokens (token_hash, user_id, created_at, last_used_at, expires_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [record.tokenHash, record.userId, record.createdAt, record.lastUsedAt, record.expiresAt]
+    );
+  }
+
+  async getAuthToken(tokenHash: string): Promise<AuthTokenRecord | undefined> {
+    const result = await this.pool.query<AuthTokenRow>(
+      `SELECT token_hash, user_id, created_at, last_used_at, expires_at
+         FROM auth_tokens WHERE token_hash = $1`,
+      [tokenHash]
+    );
+    const row = result.rows[0];
+    if (!row) {
+      return undefined;
+    }
+    return {
+      tokenHash: row.token_hash,
+      userId: row.user_id,
+      createdAt: Number(row.created_at),
+      lastUsedAt: Number(row.last_used_at),
+      expiresAt: Number(row.expires_at)
+    };
+  }
+
+  async touchAuthToken(tokenHash: string, lastUsedAt: number, expiresAt: number): Promise<void> {
+    await this.pool.query(
+      `UPDATE auth_tokens SET last_used_at = $1, expires_at = $2 WHERE token_hash = $3`,
+      [lastUsedAt, expiresAt, tokenHash]
+    );
+  }
+
+  async deleteAuthToken(tokenHash: string): Promise<void> {
+    await this.pool.query(`DELETE FROM auth_tokens WHERE token_hash = $1`, [tokenHash]);
+  }
+
+  async deleteExpiredAuthTokens(now: number): Promise<void> {
+    await this.pool.query(`DELETE FROM auth_tokens WHERE expires_at <= $1`, [now]);
+  }
+
+  async createPasswordResetToken(record: PasswordResetTokenRecord): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO password_reset_tokens (token_hash, user_id, created_at, expires_at, used_at)
+       VALUES ($1, $2, $3, $4, NULL)`,
+      [record.tokenHash, record.userId, record.createdAt, record.expiresAt]
+    );
+  }
+
+  async deleteUnusedPasswordResetTokens(userId: string): Promise<void> {
+    await this.pool.query(
+      `DELETE FROM password_reset_tokens WHERE user_id = $1 AND used_at IS NULL`,
+      [userId]
+    );
+  }
+
+  async resetPasswordWithToken(
+    tokenHash: string,
+    newPasswordHash: string,
+    now: number
+  ): Promise<string | undefined> {
+    // Atomiski VIENĀ statement (kā recordUserMatchOutcome): claim tokenu (tikai ja
+    // neizmantots UN nav beidzies), nomaina paroli, atsauc visus auth tokenus un
+    // pārējos reset tokenus. Visi CTE statements darbojas uz vienu snapshot, tāpēc
+    // pārējos reset dzēš ar `token_hash <> $1` (izvairās no UPDATE/DELETE konflikta).
+    const result = await this.pool.query<{ user_id: string }>(
+      `WITH claimed AS (
+         UPDATE password_reset_tokens SET used_at = $3
+           WHERE token_hash = $1 AND used_at IS NULL AND expires_at > $3
+           RETURNING user_id
+       ),
+       pw AS (
+         UPDATE users SET password_hash = $2, updated_at = $3
+           WHERE id IN (SELECT user_id FROM claimed)
+           RETURNING id
+       ),
+       del_auth AS (
+         DELETE FROM auth_tokens WHERE user_id IN (SELECT user_id FROM claimed)
+       ),
+       del_reset AS (
+         DELETE FROM password_reset_tokens
+           WHERE user_id IN (SELECT user_id FROM claimed) AND token_hash <> $1
+       )
+       SELECT user_id FROM claimed`,
+      [tokenHash, newPasswordHash, now]
+    );
+    return result.rows[0]?.user_id;
+  }
+
+  async deleteExpiredPasswordResetTokens(now: number): Promise<void> {
+    await this.pool.query(`DELETE FROM password_reset_tokens WHERE expires_at <= $1`, [now]);
+  }
+
+  async recordUserMatchOutcome(
+    matchId: string,
+    userId: string,
+    outcome: MatchOutcome,
+    now: number
+  ): Promise<boolean> {
+    // Atomiski VIENĀ statement: ledger insert (ON CONFLICT DO NOTHING) → ja jauns,
+    // inkrementē user_stats. `rowCount > 0` nozīmē, ka iznākums tika tikko ierakstīts.
+    const winInc = outcome === "win" ? 1 : 0;
+    const loseInc = outcome === "lose" ? 1 : 0;
+    const result = await this.pool.query(
+      `WITH ins AS (
+         INSERT INTO match_user_outcomes (match_id, user_id, outcome, recorded_at)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (match_id, user_id) DO NOTHING
+         RETURNING user_id
+       )
+       INSERT INTO user_stats (user_id, games_played, wins, losses, updated_at)
+       SELECT $2, 1, $5, $6, $4 FROM ins
+       ON CONFLICT (user_id) DO UPDATE SET
+         games_played = user_stats.games_played + 1,
+         wins         = user_stats.wins + $5,
+         losses       = user_stats.losses + $6,
+         updated_at   = $4`,
+      [matchId, userId, outcome, now, winInc, loseInc]
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async getUserStats(userId: string): Promise<UserStatsRecord | undefined> {
+    const result = await this.pool.query<UserStatsRow>(
+      `SELECT user_id, games_played, wins, losses, updated_at
+         FROM user_stats WHERE user_id = $1`,
+      [userId]
+    );
+    const row = result.rows[0];
+    if (!row) {
+      return undefined;
+    }
+    return {
+      userId: row.user_id,
+      gamesPlayed: Number(row.games_played),
+      wins: Number(row.wins),
+      losses: Number(row.losses),
+      updatedAt: Number(row.updated_at)
+    };
+  }
+
   async close(): Promise<void> {
     await this.pool.end();
   }
@@ -522,4 +740,48 @@ function isUniqueViolation(error: unknown): boolean {
     "code" in error &&
     (error as { readonly code?: unknown }).code === "23505"
   );
+}
+
+const USER_SELECT = `SELECT id, username, username_norm, email, email_norm, password_hash, avatar, created_at, updated_at FROM users`;
+
+interface UserRow {
+  readonly id: string;
+  readonly username: string;
+  readonly username_norm: string;
+  readonly email: string | null;
+  readonly email_norm: string | null;
+  readonly password_hash: string;
+  readonly avatar: string;
+  readonly created_at: number | string;
+  readonly updated_at: number | string;
+}
+
+interface AuthTokenRow {
+  readonly token_hash: string;
+  readonly user_id: string;
+  readonly created_at: number | string;
+  readonly last_used_at: number | string;
+  readonly expires_at: number | string;
+}
+
+interface UserStatsRow {
+  readonly user_id: string;
+  readonly games_played: number | string;
+  readonly wins: number | string;
+  readonly losses: number | string;
+  readonly updated_at: number | string;
+}
+
+function rowToUser(row: UserRow): UserRecord {
+  return {
+    id: row.id,
+    username: row.username,
+    usernameNorm: row.username_norm,
+    email: row.email ?? undefined,
+    emailNorm: row.email_norm ?? undefined,
+    passwordHash: row.password_hash,
+    avatar: row.avatar,
+    createdAt: Number(row.created_at),
+    updatedAt: Number(row.updated_at)
+  };
 }

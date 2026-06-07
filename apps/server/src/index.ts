@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 
+import { AuthService } from "./auth/AuthService.js";
+import { isAuthStore } from "./auth/AuthStore.js";
+import { createEmailSender } from "./auth/EmailSender.js";
 import { LobbyChat } from "./chat/LobbyChat.js";
 import { loadServerConfig } from "./config.js";
+import { createAuthHandler } from "./http/authRoutes.js";
 import { createHealthHttpServer } from "./httpServer.js";
 import { DisplayIdRegistry } from "./identity/DisplayIdRegistry.js";
 import { CoreMessageRouter } from "./net/messageRouter.js";
@@ -11,6 +15,7 @@ import { attachWebSocketGateway } from "./net/wsTransport.js";
 import { RoomManager } from "./rooms/RoomManager.js";
 import { isRoomLeaseStore, LeaseBackedRoomOwnershipGuard } from "./rooms/RoomOwnershipGuard.js";
 import { MatchPersistence } from "./storage/MatchPersistence.js";
+import { OutcomeRecorder } from "./storage/OutcomeRecorder.js";
 import { PostgresStorage } from "./storage/PostgresStorage.js";
 import { openStorage } from "./storage/index.js";
 import { SystemTurnTimerScheduler } from "./timers/SystemTurnTimerScheduler.js";
@@ -22,6 +27,20 @@ const clock: () => number = () => Date.now();
 // Koordinators ir fire-and-forget — DB kļūda nedrīkst aizkavēt vai salauzt spēles plūsmu.
 const storage = await openStorage(config.databaseUrl, config.pg);
 const persistence = new MatchPersistence({ storage, clock });
+// Fāze 3: kontu MP iznākumu reģistrētājs (atsevišķs no player_stats; server-authoritative).
+const outcomes = new OutcomeRecorder({ storage, clock });
+// Opcionālā autentifikācija: gan SqliteStorage, gan PostgresStorage implementē
+// AuthStore, tāpēc abos režīmos pieejama. Anonīmā spēle to neizmanto.
+// Fāze 5: paroles atjaunošanas e-pasta senderis (Resend prod / console dev; prod
+// bez RESEND_API_KEY → undefined → reset funkcija atspējota).
+const emailSender = createEmailSender({
+  resendApiKey: config.email.resendApiKey,
+  emailFrom: config.email.from,
+  nodeEnv: config.nodeEnv
+});
+const authService = isAuthStore(storage)
+  ? new AuthService({ store: storage, clock, emailSender, appBaseUrl: config.email.appBaseUrl })
+  : undefined;
 const instanceId = randomUUID();
 const roomOwnership = isRoomLeaseStore(storage)
   ? new LeaseBackedRoomOwnershipGuard({
@@ -52,8 +71,15 @@ const rooms = new RoomManager({
   // Fāze 12.1: konfigurējams turna ilgums (countdown) no TURN_DURATION_MS.
   turnDurationMs: config.turnDurationMs,
   // Fāze 10.3: partijas sākums + visi room eventi → persistence (blakusefekts).
-  onMatchStarted: (record) => persistence.matchStarted(record),
+  // Fāze 3: partijas sākums + fināls → arī kontu iznākumu reģistrētājs.
+  onMatchStarted: (record) => {
+    persistence.matchStarted(record);
+    outcomes.matchStarted(record);
+  },
   onMatchEvents: (events) => persistence.events(events),
+  onMatchFinished: (matchId, standings) => outcomes.gameOver(matchId, standings),
+  onPlayerForfeited: (matchId, corePlayerId) => outcomes.playerForfeited(matchId, corePlayerId),
+  onRoomAbandoned: (matchId) => outcomes.matchAbandoned(matchId),
   // Pirms-spēles 10s atskaite uz galda, lai lēnāki klienti paspēj ielādēt galdu
   // pirms sākas solījumi (sk. RoomManager.startGame / GAME_STARTING).
   preGameDelayMs: 10_000,
@@ -61,9 +87,10 @@ const rooms = new RoomManager({
   // deadline sākas tikai tad, kad boti nospēlējuši). trickPauseMs ≥ klienta aizture.
   botPaceMs: 800,
   trickPauseMs: 1700,
-  // Ja VISI cilvēki atvienojas (IN_GAME), istabu iznīcina pēc 30s grace — tas dod
-  // laiku refresh/reconnect atgriezties pirms iznīcināšanas (9.3-b).
-  abandonGraceMs: 30_000
+  // Grace (60s, Fāze 3 5.6): (a) per-sēdvietas auto-forfeit, ja spēlētājs paliek
+  // offline, kamēr citi turpina; (b) pilnas istabas iznīcināšana, ja VISI cilvēki
+  // atvienojušies. Dod laiku refresh/reconnect atgriezties pirms forfeit/iznīcināšanas.
+  abandonGraceMs: 60_000
 });
 // Cik čata ziņas paturēt atmiņā / ielādēt no DB startā (čats pārdzīvo restartu).
 const CHAT_HISTORY_LIMIT = 50;
@@ -93,7 +120,9 @@ const gateway = new WebSocketGateway({
   displayIds,
   router,
   ...(storage instanceof PostgresStorage ? { durableSessionStore: storage } : {}),
-  ...(eventBus ? { eventBus } : {})
+  ...(eventBus ? { eventBus } : {}),
+  // Opcionālā autentifikācija: HELLO authToken → lietotājs (username pārraksta displayId).
+  ...(authService ? { resolveAuth: (token: string) => authService.resolvePublic(token) } : {})
 });
 await eventBus?.start((message) => {
   if (message.kind === "broadcast") {
@@ -112,6 +141,11 @@ await eventBus?.start((message) => {
 rooms.setGameUpdateSink((roomId, events) =>
   router.deliverServerGameUpdate(gateway, roomId, events, clock())
 );
+// Fāze 3: partijas sākumā attiecinām katru cilvēka sēdvietu uz autentificēto userId
+// (ja ielogojies) statistikas vajadzībām. Anonīmam → undefined (nesaskaitās).
+rooms.setUserIdResolver((clientId) => gateway.getUserId(clientId));
+// Fāze 4: seat avatars/tituls/username citiem spēlētājiem (waiting room + galds).
+rooms.setSeatProfileResolver((clientId) => gateway.getSeatProfile(clientId));
 // M3: kad spēlētājs zaudē istabas dalību (pamet / forfeit / istabu iznīcina) un
 // nav tiešsaistē, atbrīvojam viņa durable sesiju (token + displayId), lai
 // `tokens`/displayId neaugtu neierobežoti.
@@ -128,6 +162,16 @@ rooms.setMemberDepartedHandler((clientId) => {
 // PG režīmā pievieno DB veselību (SELECT 1 latency + pool piesātinājums).
 const server = createHealthHttpServer({
   connectionCount: () => gateway.onlineCount(),
+  ...(authService
+    ? {
+        authHandler: createAuthHandler({
+          auth: authService,
+          webOrigins: config.webOrigins,
+          clock,
+          dev: config.nodeEnv !== "production"
+        })
+      }
+    : {}),
   ...(storage instanceof PostgresStorage
     ? {
         dbHealth: async () => {
@@ -148,6 +192,31 @@ server.listen(config.httpPort, config.serverHost, () => {
   );
 });
 
+// Fāze 5: periodiska beigušos auth tokenu tīrīšana. Token validācija jau noraida
+// beigušos (`expires_at <= now`), bet rindas paliek DB — bez tīrīšanas `auth_tokens`
+// aug neierobežoti. Tikai ja storage atbalsta auth. Best-effort: DB kļūda nedrīkst
+// lauzt serveri. Sweep uzreiz pie starta (notīra uzkrājumus pēc dīkstāves/restartiem)
+// un tad atkārtoti ik AUTH_TOKEN_CLEANUP_INTERVAL_MS, kamēr serveris darbojas.
+const AUTH_TOKEN_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6h
+let authTokenCleanupTimer: ReturnType<typeof setInterval> | undefined;
+if (isAuthStore(storage)) {
+  const authTokenStore = storage;
+  const sweepExpiredAuthTokens = (): void => {
+    const now = clock();
+    void authTokenStore.deleteExpiredAuthTokens(now).catch((error: unknown) => {
+      console.error("[auth] expired token cleanup failed:", error);
+    });
+    // Fāze 5: arī beigušies paroles atjaunošanas tokeni (tā pati politika).
+    void authTokenStore.deleteExpiredPasswordResetTokens(now).catch((error: unknown) => {
+      console.error("[auth] expired password-reset token cleanup failed:", error);
+    });
+  };
+  sweepExpiredAuthTokens();
+  authTokenCleanupTimer = setInterval(sweepExpiredAuthTokens, AUTH_TOKEN_CLEANUP_INTERVAL_MS);
+  // unref: tīrīšanas taimeris netur procesu mākslīgi dzīvu, ja viss pārējais beidzies.
+  authTokenCleanupTimer.unref();
+}
+
 // Graceful shutdown: aizver DB (izskalo WAL), lai dati nepazustu pie restarta.
 let shuttingDown = false;
 async function shutdown(signal: string): Promise<void> {
@@ -155,6 +224,7 @@ async function shutdown(signal: string): Promise<void> {
   shuttingDown = true;
   console.log(`Received ${signal}, shutting down...`);
   server.close();
+  if (authTokenCleanupTimer) clearInterval(authTokenCleanupTimer);
   roomOwnership?.stopRenewing();
   try {
     await eventBus?.close();

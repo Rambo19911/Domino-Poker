@@ -55,6 +55,8 @@ export function DominoPokerGame({
   readonly humanProfile: {
     readonly avatarUrl: string | null;
     readonly displayName: string;
+    /** Lokalizēts win-tier tituls (ielogotam); `null` anonīmam. */
+    readonly title: string | null;
   };
   readonly labels: AppStrings;
   readonly numberOfRounds: number;
@@ -307,6 +309,7 @@ export function DominoPokerGame({
         <SpMobileTable
           labels={labels}
           gameState={gameState}
+          humanProfile={humanProfile}
           validTileKeys={validTileKeySet}
           isViewerTurn={isViewerTurn}
           onTileClick={handleTileClick}
@@ -350,6 +353,7 @@ export function DominoPokerGame({
           <PlayerSeat
             gameState={gameState}
             humanAvatarUrl={humanProfile.avatarUrl}
+            humanTitle={humanProfile.title}
             labels={labels}
             player={gameState.players[0]}
             seatIndex={0}

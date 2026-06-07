@@ -564,8 +564,10 @@ export class CoreMessageRouter implements MessageRouter {
   private restoreRoomOnReconnect(ctx: RouteContext): MaybePromise<void> {
     const roomId = this.rooms.roomOf(ctx.identity.playerId);
     if (roomId === undefined) return;
-    // Cilvēks atgriezās → atceļam pamešanas grace (istaba netiek iznīcināta).
+    // Cilvēks atgriezās → atceļam pamešanas grace (istaba netiek iznīcināta) un
+    // viņa sēdvietas auto-forfeit timeri (5.6).
     this.rooms.cancelAbandonGrace(roomId);
+    this.rooms.cancelDisconnectForfeit(roomId, ctx.identity.playerId);
     return this.guard(ctx, () => this.withOwnedRoom(ctx, roomId, () => {
       ctx.conn.send({ type: "ROOM_JOINED", room: this.rooms.getRoomView(roomId) });
       if (this.rooms.findRoom(roomId).status !== "IN_GAME") return; // gaidītava — pietiek ar skatu
@@ -655,6 +657,42 @@ export class CoreMessageRouter implements MessageRouter {
   }
 
   /**
+   * Atvienota spēlētāja sēdvietas auto-forfeit pēc grace (5.6). Re-pārbauda pie
+   * nostrādes: istaba IN_GAME, spēlētājs joprojām offline + sēž, UN ir vismaz viens
+   * CITS tiešsaistes cilvēks (citādi pilnas istabas abandon ceļš apstrādā visus).
+   * Tad forfeitē sēdvietu (→ bots, `lose` caur RoomManager hook) un piegādā
+   * atjauninājumu pārējiem (ctx-brīvi, kā turn-timeout). Best-effort.
+   */
+  private autoForfeitDisconnected(
+    hub: GatewayHub,
+    roomId: string,
+    clientId: string,
+    serverNow: number
+  ): void {
+    try {
+      if (this.rooms.findRoom(roomId).status !== "IN_GAME") return;
+      if (hub.isOnline(clientId)) return; // atgriezies
+      const humans = this.rooms.getSeatedHumans(roomId);
+      if (!humans.some((human) => human.clientId === clientId)) return; // jau aizgājis
+      const otherOnline = humans.some(
+        (human) => human.clientId !== clientId && hub.isOnline(human.clientId)
+      );
+      if (!otherOnline) return; // neviens cits online → abandon ceļš apstrādā visus
+      const { room, events, destroyed } = this.rooms.forfeitInGame(clientId);
+      if (destroyed) {
+        this.releaseRoomLease(room.id);
+      } else {
+        const advanceEvents = this.rooms.advanceGame(room.id);
+        publishGameUpdate(hub, this.rooms, room.id, [...events, ...advanceEvents], serverNow);
+        this.pushRoomView(hub, room.id);
+      }
+      this.pushLobbyState(hub);
+    } catch {
+      // Istaba jau iznīcināta / spēle beigusies — nekas nav jādara.
+    }
+  }
+
+  /**
    * Atzīmē spēlētāju kā atvienotu spēlē (ja viņš sēž IN_GAME istabā). Spēle NETIEK
    * apturēta — sēdvieta paliek rezervēta, turn timeris turpinās (timeout politika
    * auto-izspēlē). Best-effort: kļūdas tiek apslāpētas (savienojuma vairs nav).
@@ -668,6 +706,11 @@ export class CoreMessageRouter implements MessageRouter {
       const roomId = this.rooms.roomOf(identity.playerId);
       if (roomId === undefined) return;
       if (this.rooms.findRoom(roomId).status !== "IN_GAME") return;
+      // Fāze 3 (5.6): ieplāno šī spēlētāja sēdvietas auto-forfeit, ja paliek offline
+      // ≥ grace, kamēr citi turpina spēli. Atceļ pie reconnect (restoreRoomOnReconnect).
+      this.rooms.scheduleDisconnectForfeit(roomId, identity.playerId, (now) =>
+        this.autoForfeitDisconnected(hub, roomId, identity.playerId, now)
+      );
       return this.runOwnedRoomBestEffort(roomId, serverNow, () => {
         const corePlayerId = this.rooms.corePlayerIdForClient(roomId, identity.playerId);
         const result = this.rooms.routeMessageToRoomEngine(roomId, {
