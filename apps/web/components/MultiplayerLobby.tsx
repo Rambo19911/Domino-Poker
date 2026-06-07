@@ -179,7 +179,7 @@ export function MultiplayerLobby({
       <header className="mpLobbyHeader">
         <h1 className="mpLobbyTitle">
           {t.mpLobbyTitle}
-          <span className="mpLobbyTitleTag"> · {t.mpLobbyLabel}</span>
+          <span className="mpLobbyTitleTag"> {t.mpLobbyLabel}</span>
         </h1>
         <div className="mpLobbyHeaderActions">
           <ConnectionBanner status={view.connection} labels={t} />

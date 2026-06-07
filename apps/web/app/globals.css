@@ -1918,11 +1918,10 @@ button {
 }
 
 .mpLobbyTitleTag {
-  font-size: 0.62em;
-  font-weight: 500;
-  letter-spacing: 0.5px;
-  color: var(--text-secondary);
-  text-transform: none;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text-primary);
+  text-transform: uppercase;
 }
 
 .mpLobbyHeaderActions {
@@ -2664,18 +2663,20 @@ button {
 }
 
 @media (max-width: 560px) {
+  /* Galvene paliek vienā rindā: virsraksts pa kreisi, ikonas pa labi. */
   .mpLobbyHeader {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 10px;
   }
 
-  .mpLobbyHeaderActions,
+  .mpLobbyTitle {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
   .mpWaitingActions {
     width: 100%;
-  }
-
-  .mpLobbyHeaderActions {
-    flex-wrap: wrap;
   }
 
   .mpWaitingTop {
@@ -2686,9 +2687,7 @@ button {
     justify-items: start;
   }
 
-  .mpSeatGrid {
-    grid-template-columns: 1fr;
-  }
+  /* Sēdvietas paliek 2 kolonnās (2×2) arī mobilajā — bāzes režģis. */
 }
 
 /* ============================================================
