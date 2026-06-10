@@ -1,0 +1,258 @@
+.stageClip {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+.fixedStage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  transform-origin: center;
+}
+
+.safeControls {
+  position: fixed;
+  inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  pointer-events: none;
+  z-index: var(--z-raised);
+}
+
+.table {
+  position: absolute;
+  left: 448px;
+  top: 320px;
+  width: 450px;
+  height: 450px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--background), var(--overlay));
+  box-shadow:
+    0 15px 30px rgba(14, 14, 14, 0.7),
+    0 0 50px -20px rgba(201, 162, 62, 0.2);
+}
+
+.tableLogo {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  width: 430px;
+  height: 430px;
+  border-radius: 50%;
+  object-fit: cover;
+  opacity: 0.3;
+}
+
+.tableContent {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.playedWrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+  max-width: 450px;
+}
+
+.playedTileWithLabel {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  animation: playedTileEnter 300ms ease-out both;
+}
+
+.playedName,
+.declaredNumber {
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(14, 14, 14, 0.7);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.declaredNumber {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(201, 162, 62, 0.9);
+  color: var(--overlay);
+  font-size: 12px;
+}
+
+.trickInfo {
+  display: inline-block;
+  margin-bottom: 12px;
+  padding: 8px 16px;
+  border: 2px solid var(--text-primary);
+  border-radius: 20px;
+  background: rgba(14, 14, 14, 0.7);
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.trickInfo.danger {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.trickInfo.gold {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.trickInfo.green {
+  border-color: var(--background);
+  color: var(--background);
+}
+
+.playerProfile,
+.playerStats,
+.hiddenTile,
+.humanTileButton,
+.yourTurnIndicator,
+.infoPanel,
+.particleLayer {
+  position: absolute;
+}
+
+.playerProfile {
+  overflow: hidden;
+  border-radius: 50%;
+  background: rgba(14, 14, 14, 0.7);
+  border: 2px solid rgba(64, 64, 64, 0.7);
+  transition:
+    border-color 300ms,
+    box-shadow 300ms,
+    background-color 300ms;
+}
+
+.playerProfile.hasAvatar {
+  background: rgba(14, 14, 14, 0.9);
+}
+
+.playerProfile.hasAvatar::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background:
+    /* Apakšējo ~30% papildu aptumšojums (~50%) — lai vārds + tituls labi pamanāmi. */
+    linear-gradient(to top, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.5) 8%, transparent 30%),
+    radial-gradient(circle at 50% 28%, transparent 34%, rgba(8, 10, 9, 0.22) 62%, rgba(8, 10, 9, 0.72) 100%),
+    linear-gradient(to bottom, transparent 42%, rgba(8, 10, 9, 0.82) 100%);
+  pointer-events: none;
+}
+
+.profileAvatarImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.playerProfile.active {
+  background: rgba(24, 79, 61, 0.4);
+  border-color: var(--background);
+  border-width: 4px;
+}
+
+.playerProfile.dealer {
+  border-color: var(--primary);
+  border-width: 4px;
+  box-shadow: 0 0 15px 3px rgba(201, 162, 62, 0.6);
+}
+
+.playerProfile.active.dealer {
+  border-color: var(--background);
+}
+
+.playerProfile.winnerGlow {
+  box-shadow: 0 0 30px 10px rgba(201, 162, 62, 0.8);
+}
+
+.profileBottom {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  bottom: 12px;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 0 10px;
+}
+
+.profileName {
+  max-width: 116px;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 400;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profileName.activeName {
+  font-weight: 700;
+}
+
+/* Win-tier tituls apļa ietvarā tuvāk apakšai (zem vārda). Lūzers šeit NETIEK rādīts.
+   Negatīvs margin sakļauj titulu ciešāk pie vārda (neietekmē dealer/disconnected). */
+.profileTitle {
+  max-width: 124px;
+  margin-top: -4px;
+  overflow: hidden;
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dealerBadge {
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: var(--overlay);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.playerStats {
+  display: grid;
+  gap: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.yourTurnIndicator {
+  left: 493px;
+  top: 774px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  background: rgba(46, 125, 50, 0.9);
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+}
+

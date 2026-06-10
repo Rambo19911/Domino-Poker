@@ -13,7 +13,7 @@
 - For app/lobby flow: read `apps/web/components/AppShell.tsx`, `apps/web/lib/i18n.ts`, and `apps/web/components/AudioControls.tsx`.
 - For optional auth/account work: read `apps/server/src/auth/*`, `apps/server/src/http/authRoutes.ts`, `apps/server/src/storage/migrations.ts`, `apps/web/components/auth/*`, `apps/web/lib/auth/*`, `packages/shared/src/avatarCatalog.ts`, `packages/shared/src/clientMessages.ts`, and `packages/shared/src/serverEvents.ts`.
 - For lobby UI controls: keep desktop wheel and compact lobby rendering in `apps/web/components/LobbyWheel.tsx`, with shared selected round count passed from `AppShell`.
-- For UI/game flow: read `apps/web/components/DominoPokerGame.tsx` and `apps/web/app/globals.css`.
+- For UI/game flow: read `apps/web/components/DominoPokerGame.tsx` and the relevant `apps/web/styles/*.css` partial (entry `apps/web/app/globals.css` is @import-only — never add rules there; import order = cascade order). Design tokens (colors, radius, z-index layers) live only in `apps/web/styles/tokens.css`; component-local z-index 1–8 and fixed-stage geometry in `mp-mobile-table.css` stay literal.
 - For game-table UI extraction: use `apps/web/components/GameDialogs.tsx`, `apps/web/components/PlayerSeat.tsx`, `apps/web/components/InfoPanel.tsx`, and `apps/web/components/DominoTileView.tsx`; do not move deck creation, shuffle, dealing, AI timers, or trick state transitions into these UI components.
 - For modal/dialog UI: use `apps/web/components/Dialog.tsx` with `apps/web/components/useDialogFocus.ts` instead of duplicating `role="dialog"`, `aria-modal`, focus trap, Escape, or focus restoration behavior.
 

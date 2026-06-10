@@ -1,0 +1,302 @@
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.transparentBackdrop {
+  background: transparent;
+  pointer-events: none;
+}
+
+.transparentBackdrop > * {
+  pointer-events: auto;
+}
+
+.bidDialog {
+  width: 420px;
+  height: 260px;
+  padding: 12px;
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-xl);
+  background: rgba(14, 14, 14, 0.8);
+  animation: dialogIn 300ms ease-out both;
+}
+
+.bidDialog h2 {
+  margin: 0 0 12px;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.bidGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  height: 196px;
+}
+
+.bidButton {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid rgba(24, 79, 61, 0.32);
+  border-radius: var(--radius-sm);
+  background: rgba(14, 14, 14, 0.7);
+  color: var(--text-primary);
+  animation: bidGlow 1600ms ease-in-out infinite;
+}
+
+.bidButton:hover {
+  transform: scale(1.12);
+}
+
+.bidButton.selected {
+  border-width: 2px;
+  border-color: var(--text-primary);
+  background: var(--background);
+  color: var(--overlay);
+}
+
+.bidButton strong {
+  font-size: 22px;
+}
+
+.bidButton span {
+  position: absolute;
+  bottom: 14px;
+  color: var(--primary);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.bidSeven {
+  border-color: rgba(201, 162, 62, 0.75);
+}
+
+.bidSeven.selected,
+.bidSeven {
+  background: var(--primary);
+}
+
+.alertDialog {
+  width: min(560px, 100%);
+  padding: 16px 20px;
+  border: 1px solid rgba(201, 162, 62, 0.3);
+  border-radius: var(--radius-xl);
+  background: rgba(14, 14, 14, 0.95);
+  color: var(--text-primary);
+}
+
+.alertDialog h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 14px;
+  color: var(--primary);
+  font-size: 20px;
+}
+
+.numberDialog {
+  max-width: 350px;
+}
+
+.numberDialog p {
+  margin: 0 0 20px;
+  font-size: 16px;
+}
+
+.numberChoices {
+  display: flex;
+  justify-content: space-evenly;
+  gap: 18px;
+  margin-bottom: 12px;
+}
+
+.numberChoices button {
+  min-width: 92px;
+  min-height: 92px;
+  padding: 24px;
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--primary);
+  color: var(--overlay);
+  font-size: 36px;
+  font-weight: 700;
+}
+
+.summaryDialog {
+  width: min(620px, 100%);
+}
+
+.summaryRound {
+  display: block;
+  margin: 0 0 20px;
+  text-align: center;
+  font-size: 20px;
+}
+
+.summaryDialog table {
+  width: 100%;
+  margin: 0 0 20px;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid rgba(236, 237, 238, 0.25);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.summaryDialog th,
+.summaryDialog td {
+  padding: 8px;
+  border-right: 1px solid rgba(236, 237, 238, 0.25);
+  border-bottom: 1px solid rgba(236, 237, 238, 0.25);
+  text-align: center;
+}
+
+.summaryDialog th {
+  background: rgba(201, 162, 62, 0.2);
+  font-weight: 700;
+}
+
+.summaryDialog h3 {
+  margin: 0 0 8px;
+  text-align: center;
+}
+
+.summaryScores,
+.finalScores {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.summaryScores div,
+.finalScores div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.summaryScores dt,
+.summaryScores dd,
+.finalScores dt,
+.finalScores dd {
+  margin: 0;
+}
+
+.summaryScores dd,
+.finalScores dd {
+  color: var(--primary);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.winnerBanner {
+  margin-bottom: 16px;
+  padding: 12px 20px;
+  border: 1px solid rgba(201, 162, 62, 0.3);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    to right,
+    rgba(201, 162, 62, 0.2),
+    rgba(201, 162, 62, 0.05)
+  );
+  color: var(--primary);
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.winnerRow {
+  color: var(--primary);
+}
+
+.exitDialog {
+  width: min(400px, 100%);
+}
+
+.exitDialog h2 {
+  color: var(--error);
+}
+
+.exitContent {
+  padding: 12px;
+  border: 1px solid rgba(225, 35, 63, 0.3);
+  border-radius: var(--radius-sm);
+  background: var(--dialog-surface);
+}
+
+.exitContent p {
+  margin: 0;
+}
+
+.exitContent p + p {
+  margin-top: 10px;
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.primaryButton,
+.dangerButton,
+.textButton {
+  min-height: 44px;
+  padding: 12px 24px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  font-weight: 700;
+}
+
+.primaryButton {
+  display: block;
+  margin-left: auto;
+  background: var(--primary);
+  color: var(--overlay);
+}
+
+.primaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.dangerButton {
+  background: var(--error);
+  color: var(--text-primary);
+}
+
+.textButton {
+  background: transparent;
+  color: var(--primary);
+}
+
+.positive {
+  color: var(--background);
+  font-weight: 700;
+}
+
+.negative {
+  color: var(--error);
+  font-weight: 700;
+}
+
+.iconSvg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+

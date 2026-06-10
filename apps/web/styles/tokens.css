@@ -1,0 +1,47 @@
+/* Dizaina tokeni — VIENĪGĀ vieta, kur definē krāsas, rādiusus un z-index
+   slāņus. Jauna vērtība vispirms pieder šeit; literāļus stilu failos lieto
+   tikai komponent-specifiskai ģeometrijai (piem., fiksētā 1080×2340 mobilā
+   skatuve, 50% apļi, kauliņu proporcijas). */
+:root {
+  /* Krāsas */
+  --background: #184f3d;
+  --surface: #1a5a45;
+  --overlay: #0e0e0e;
+  --primary: #c9a23e;
+  --error: #e1233f;
+  --success: #2e7d32;
+  --text-primary: #ecedee;
+  --text-secondary: #aeaeae;
+  --domino-surface: #ecedee;
+  --domino-border: #c9a23e;
+  --domino-pips: #111111;
+  --domino-pips-alt: #222222;
+  --border: #404040;
+  --dialog-background: #1a1a1a;
+  --dialog-surface: #252525;
+  --slider-active: #4caf50;
+  --slider-inactive: #616161;
+  --card-shadow: #000000;
+
+  /* Rādiusu skala (no esošo vērtību audita; 50% un kombinētās vērtības
+     paliek literāļos kā ģeometrija) */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+
+  /* Z-index slāņi (globālā kārtošana; komponentu lokālie z-index 1–8
+     NAV tokenizējami — tie konkurē tikai sava stacking konteksta ietvaros):
+     raised   — virs galda paceltas vadīklas (.safeControls, .mplShell)
+     overlay  — modāļu fons / pārklājumi (.modalBackdrop, .mpPreGameOverlay)
+     floating — peldoši elementi virs pārklājumiem (.mpGameConnection, .mplChatFab)
+     sheet    — pilnekrāna paneļi (.mplChatOverlay)
+     toast    — īslaicīgi paziņojumi (.mplErrorToast) */
+  --z-raised: 10;
+  --z-overlay: 20;
+  --z-floating: 30;
+  --z-sheet: 40;
+  --z-toast: 50;
+}
+

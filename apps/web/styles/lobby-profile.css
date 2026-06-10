@@ -1,0 +1,162 @@
+/* ---- Lobby profils (redzams TIKAI pēc ielogošanās) ---- */
+/* Desktop: fiksēts augšējā labajā stūrī (zem ?/⚙ ikonām) — apaļš avatars augšā +
+   atsevišķs stats taisnstūris zem. Mobilā (media query): centrēts virs Domino logo
+   ar simetriskiem sānu paneļiem (caurspīdīgiem). Konteiners ir caurspīdīgs — redzami
+   ir tikai aplis un taisnstūris. */
+.lobbyProfile {
+  /* Avatars = centrālā logo izmērs (42% no wheel platuma), lai sakristu līmenī un izmērā. */
+  --lobby-avatar: calc(min(560px, 100vw - 48px) * 0.42);
+  position: fixed;
+  /* Vertikāli SASKAŅOTS ar centrālo logo: lobbyContent ir centrēts lobbyShell
+     padding-kastē (96px top / 48px bottom), tāpēc logo centrs ir par (96−48)/2 = 24px
+     zem viewport vidus. Apļa centrs jānovieto tieši tur. */
+  top: 50%;
+  right: clamp(20px, 4vw, 64px);
+  transform: translateY(calc(var(--lobby-avatar) / -2 + 24px));
+  z-index: 2;
+  display: grid;
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+  text-align: center;
+  background: none;
+  border: none;
+  padding: 0;
+}
+.lobbyProfileAuthed {
+  grid-template-columns: auto auto;
+  grid-template-areas:
+    "avatar avatar"
+    "left right";
+  justify-items: center;
+  row-gap: 14px;
+  column-gap: 0;
+}
+.lobbyProfileAvatarBlock {
+  grid-area: avatar;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+.lobbyProfileAvatar {
+  display: grid;
+  place-items: center;
+  width: var(--lobby-avatar);
+  height: var(--lobby-avatar);
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--primary);
+  background: rgba(0, 0, 0, 0.3);
+  box-shadow:
+    0 0 0 5px rgba(14, 14, 14, 0.82),
+    0 16px 36px rgba(0, 0, 0, 0.5);
+}
+.lobbyProfileAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.lobbyProfileName {
+  font-size: 18px;
+  font-weight: 700;
+  max-width: var(--lobby-avatar);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lobbyProfileTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  letter-spacing: 0.02em;
+}
+.lobbyProfileLoser {
+  margin-top: 2px;
+  padding: 1px 8px;
+  border: 1px solid var(--error);
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--error);
+}
+.lobbyProfileStatsLeft { grid-area: left; }
+.lobbyProfileStatsRight { grid-area: right; }
+/* Desktop: abas puses kopā veido vienu taisnstūri zem apļa (platums ≈ avatars). */
+.lobbyProfileStats {
+  display: grid;
+  gap: 12px;
+  align-content: center;
+  min-width: calc(var(--lobby-avatar) / 2);
+  padding: 14px 10px;
+  background: rgba(26, 90, 69, 0.72);
+  border-top: 1px solid rgba(201, 162, 62, 0.35);
+  border-bottom: 1px solid rgba(201, 162, 62, 0.35);
+}
+.lobbyProfileStatsLeft {
+  border-left: 1px solid rgba(201, 162, 62, 0.35);
+  border-radius: 14px 0 0 14px;
+}
+.lobbyProfileStatsRight {
+  border-right: 1px solid rgba(201, 162, 62, 0.35);
+  border-radius: 0 14px 14px 0;
+}
+.lobbyProfile:hover .lobbyProfileStats {
+  border-color: rgba(201, 162, 62, 0.65);
+}
+.lobbyProfileStat {
+  display: grid;
+  gap: 2px;
+}
+.lobbyProfileStatValue {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1;
+}
+.lobbyProfileStatLabel {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* Mobilā/compact (NEMAINĪTS izkārtojums — lietotājam patīk): avatars centrēts virs
+   logo, statistika simetriski sānos bez taisnstūra fona, vienādos līmeņos. */
+@media (max-width: 820px), (max-height: 680px) {
+  .lobbyProfile {
+    position: static;
+    transform: none;
+    width: 100%;
+    max-width: 430px;
+    margin: 0 auto 6px;
+    padding: 4px 0 8px;
+  }
+  .lobbyProfileAuthed {
+    grid-template-columns: 1fr auto 1fr;
+    grid-template-areas: "left avatar right";
+    align-items: center;
+    column-gap: 10px;
+    row-gap: 0;
+  }
+  /* Mobilā avatars un fonts paliek mazi (NEMAINĪTS izskats). */
+  .lobbyProfileAvatar {
+    width: 84px;
+    height: 84px;
+    box-shadow: none;
+  }
+  .lobbyProfileName {
+    font-size: 15px;
+  }
+  .lobbyProfileStats {
+    background: none;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    min-width: 0;
+  }
+  .lobbyProfileStatsLeft { justify-items: end; }
+  .lobbyProfileStatsRight { justify-items: start; }
+}
+

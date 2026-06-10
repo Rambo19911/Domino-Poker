@@ -1,0 +1,95 @@
+.infoPanel {
+  left: 1360px;
+  top: 128px;
+  width: 500px;
+  padding: 20px;
+  border: 1px solid rgba(64, 64, 64, 0.8);
+  border-radius: var(--radius-xl);
+  background: rgba(14, 14, 14, 0.85);
+}
+
+.infoPanelHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.roundTitle {
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.trickCount {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.infoDivider {
+  height: 1px;
+  margin: 12px 0;
+  background: var(--border);
+}
+
+.scoreRows {
+  display: grid;
+  gap: 8px;
+}
+
+.scoreRow {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) 64px 108px;
+  align-items: center;
+  min-height: 24px;
+  column-gap: 10px;
+}
+
+.turnMarker {
+  display: block;
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 8px solid transparent;
+}
+
+.turnMarker.active {
+  border-left-color: var(--primary);
+}
+
+.scorePlayerName {
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scorePlayerName.current {
+  color: var(--primary);
+}
+
+.tricksBidCell {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.scoreCell {
+  color: var(--primary);
+  font-size: 16px;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+

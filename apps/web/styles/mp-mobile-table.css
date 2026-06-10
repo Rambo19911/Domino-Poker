@@ -1,0 +1,370 @@
+/* ============================================================
+   MP portrēta (telefonu) izkārtojums — MpMobileTable.
+   Atsevišķs no desktop fiksētās skatuves; ģeometrija no mobileLayout.ts
+   (atvasināta no docs/mockups/mp-layout-spec.json). Elementi pozicionēti
+   pēc centra procentiem (style: left/top % + translate(-50%,-50%)).
+   ============================================================ */
+/* Redzamais skatlogs (dvh = iOS-droši, seko Safari joslām); skatuve centrēta iekšā. */
+.mpmStageClip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+/* Fiksēta 1080×2340 dizaina skatuve; `MpMobileTable` to mērogo ar transform: scale. */
+.mpmStage {
+  position: absolute;
+  width: 1080px;
+  height: 2340px;
+}
+
+.mpmLeaveButton {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 26px;
+  background: rgba(14, 14, 14, 0.72);
+  color: var(--text-primary);
+  z-index: var(--z-overlay);
+}
+
+.mpmLeaveButton .iconSvg {
+  width: 56%;
+  height: 56%;
+}
+
+.mpmTable {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--background), var(--overlay));
+  box-shadow:
+    0 10px 24px rgba(14, 14, 14, 0.7),
+    0 0 40px -16px rgba(201, 162, 62, 0.3);
+  overflow: hidden;
+  z-index: 1;
+}
+
+.mpmTableLogo {
+  position: absolute;
+  inset: 6%;
+  width: 88%;
+  height: 88%;
+  border-radius: 50%;
+  object-fit: cover;
+  opacity: 0.28;
+}
+
+.mpmTableTopLabel {
+  position: absolute;
+  z-index: 7;
+  padding: 8px 26px;
+  border: 2px solid var(--primary);
+  border-radius: 30px;
+  background: rgba(14, 14, 14, 0.82);
+  color: var(--primary);
+  font-size: 32px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.mpmTableTopLabel.danger { border-color: var(--error); color: var(--error); }
+.mpmTableTopLabel.gold { border-color: var(--primary); color: var(--primary); }
+
+.mpmTile,
+.mpmTrickTile {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  z-index: 5;
+}
+
+.mpmTile .dominoTile,
+.mpmTrickTile .dominoTile {
+  transform-origin: top left;
+}
+
+/* Kauliņa kaste = spec šūna 130×234 (DominoTileView 80×144 × 1.625). */
+.mpmHandTile {
+  width: 130px;
+  height: 234px;
+}
+
+.mpmHandTile .dominoTile {
+  transform: scale(1.625);
+}
+
+.mpmHandTile:disabled {
+  cursor: default;
+}
+
+.mpmHandTile.valid .dominoTile {
+  border-color: rgba(201, 162, 62, 0.9);
+  box-shadow: 0 0 12px 2px rgba(201, 162, 62, 0.5);
+}
+
+.mpmTrickTile {
+  width: 130px;
+  height: 234px;
+}
+
+.mpmTrickTile .dominoTile {
+  transform: scale(1.625);
+}
+
+.mpmDeclared {
+  position: absolute;
+  right: -16px;
+  top: -16px;
+  min-width: 42px;
+  padding: 3px 10px;
+  border-radius: 16px;
+  background: rgba(201, 162, 62, 0.95);
+  color: var(--overlay);
+  font-size: 28px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.mpmProfile {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(14, 14, 14, 0.72);
+  border: 5px solid rgba(64, 64, 64, 0.7);
+  z-index: 4;
+  transition: border-color 200ms, box-shadow 200ms, background-color 200ms;
+}
+
+.mpmProfile.active {
+  background: rgba(24, 79, 61, 0.5);
+  border-color: var(--background);
+  border-width: 8px;
+  box-shadow: 0 0 36px 5px rgba(46, 125, 50, 0.6);
+}
+
+.mpmProfile.dealer {
+  border-color: var(--primary);
+  border-width: 8px;
+}
+
+.mpmProfile.disconnected {
+  opacity: 0.5;
+  filter: grayscale(0.6);
+}
+
+.mpmProfile.hasAvatar {
+  overflow: hidden;
+  background: rgba(14, 14, 14, 0.9);
+}
+
+/* Apakšējo ~30% papildu aptumšojums (~50%) — lai tituls labi pamanāms (kā desktop).
+   Zem titula (z-index:1), virs avatara → apgriezts aplī ar `overflow: hidden`. */
+.mpmProfile.hasAvatar::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.72) 12%, transparent 34%);
+  pointer-events: none;
+}
+
+/* Reģistrēta spēlētāja avatars aizpilda apli (zem titula overlay). */
+.mpmProfileAvatar {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Win-tier tituls — apļa apakšā (virs aptumšojuma). Lūzers šeit NETIEK rādīts. */
+.mpmProfileTitle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  padding: 8px 8px 14px;
+  overflow: hidden;
+  color: var(--primary);
+  font-size: 28px;
+  font-weight: 700;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Vārdu saraksts augšējā tukšajā zonā (tuvāk labajai malai). */
+/* Kopējo punktu tabula augšējā zonā (vārds + kopsumma), centrēta pēc spec. */
+.mpmSummary {
+  position: absolute;
+  z-index: 8;
+  display: grid;
+  gap: 5px;
+  padding: 16px 22px;
+  border: 2px solid rgba(64, 64, 64, 0.7);
+  border-radius: 30px;
+  background: rgba(14, 14, 14, 0.78);
+}
+
+.mpmSummaryRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 26px;
+  padding: 5px 16px;
+  border: 2px solid transparent;
+  border-radius: 18px;
+  color: var(--text-secondary);
+  font-size: 35px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.mpmSummaryRow.active {
+  border-color: var(--primary);
+  background: rgba(201, 162, 62, 0.16);
+  color: var(--text-primary);
+}
+
+.mpmSummaryRow.disconnected {
+  opacity: 0.5;
+}
+
+.mpmSummaryName {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mpmSummaryScore {
+  flex: 0 0 auto;
+  color: var(--primary);
+  font-weight: 800;
+}
+
+/* Atlikušo raundu skaitlis (SP + MP) — liels skaitlis kreisajā ailē, vertikāli
+   vienā līmenī ar tabulu. Krāsa: zelts → viegli sarkans (≤50%) → izteikti sarkans
+   (≤20%). Krāsas pāreja gluda, kad skaitlis sarūk jaunā raundā. */
+.mpmRoundCount {
+  position: absolute;
+  z-index: 8;
+  color: var(--primary);
+  font-size: 160px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  transition: color 400ms ease;
+}
+
+.mpmRoundCount.warn {
+  color: #e8736a;
+}
+
+.mpmRoundCount.danger {
+  color: var(--error);
+}
+
+.mpmBadge {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 45px;
+  line-height: 1;
+  z-index: 6;
+}
+
+.mpmPoints {
+  background: rgba(14, 14, 14, 0.8);
+  color: var(--primary);
+  border: 2px solid rgba(201, 162, 62, 0.6);
+}
+
+.mpmTileCount {
+  background: var(--overlay);
+  color: var(--text-primary);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+}
+
+.mpmCountdown {
+  background: var(--primary);
+  color: var(--overlay);
+}
+
+/* Pieteiktie/paņemtie (bid/won). Aplis NEITRĀLS; tikai cipari maina krāsu, lai
+   nav vizuāla konflikta. matched=zaļš (paņemts tieši solītais), over=sarkans. */
+.mpmBidWon {
+  background: rgba(14, 14, 14, 0.82);
+  color: var(--text-primary);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  font-size: 38px;
+}
+
+.mpmBidWon.matched {
+  color: #4caf50;
+}
+
+.mpmBidWon.over {
+  color: var(--error);
+}
+
+/* Dialogi mobilajā samazinās vienādās proporcijās (vienmērīga mērogošana).
+   Ietinējs ir display:contents desktopā (nulles ietekme) → mērogots bloks telefonā. */
+.modalScale {
+  display: contents;
+}
+
+@media (max-width: 480px) {
+  .modalBackdrop {
+    overflow: hidden;
+  }
+
+  .modalScale {
+    display: block;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(0.82);
+    transform-origin: center center;
+  }
+
+  /* Bid dialogs (skaitļu režģis) ir lielāks un centrēts pie 50% → uz gariem
+     telefoniem (9:19.5) tā apakša pārklāj apakšējā spēlētāja kauliņus (roka ~66%).
+     Proporcionāli samazinām un pabīdām uz augšu, lai apakša netiek līdz rokai. */
+  .modalScale:has(.bidDialog) {
+    top: 42%;
+    transform: translate(-50%, -50%) scale(0.72);
+  }
+
+  /* Exit / Number / Game End / Rules / Settings: bez skaidra platuma tie absolūtajā
+     mērogotajā ietinējā sažņaudzas pārāk šauri līdz saturam. Dodam platu viewport
+     platumu; 110vw kompensē scale(0.82) → renderēts ~90vw, tāpēc tie izstiepjas
+     horizontāli tuvu ekrāna malām. (Bid dialogs netiek skarts — tam fiksēts 420px.) */
+  .modalScale .exitDialog,
+  .modalScale .numberDialog,
+  .modalScale .summaryDialog,
+  .modalScale .rulesDialog,
+  .modalScale .settingsDialog {
+    width: min(560px, 110vw);
+    max-width: none;
+  }
+}
+

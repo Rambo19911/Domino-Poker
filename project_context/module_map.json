@@ -42,6 +42,7 @@
       "apps/web/test/mp/MultiplayerClient.test.ts",
       "apps/web/test/mp/serverUrl.test.ts",
       "apps/web/app/globals.css",
+      "apps/web/styles/tokens.css",
       "tests/e2e/main-flow.spec.ts",
       "tests/e2e/layout-regression.spec.ts",
       "tests/e2e/dialog-a11y.spec.ts",

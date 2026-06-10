@@ -845,9 +845,21 @@
   {
     "path": "apps/web/app/globals.css",
     "type": "ui",
-    "purpose": "Important project file referenced by module_map: apps/web/app/globals.css.",
-    "importance": "medium",
-    "related_files": [],
+    "purpose": "CSS entry point: @import-only file that loads apps/web/styles/*.css partials in cascade order. Import order defines the cascade — do not reorder or add rules here.",
+    "importance": "high",
+    "related_files": [
+      "apps/web/styles/tokens.css"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/styles/tokens.css",
+    "type": "ui",
+    "purpose": "Design tokens (single source): colors, radius scale (--radius-sm/md/lg/xl/pill), z-index layers (--z-raised/overlay/floating/sheet/toast). Other styles/*.css files are per-feature partials (base, lobby, sp-table, tiles, info-panel, effects, settings, dialogs, animations, responsive, mp-lobby, mp-game, mp-mobile-table, mp-mobile-lobby, lobby-profile, auth).",
+    "importance": "high",
+    "related_files": [
+      "apps/web/app/globals.css"
+    ],
     "confidence": "high"
   },
   {

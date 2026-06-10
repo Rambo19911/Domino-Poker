@@ -1,0 +1,260 @@
+/* ============================================================
+   MP LOBBY portrēta (telefonu) izkārtojums — MpMobileLobby.
+   PARASTS responsīvs CSS (NE mērogota skatuve). Reāli px/viewport
+   mērvienības; atkārtoti lieto iconButton/mpHeaderIconButton/
+   mpPrimaryButton/mpRoomButton, lai izmēri sakrīt ar pārējiem ekrāniem.
+   ============================================================ */
+.mplShell {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding:
+    max(12px, env(safe-area-inset-top))
+    max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom))
+    max(12px, env(safe-area-inset-left));
+  z-index: var(--z-raised);
+}
+
+.mplHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+.mplHeaderButtons {
+  display: flex;
+  gap: 8px;
+}
+
+.mplActions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.mplActions > button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 12px 8px;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Istabu sekcijas (akordeons) — paliek ekrāna augstuma ietvaros, body ritina iekšēji. */
+.mplSections {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mplSection {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  min-height: 0;
+}
+.mplSection.isOpen {
+  flex: 1 1 auto;
+}
+.mplSectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--primary);
+  color: #1a1207;
+  text-align: left;
+}
+.mplSectionTitle { flex: 1 1 auto; font-size: 18px; font-weight: 800; }
+.mplSectionCount { font-size: 13px; font-weight: 600; opacity: 0.85; }
+.mplSectionToggle { font-size: 18px; transition: transform 160ms ease; }
+.mplSectionToggle.open { transform: rotate(180deg); }
+
+.mplSectionBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 0 2px;
+}
+.mplSectionBody::-webkit-scrollbar { display: none; }
+
+.mplEmpty {
+  margin: 0;
+  padding: 18px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Istabas rinda */
+.mplRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 0 0 auto;
+  padding: 12px 14px;
+  border: 1px solid rgba(201, 162, 62, 0.25);
+  border-radius: var(--radius-lg);
+  background: rgba(120, 30, 40, 0.5);
+}
+.mplRow.isLocked { opacity: 0.7; }
+.mplRowMeta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.mplRowId { display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 800; color: var(--text-primary); }
+.mplRowSub { font-size: 12px; color: var(--text-secondary); }
+.mplLock { font-size: 13px; }
+.mplRowRight { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.mplStatus {
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(14, 14, 14, 0.5);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.mplStatus.playing { color: var(--primary); }
+.mplRowLocked { font-size: 18px; }
+.mplRowBtn {
+  padding: 8px 14px;
+  border: 1.5px solid rgba(201, 162, 62, 0.6);
+  border-radius: var(--radius-md);
+  background: rgba(14, 14, 14, 0.55);
+  color: var(--text-primary);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.mplRowBtn:disabled { opacity: 0.4; }
+.mplRowBtn.start { border-color: var(--primary); background: var(--primary); color: #1a1207; }
+
+/* Čata poga (FAB, piestiprināta pie ekrāna labās malas) */
+.mplChatFab {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 96px;
+  padding: 0;
+  border: 2px solid rgba(201, 162, 62, 0.5);
+  border-right: 0;
+  border-radius: 30px 0 0 30px;
+  background: rgba(120, 30, 40, 0.92);
+  color: var(--text-primary);
+  z-index: var(--z-floating);
+}
+.mplChatFab .iconSvg { width: 24px; height: 24px; }
+.mplChatUnread {
+  position: absolute;
+  top: 14px;
+  right: 10px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #46c46a;
+  box-shadow: 0 0 8px 1px rgba(70, 196, 106, 0.7);
+}
+
+/* Pilnekrāna čats — VIEWPORT-līmeņa slānis (augstums no visualViewport inline stila) */
+.mplChatOverlay {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+  background: rgba(8, 8, 8, 0.98);
+  z-index: var(--z-sheet);
+}
+.mplChatHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex: 0 0 auto; }
+.mplChatOnline { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-secondary); }
+.mplChatOnlineDot { width: 10px; height: 10px; border-radius: 50%; background: #46c46a; }
+.mplChatClose {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgba(64, 64, 64, 0.7);
+  border-radius: var(--radius-md);
+  background: rgba(14, 14, 14, 0.7);
+  color: var(--text-primary);
+}
+.mplChatClose .iconSvg { width: 22px; height: 22px; }
+.mplChatFeed {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mplChatFeed::-webkit-scrollbar { display: none; }
+.mplChatEmpty { flex: 1 1 auto; display: grid; place-items: center; color: var(--text-secondary); font-size: 14px; }
+.mplChatMessage { font-size: 15px; line-height: 1.35; word-break: break-word; }
+.mplChatAuthor { color: var(--primary); font-weight: 700; margin-right: 6px; }
+.mplChatText { color: var(--text-primary); }
+.mplChatError { margin: 8px 0 0; color: var(--error); font-size: 13px; }
+.mplChatFoot { display: flex; gap: 8px; margin-top: 10px; flex: 0 0 auto; }
+.mplChatInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(64, 64, 64, 0.7);
+  border-radius: var(--radius-lg);
+  background: rgba(20, 20, 20, 0.9);
+  color: var(--text-primary);
+  font-size: 16px;
+}
+.mplChatSend {
+  flex: 0 0 auto;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--primary);
+  color: #1a1207;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* Kļūdu paziņojums no augšējās malas (slide-down + fade) */
+.mplErrorToast {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  max-width: 90%;
+  padding: 10px 18px;
+  border-radius: 0 0 12px 12px;
+  background: var(--error);
+  color: #fff;
+  font-size: 14px;
+  text-align: center;
+  z-index: var(--z-toast);
+  animation: mplErrorToast 6s ease forwards;
+}
+@keyframes mplErrorToast {
+  0% { transform: translate(-50%, -100%); opacity: 0; }
+  8% { transform: translate(-50%, 0); opacity: 1; }
+  85% { transform: translate(-50%, 0); opacity: 1; }
+  100% { transform: translate(-50%, 0); opacity: 0; }
+}
+
