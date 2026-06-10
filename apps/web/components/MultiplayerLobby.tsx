@@ -3,7 +3,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import {
-  avatarFilePath,
   defaultRoomNumberOfRounds,
   maxRoomNumberOfRounds,
   minRoomNumberOfRounds,
@@ -14,6 +13,7 @@ import {
   type RoomVisibility
 } from "@domino-poker/shared";
 
+import { avatarUrl } from "../lib/auth/avatarUrl";
 import type { AppStrings } from "../lib/i18n";
 import { toGameTableView } from "../lib/mp/gameTableView";
 import { useMultiplayer } from "../lib/mp/useMultiplayer";
@@ -583,7 +583,7 @@ function SeatCard({
         {seat.kind === "empty" ? (
           "·"
         ) : seat.avatar !== undefined ? (
-          <img src={avatarFilePath(seat.avatar)} alt="" />
+          <img src={avatarUrl(seat.avatar)} alt="" />
         ) : (
           displayName.slice(0, 1)
         )}

@@ -59,6 +59,8 @@
       "apps/web/lib/auth/authApi.ts",
       "apps/web/lib/auth/useAuthUser.ts",
       "apps/web/lib/auth/titleLabel.ts",
+      "apps/web/lib/auth/avatarUrl.ts",
+      "apps/web/lib/auth/avatarUpload.ts",
       "apps/web/lib/mp/seatLabel.ts",
       "apps/web/lib/mpRulesContent.ts"
     ],
@@ -87,6 +89,7 @@
       "Registration now REQUIRES email (Phase 5: email is the only password-reset channel). RegisterInput.email is a required string in authApi.ts and AuthDialog forces a required email field; the old emailOptional i18n key was removed. Existing accounts without email keep working but cannot reset their password.",
       "Password reset UI (Phase 5): AuthDialog has a 'Forgot password?' link -> forgot form (email -> generic 'if an account exists' confirmation, anti-enumeration); ResetPasswordScreen is a standalone screen AppShell shows when the URL hash is #reset=<token>. The token is read from the hash (NOT query string, so it does not leak to logs/Referer), kept only in component state, and the URL is immediately cleared via history.replaceState. apiForgotPassword/apiResetPassword in authApi.ts; all strings i18n LV+EN.",
       "Seat avatars + win-tier titles (Phase 4) render in the game table seats (MpGameTable/MpMobileTable desktop+mobile via .playerProfile/.profileTitle and .mpmProfile*; SP via PlayerSeat humanTitle + SpMobileTable). MP data flows from RoomSeatView.avatar/title; SP human title is derived client-side from auth.stats and passed via humanProfile.title (already-localized string). The Loser badge is NOT shown on seats (only in the main-lobby LobbyProfile).",
+      "ALL avatar rendering goes through lib/auth/avatarUrl.ts avatarUrl(avatar, ownUserId?, ownVersion?) (NOT avatarFilePath directly), which resolves a preset id -> /assets SVG, 'custom' (own user) -> /auth/avatar/:id?v= serve URL, and the server-encoded 'custom:<userId>:<version>' (MP seats) -> serve URL. Custom avatar upload (Phase 5) lives in lib/auth/avatarUpload.ts prepareAvatar() (Canvas, no dependency): validates jpg/png + min 512px, cover-crops to 512x512, encodes WebP (q0.85, JPEG fallback) so only ~tens of KB upload. AuthDialog ProfileForm has a camera-SVG upload button (.avatarUploadButton) opening the OS file picker; useAuthUser.uploadAvatar posts the Blob; on success avatar becomes 'custom'. AuthUser/SelfUser carry avatarVersion for cache-busting. MpGameTable/MpMobileTable renamed their local var to avatarSrc to avoid clashing with the imported avatarUrl helper.",
       "MpGameTable must render authoritative server snapshots and send intents only; do not move rule acceptance or rejection into the browser client.",
       "PWA files (manifest, service worker, icons) are public browser assets; changes need browser verification because stale service-worker caches can mask UI changes."
     ],
@@ -302,6 +305,7 @@
       "apps/server/test/storage/OutcomeRecorder.test.ts",
       "apps/server/test/storage/userStats.test.ts",
       "apps/server/test/storage/authTokenCleanup.test.ts",
+      "apps/server/test/storage/customAvatar.test.ts",
       "apps/server/test/config.test.ts"
     ],
     "depends_on": [
@@ -334,6 +338,7 @@
       "OutcomeRecorder records account win/loss only for countable games: 4 seats, 4 humans, 4 distinct registered userIds captured at match start. Forfeit/abandon decisions must not be overwritten by later GAME_OVER standings.",
       "Password reset by email (Phase 5): migration 0004_password_reset_tokens (PG migrations.ts + SqliteStorage.migrate; stores only sha256(token), 1h expiry, single-use via used_at). AuthStore.resetPasswordWithToken is ATOMIC (SQLite transaction / PG single CTE): claim token WHERE used_at IS NULL AND expires_at > now -> change password_hash -> revoke ALL the user's auth + reset tokens (force re-login). AuthService.requestPasswordReset is anti-enumeration (always generic, sends only if account+email exist, catches email-send errors); resetPassword hashes + delegates to the atomic store method. EmailSender.ts abstracts delivery: dev=ConsoleEmailSender (logs the link), prod=ResendEmailSender (Resend HTTP API via fetch, no SDK); if prod has no RESEND_API_KEY the sender is undefined and the feature is DISABLED (routes return 503, never a silent pseudo-send). HTTP POST /auth/forgot-password + /auth/reset-password (Zod, rate-limited). Config: RESEND_API_KEY/EMAIL_FROM/APP_BASE_URL (config.email). The reset link uses the URL hash (#reset=<token>), never a query string.",
       "Expired-token cleanup (Phase 5): index.ts runs a periodic setInterval (every 6h + a sweep at startup, unref'd, cleared on shutdown) calling storage.deleteExpiredAuthTokens AND deleteExpiredPasswordResetTokens. Best-effort: a DB error is logged, never crashes the server. Token validation already rejects expired tokens; this is hygiene so the tables do not grow unbounded.",
+      "Custom avatar upload (Phase 5): migration 0005_custom_avatars (user_avatars: PG BYTEA / SQLite BLOB). The image is compressed CLIENT-SIDE (Canvas -> 512x512 WebP, ~tens of KB) so the original never reaches the server. AuthStore.setUserAvatar is an atomic upsert that also sets users.avatar='custom' + updated_at (the cache version); getUserAvatar/deleteUserAvatar serve/clear it; AuthService.updateProfile to a preset deletes the blob, avatar='custom' keeps it. HTTP POST /auth/avatar (Bearer auth, RAW body via readBinaryBody <=256KB, magic-byte sniff accepting ONLY WebP/JPEG, separate rate-limit) + GET /auth/avatar/:userId (fixed Content-Type image/webp|jpeg + X-Content-Type-Options: nosniff + immutable Cache-Control). No server-side re-encode (sharp avoided): safety relies on small-size + magic-byte + fixed-content-type serving. resolvePublic encodes a custom avatar as `custom:<userId>:<version>` so other MP players can resolve it; SelfUser/AuthUser gained avatarVersion (= user.updatedAt) for cache-busting.",
       "MP per-game action log (apps/server/src/rooms/mpActionLog.ts) is opt-in via MP_ACTION_LOG=1 (default OFF, also in prod) because appendFileSync is on the command path; when enabled it writes one .txt per game to logs/ (override MP_ACTION_LOG_DIR). There is NO rotation/cleanup of those files. Console logs go to systemd journald (journalctl -u domino-poker), which rotates automatically."
     ],
     "confidence": "high"

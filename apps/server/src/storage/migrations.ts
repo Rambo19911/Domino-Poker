@@ -194,12 +194,28 @@ const PASSWORD_RESET_SCHEMA = `
     ON password_reset_tokens (expires_at);
 `;
 
+/**
+ * 0005: pielāgots (augšupielādēts) profila avatars. Glabā JAU klienta pusē
+ * samazinātu attēlu (≤250KB WebP/JPEG) kā `BYTEA`. `users.avatar = 'custom'`
+ * marķē, ka jāņem šī augšupielāde, citādi tas paliek preset id. FK CASCADE.
+ * `updated_at` kalpo kā cache-busting versija serve URL-ā.
+ */
+const CUSTOM_AVATAR_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS user_avatars (
+    user_id      TEXT PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
+    content_type TEXT NOT NULL,
+    bytes        BYTEA NOT NULL,
+    updated_at   BIGINT NOT NULL
+  );
+`;
+
 /** Sakārtots migrāciju saraksts. Jaunas migrācijas pievieno BEIGĀS, nekad nepārkārto. */
 export const MIGRATIONS: readonly Migration[] = [
   { id: "0001_initial_schema", up: INITIAL_SCHEMA },
   { id: "0002_auth_schema", up: AUTH_SCHEMA },
   { id: "0003_user_stats", up: USER_STATS_SCHEMA },
-  { id: "0004_password_reset_tokens", up: PASSWORD_RESET_SCHEMA }
+  { id: "0004_password_reset_tokens", up: PASSWORD_RESET_SCHEMA },
+  { id: "0005_custom_avatars", up: CUSTOM_AVATAR_SCHEMA }
 ];
 
 interface MigrationRow extends QueryResultRow {

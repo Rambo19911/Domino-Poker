@@ -11,8 +11,11 @@ import { resolveServerUrl } from "../mp/serverUrl";
 export interface AuthUser {
   readonly id: string;
   readonly username: string;
+  /** Preset avatar id (`avatar-NN`) VAI `'custom'` (augšupielādēts). */
   readonly avatar: string;
   readonly email?: string;
+  /** Avatara cache versija (custom avatara cache-bustingam serve URL-ā). */
+  readonly avatarVersion?: number;
 }
 
 /** Konta MP statistika (Fāze 3); `null`, ja vēl nav ieskaitītu spēļu. */
@@ -48,7 +51,7 @@ export interface ProfileInput {
   readonly avatar: string;
 }
 
-function httpBase(): string {
+export function httpBase(): string {
   const ws = resolveServerUrl({ envUrl: process.env.NEXT_PUBLIC_MP_WS_URL });
   // ws→http, wss→https; noņemam `/ws` ceļu. (URL protokola maiņa starp special
   // shēmām var būt liegta, tāpēc darbojamies ar virkni.)
@@ -132,4 +135,16 @@ export function apiForgotPassword(email: string, locale: "lv" | "en"): Promise<A
 /** Pabeidz paroles atjaunošanu ar tokenu no e-pasta linka. */
 export function apiResetPassword(token: string, password: string): Promise<AuthResult<{ ok: true }>> {
   return requestJson<{ ok: true }>("/auth/reset-password", jsonInit("POST", { token, password }));
+}
+
+/**
+ * Augšupielādē JAU klienta pusē samazinātu avataru (WebP/JPEG Blob) kā raw body.
+ * Serveris validē magic-bytes + izmēru; atgriež atjaunoto profilu (avatar='custom').
+ */
+export function apiUploadAvatar(token: string, blob: Blob): Promise<AuthResult<{ user: AuthUser; avatarVersion: number }>> {
+  return requestJson<{ user: AuthUser; avatarVersion: number }>("/auth/avatar", {
+    method: "POST",
+    headers: { "content-type": blob.type, authorization: `Bearer ${token}` },
+    body: blob
+  });
 }

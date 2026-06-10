@@ -27,6 +27,7 @@ import type {
   AuthStore,
   AuthTokenRecord,
   CreateUserResult,
+  CustomAvatarRecord,
   PasswordResetTokenRecord,
   ProfileUpdate,
   UpdateProfileResult,
@@ -470,10 +471,23 @@ export class PostgresStorage
 
   async updateUserProfile(id: string, update: ProfileUpdate): Promise<UpdateProfileResult> {
     try {
+      // Atomiski (CTE): `'custom'` NEMAINA avatar (CASE) — to pārvalda tikai
+      // setAvatarUpload; preset maina avatar + dzēš blob tajā pašā statement.
+      // Novērš race + custom-bez-blob stāvokli bez TOC/TOU pārbaudes.
       const result = await this.pool.query(
-        `UPDATE users
-            SET username = $1, username_norm = $2, avatar = $3, updated_at = $4
-          WHERE id = $5`,
+        `WITH upd AS (
+           UPDATE users
+              SET username = $1, username_norm = $2,
+                  avatar = CASE WHEN $3 = 'custom' THEN avatar ELSE $3 END,
+                  updated_at = $4
+            WHERE id = $5
+            RETURNING id
+         ),
+         del AS (
+           DELETE FROM user_avatars
+            WHERE user_id IN (SELECT id FROM upd) AND $3 <> 'custom'
+         )
+         SELECT id FROM upd`,
         [update.username, update.usernameNorm, update.avatar, update.updatedAt, id]
       );
       return (result.rowCount ?? 0) > 0 ? "updated" : "not_found";
@@ -577,6 +591,46 @@ export class PostgresStorage
 
   async deleteExpiredPasswordResetTokens(now: number): Promise<void> {
     await this.pool.query(`DELETE FROM password_reset_tokens WHERE expires_at <= $1`, [now]);
+  }
+
+  async setUserAvatar(record: CustomAvatarRecord): Promise<void> {
+    // Atomiski (CTE): UPDATE users PIRMAIS (lock users rindu) → INSERT blob ATKARĪGS
+    // no tā (SELECT FROM upd). Konsekventa lock secība (users→user_avatars) ar
+    // updateUserProfile novērš deadlock + race ar paralēlu preset-save.
+    await this.pool.query(
+      `WITH upd AS (
+         UPDATE users SET avatar = 'custom', updated_at = $4 WHERE id = $1
+         RETURNING id
+       )
+       INSERT INTO user_avatars (user_id, content_type, bytes, updated_at)
+       SELECT id, $2, $3, $4 FROM upd
+       ON CONFLICT (user_id) DO UPDATE SET
+         content_type = EXCLUDED.content_type,
+         bytes        = EXCLUDED.bytes,
+         updated_at   = EXCLUDED.updated_at`,
+      [record.userId, record.contentType, Buffer.from(record.bytes), record.updatedAt]
+    );
+  }
+
+  async getUserAvatar(userId: string): Promise<CustomAvatarRecord | undefined> {
+    const result = await this.pool.query<{ content_type: string; bytes: Buffer; updated_at: number | string }>(
+      `SELECT content_type, bytes, updated_at FROM user_avatars WHERE user_id = $1`,
+      [userId]
+    );
+    const row = result.rows[0];
+    if (!row) {
+      return undefined;
+    }
+    return {
+      userId,
+      contentType: row.content_type,
+      bytes: new Uint8Array(row.bytes),
+      updatedAt: Number(row.updated_at)
+    };
+  }
+
+  async deleteUserAvatar(userId: string): Promise<void> {
+    await this.pool.query(`DELETE FROM user_avatars WHERE user_id = $1`, [userId]);
   }
 
   async recordUserMatchOutcome(

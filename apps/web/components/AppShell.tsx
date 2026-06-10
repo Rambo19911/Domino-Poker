@@ -14,7 +14,9 @@ import { DominoPokerGame } from "./DominoPokerGame";
 import { CompactLobbyPanel, LobbyWheel } from "./LobbyWheel";
 import { MultiplayerLobby } from "./MultiplayerLobby";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
-import { avatarFilePath, titleForWins } from "@domino-poker/shared";
+import { titleForWins } from "@domino-poker/shared";
+
+import { avatarUrl } from "../lib/auth/avatarUrl";
 import { titleLabel } from "../lib/auth/titleLabel";
 import { useAuthUser } from "../lib/auth/useAuthUser";
 import {
@@ -153,7 +155,7 @@ export function AppShell() {
     const humanProfile =
       auth.status === "authenticated" && auth.user
         ? {
-            avatarUrl: avatarFilePath(auth.user.avatar),
+            avatarUrl: avatarUrl(auth.user.avatar, auth.user.id, auth.user.avatarVersion),
             displayName: auth.user.username,
             title: titleLabel(t, titleForWins(auth.stats?.wins ?? 0))
           }
@@ -270,6 +272,7 @@ export function AppShell() {
           login={auth.login}
           logout={auth.logout}
           updateProfile={auth.updateProfile}
+          uploadAvatar={auth.uploadAvatar}
           playClick={() => audio.play("uiClick")}
           onClose={() => setAuthOpen(false)}
         />

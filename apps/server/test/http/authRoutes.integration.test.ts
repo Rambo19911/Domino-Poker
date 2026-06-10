@@ -121,6 +121,54 @@ describe("auth HTTP routes (integration)", () => {
     expect((after as { stats: unknown }).stats).toMatchObject({ wins: 1, losses: 0, gamesPlayed: 1 });
   });
 
+  it("uploads a WebP avatar, marks avatar='custom', and serves it back", async () => {
+    const reg = await post("/auth/register", { username: "Alice", password: "secret123", email: "alice@x.co" });
+    const { token, user } = (await reg.json()) as { token: string; user: { id: string } };
+    // Minimāls derīgs WebP (RIFF....WEBP magic-bytes).
+    const webp = Buffer.concat([Buffer.from("RIFF"), Buffer.from([20, 0, 0, 0]), Buffer.from("WEBP"), Buffer.alloc(20, 1)]);
+    const up = await fetch(`${base}/auth/avatar`, {
+      method: "POST",
+      headers: { "content-type": "image/webp", authorization: `Bearer ${token}` },
+      body: webp
+    });
+    expect(up.status).toBe(200);
+    expect(((await up.json()) as { user: { avatar: string } }).user.avatar).toBe("custom");
+
+    const got = await fetch(`${base}/auth/avatar/${user.id}`);
+    expect(got.status).toBe(200);
+    expect(got.headers.get("content-type")).toBe("image/webp");
+    expect(got.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(Buffer.from(await got.arrayBuffer()).length).toBe(webp.length);
+  });
+
+  it("rejects an avatar upload without a token (401)", async () => {
+    const webp = Buffer.concat([Buffer.from("RIFF"), Buffer.from([20, 0, 0, 0]), Buffer.from("WEBP"), Buffer.alloc(20, 1)]);
+    const res = await fetch(`${base}/auth/avatar`, {
+      method: "POST",
+      headers: { "content-type": "image/webp" },
+      body: webp
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it("rejects a non-image avatar body (400 invalid_image)", async () => {
+    const reg = await post("/auth/register", { username: "Bob", password: "secret123", email: "bob@x.co" });
+    const { token } = (await reg.json()) as { token: string };
+    const res = await fetch(`${base}/auth/avatar`, {
+      method: "POST",
+      headers: { "content-type": "image/webp", authorization: `Bearer ${token}` },
+      body: Buffer.from("definitely-not-an-image")
+    });
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "invalid_image" });
+  });
+
+  it("returns 404 for an unknown avatar and a malformed userId encoding", async () => {
+    expect((await fetch(`${base}/auth/avatar/no-such-user`)).status).toBe(404);
+    // Bojāta procentu-kodēšana: decode met -> handleAvatarFetch atgriež 404, ne 500.
+    expect((await fetch(`${base}/auth/avatar/%E0%A4`)).status).toBe(404);
+  });
+
   it("answers CORS preflight for an allowed origin", async () => {
     const res = await fetch(`${base}/auth/login`, {
       method: "OPTIONS",

@@ -1,6 +1,8 @@
 "use client";
 
-import { avatarFilePath, isLoser, titleForWins } from "@domino-poker/shared";
+import { isLoser, titleForWins } from "@domino-poker/shared";
+
+import { avatarUrl } from "../../lib/auth/avatarUrl";
 
 import type { AuthUser } from "../../lib/auth/authApi";
 import { titleLabel } from "../../lib/auth/titleLabel";
@@ -58,7 +60,7 @@ export function LobbyProfile({
       </span>
       <span className="lobbyProfileAvatarBlock">
         <span className="lobbyProfileAvatar">
-          <img src={avatarFilePath(user.avatar)} alt="" />
+          <img src={avatarUrl(user.avatar, user.id, user.avatarVersion)} alt="" />
         </span>
         <span className="lobbyProfileName">{user.username}</span>
         <span className="lobbyProfileTitle">{title}</span>

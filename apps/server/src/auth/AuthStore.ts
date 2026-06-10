@@ -57,6 +57,14 @@ export interface PasswordResetTokenRecord {
   readonly expiresAt: number;
 }
 
+/** Pielāgots (augšupielādēts) profila avatars (Fāze 5). Bytes = JAU samazināts attēls. */
+export interface CustomAvatarRecord {
+  readonly userId: string;
+  readonly contentType: string;
+  readonly bytes: Uint8Array;
+  readonly updatedAt: number;
+}
+
 export interface AuthStore {
   createUser(record: UserRecord): Promise<CreateUserResult>;
   getUserById(id: string): Promise<UserRecord | undefined>;
@@ -88,6 +96,16 @@ export interface AuthStore {
   ): Promise<string | undefined>;
   /** Notīra beigušos reset tokenus (Fāze 5 cleanup). */
   deleteExpiredPasswordResetTokens(now: number): Promise<void>;
+  // --- Pielāgots profila avatars (Fāze 5) ---
+  /**
+   * Atomiski saglabā augšupielādēto avataru (upsert blob) UN iestata
+   * `users.avatar = 'custom'` + `updated_at`. `updatedAt` kalpo kā cache versija.
+   */
+  setUserAvatar(record: CustomAvatarRecord): Promise<void>;
+  /** Augšupielādētā avatara baiti + content-type serve maršrutam; `undefined`, ja nav. */
+  getUserAvatar(userId: string): Promise<CustomAvatarRecord | undefined>;
+  /** Dzēš augšupielādēto avataru (pārslēdzoties atpakaļ uz preset). */
+  deleteUserAvatar(userId: string): Promise<void>;
 }
 
 /** Runtime pārbaude, vai glabātuve atbalsta auth (abas to dara; sargs index.ts). */

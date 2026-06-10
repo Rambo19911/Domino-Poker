@@ -21,6 +21,7 @@ import type {
   AuthStore,
   AuthTokenRecord,
   CreateUserResult,
+  CustomAvatarRecord,
   PasswordResetTokenRecord,
   ProfileUpdate,
   UpdateProfileResult,
@@ -151,6 +152,13 @@ export class SqliteStorage implements StoragePort, AuthStore {
         ON password_reset_tokens (user_id);
       CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_expires_at
         ON password_reset_tokens (expires_at);
+
+      CREATE TABLE IF NOT EXISTS user_avatars (
+        user_id      TEXT PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
+        content_type TEXT NOT NULL,
+        bytes        BLOB NOT NULL,
+        updated_at   INTEGER NOT NULL
+      );
     `);
   }
 
@@ -369,16 +377,33 @@ export class SqliteStorage implements StoragePort, AuthStore {
   }
 
   async updateUserProfile(id: string, update: ProfileUpdate): Promise<UpdateProfileResult> {
+    const keepCustom = update.avatar === "custom";
+    this.db.exec("BEGIN");
     try {
-      const result = this.db
-        .prepare(
-          `UPDATE users
-              SET username = ?, username_norm = ?, avatar = ?, updated_at = ?
-            WHERE id = ?`
-        )
-        .run(update.username, update.usernameNorm, update.avatar, update.updatedAt, id);
-      return Number(result.changes) > 0 ? "updated" : "not_found";
+      // `'custom'` marķieri pārvalda TIKAI setAvatarUpload (uzliek) un preset-switch
+      // (noņem) — profila update NEPIESKARAS avatar kolonnai, ja `'custom'`, tikai
+      // username. Tas vienā atomiskā UPDATE novērš race + custom-bez-blob stāvokli.
+      const result = keepCustom
+        ? this.db
+            .prepare(`UPDATE users SET username = ?, username_norm = ?, updated_at = ? WHERE id = ?`)
+            .run(update.username, update.usernameNorm, update.updatedAt, id)
+        : this.db
+            .prepare(
+              `UPDATE users SET username = ?, username_norm = ?, avatar = ?, updated_at = ? WHERE id = ?`
+            )
+            .run(update.username, update.usernameNorm, update.avatar, update.updatedAt, id);
+      if (Number(result.changes) === 0) {
+        this.db.exec("ROLLBACK");
+        return "not_found";
+      }
+      // Pārslēdzoties uz preset, dzēš custom blob TAJĀ PAŠĀ transakcijā.
+      if (!keepCustom) {
+        this.db.prepare(`DELETE FROM user_avatars WHERE user_id = ?`).run(id);
+      }
+      this.db.exec("COMMIT");
+      return "updated";
     } catch (error) {
+      this.db.exec("ROLLBACK");
       if (isSqliteUniqueViolation(error)) {
         return "username_taken";
       }
@@ -481,6 +506,48 @@ export class SqliteStorage implements StoragePort, AuthStore {
 
   async deleteExpiredPasswordResetTokens(now: number): Promise<void> {
     this.db.prepare(`DELETE FROM password_reset_tokens WHERE expires_at <= ?`).run(now);
+  }
+
+  async setUserAvatar(record: CustomAvatarRecord): Promise<void> {
+    this.db.exec("BEGIN");
+    try {
+      this.db
+        .prepare(
+          `INSERT INTO user_avatars (user_id, content_type, bytes, updated_at)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT (user_id) DO UPDATE SET
+             content_type = excluded.content_type,
+             bytes        = excluded.bytes,
+             updated_at   = excluded.updated_at`
+        )
+        .run(record.userId, record.contentType, record.bytes, record.updatedAt);
+      this.db
+        .prepare(`UPDATE users SET avatar = 'custom', updated_at = ? WHERE id = ?`)
+        .run(record.updatedAt, record.userId);
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  async getUserAvatar(userId: string): Promise<CustomAvatarRecord | undefined> {
+    const row = this.db
+      .prepare(`SELECT content_type, bytes, updated_at FROM user_avatars WHERE user_id = ?`)
+      .get(userId) as { content_type: string; bytes: Uint8Array; updated_at: number } | undefined;
+    if (!row) {
+      return undefined;
+    }
+    return {
+      userId,
+      contentType: row.content_type,
+      bytes: row.bytes instanceof Uint8Array ? row.bytes : new Uint8Array(row.bytes),
+      updatedAt: Number(row.updated_at)
+    };
+  }
+
+  async deleteUserAvatar(userId: string): Promise<void> {
+    this.db.prepare(`DELETE FROM user_avatars WHERE user_id = ?`).run(userId);
   }
 
   async recordUserMatchOutcome(

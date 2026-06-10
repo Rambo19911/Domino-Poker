@@ -5,9 +5,8 @@ import type { CSSProperties } from "react";
 
 import { isTrump, tileKey } from "@domino-poker/core";
 import type { DominoTile } from "@domino-poker/core";
-import { avatarFilePath } from "@domino-poker/shared";
-
 import type { AppStrings } from "../../lib/i18n";
+import { avatarUrl } from "../../lib/auth/avatarUrl";
 import { titleLabel } from "../../lib/auth/titleLabel";
 import type { ClientView } from "../../lib/mp/clientView";
 import type {
@@ -470,14 +469,14 @@ function MpPlayerProfile({
   // Reģistrēta spēlētāja avatars + tituls plūst no servera (RoomSeatView); botiem/
   // anonīmiem — undefined. Tituls (TitleId) lokalizēts klientā; Lūzers NETIEK rādīts
   // sēdvietās (paliek tikai main-lobby profilā).
-  const avatarUrl = seat.avatar ? avatarFilePath(seat.avatar) : null;
+  const avatarSrc = seat.avatar ? avatarUrl(seat.avatar) : null;
   return (
     <div
-      className={`playerProfile ${avatarUrl ? "hasAvatar" : ""} ${isActive ? "active" : ""} ${seat.isDealer ? "dealer" : ""}`}
+      className={`playerProfile ${avatarSrc ? "hasAvatar" : ""} ${isActive ? "active" : ""} ${seat.isDealer ? "dealer" : ""}`}
       style={{ ...getProfileStyle(seat.visualSeat), width: profileSize, height: profileSize }}
     >
-      {avatarUrl ? (
-        <img className="profileAvatarImage" src={avatarUrl} alt="" aria-hidden="true" />
+      {avatarSrc ? (
+        <img className="profileAvatarImage" src={avatarSrc} alt="" aria-hidden="true" />
       ) : null}
       <div className="profileBottom">
         <div className={`profileName ${isActive ? "activeName" : ""}`}>

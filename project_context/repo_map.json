@@ -1084,12 +1084,35 @@
   {
     "path": "apps/web/lib/auth/authApi.ts",
     "type": "service",
-    "purpose": "Client HTTP API wrapper for /auth routes.",
+    "purpose": "Client HTTP API wrapper for /auth routes (register/login/me/profile/logout/forgot+reset password/avatar upload); exports httpBase().",
     "importance": "medium",
     "related_files": [
       "apps/server/src/http/authRoutes.ts",
-      "apps/server/src/storage/StoragePort.ts",
+      "apps/web/lib/auth/avatarUrl.ts",
       "apps/server/src/index.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/auth/avatarUrl.ts",
+    "type": "utility",
+    "purpose": "Resolves an avatar value to an image URL: preset id -> /assets SVG; 'custom' (own user) -> /auth/avatar/:id?v= serve URL; server-encoded 'custom:<userId>:<version>' (MP seats) -> serve URL. The single place avatars become URLs (used instead of avatarFilePath directly).",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/lib/auth/authApi.ts",
+      "apps/server/src/http/authRoutes.ts",
+      "apps/web/components/auth/LobbyProfile.tsx"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/auth/avatarUpload.ts",
+    "type": "utility",
+    "purpose": "Client-side avatar compression (Phase 5, Canvas, no dependency): validates jpg/png + min 512px, cover-crops to 512x512, encodes WebP q0.85 (JPEG fallback). The 5MB original never leaves the browser; only ~tens of KB upload.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/auth/AuthDialog.tsx",
+      "apps/web/lib/auth/authApi.ts"
     ],
     "confidence": "high"
   },

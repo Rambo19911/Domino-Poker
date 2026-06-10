@@ -7,6 +7,7 @@ import {
   apiMe,
   apiRegister,
   apiUpdateProfile,
+  apiUploadAvatar,
   type AuthResult,
   type AuthUser,
   type LoginInput,
@@ -32,6 +33,8 @@ export interface UseAuthUser {
   login(input: LoginInput): Promise<AuthResult<TokenUser>>;
   logout(): Promise<void>;
   updateProfile(input: ProfileInput): Promise<AuthResult<{ user: AuthUser }>>;
+  /** Augšupielādē pielāgoto avataru (JAU klienta pusē samazinātu Blob). */
+  uploadAvatar(blob: Blob): Promise<AuthResult<{ user: AuthUser; avatarVersion: number }>>;
   /** Pārlādē profilu + statistiku no `/auth/me` (piem. atgriežoties lobby pēc spēles). */
   refresh(): void;
   /** Stabils tokena lasītājs WS HELLO vajadzībām (lasa pašreizējo vērtību). */
@@ -161,7 +164,22 @@ export function useAuthUser(): UseAuthUser {
     []
   );
 
+  const uploadAvatar = useCallback(
+    async (blob: Blob): Promise<AuthResult<{ user: AuthUser; avatarVersion: number }>> => {
+      const current = tokenRef.current;
+      if (current === null) {
+        return { ok: false, status: 401, error: "unauthorized" };
+      }
+      const result = await apiUploadAvatar(current, blob);
+      if (result.ok) {
+        setUser(result.data.user);
+      }
+      return result;
+    },
+    []
+  );
+
   const getToken = useCallback((): string | undefined => tokenRef.current ?? undefined, []);
 
-  return { status, user, stats, token, register, login, logout, updateProfile, refresh, getToken };
+  return { status, user, stats, token, register, login, logout, updateProfile, uploadAvatar, refresh, getToken };
 }

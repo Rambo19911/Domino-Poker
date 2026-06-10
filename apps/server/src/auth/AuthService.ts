@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import { DEFAULT_AVATAR_ID, isValidAvatarId, titleForWins, type TitleId } from "@domino-poker/shared";
 
-import type { AuthStore, UserRecord } from "./AuthStore.js";
+import type { AuthStore, CustomAvatarRecord, UserRecord } from "./AuthStore.js";
 import type { EmailLocale, EmailSender } from "./EmailSender.js";
 import { hashPassword, verifyPassword } from "./passwords.js";
 
@@ -16,8 +16,11 @@ const RESET_TTL_MS = 60 * 60 * 1000;
 export interface SelfUser {
   readonly id: string;
   readonly username: string;
+  /** Preset avatar id (`avatar-NN`) VAI `'custom'` (augšupielādēts; sk. `/auth/avatar/:id`). */
   readonly avatar: string;
   readonly email?: string | undefined;
+  /** Avatara cache versija (= `user.updatedAt`); custom avatara cache-bustingam. */
+  readonly avatarVersion: number;
 }
 
 /** Konta MP statistika klientam (Fāze 3). Uzvaru % aprēķina klients. */
@@ -190,7 +193,9 @@ export class AuthService {
     return {
       userId: self.id,
       username: self.username,
-      avatar: self.avatar,
+      // Custom avataru iekodē ar userId+versiju, lai CITI MP spēlētāji to atrisina
+      // uz `/auth/avatar/:id?v=` (klients nezina sveseta lietotāja id citādi).
+      avatar: self.avatar === "custom" ? `custom:${self.id}:${self.avatarVersion}` : self.avatar,
       title: titleForWins(stats?.wins ?? 0)
     };
   }
@@ -209,7 +214,11 @@ export class AuthService {
   }
 
   async updateProfile(userId: string, input: ProfileInput): Promise<UpdateProfileResult> {
-    if (!isValidAvatarId(input.avatar)) {
+    // `'custom'` = patur esošo avataru (maina tikai username); glabātava NEPIESKARAS
+    // avatar kolonnai šajā gadījumā, tāpēc tiešs/stale klients NEVAR iestatīt
+    // avatar='custom' bez blob. Citādi jābūt derīgam preset id.
+    const keepCustom = input.avatar === "custom";
+    if (!keepCustom && !isValidAvatarId(input.avatar)) {
       return { ok: false, error: "invalid_avatar" };
     }
     const usernameNorm = normalize(input.username);
@@ -223,11 +232,28 @@ export class AuthService {
     if (result !== "updated") {
       return { ok: false, error: result };
     }
+    // Pārslēgšanos uz preset + custom blob dzēšanu glabātava veic ATOMISKI
+    // (updateUserProfile), lai novērstu race ar paralēlu avatara augšupielādi.
     const user = await this.store.getUserById(userId);
     if (!user) {
       return { ok: false, error: "not_found" };
     }
     return { ok: true, user: toSelfUser(user) };
+  }
+
+  /**
+   * Saglabā augšupielādēto (klienta pusē jau samazināto) profila avataru un iestata
+   * `users.avatar='custom'`. Atgriež jauno cache versiju (updatedAt).
+   */
+  async setAvatarUpload(userId: string, contentType: string, bytes: Uint8Array): Promise<number> {
+    const now = this.clock();
+    await this.store.setUserAvatar({ userId, contentType, bytes, updatedAt: now });
+    return now;
+  }
+
+  /** Augšupielādētā avatara baiti serve maršrutam; `undefined`, ja nav. */
+  async getAvatarUpload(userId: string): Promise<CustomAvatarRecord | undefined> {
+    return this.store.getUserAvatar(userId);
   }
 
   /** Vai paroles atjaunošana pa e-pastu ir konfigurēta (ir e-pasta senderis). */
@@ -319,6 +345,7 @@ function toSelfUser(user: UserRecord): SelfUser {
     id: user.id,
     username: user.username,
     avatar: user.avatar,
-    email: user.email
+    email: user.email,
+    avatarVersion: user.updatedAt
   };
 }

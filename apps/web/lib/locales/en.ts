@@ -206,5 +206,11 @@ export const en = {
   resetPasswordSuccess: "Your password has been updated. You can now log in.",
   resetPasswordInvalidToken: "This reset link is invalid or has expired. Please request a new one.",
   backToLogin: "Back to log in",
-  authResetUnavailable: "Password reset is currently unavailable."
+  authResetUnavailable: "Password reset is currently unavailable.",
+  avatarUpload: "Upload photo",
+  avatarErrorType: "Please choose a JPG or PNG image.",
+  avatarErrorTooLarge: "That image is too large (max 5 MB).",
+  avatarErrorTooSmall: "That image is too small (min 512×512 px).",
+  avatarErrorDecode: "Could not read that image. Try another.",
+  avatarErrorUpload: "Upload failed. Please try again."
 } as const;

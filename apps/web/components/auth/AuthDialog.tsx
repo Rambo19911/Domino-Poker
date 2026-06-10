@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { AVATAR_IDS, avatarFilePath } from "@domino-poker/shared";
 
@@ -13,6 +13,8 @@ import type {
   RegisterInput,
   TokenUser
 } from "../../lib/auth/authApi";
+import { avatarUrl } from "../../lib/auth/avatarUrl";
+import { prepareAvatar } from "../../lib/auth/avatarUpload";
 import type { AuthStatus } from "../../lib/auth/useAuthUser";
 import type { AppStrings } from "../../lib/i18n";
 import { Dialog } from "../Dialog";
@@ -29,6 +31,7 @@ export interface AuthDialogProps {
   readonly login: (input: LoginInput) => Promise<AuthResult<TokenUser>>;
   readonly logout: () => Promise<void>;
   readonly updateProfile: (input: ProfileInput) => Promise<AuthResult<{ user: AuthUser }>>;
+  readonly uploadAvatar: (blob: Blob) => Promise<AuthResult<{ user: AuthUser; avatarVersion: number }>>;
   readonly onClose: () => void;
   readonly playClick?: () => void;
 }
@@ -204,6 +207,8 @@ export function AuthDialog(props: AuthDialogProps) {
           labels={t}
           user={user}
           busy={busy}
+          uploadAvatar={props.uploadAvatar}
+          playClick={playClick}
           onSave={async (input) => {
             playClick?.();
             setBusy(true);
@@ -300,17 +305,43 @@ function ProfileForm({
   labels: t,
   user,
   busy,
+  uploadAvatar,
+  playClick,
   onSave,
   onLogout
 }: {
   readonly labels: AppStrings;
   readonly user: AuthUser;
   readonly busy: boolean;
+  readonly uploadAvatar: (blob: Blob) => Promise<AuthResult<{ user: AuthUser; avatarVersion: number }>>;
+  readonly playClick?: (() => void) | undefined;
   readonly onSave: (input: ProfileInput) => void;
   readonly onLogout: () => void;
 }) {
   const [username, setUsername] = useState(user.username);
   const [avatar, setAvatar] = useState(user.avatar);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (file: File | undefined): Promise<void> => {
+    if (!file) return;
+    playClick?.();
+    setUploadError(null);
+    const prepared = await prepareAvatar(file);
+    if (!prepared.ok) {
+      setUploadError(avatarErrorMessage(t, prepared.error));
+      return;
+    }
+    setUploadBusy(true);
+    const result = await uploadAvatar(prepared.blob);
+    setUploadBusy(false);
+    if (result.ok) {
+      setAvatar("custom"); // serveris iestatīja avatar='custom'
+    } else {
+      setUploadError(result.status === 429 ? t.authErrorRateLimited : t.avatarErrorUpload);
+    }
+  };
 
   return (
     <form
@@ -334,7 +365,43 @@ function ProfileForm({
 
       <fieldset className="avatarPicker">
         <legend>{t.chooseAvatar}</legend>
+        {uploadError !== null ? (
+          <p className="authError" role="alert">{uploadError}</p>
+        ) : null}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png"
+          className="srOnly"
+          onChange={(event) => {
+            void handleFile(event.currentTarget.files?.[0]);
+            event.currentTarget.value = ""; // ļauj atkārtoti izvēlēties to pašu failu
+          }}
+        />
         <div className="avatarGrid">
+          {/* Custom avatara augšupielādes poga (apaļš lauks ar fotoaparāta ikonu). */}
+          <button
+            type="button"
+            className="avatarOption avatarUploadButton"
+            aria-label={t.avatarUpload}
+            title={t.avatarUpload}
+            disabled={uploadBusy || busy}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <CameraIcon />
+          </button>
+          {/* Pašreizējais augšupielādētais avatars (ja ir). */}
+          {avatar === "custom" ? (
+            <button
+              type="button"
+              className="avatarOption selected"
+              aria-pressed
+              aria-label={t.avatarUpload}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <img src={avatarUrl("custom", user.id, user.avatarVersion)} alt="" />
+            </button>
+          ) : null}
           {AVATAR_IDS.map((id) => (
             <button
               key={id}
@@ -354,11 +421,34 @@ function ProfileForm({
         <button className="textButton" type="button" onClick={onLogout} disabled={busy}>
           {t.logOut}
         </button>
-        <button className="mpPrimaryButton" type="submit" disabled={busy}>
+        <button className="mpPrimaryButton" type="submit" disabled={busy || uploadBusy}>
           {t.saveChanges}
         </button>
       </div>
     </form>
+  );
+}
+
+/** TitleId → lokalizēta avatara augšupielādes kļūda. */
+function avatarErrorMessage(t: AppStrings, error: "type" | "too_large" | "too_small" | "decode"): string {
+  switch (error) {
+    case "type":
+      return t.avatarErrorType;
+    case "too_large":
+      return t.avatarErrorTooLarge;
+    case "too_small":
+      return t.avatarErrorTooSmall;
+    default:
+      return t.avatarErrorDecode;
+  }
+}
+
+function CameraIcon() {
+  return (
+    <svg className="avatarCameraIcon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z" />
+      <circle cx="12" cy="13" r="3.5" />
+    </svg>
   );
 }
 

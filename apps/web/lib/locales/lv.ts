@@ -210,5 +210,11 @@ export const lv = {
   resetPasswordSuccess: "Tava parole ir atjaunota. Tagad vari pieslēgties.",
   resetPasswordInvalidToken: "Šī atjaunošanas saite ir nederīga vai novecojusi. Lūdzu, pieprasi jaunu.",
   backToLogin: "Atpakaļ uz pieslēgšanos",
-  authResetUnavailable: "Paroles atjaunošana pašlaik nav pieejama."
+  authResetUnavailable: "Paroles atjaunošana pašlaik nav pieejama.",
+  avatarUpload: "Augšupielādēt foto",
+  avatarErrorType: "Lūdzu, izvēlies JPG vai PNG attēlu.",
+  avatarErrorTooLarge: "Šis attēls ir pārāk liels (maks. 5 MB).",
+  avatarErrorTooSmall: "Šis attēls ir pārāk mazs (min. 512×512 px).",
+  avatarErrorDecode: "Neizdevās nolasīt attēlu. Mēģini citu.",
+  avatarErrorUpload: "Augšupielāde neizdevās. Mēģini vēlreiz."
 } as const satisfies LocaleMessages;

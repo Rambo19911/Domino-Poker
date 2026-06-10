@@ -3628,6 +3628,26 @@ button {
 .avatarOption.selected {
   border-color: var(--primary);
 }
+/* Custom avatara augšupielādes poga (apaļš lauks ar fotoaparāta ikonu). */
+.avatarUploadButton {
+  display: grid;
+  place-items: center;
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.avatarUploadButton:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+.avatarCameraIcon {
+  width: 58%;
+  height: 58%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .authProfileActions {
   justify-content: space-between;
 }

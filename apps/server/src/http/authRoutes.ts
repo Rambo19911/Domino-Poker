@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { z } from "zod";
 
 import type { AuthService } from "../auth/AuthService.js";
-import { readJsonBody } from "./readJsonBody.js";
+import { MAX_AVATAR_BYTES, readBinaryBody, readJsonBody } from "./readJsonBody.js";
 import { RateLimiter } from "./rateLimiter.js";
 
 /**
@@ -82,6 +82,8 @@ export function createAuthHandler(options: AuthRoutesOptions): AuthHandler {
   const forgotIpLimiter = new RateLimiter(10, 15 * 60_000, options.clock);
   const forgotEmailLimiter = new RateLimiter(3, 60 * 60_000, options.clock);
   const resetIpLimiter = new RateLimiter(10, 15 * 60_000, options.clock);
+  // Avatara augšupielāde: 10/15min uz IP.
+  const avatarLimiter = new RateLimiter(10, 15 * 60_000, options.clock);
 
   return async (request, response) => {
     const path = new URL(request.url ?? "/", "http://localhost").pathname;
@@ -111,6 +113,10 @@ export function createAuthHandler(options: AuthRoutesOptions): AuthHandler {
         await handleForgotPassword(request, response, options.auth, forgotIpLimiter, forgotEmailLimiter);
       } else if (request.method === "POST" && path === "/auth/reset-password") {
         await handleResetPassword(request, response, options.auth, resetIpLimiter);
+      } else if (request.method === "POST" && path === "/auth/avatar") {
+        await handleAvatarUpload(request, response, options.auth, avatarLimiter);
+      } else if (request.method === "GET" && path.startsWith("/auth/avatar/")) {
+        await handleAvatarFetch(response, options.auth, path.slice("/auth/avatar/".length));
       } else {
         writeJson(response, 404, { error: "not_found" });
       }
@@ -307,6 +313,87 @@ async function handleResetPassword(
     return;
   }
   writeJson(response, 200, { ok: true });
+}
+
+/**
+ * Magic-byte sniff: pieņemam TIKAI WebP (RIFF....WEBP) vai JPEG (FFD8FF) — klients
+ * vienmēr ģenerē WebP (fallback JPEG). NEpaļaujamies uz klienta Content-Type.
+ */
+function sniffImageType(bytes: Buffer): "image/webp" | "image/jpeg" | undefined {
+  if (
+    bytes.length >= 12 &&
+    bytes.toString("ascii", 0, 4) === "RIFF" &&
+    bytes.toString("ascii", 8, 12) === "WEBP"
+  ) {
+    return "image/webp";
+  }
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return "image/jpeg";
+  }
+  return undefined;
+}
+
+async function handleAvatarUpload(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthService,
+  limiter: RateLimiter
+): Promise<void> {
+  // Tikai autentificēts lietotājs maina SAVU avataru (identitāte no tokena).
+  const token = bearerToken(request);
+  const user = token === undefined ? undefined : await auth.resolveToken(token);
+  if (!user) {
+    writeJson(response, 401, { error: "unauthorized" });
+    return;
+  }
+  if (!limiter.check(clientIp(request))) {
+    writeJson(response, 429, { error: "rate_limited" });
+    return;
+  }
+  const body = await readBinaryBody(request, MAX_AVATAR_BYTES);
+  if (!body.ok) {
+    writeJson(response, body.status, { error: body.status === 413 ? "too_large" : "invalid_input" });
+    return;
+  }
+  const contentType = sniffImageType(body.bytes);
+  if (contentType === undefined) {
+    writeJson(response, 400, { error: "invalid_image" });
+    return;
+  }
+  const avatarVersion = await auth.setAvatarUpload(user.id, contentType, body.bytes);
+  writeJson(response, 200, { user: { ...user, avatar: "custom", avatarVersion } });
+}
+
+async function handleAvatarFetch(
+  response: ServerResponse,
+  auth: AuthService,
+  rawUserId: string
+): Promise<void> {
+  let userId: string;
+  try {
+    userId = decodeURIComponent(rawUserId);
+  } catch {
+    // Bojāta procentu-kodēšana (`%`) — 404, nevis 500 (decodeURIComponent met).
+    writeJson(response, 404, { error: "not_found" });
+    return;
+  }
+  if (userId.length === 0 || userId.length > 64) {
+    writeJson(response, 404, { error: "not_found" });
+    return;
+  }
+  const avatar = await auth.getAvatarUpload(userId);
+  if (!avatar) {
+    writeJson(response, 404, { error: "not_found" });
+    return;
+  }
+  // Fiksēts Content-Type + nosniff (anti-polyglot/XSS); immutable cache + ?v= klientā.
+  response.writeHead(200, {
+    "content-type": avatar.contentType === "image/jpeg" ? "image/jpeg" : "image/webp",
+    "x-content-type-options": "nosniff",
+    "cache-control": "public, max-age=31536000, immutable",
+    "content-length": String(avatar.bytes.length)
+  });
+  response.end(Buffer.from(avatar.bytes));
 }
 
 /** Dev: jebkura localhost/127.0.0.1 izcelsme (jebkurš ports); prod: tikai allowlist. */
