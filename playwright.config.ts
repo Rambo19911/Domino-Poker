@@ -22,13 +22,32 @@ export default defineConfig({
       }
     }
   ],
-  webServer: {
-    command: "npm run dev -- --hostname=127.0.0.1 --port=3000",
-    cwd: "./apps/web",
-    url: "http://127.0.0.1:3000",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
-    stdout: "ignore",
-    stderr: "pipe"
-  }
+  // Divi serveri: multiplayer WS serveris (4000) + web klients (3000). MP smoke tests
+  // izmanto reālo browser→WS→room engine ceļu; pārējie e2e lieto tikai web serveri.
+  // MP serveris prasa uzbūvētu `apps/server/dist` (CI to būvē pirms Playwright soļa).
+  webServer: [
+    {
+      command: "node dist/index.js",
+      cwd: "./apps/server",
+      url: "http://127.0.0.1:4000/health",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120 * 1000,
+      stdout: "ignore",
+      stderr: "pipe",
+      env: {
+        HTTP_PORT: "4000",
+        DATABASE_URL: ":memory:",
+        NODE_ENV: "development"
+      }
+    },
+    {
+      command: "npm run dev -- --hostname=127.0.0.1 --port=3000",
+      cwd: "./apps/web",
+      url: "http://127.0.0.1:3000",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120 * 1000,
+      stdout: "ignore",
+      stderr: "pipe"
+    }
+  ]
 });

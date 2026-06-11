@@ -40,7 +40,7 @@ jobs:
       - run: npm ci
 
       # Servera/shared vitest testi importē @domino-poker/shared (un core) no dist,
-      # tāpēc tos jābūvē pirms testiem (sk. ai_rules.md). Web/Next netiek būvēts.
+      # tāpēc tos jābūvē pirms testiem (sk. ai_rules.md).
       - run: npm run build --workspace packages/core --workspace packages/shared --workspace apps/server
 
       - run: npm run typecheck
@@ -55,3 +55,17 @@ jobs:
       - run: npm run test:postgres --workspace apps/server
         env:
           TEST_POSTGRES_DATABASE_URL: postgres://postgres:postgres@localhost:5432/domino_test
+
+      # Web production build: noķer Next build kļūdas un lietotājam redzamās regresijas,
+      # ko vitest neaptver. @domino-poker/shared+core jau uzbūvēti augstāk.
+      - run: npm run build --workspace apps/web
+
+      # Playwright e2e (single-player, layout, dialog-a11y, storage-resilience).
+      # SĀKUMĀ NON-BLOCKING (continue-on-error): ļauj svītai nostabilizēties CI vidē,
+      # nebloķējot merge; noņem `continue-on-error`, kad tā ir stabila.
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run test:web
+        continue-on-error: true
+        env:
+          CI: "true"
