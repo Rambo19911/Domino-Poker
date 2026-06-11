@@ -8,7 +8,9 @@ import {
   clientMessageSchema,
   maxIdentifierLength,
   maxChatTextLength,
-  parseClientMessage
+  parseClientMessage,
+  parseServerEvent,
+  parseServerEventFanout
 } from "../src/index.js";
 import type { RoomSummary, ServerEvent } from "../src/index.js";
 
@@ -213,5 +215,47 @@ describe("server event types", () => {
       "ERROR",
       "PONG"
     ]);
+  });
+});
+
+describe("server event runtime validation", () => {
+  it("accepts well-formed server events (envelope) across types", () => {
+    const valid: unknown[] = [
+      {
+        type: "WELCOME",
+        sessionId: "s1",
+        playerId: "c1",
+        displayId: "#1",
+        reconnectToken: "t",
+        serverNow: 1
+      },
+      { type: "STATE_SNAPSHOT", roomId: "r1", seq: 3, snapshot: { any: "shape" }, serverNow: 2 },
+      { type: "GAME_EVENT", roomId: "r1", seq: 4, event: { type: "TURN_STARTED" }, serverNow: 2 },
+      { type: "ERROR", code: "RATE_LIMITED", message: "slow" }
+    ];
+    for (const event of valid) {
+      expect(parseServerEvent(event).success).toBe(true);
+    }
+  });
+
+  it("rejects unknown types, missing scalar fields, and non-objects", () => {
+    expect(parseServerEvent({ type: "NONSENSE" }).success).toBe(false);
+    expect(parseServerEvent({ type: "WELCOME" }).success).toBe(false); // trūkst lauku
+    expect(parseServerEvent({ type: "STATE_SNAPSHOT", roomId: "r1", serverNow: 1 }).success).toBe(
+      false
+    ); // trūkst seq/snapshot
+    expect(parseServerEvent(null).success).toBe(false);
+    expect(parseServerEvent("string").success).toBe(false);
+  });
+
+  it("validates and rejects cross-instance fanout messages", () => {
+    expect(
+      parseServerEventFanout({
+        kind: "broadcast",
+        event: { type: "PONG", clientTime: 1, serverNow: 2 }
+      }).success
+    ).toBe(true);
+    expect(parseServerEventFanout({ kind: "player", playerId: "c1" }).success).toBe(false); // trūkst event
+    expect(parseServerEventFanout({ kind: "broadcast", event: { type: "X" } }).success).toBe(false);
   });
 });

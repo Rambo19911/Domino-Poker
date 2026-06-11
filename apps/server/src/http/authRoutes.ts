@@ -66,6 +66,11 @@ export interface AuthRoutesOptions {
    * `127.0.0.1:3000`) strādātu bez WEB_ORIGIN konfigurēšanas. Prod paliek strikts.
    */
   readonly dev: boolean;
+  /**
+   * Vai uzticēties `X-Forwarded-For` rate-limit IP atvasināšanai (no `config.trustProxy`).
+   * Ieslēgt TIKAI aiz uzticama reverse proxy; citādi header ir falsificējams.
+   */
+  readonly trustProxy: boolean;
 }
 
 export type AuthHandler = (
@@ -100,9 +105,16 @@ export function createAuthHandler(options: AuthRoutesOptions): AuthHandler {
 
     try {
       if (request.method === "POST" && path === "/auth/register") {
-        await handleRegister(request, response, options.auth, registerLimiter);
+        await handleRegister(request, response, options.auth, registerLimiter, options.trustProxy);
       } else if (request.method === "POST" && path === "/auth/login") {
-        await handleLogin(request, response, options.auth, loginIpLimiter, loginUserLimiter);
+        await handleLogin(
+          request,
+          response,
+          options.auth,
+          loginIpLimiter,
+          loginUserLimiter,
+          options.trustProxy
+        );
       } else if (request.method === "GET" && path === "/auth/me") {
         await handleMe(request, response, options.auth);
       } else if (request.method === "PATCH" && path === "/auth/me") {
@@ -110,11 +122,18 @@ export function createAuthHandler(options: AuthRoutesOptions): AuthHandler {
       } else if (request.method === "POST" && path === "/auth/logout") {
         await handleLogout(request, response, options.auth);
       } else if (request.method === "POST" && path === "/auth/forgot-password") {
-        await handleForgotPassword(request, response, options.auth, forgotIpLimiter, forgotEmailLimiter);
+        await handleForgotPassword(
+          request,
+          response,
+          options.auth,
+          forgotIpLimiter,
+          forgotEmailLimiter,
+          options.trustProxy
+        );
       } else if (request.method === "POST" && path === "/auth/reset-password") {
-        await handleResetPassword(request, response, options.auth, resetIpLimiter);
+        await handleResetPassword(request, response, options.auth, resetIpLimiter, options.trustProxy);
       } else if (request.method === "POST" && path === "/auth/avatar") {
-        await handleAvatarUpload(request, response, options.auth, avatarLimiter);
+        await handleAvatarUpload(request, response, options.auth, avatarLimiter, options.trustProxy);
       } else if (request.method === "GET" && path.startsWith("/auth/avatar/")) {
         await handleAvatarFetch(response, options.auth, path.slice("/auth/avatar/".length));
       } else {
@@ -134,9 +153,10 @@ async function handleRegister(
   request: IncomingMessage,
   response: ServerResponse,
   auth: AuthService,
-  limiter: RateLimiter
+  limiter: RateLimiter,
+  trustProxy: boolean
 ): Promise<void> {
-  if (!limiter.check(clientIp(request))) {
+  if (!limiter.check(clientIp(request, trustProxy))) {
     writeJson(response, 429, { error: "rate_limited" });
     return;
   }
@@ -163,9 +183,10 @@ async function handleLogin(
   response: ServerResponse,
   auth: AuthService,
   ipLimiter: RateLimiter,
-  userLimiter: RateLimiter
+  userLimiter: RateLimiter,
+  trustProxy: boolean
 ): Promise<void> {
-  if (!ipLimiter.check(clientIp(request))) {
+  if (!ipLimiter.check(clientIp(request, trustProxy))) {
     writeJson(response, 429, { error: "rate_limited" });
     return;
   }
@@ -253,14 +274,15 @@ async function handleForgotPassword(
   response: ServerResponse,
   auth: AuthService,
   ipLimiter: RateLimiter,
-  emailLimiter: RateLimiter
+  emailLimiter: RateLimiter,
+  trustProxy: boolean
 ): Promise<void> {
   // Ja funkcija nav konfigurēta (nav e-pasta sendera) → 503; klients UI to slēpj.
   if (!auth.isPasswordResetEnabled()) {
     writeJson(response, 503, { error: "unavailable" });
     return;
   }
-  if (!ipLimiter.check(clientIp(request))) {
+  if (!ipLimiter.check(clientIp(request, trustProxy))) {
     writeJson(response, 429, { error: "rate_limited" });
     return;
   }
@@ -287,13 +309,14 @@ async function handleResetPassword(
   request: IncomingMessage,
   response: ServerResponse,
   auth: AuthService,
-  ipLimiter: RateLimiter
+  ipLimiter: RateLimiter,
+  trustProxy: boolean
 ): Promise<void> {
   if (!auth.isPasswordResetEnabled()) {
     writeJson(response, 503, { error: "unavailable" });
     return;
   }
-  if (!ipLimiter.check(clientIp(request))) {
+  if (!ipLimiter.check(clientIp(request, trustProxy))) {
     writeJson(response, 429, { error: "rate_limited" });
     return;
   }
@@ -337,7 +360,8 @@ async function handleAvatarUpload(
   request: IncomingMessage,
   response: ServerResponse,
   auth: AuthService,
-  limiter: RateLimiter
+  limiter: RateLimiter,
+  trustProxy: boolean
 ): Promise<void> {
   // Tikai autentificēts lietotājs maina SAVU avataru (identitāte no tokena).
   const token = bearerToken(request);
@@ -346,7 +370,7 @@ async function handleAvatarUpload(
     writeJson(response, 401, { error: "unauthorized" });
     return;
   }
-  if (!limiter.check(clientIp(request))) {
+  if (!limiter.check(clientIp(request, trustProxy))) {
     writeJson(response, 429, { error: "rate_limited" });
     return;
   }
@@ -430,13 +454,16 @@ function bearerToken(request: IncomingMessage): string | undefined {
 
 /**
  * Klienta IP rate-limit atslēgai. `X-Forwarded-For` pirmais hops tiek lietots TIKAI
- * aiz uzticama reverse proxy (prod = Caddy); citādi tas ir falsificējams. Dev tiešā
- * savienojumā `remoteAddress`.
+ * tad, ja `trustProxy` ir ieslēgts (serveris aiz uzticama reverse proxy, piem. Caddy/
+ * Nginx); citādi headeris ir falsificējams un rate-limit būtu apejams, tāpēc lietojam
+ * `socket.remoteAddress` (tiešā savienojuma adrese).
  */
-function clientIp(request: IncomingMessage): string {
-  const forwarded = request.headers["x-forwarded-for"];
-  if (typeof forwarded === "string" && forwarded.length > 0) {
-    return forwarded.split(",")[0]!.trim();
+function clientIp(request: IncomingMessage, trustProxy: boolean): string {
+  if (trustProxy) {
+    const forwarded = request.headers["x-forwarded-for"];
+    if (typeof forwarded === "string" && forwarded.length > 0) {
+      return forwarded.split(",")[0]!.trim();
+    }
   }
   return request.socket.remoteAddress ?? "unknown";
 }

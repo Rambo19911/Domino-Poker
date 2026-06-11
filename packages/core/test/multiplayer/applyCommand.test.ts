@@ -236,6 +236,28 @@ describe("applyCommand", () => {
     ]);
   });
 
+  it("rejects START_TURN when a turn is already active", () => {
+    const state = createGame();
+    const withTurn = startTurnForCurrentPlayer(state, "SUBMIT_BID", "turn-1");
+    const result = applyCommand(withTurn, {
+      type: "START_TURN",
+      gameId: "game-1",
+      requestId: "request-double-start",
+      turnId: "turn-2",
+      now: 2000
+    });
+
+    expect(result.nextState).toBe(withTurn);
+    expect(result.nextState?.currentTurn?.turnId).toBe("turn-1");
+    expect(result.events).toEqual([]);
+    expect(result.errors).toEqual([
+      {
+        code: "turn_already_active",
+        message: "START_TURN is not allowed while a turn is already active."
+      }
+    ]);
+  });
+
   it("keeps state unchanged for REQUEST_SNAPSHOT", () => {
     const state = createGame();
     const result = applyCommand(state, {

@@ -1,19 +1,8 @@
-import type { ServerEvent } from "@domino-poker/shared";
+import type { ServerEventFanoutMessage } from "@domino-poker/shared";
 
-export type ServerEventFanoutMessage =
-  | {
-      readonly kind: "broadcast";
-      readonly event: ServerEvent;
-    }
-  | {
-      readonly kind: "player";
-      readonly playerId: string;
-      readonly event: ServerEvent;
-    }
-  | {
-      readonly kind: "supersede";
-      readonly playerId: string;
-    };
+// Transporta līgums dzīvo `shared` (sk. serverEvents.ts); re-eksportējam, lai esošie
+// `./ServerEventBus.js` importi turpina strādāt bez izmaiņām.
+export type { ServerEventFanoutMessage };
 
 export interface ServerEventBus {
   publish(message: ServerEventFanoutMessage): Promise<void>;

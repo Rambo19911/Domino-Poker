@@ -52,6 +52,12 @@ export interface ServerConfig {
    * atdalīts). Noklusējums dev Next.js izcelsme. NEKAD `*` (drošības standarts).
    */
   webOrigins: readonly string[];
+  /**
+   * Vai uzticēties `X-Forwarded-For` headerim rate-limit IP atvasināšanai
+   * (`TRUST_PROXY`; noklusējums `false`). Ieslēgt TIKAI aiz uzticama reverse proxy
+   * (prod = Caddy/Nginx). Atslēgts → IP nāk no `socket.remoteAddress` (nefalsificējams).
+   */
+  trustProxy: boolean;
   /** Paroles atjaunošanas e-pasta konfigurācija (Fāze 5). */
   email: EmailConfig;
 }
@@ -103,12 +109,22 @@ export function loadServerConfig(
       )
     },
     webOrigins: readOrigins(env.WEB_ORIGIN ?? fileEnv.WEB_ORIGIN),
+    trustProxy: readBool(env.TRUST_PROXY ?? fileEnv.TRUST_PROXY),
     email: {
       resendApiKey: readOptional(env.RESEND_API_KEY ?? fileEnv.RESEND_API_KEY),
       from: readOptional(env.EMAIL_FROM ?? fileEnv.EMAIL_FROM),
       appBaseUrl: readNonEmpty(env.APP_BASE_URL ?? fileEnv.APP_BASE_URL, DEFAULT_WEB_ORIGIN)
     }
   };
+}
+
+/** Būla karogs no env: `true`/`1` (case-insensitive) → `true`; viss cits → `false`. */
+function readBool(value: string | undefined): boolean {
+  if (value === undefined) {
+    return false;
+  }
+  const normalized = value.trim().toLowerCase();
+  return normalized === "true" || normalized === "1";
 }
 
 /** Trimota vērtība vai `undefined`, ja tukša/nav (opcionāli secrets/konfigurācija). */

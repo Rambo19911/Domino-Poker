@@ -12,6 +12,9 @@ tavs-domens.lv {
 
     # Opcionālā autentifikācija + paroles atjaunošana: /auth/* -> MP serveris.
     # (Klients atvasina HTTP bāzi no WS URL, tāpēc /auth iet uz to pašu domēnu.)
+    # SVARĪGI: lai auth rate-limit redzētu īsto klienta IP (nevis 127.0.0.1), serverim
+    # jāuzstāda TRUST_PROXY=true — tikai tad X-Forwarded-For tiek uzticēts. Caddy XFF
+    # uzstāda automātiski.
     reverse_proxy /auth/* 127.0.0.1:4000
 
     # (pēc izvēles) metrikas tikai lokāli:

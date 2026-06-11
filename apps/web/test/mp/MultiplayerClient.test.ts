@@ -1,5 +1,5 @@
 import type { ServerEvent } from "@domino-poker/shared";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ClientView } from "../../lib/mp/clientView";
 import {
@@ -304,6 +304,61 @@ describe("MultiplayerClient liveness + recovery (8.1)", () => {
       { type: "REQUEST_SNAPSHOT", roomId: "room-1", lastSeq: 5 },
       { type: "REQUEST_SNAPSHOT", roomId: "room-1", lastSeq: 12 }
     ]);
+  });
+});
+
+describe("MultiplayerClient server-event validation (boundary)", () => {
+  it("drops a malformed server event without breaking the view", () => {
+    const { client, sockets } = buildHarness();
+    client.connect();
+    sockets[0]!.open();
+    welcomeEmit(sockets[0]!);
+    expect(client.getView().connection).toBe("connected");
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    // WELCOME ar iztrūkstošiem obligātajiem laukiem + pilnīgi nederīgs kadrs.
+    sockets[0]!.handlers.onMessage(JSON.stringify({ type: "WELCOME" }));
+    sockets[0]!.handlers.onMessage(JSON.stringify({ type: "NONSENSE", foo: 1 }));
+    sockets[0]!.handlers.onMessage("{ not json");
+
+    // View paliek nesalauzts (joprojām connected, identitāte saglabāta).
+    expect(client.getView().connection).toBe("connected");
+    expect(client.getView().identity?.displayId).toBe("#00001");
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("still applies a valid event after dropping an invalid one", () => {
+    const { client, sockets } = buildHarness();
+    client.connect();
+    sockets[0]!.open();
+    welcomeEmit(sockets[0]!);
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    sockets[0]!.handlers.onMessage(JSON.stringify({ type: "STATE_SNAPSHOT" })); // nederīgs
+    sockets[0]!.emit({ type: "ROOM_JOINED", room: roomView("room-1") }); // derīgs
+
+    expect(client.getView().room?.id).toBe("room-1");
+    warn.mockRestore();
+  });
+
+  it("re-requests a snapshot if an invalid event arrives mid-recovery (no wedge)", () => {
+    const { client, sockets } = buildHarness();
+    client.connect();
+    sockets[0]!.open();
+    welcomeEmit(sockets[0]!);
+    sockets[0]!.emit({ type: "ROOM_JOINED", room: roomView("room-1") });
+    sockets[0]!.emit(turnStarted(5, "turn-1"));
+    sockets[0]!.emit(turnStarted(9, "turn-2")); // robs → snapshot pieprasīts (recovery sākts)
+    expect(snapshotRequests(sockets[0]!).length).toBe(1);
+
+    // Recovery events ir bojāts → nomests. Bez atbloķēšanas snapshotRequest paliktu
+    // iestrēdzis un klients nekad neatgūtos.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    sockets[0]!.handlers.onMessage(JSON.stringify({ type: "GAME_EVENT" })); // nederīgs
+
+    expect(snapshotRequests(sockets[0]!).length).toBe(2); // recovery atkārtoti pieprasīts
+    warn.mockRestore();
   });
 });
 

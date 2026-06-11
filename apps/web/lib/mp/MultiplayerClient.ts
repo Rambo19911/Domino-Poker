@@ -1,4 +1,5 @@
 import {
+  parseServerEvent,
   PROTOCOL_VERSION,
   type ClientMessage,
   type RoomVisibility,
@@ -236,16 +237,28 @@ export class MultiplayerClient {
   }
 
   private handleMessage(data: string): void {
-    let event: ServerEvent;
+    let json: unknown;
     try {
-      event = JSON.parse(data) as ServerEvent;
+      json = JSON.parse(data);
     } catch {
       return;
     }
-    if (event === null || typeof event.type !== "string") {
+    // Runtime validācija servera boundary: vecs/bojāts/nesaderīgs events nedrīkst
+    // salauzt klienta state. Nederīgu nometam ar warning (klients atgūstas caur
+    // REQUEST_SNAPSHOT seq-robu), nevis padodam to reducer kā ServerEvent.
+    const parsed = parseServerEvent(json);
+    if (!parsed.success) {
+      console.warn("[mp] dropped invalid server event");
+      // Ja bijām snapshot atgūšanas vidū, nomestais events varēja būt tieši gaidītais
+      // recovery events — citādi `snapshotRequest` paliktu iestrēdzis un `requestSnapshot`
+      // mūžīgi early-return. Atbloķējam un pieprasām snapshot no pēdējā labā seq.
+      if (this.snapshotRequest !== undefined) {
+        this.snapshotRequest = undefined;
+        this.requestSnapshot(this.view.game.seq);
+      }
       return;
     }
-    this.applyEvent(event);
+    this.applyEvent(parsed.event);
   }
 
   private applyEvent(event: ServerEvent): void {

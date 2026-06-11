@@ -18,7 +18,13 @@ describe("auth HTTP routes (integration)", () => {
     storage = new SqliteStorage({ filename: ":memory:" });
     const auth = new AuthService({ store: storage, clock: () => Date.now() });
     server = createHealthHttpServer({
-      authHandler: createAuthHandler({ auth, webOrigins: [ORIGIN], clock: () => Date.now(), dev: true })
+      authHandler: createAuthHandler({
+        auth,
+        webOrigins: [ORIGIN],
+        clock: () => Date.now(),
+        dev: true,
+        trustProxy: false
+      })
     });
     await new Promise<void>((resolve) => server.listen(0, resolve));
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -73,6 +79,26 @@ describe("auth HTTP routes (integration)", () => {
 
     const bad = await post("/auth/register", { username: "ab", password: "secret123", email: "ab@x.co" });
     expect(bad.status).toBe(400);
+  });
+
+  it("ignores spoofed X-Forwarded-For for rate limiting when trustProxy is off", async () => {
+    // Register limits = 5/h uz IP. Ar trustProxy=false visi pieprasījumi no 127.0.0.1
+    // dalās VIENU IP atslēgu neatkarīgi no falsificēta X-Forwarded-For → 6. tiek bloķēts.
+    const register = (n: number): Promise<Response> =>
+      fetch(`${base}/auth/register`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-forwarded-for": `203.0.113.${n}` // katram cits "klients" (falsificēts)
+        },
+        body: JSON.stringify({ username: `User${n}`, password: "secret123", email: `u${n}@x.co` })
+      });
+
+    for (let n = 1; n <= 5; n += 1) {
+      expect((await register(n)).status).toBe(200);
+    }
+    // 6. pieprasījums ar vēl citu spoofotu IP — joprojām bloķēts, jo XFF tiek ignorēts.
+    expect((await register(6)).status).toBe(429);
   });
 
   it("logs in and rejects wrong credentials", async () => {

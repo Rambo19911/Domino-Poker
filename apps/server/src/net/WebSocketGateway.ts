@@ -407,6 +407,17 @@ export class WebSocketGateway implements GatewayHub {
     result: RegisterResult,
     auth: ResolvedAuthInfo | undefined
   ): void {
+    // Savienojums varēja aizvērties async auth/register laikā (close → teardown).
+    // Tad konteksts vairs nav reģistrēts (vai ir `disconnected`) — neturpinām handshake
+    // uz mirušu socketu, citādi rastos "zombie" sesija (lobby dalībnieks / aktīvs
+    // SessionManager savienojums bez dzīva socketa). Pilnībā atritinām async reģistrāciju.
+    if (this.contexts.get(ctx.conn.id) !== ctx || ctx.state !== "connected") {
+      if (result.ok) {
+        this.cleanupAbortedHandshake(ctx, result);
+      }
+      return;
+    }
+
     if (!result.ok) {
       // reconnectToken nesakrīt ar zināmo clientId → noraidām (neuzdodas par citu).
       ctx.conn.send(errorEvent("FORBIDDEN", "Reconnect token does not match this client."));
@@ -452,6 +463,44 @@ export class WebSocketGateway implements GatewayHub {
     );
 
     // Viens aktīvs socket: aizveram veco savienojumu, ja šis clientId jau bija tiešsaistē.
+    if (result.replacedConnectionId !== undefined) {
+      const replaced = this.contexts.get(result.replacedConnectionId);
+      if (replaced) {
+        this.teardown(replaced, {
+          closeSocket: true,
+          code: GATEWAY_CLOSE.superseded,
+          reason: "superseded by a newer connection"
+        });
+      }
+    }
+  }
+
+  /**
+   * Atritina to, ko async HELLO reģistrācija paguva izdarīt, kad socket aizvērās
+   * pirms `completeHello`. Trīs daļas, lai nepaliek ne zombie sesija, ne noplūdis
+   * durable token, ne orfans aizstātais savienojums:
+   *  1) noņem (async) reģistrēto savienojumu no aktīvajiem;
+   *  2) ja sesija bija SVAIGA (ne reconnect), atbrīvo tās durable token/displayId —
+   *     citādi tas pats `clientId` nākotnē saņemtu `token_mismatch` (lockout);
+   *  3) ja HELLO aizstāja esošu savienojumu, noārda to (bind to jau izņēma no
+   *     SessionManager, bet tā socket var būt vēl dzīvs).
+   */
+  private cleanupAbortedHandshake(
+    ctx: ConnectionContext,
+    result: Extract<RegisterResult, { readonly ok: true }>
+  ): void {
+    this.sessions.unregister(ctx.conn.id);
+    if (!result.isReconnect) {
+      const released = this.sessions.release(result.identity.playerId);
+      if (isPromiseLike(released)) {
+        void released.catch((error: unknown) => {
+          console.error(
+            `[sessions] failed to release aborted session for ${result.identity.playerId}:`,
+            error
+          );
+        });
+      }
+    }
     if (result.replacedConnectionId !== undefined) {
       const replaced = this.contexts.get(result.replacedConnectionId);
       if (replaced) {

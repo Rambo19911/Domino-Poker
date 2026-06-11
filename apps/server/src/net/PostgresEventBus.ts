@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 
 import { Client, Pool, type QueryResult, type QueryResultRow } from "pg";
 
+import { parseServerEventFanout } from "@domino-poker/shared";
+
 import { runMigrations } from "../storage/migrations.js";
 import type { PgPoolOptions, PoolStats } from "../storage/PostgresStorage.js";
 import type { ServerEventBus, ServerEventFanoutMessage } from "./ServerEventBus.js";
@@ -277,7 +279,24 @@ export class PostgresEventBus implements ServerEventBus {
       return;
     }
     this.rememberDeliveredEventId(eventId);
-    this.handler(parseJsonValue<ServerEventFanoutMessage>(row.message_json));
+    const message = this.decodeFanout(row.message_json);
+    if (message !== undefined) {
+      this.handler(message);
+    }
+  }
+
+  /**
+   * Validē cross-instance fanout payload pirms apstrādes: cita (varbūt vecāka vai
+   * nesaderīga) instances ierakstīts JSON nedrīkst neapstrādāti nonākt klientos.
+   * Nederīgu nometam ar warning, nevis ļaujam salauzt fanout plūsmu.
+   */
+  private decodeFanout(raw: unknown): ServerEventFanoutMessage | undefined {
+    const parsed = parseServerEventFanout(parseJsonValue<unknown>(raw));
+    if (!parsed.success) {
+      this.logger.error("[postgres-event-bus] dropped invalid fanout message");
+      return undefined;
+    }
+    return parsed.message;
   }
 
   private async catchUpMissedFanout(since: number): Promise<void> {
@@ -300,7 +319,10 @@ export class PostgresEventBus implements ServerEventBus {
         continue;
       }
       this.rememberDeliveredEventId(row.event_id);
-      this.handler(parseJsonValue<ServerEventFanoutMessage>(row.message_json));
+      const message = this.decodeFanout(row.message_json);
+      if (message !== undefined) {
+        this.handler(message);
+      }
     }
   }
 

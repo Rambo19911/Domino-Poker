@@ -14,6 +14,7 @@ describe("loadServerConfig", () => {
       turnDurationMs: 10_000,
       pg: { max: 10, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 0 },
       webOrigins: ["http://localhost:3000"],
+      trustProxy: false,
       email: { resendApiKey: undefined, from: undefined, appBaseUrl: "http://localhost:3000" }
     });
   });
@@ -37,8 +38,17 @@ describe("loadServerConfig", () => {
       turnDurationMs: 5000,
       pg: { max: 10, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 0 },
       webOrigins: ["http://localhost:3000"],
+      trustProxy: false,
       email: { resendApiKey: undefined, from: undefined, appBaseUrl: "http://localhost:3000" }
     });
+  });
+
+  it("parses TRUST_PROXY as a boolean flag (true/1 → true; else false)", () => {
+    expect(loadServerConfig({ TRUST_PROXY: "true" }, missingEnvPath).trustProxy).toBe(true);
+    expect(loadServerConfig({ TRUST_PROXY: "1" }, missingEnvPath).trustProxy).toBe(true);
+    expect(loadServerConfig({ TRUST_PROXY: "false" }, missingEnvPath).trustProxy).toBe(false);
+    expect(loadServerConfig({ TRUST_PROXY: "yes" }, missingEnvPath).trustProxy).toBe(false);
+    expect(loadServerConfig({}, missingEnvPath).trustProxy).toBe(false);
   });
 
   it("reads password-reset email config (Resend key, from, base URL)", () => {

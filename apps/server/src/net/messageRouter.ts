@@ -622,8 +622,10 @@ export class CoreMessageRouter implements MessageRouter {
       const roomId = this.rooms.roomOf(identity.playerId);
       if (roomId === undefined) return;
       this.maybeScheduleAbandonForRoom(hub, roomId);
-    } catch {
-      // Best-effort: atvienojuma apstrāde nedrīkst sabrukt.
+    } catch (error) {
+      // Best-effort: atvienojuma apstrāde nedrīkst sabrukt. ROOM_NOT_FOUND ir gaidīts
+      // (istaba pa to laiku pazuda); citas kļūdas ir negaidītas → padarām redzamas.
+      logUnexpectedBestEffort(error, "maybeScheduleAbandon", identity.playerId);
     }
   }
 
@@ -651,8 +653,11 @@ export class CoreMessageRouter implements MessageRouter {
       this.rooms.destroyRoom(roomId);
       this.releaseRoomLease(roomId);
       this.pushLobbyState(hub);
-    } catch {
-      // Istaba jau iznīcināta (piem. spēle beidzās) — nekas nav jādara.
+    } catch (error) {
+      // Best-effort: ROOM_NOT_FOUND nozīmē, ka istaba jau iznīcināta (piem. spēle
+      // beidzās) — gaidīts, nekas nav jādara. Citas kļūdas (destroyRoom/pushLobbyState)
+      // ir negaidītas → padarām redzamas operatoram.
+      logUnexpectedBestEffort(error, "destroyAbandonedRoom", roomId);
     }
   }
 
@@ -924,6 +929,19 @@ function toProtocolErrorCode(code: LobbyErrorCode): ProtocolErrorCode {
 
 function assertNever(value: never): never {
   throw new Error(`Unhandled lobby error code: ${String(value)}`);
+}
+
+/**
+ * Best-effort istabas dzīves cikla ceļiem: gaidīto `ROOM_NOT_FOUND` (istaba jau
+ * pazudusi) klusē, bet padara negaidītas kļūdas redzamas ar kontekstu (operācija +
+ * room/player id), lai produkcijas incidentus var izsekot. NEKAD nepārmet tālāk —
+ * šie ceļi (atvienojums/teardown) nedrīkst sabrukt.
+ */
+function logUnexpectedBestEffort(error: unknown, operation: string, contextId: string): void {
+  if (error instanceof LobbyError && error.code === "ROOM_NOT_FOUND") {
+    return;
+  }
+  console.error(`[room-lifecycle] ${operation} failed for ${contextId}:`, error);
 }
 
 /** Kartē core gājiena/solījuma kļūdas kodu uz publisko `ProtocolErrorCode`. */

@@ -168,7 +168,8 @@ const server = createHealthHttpServer({
           auth: authService,
           webOrigins: config.webOrigins,
           clock,
-          dev: config.nodeEnv !== "production"
+          dev: config.nodeEnv !== "production",
+          trustProxy: config.trustProxy
         })
       }
     : {}),

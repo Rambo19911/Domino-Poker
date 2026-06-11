@@ -441,6 +441,17 @@ function applyStartTurn(
     return fail(state, "invalid_now", "START_TURN requires a finite injected now value.");
   }
 
+  // State machine aizsargā savu invariantu: ja turns jau aktīvs, dubults START_TURN
+  // pārrakstītu deadline/turnId un palaistu paralēlu taimeri. Atsakām te, nevis
+  // paļaujamies uz ārējo routing disciplīnu.
+  if (state.currentTurn !== undefined) {
+    return fail(
+      state,
+      "turn_already_active",
+      "START_TURN is not allowed while a turn is already active."
+    );
+  }
+
   const currentPlayer = state.coreState.players[state.coreState.currentPlayerIndex];
   if (!currentPlayer) {
     return fail(state, "wrong_player", "START_TURN requires an existing current player.");
