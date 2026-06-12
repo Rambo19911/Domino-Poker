@@ -1,3 +1,5 @@
+import { DatabaseSync } from "node:sqlite";
+
 import type { MultiplayerEvent } from "@domino-poker/core/multiplayer";
 import type { ChatMessage } from "@domino-poker/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -198,5 +200,43 @@ describe("SqliteStorage persistence across reopen", () => {
     const recent = await second.loadRecentChatMessages(10);
     expect(recent.map((message) => message.id)).toEqual(["persisted-1", "persisted-2"]);
     await second.close();
+  });
+});
+
+describe("SqliteStorage schema version tracking", () => {
+  const tmpFile = `./data/test-migrate-${process.pid}-${Math.floor(performance.now())}.sqlite`;
+
+  afterEach(async () => {
+    const { rmSync } = await import("node:fs");
+    for (const suffix of ["", "-wal", "-shm"]) {
+      rmSync(`${tmpFile}${suffix}`, { force: true });
+    }
+  });
+
+  function recordedMigrations(): string[] {
+    const db = new DatabaseSync(tmpFile);
+    const rows = db.prepare(`SELECT id FROM schema_migrations ORDER BY id`).all() as Array<{
+      readonly id: string;
+    }>;
+    db.close();
+    return rows.map((row) => row.id);
+  }
+
+  it("records every migration id on fresh boot and re-running is idempotent", async () => {
+    const first = new SqliteStorage({ filename: tmpFile });
+    await first.close();
+
+    expect(recordedMigrations()).toEqual([
+      "0001_initial_schema",
+      "0002_auth_schema",
+      "0003_user_stats",
+      "0004_password_reset_tokens",
+      "0005_custom_avatars"
+    ]);
+
+    // Reopen: nepiemēro neko atkārtoti (joprojām tieši 5 rindas).
+    const second = new SqliteStorage({ filename: tmpFile });
+    await second.close();
+    expect(recordedMigrations()).toHaveLength(5);
   });
 });

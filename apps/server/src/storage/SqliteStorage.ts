@@ -27,6 +27,7 @@ import type {
   UpdateProfileResult,
   UserRecord
 } from "../auth/AuthStore.js";
+import { buildMigrations } from "./schema.js";
 
 export interface SqliteStorageOptions {
   /**
@@ -60,106 +61,38 @@ export class SqliteStorage implements StoragePort, AuthStore {
     this.migrate();
   }
 
+  /**
+   * Forward-only migrāciju runner ar versiju izsekošanu (`schema_migrations`),
+   * paralēli PostgreSQL `runMigrations`. DDL nāk no kopīgā `schema.ts`
+   * (`buildMigrations("sqlite")`) — viens DDL avots abiem dialektiem.
+   *
+   * **Adopcija (drošs jau eksistējošām dev DB):** visi `CREATE` ir `IF NOT EXISTS`,
+   * tāpēc, ja vecāks dev `.sqlite` fails jau satur tabulas, bet vēl bez
+   * `schema_migrations` rindām, runner "piemēro" katru migrāciju (faktiski no-op)
+   * un to ierakstā. Tā ir bāzlīnijas adopcija, NE shēmas validācija (esošs inline
+   * `migrate()` arī nelaboja drift).
+   */
   private migrate(): void {
     this.db.exec(`
-      CREATE TABLE IF NOT EXISTS matches (
-        match_id         TEXT PRIMARY KEY,
-        seed             TEXT NOT NULL,
-        number_of_rounds INTEGER NOT NULL,
-        players_json     TEXT NOT NULL,
-        started_at       INTEGER NOT NULL,
-        finished_at      INTEGER,
-        winner_player_id TEXT
-      );
-
-      CREATE TABLE IF NOT EXISTS match_events (
-        match_id   TEXT NOT NULL,
-        seq        INTEGER NOT NULL,
-        event_json TEXT NOT NULL,
-        PRIMARY KEY (match_id, seq)
-      );
-
-      CREATE TABLE IF NOT EXISTS player_stats (
-        player_id     TEXT PRIMARY KEY,
-        games_played  INTEGER NOT NULL,
-        games_won     INTEGER NOT NULL,
-        updated_at    INTEGER NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS chat_messages (
-        id                TEXT PRIMARY KEY,
-        author_display_id TEXT NOT NULL,
-        text              TEXT NOT NULL,
-        server_now        INTEGER NOT NULL
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_matches_started_at ON matches (started_at);
-
-      CREATE TABLE IF NOT EXISTS users (
-        id            TEXT PRIMARY KEY,
-        username      TEXT NOT NULL,
-        username_norm TEXT NOT NULL UNIQUE,
-        email         TEXT,
-        email_norm    TEXT,
-        password_hash TEXT NOT NULL,
-        avatar        TEXT NOT NULL,
-        created_at    INTEGER NOT NULL,
-        updated_at    INTEGER NOT NULL
-      );
-
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_norm
-        ON users (email_norm) WHERE email_norm IS NOT NULL;
-
-      CREATE TABLE IF NOT EXISTS auth_tokens (
-        token_hash   TEXT PRIMARY KEY,
-        user_id      TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-        created_at   INTEGER NOT NULL,
-        last_used_at INTEGER NOT NULL,
-        expires_at   INTEGER NOT NULL
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_auth_tokens_user_id ON auth_tokens (user_id);
-      CREATE INDEX IF NOT EXISTS idx_auth_tokens_expires_at ON auth_tokens (expires_at);
-
-      CREATE TABLE IF NOT EXISTS user_stats (
-        user_id      TEXT PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
-        games_played INTEGER NOT NULL DEFAULT 0,
-        wins         INTEGER NOT NULL DEFAULT 0,
-        losses       INTEGER NOT NULL DEFAULT 0,
-        updated_at   INTEGER NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS match_user_outcomes (
-        match_id    TEXT NOT NULL,
-        user_id     TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-        outcome     TEXT NOT NULL CHECK (outcome IN ('win', 'lose')),
-        recorded_at INTEGER NOT NULL,
-        PRIMARY KEY (match_id, user_id)
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_match_user_outcomes_user_id
-        ON match_user_outcomes (user_id);
-
-      CREATE TABLE IF NOT EXISTS password_reset_tokens (
-        token_hash TEXT PRIMARY KEY,
-        user_id    TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-        created_at INTEGER NOT NULL,
-        expires_at INTEGER NOT NULL,
-        used_at    INTEGER
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id
-        ON password_reset_tokens (user_id);
-      CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_expires_at
-        ON password_reset_tokens (expires_at);
-
-      CREATE TABLE IF NOT EXISTS user_avatars (
-        user_id      TEXT PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
-        content_type TEXT NOT NULL,
-        bytes        BLOB NOT NULL,
-        updated_at   INTEGER NOT NULL
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        id         TEXT PRIMARY KEY,
+        applied_at INTEGER NOT NULL
       );
     `);
+    const appliedRows = this.db.prepare(`SELECT id FROM schema_migrations`).all() as Array<{
+      readonly id: string;
+    }>;
+    const applied = new Set(appliedRows.map((row) => row.id));
+    const insertApplied = this.db.prepare(
+      `INSERT OR IGNORE INTO schema_migrations (id, applied_at) VALUES (?, ?)`
+    );
+    for (const migration of buildMigrations("sqlite")) {
+      if (applied.has(migration.id)) {
+        continue;
+      }
+      this.db.exec(migration.up);
+      insertApplied.run(migration.id, Date.now());
+    }
   }
 
   async saveMatchStarted(match: MatchStartedRecord): Promise<void> {

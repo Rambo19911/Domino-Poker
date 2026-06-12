@@ -43,6 +43,7 @@
 - Test: `npm run test`
 - Optional real PostgreSQL integration tests: run `npm run test:postgres:docker` for a disposable Docker PostgreSQL database, or set `TEST_POSTGRES_DATABASE_URL` and run `npm run test:postgres --workspace apps/server` against an existing disposable database. The specs create/drop their own schemas and are skipped in the normal suite when the env var is absent.
 - PostgreSQL migrations (build first): `npm run migrate --workspace apps/server` (runs `dist/storage/migrate.js`). PostgreSQL-only; against a SQLite/`:memory:` `DATABASE_URL` it is a logged no-op. The server also migrates on startup (`PostgresStorage.open`), so this standalone command is an optional pre-deploy step, not the only path.
+- Storage schema DDL has ONE source: `apps/server/src/storage/schema.ts` (`buildMigrations(dialect)`); migration ids 0001..0005 are production identity — append new migrations at the end, never renumber/reorder, and keep edits type-token-level only (no ORM/DSL). Both backends version-track via `schema_migrations` (PG: `migrations.ts` runner; SQLite: runner inside `SqliteStorage.migrate()`). When changing `StoragePort` behavior, extend the parametrized contract suite `apps/server/test/storage/storageContract.ts` so both backends stay provably identical.
 - Web smoke tests: `npm run test:web`
 - Build: `npm run build`
 - Dev server: `npm run dev`

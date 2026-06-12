@@ -2,7 +2,7 @@ import { Client, Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { PostgresStorage } from "../../src/storage/PostgresStorage.js";
-import { runMigrations } from "../../src/storage/migrations.js";
+import { MIGRATIONS, runMigrations } from "../../src/storage/migrations.js";
 
 const postgresUrl = process.env.TEST_POSTGRES_DATABASE_URL?.trim();
 const describeIfPostgres = postgresUrl ? describe : describe.skip;
@@ -146,10 +146,13 @@ describeIfPostgres("PostgresStorage integration", () => {
     await expect(storage.getRoomLease("room-1")).resolves.toBeUndefined();
   });
 
-  it("records the consolidated baseline and re-running migrations is idempotent", async () => {
+  it("records every baseline migration and re-running migrations is idempotent", async () => {
     const table = `${quoteIdentifier(schemaName)}.schema_migrations`;
-    const recorded = await client.query<{ readonly id: string }>(`SELECT id FROM ${table}`);
-    expect(recorded.rows.map((row) => row.id)).toEqual(["0001_initial_schema"]);
+    const recorded = await client.query<{ readonly id: string }>(
+      `SELECT id FROM ${table} ORDER BY id`
+    );
+    // Atvēršana piemēro VISAS migrācijas (0001..0005) un ieraksta tās schema_migrations.
+    expect(recorded.rows.map((row) => row.id)).toEqual(MIGRATIONS.map((migration) => migration.id));
 
     const pool = new Pool({ connectionString: withSearchPath(postgresUrl!, schemaName) });
     try {
@@ -161,7 +164,7 @@ describeIfPostgres("PostgresStorage integration", () => {
     const after = await client.query<{ readonly count: string }>(
       `SELECT count(*) AS count FROM ${table}`
     );
-    expect(Number(after.rows[0]?.count)).toBe(1);
+    expect(Number(after.rows[0]?.count)).toBe(MIGRATIONS.length);
   });
 
   it("reports DB health, pool stats, fanout backlog, and table sizes", async () => {

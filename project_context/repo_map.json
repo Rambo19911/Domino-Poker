@@ -401,11 +401,24 @@
   {
     "path": "apps/server/src/storage/migrations.ts",
     "type": "service",
-    "purpose": "PostgreSQL migration source of truth, including auth and user stats schemas.",
+    "purpose": "PostgreSQL forward-only migration runner (schema_migrations tracking). DDL itself comes from schema.ts (MIGRATIONS = buildMigrations('pg')).",
     "importance": "high",
     "related_files": [
-      "apps/server/src/storage/StoragePort.ts",
-      "apps/server/src/index.ts"
+      "apps/server/src/storage/schema.ts",
+      "apps/server/src/storage/PostgresStorage.ts",
+      "apps/server/src/storage/migrate.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/storage/schema.ts",
+    "type": "database",
+    "purpose": "Single DDL source for BOTH dialects: buildMigrations('pg'|'sqlite') renders the 5 stable migrations (0001..0005) with type-token substitution only (BIGINT/INTEGER, JSONB/TEXT, BYTEA/BLOB); PG-only tables (player_sessions/room_leases/server_event_fanout) render only for pg. Deliberately dumb — NOT an ORM; migration ids are prod identity, never renumber.",
+    "importance": "critical",
+    "related_files": [
+      "apps/server/src/storage/migrations.ts",
+      "apps/server/src/storage/SqliteStorage.ts",
+      "apps/server/test/storage/schema.test.ts"
     ],
     "confidence": "high"
   },
@@ -445,11 +458,12 @@
   {
     "path": "apps/server/src/storage/SqliteStorage.ts",
     "type": "service",
-    "purpose": "Server persistence layer file: apps/server/src/storage/SqliteStorage.ts.",
+    "purpose": "SQLite StoragePort+AuthStore adapter (node:sqlite). Schema comes from schema.ts via a versioned forward-only runner with schema_migrations tracking (parity with PG); IF-NOT-EXISTS baseline adoption for pre-existing dev DBs.",
     "importance": "medium",
     "related_files": [
       "apps/server/src/storage/StoragePort.ts",
-      "apps/server/src/index.ts"
+      "apps/server/src/storage/schema.ts",
+      "apps/server/test/storage/storageContract.ts"
     ],
     "confidence": "high"
   },
@@ -787,11 +801,43 @@
   {
     "path": "apps/server/test/storage/SqliteStorage.test.ts",
     "type": "test",
-    "purpose": "Automated test coverage for apps/server/test/storage/SqliteStorage.test.ts.",
+    "purpose": "SQLite-specific tests: reopen persistence + schema_migrations version tracking (fresh boot records all ids; reopen idempotent). Shared behavior lives in storageContract.ts.",
     "importance": "medium",
     "related_files": [
-      "apps/server/src/storage/StoragePort.ts",
-      "apps/server/src/index.ts"
+      "apps/server/src/storage/SqliteStorage.ts",
+      "apps/server/test/storage/storageContract.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/storage/storageContract.ts",
+    "type": "test",
+    "purpose": "Parametrized StoragePort contract suite (runStoragePortContract): identical behavioral assertions run against BOTH backends to prove parity (matches/events, stats, chat, recordUserMatchOutcome atomicity/idempotence, fresh-boot reads).",
+    "importance": "high",
+    "related_files": [
+      "apps/server/test/storage/storageContract.test.ts",
+      "apps/server/src/storage/StoragePort.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/storage/storageContract.test.ts",
+    "type": "test",
+    "purpose": "Wires the storage contract to backends: SQLite :memory: always; real PostgreSQL when TEST_POSTGRES_DATABASE_URL is set (per-test schema isolation, DROP SCHEMA CASCADE). Included in test:postgres (docker runner).",
+    "importance": "high",
+    "related_files": [
+      "apps/server/test/storage/storageContract.ts",
+      "scripts/test-postgres-docker.mjs"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/storage/schema.test.ts",
+    "type": "test",
+    "purpose": "Guards the single DDL source: exact stable migration ids (0001..0005) for both dialects; PG render contains all tables + PG types; SQLite render contains only shared tables and never PG-only tables/types.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/storage/schema.ts"
     ],
     "confidence": "high"
   },
