@@ -9,17 +9,27 @@ test.describe("dialog accessibility", () => {
 
     const settingsDialog = page.getByRole("dialog", { name: /Settings/i });
     await expectModalDialog(settingsDialog);
-    // Dialogs fokusē PIRMO fokusējamo elementu (useDialogFocus). Settings dialogā tas
-    // ir pirmā cilne ("Settings"), nevis Close — kopš pievienota Settings/About ciļņu
-    // josla (commit 9850b8c), Close vairs nav pirmais fokusējamais. Slazda robežu
-    // aptīšana (Shift+Tab no pirmā → pēdējais; Tab no pēdējā → pirmais) tiek pārbaudīta.
-    const firstFocusable = settingsDialog.getByRole("tab").first();
-    await expect(firstFocusable).toBeFocused();
+    // Settings/About ir vienkāršs 2-skatu pārslēdzējs (role="group" + aria-pressed
+    // pogas), NE ARIA tabs widget — tāpēc abas pogas ir parastā Tab secībā. Dialogs
+    // fokusē PIRMO fokusējamo (useDialogFocus) = "Settings" poga (Close vairs nav pirmā,
+    // kopš pievienots pārslēdzējs). Slazda robežu aptīšana (Shift+Tab no pirmā → pēdējais
+    // Language; Tab no pēdējā → pirmais) tiek pārbaudīta.
+    const settingsTab = settingsDialog.getByRole("button", { name: "Settings" });
+    const aboutTab = settingsDialog.getByRole("button", { name: "About" });
+    await expect(settingsTab).toBeFocused();
+    await expect(settingsTab).toHaveAttribute("aria-pressed", "true");
+    await expect(aboutTab).toHaveAttribute("aria-pressed", "false");
 
     await page.keyboard.press("Shift+Tab");
     await expect(page.getByLabel("Language")).toBeFocused();
     await page.keyboard.press("Tab");
-    await expect(firstFocusable).toBeFocused();
+    await expect(settingsTab).toBeFocused();
+
+    // Pārslēgšanās uz About atjaunina aria-pressed (savstarpēji izslēdzošs).
+    await aboutTab.click();
+    await expect(aboutTab).toHaveAttribute("aria-pressed", "true");
+    await expect(settingsTab).toHaveAttribute("aria-pressed", "false");
+    await settingsTab.click();
 
     await page.keyboard.press("Escape");
     await expect(settingsDialog).toBeHidden();

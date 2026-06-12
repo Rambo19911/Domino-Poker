@@ -199,11 +199,11 @@
   transition: color 140ms ease, background 140ms ease;
 }
 
-.settingsTab[aria-selected="false"] {
+.settingsTab[aria-pressed="false"] {
   background: rgba(120, 120, 120, 0.2);
 }
 
-.settingsTab[aria-selected="true"] {
+.settingsTab[aria-pressed="true"] {
   color: var(--primary);
   background: transparent;
 }
@@ -212,7 +212,7 @@
   color: var(--text-primary);
 }
 
-.settingsTab[aria-selected="true"]:hover {
+.settingsTab[aria-pressed="true"]:hover {
   color: var(--primary);
 }
 

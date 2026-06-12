@@ -316,12 +316,14 @@ function SettingsDialog({
     >
         <h2 id="settings-title" className="srOnly">{t.settings}</h2>
         <div className="settingsHeader">
-          <div className="settingsTabs" role="tablist" aria-label={t.settings}>
+          {/* Vienkāršs 2-skatu pārslēdzējs (Settings/About), NE pilns ARIA tabs widget:
+              role="group" + aria-pressed pogas → tastatūras uzvedība (Tab + Enter/Space)
+              atbilst semantikai bez roving tabindex / bultiņu navigācijas. */}
+          <div className="settingsTabs" role="group" aria-label={t.settings}>
             <button
               className="settingsTab"
               type="button"
-              role="tab"
-              aria-selected={tab === "settings"}
+              aria-pressed={tab === "settings"}
               onClick={() => selectTab("settings")}
             >
               <SettingsIcon /> {t.settings}
@@ -329,8 +331,7 @@ function SettingsDialog({
             <button
               className="settingsTab"
               type="button"
-              role="tab"
-              aria-selected={tab === "about"}
+              aria-pressed={tab === "about"}
               onClick={() => selectTab("about")}
             >
               {t.about}
