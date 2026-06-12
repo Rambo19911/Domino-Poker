@@ -15,6 +15,17 @@ import type { GatewayConnection } from "./GatewayConnection.js";
 import type { GatewayHub } from "./GatewayHub.js";
 import type { SessionIdentity as ConnectionIdentity } from "../sessions/SessionManager.js";
 
+/**
+ * ⚠️ PLĀNOTĀ SADALĪŠANA (arhitektūras audita Fāze 3, 14. punkts — apzināti ATLIKTA):
+ * šis fails (~950 r.) ir paredzēts sadalīšanai, BET tikai kopā ar nākamo lielāko
+ * funkciju šajā failā, NE preventīvi (abu auditu konsolidētais slēdziens).
+ * Kad te nākamreiz pievieno būtisku funkcionalitāti, VISPIRMS veic ekstrakciju:
+ *   1) `RoomLifecycleService` — sākot ar game-over teardown un reconnect/finalization
+ *      ceļiem (abandon/destroy/finalize loģika ārā no maršrutēšanas);
+ *   2) per-room `RoomRuntime` — aptver engine/director/timers vienam room.
+ * Verifikācija: esošie routing/lifecycle testi (`test/net/*`) + MP e2e smoke.
+ */
+
 /** Visi klienta ziņojumi pēc handshake (HELLO apstrādā pats gateway). */
 export type PostHandshakeMessage = Exclude<ClientMessage, { type: "HELLO" }>;
 
