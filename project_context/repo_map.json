@@ -891,9 +891,26 @@
   {
     "path": "apps/web/components/AppShell.tsx",
     "type": "ui",
-    "purpose": "Important project file referenced by module_map: apps/web/components/AppShell.tsx.",
+    "purpose": "App shell: screen routing (lobby/game/mp-lobby/password-reset) + session persistence (locale localStorage, screen sessionStorage restore, #reset hash). Owns screen/locale/selectedRoundCount/resetToken state, audio, auth; delegates lobby UI to LobbyScreen.",
+    "importance": "high",
+    "related_files": [
+      "apps/web/app/page.tsx",
+      "apps/web/components/LobbyScreen.tsx",
+      "apps/web/components/DominoPokerGame.tsx",
+      "apps/web/components/MultiplayerLobby.tsx"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/LobbyScreen.tsx",
+    "type": "ui",
+    "purpose": "Single-player main lobby screen: top-bar (login/help/settings), LobbyProfile + LobbyWheel/CompactLobbyPanel, and the Settings/Rules/Auth dialogs. Owns its own dialog open-state; receives screen-transition + round-count callbacks and a narrowed auth surface from AppShell.",
     "importance": "medium",
-    "related_files": [],
+    "related_files": [
+      "apps/web/components/AppShell.tsx",
+      "apps/web/components/LobbyWheel.tsx",
+      "apps/web/components/auth/LobbyProfile.tsx"
+    ],
     "confidence": "high"
   },
   {
