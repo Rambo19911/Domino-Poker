@@ -30,6 +30,7 @@
       "apps/web/lib/mp/useMultiplayer.ts",
       "apps/web/components/mp/ConnectionBanner.tsx",
       "apps/web/components/mp/MpGameTable.tsx",
+      "apps/web/components/mp/MpDesktopTable.tsx",
       "apps/web/components/mp/MpMobileTable.tsx",
       "apps/web/components/mp/MpMobileLobby.tsx",
       "apps/web/components/SpMobileTable.tsx",

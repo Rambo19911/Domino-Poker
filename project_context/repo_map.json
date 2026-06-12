@@ -1011,11 +1011,25 @@
   {
     "path": "apps/web/components/mp/MpGameTable.tsx",
     "type": "ui",
-    "purpose": "Live multiplayer game table rendering authoritative server snapshots and sending bid/move/leave intents.",
+    "purpose": "Thin multiplayer game-table orchestrator: computes shared derivations once (active seat, valid tiles, freeze/toast via hooks, timers), branches phone-portrait MpMobileTable vs MpDesktopTable, owns dialogs (bid/number/game-end/rules/exit) and tile-placed sound.",
     "importance": "medium",
     "related_files": [
-      "apps/web/components/MultiplayerLobby.tsx",
-      "packages/shared/src/serverEvents.ts"
+      "apps/web/components/mp/MpDesktopTable.tsx",
+      "apps/web/components/mp/MpMobileTable.tsx",
+      "apps/web/lib/mp/useTrickFreeze.ts",
+      "apps/web/lib/mp/useTurnErrorToast.ts",
+      "apps/web/lib/mp/desktopStage.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/mp/MpDesktopTable.tsx",
+    "type": "ui",
+    "purpose": "Desktop (landscape) multiplayer table: fixed 1920x1080 scaled stage + seats/info-panel/safe-controls. Pure presentation; receives precomputed derivations as props from MpGameTable.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/mp/MpGameTable.tsx",
+      "apps/web/lib/mp/desktopStage.ts"
     ],
     "confidence": "high"
   },
