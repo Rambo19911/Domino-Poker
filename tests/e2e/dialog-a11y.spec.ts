@@ -9,12 +9,17 @@ test.describe("dialog accessibility", () => {
 
     const settingsDialog = page.getByRole("dialog", { name: /Settings/i });
     await expectModalDialog(settingsDialog);
-    await expect(settingsDialog.getByRole("button", { name: "Close" })).toBeFocused();
+    // Dialogs fokusē PIRMO fokusējamo elementu (useDialogFocus). Settings dialogā tas
+    // ir pirmā cilne ("Settings"), nevis Close — kopš pievienota Settings/About ciļņu
+    // josla (commit 9850b8c), Close vairs nav pirmais fokusējamais. Slazda robežu
+    // aptīšana (Shift+Tab no pirmā → pēdējais; Tab no pēdējā → pirmais) tiek pārbaudīta.
+    const firstFocusable = settingsDialog.getByRole("tab").first();
+    await expect(firstFocusable).toBeFocused();
 
     await page.keyboard.press("Shift+Tab");
     await expect(page.getByLabel("Language")).toBeFocused();
     await page.keyboard.press("Tab");
-    await expect(settingsDialog.getByRole("button", { name: "Close" })).toBeFocused();
+    await expect(firstFocusable).toBeFocused();
 
     await page.keyboard.press("Escape");
     await expect(settingsDialog).toBeHidden();

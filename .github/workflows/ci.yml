@@ -60,12 +60,12 @@ jobs:
       # ko vitest neaptver. @domino-poker/shared+core jau uzbūvēti augstāk.
       - run: npm run build --workspace apps/web
 
-      # Playwright e2e (single-player, layout, dialog-a11y, storage-resilience).
-      # SĀKUMĀ NON-BLOCKING (continue-on-error): ļauj svītai nostabilizēties CI vidē,
-      # nebloķējot merge; noņem `continue-on-error`, kad tā ir stabila.
+      # Playwright e2e: single-player, layout, dialog-a11y, storage-resilience un
+      # multiplayer browser-to-server smoke (starta MP serveri + web caur webServer).
+      # BLOĶĒJOŠS: visi 18 testi stabili (verificēts lokāli); `retries: 1` sedz pārejošus
+      # tīkla/timing flakes. MP smoke prasa apps/server/dist (uzbūvēts augstāk).
       - run: npx playwright install --with-deps chromium
 
       - run: npm run test:web
-        continue-on-error: true
         env:
           CI: "true"
