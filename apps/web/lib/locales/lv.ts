@@ -216,5 +216,12 @@ export const lv = {
   avatarErrorTooLarge: "Šis attēls ir pārāk liels (maks. 5 MB).",
   avatarErrorTooSmall: "Šis attēls ir pārāk mazs (min. 512×512 px).",
   avatarErrorDecode: "Neizdevās nolasīt attēlu. Mēģini citu.",
-  avatarErrorUpload: "Augšupielāde neizdevās. Mēģini vēlreiz."
+  avatarErrorUpload: "Augšupielāde neizdevās. Mēģini vēlreiz.",
+  installPromptTitle: "Uzstādīt aplikāciju",
+  installPromptText: "Uzstādīt Domino Poker telefonā pilnekrāna spēlei?",
+  installPromptInstall: "Uzstādīt",
+  installPromptDismiss: "Ne tagad",
+  installPromptIosHint: "Uzstādīšana iPhone: nospied Kopīgot un izvēlies “Pievienot sākuma ekrānam”.",
+  usernameChangeWarning:
+    "Uzmanību: lietotājvārds ir arī tavs ielogošanās vārds. Pēc saglabāšanas ielogojies ar JAUNO lietotājvārdu (parole nemainās)."
 } as const satisfies LocaleMessages;

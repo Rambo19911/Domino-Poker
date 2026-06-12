@@ -35,6 +35,17 @@
   color: var(--error);
   font-size: 14px;
 }
+/* Brīdinājums par lietotājvārda maiņu (maina ielogošanās vārdu) — zelta akcents,
+   ne sarkans: tā nav kļūda, bet svarīga sekas-informācija pirms saglabāšanas.
+   Pārraksta `.authField small` sekundāro krāsu/izmēru. */
+.authField small.authWarning,
+.authWarning {
+  display: block;
+  margin: 6px 0 0;
+  color: var(--primary);
+  font-size: 13px;
+  line-height: 1.4;
+}
 /* Paroles atjaunošana (Fāze 5): informatīvs teksts, "Aizmirsu paroli?" saite, ekrāns. */
 .authNotice {
   margin: 4px 0 0;

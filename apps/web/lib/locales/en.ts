@@ -212,5 +212,12 @@ export const en = {
   avatarErrorTooLarge: "That image is too large (max 5 MB).",
   avatarErrorTooSmall: "That image is too small (min 512×512 px).",
   avatarErrorDecode: "Could not read that image. Try another.",
-  avatarErrorUpload: "Upload failed. Please try again."
+  avatarErrorUpload: "Upload failed. Please try again.",
+  installPromptTitle: "Install the app",
+  installPromptText: "Install Domino Poker on your phone for full-screen play?",
+  installPromptInstall: "Install",
+  installPromptDismiss: "Not now",
+  installPromptIosHint: "Install on iPhone: tap Share and choose “Add to Home Screen”.",
+  usernameChangeWarning:
+    "Note: your username is also your sign-in name. After saving, sign in with the NEW username (your password stays the same)."
 } as const;

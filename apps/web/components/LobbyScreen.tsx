@@ -6,6 +6,7 @@ import { AudioControls } from "./AudioControls";
 import { AuthDialog } from "./auth/AuthDialog";
 import { LobbyProfile } from "./auth/LobbyProfile";
 import { Dialog } from "./Dialog";
+import { InstallPrompt } from "./InstallPrompt";
 import { CompactLobbyPanel, LobbyWheel } from "./LobbyWheel";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
 
@@ -155,6 +156,11 @@ export function LobbyScreen({
           onClose={() => setRulesOpen(false)}
         />
       ) : null}
+
+      {/* PWA instalēšanas piedāvājums — tikai galvenajā lobby, nekad spēles laikā.
+          Paslēpts, kamēr atvērts kāds dialogs (banneris ir virs modālā fona slāņa
+          un citādi paliktu klikšķināms ārpus modālā konteksta). */}
+      {!settingsOpen && !rulesOpen && !authOpen ? <InstallPrompt labels={t} /> : null}
 
       {authOpen ? (
         <AuthDialog

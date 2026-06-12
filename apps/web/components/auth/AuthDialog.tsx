@@ -361,6 +361,13 @@ function ProfileForm({
           required
         />
         <small>{t.usernameHint}</small>
+        {/* Brīdinājums TIKAI tad, kad vārds reāli mainīts: lietotājvārds ir arī
+            ielogošanās identifikators, tāpēc maiņa maina ielogošanās datus.
+            `small` (derīgs label saturs) + `role="status"` (pieklājīgs paziņojums,
+            ne agresīvs alert — tā ir seku informācija, ne kļūda). */}
+        {username.trim() !== user.username ? (
+          <small className="authWarning" role="status">{t.usernameChangeWarning}</small>
+        ) : null}
       </label>
 
       <fieldset className="avatarPicker">
