@@ -6,6 +6,7 @@ import { type RoomView } from "@domino-poker/shared";
 
 import type { AppStrings } from "../lib/i18n";
 import { toGameTableView } from "../lib/mp/gameTableView";
+import { useLobbyTransientErrors } from "../lib/mp/useLobbyTransientErrors";
 import { useMultiplayer } from "../lib/mp/useMultiplayer";
 import type { AudioSettings } from "../lib/useAudioSettings";
 import { MpDesktopLobby } from "./mp/MpDesktopLobby";
@@ -34,8 +35,6 @@ export function MultiplayerLobby({
   });
   const isPhonePortrait = useIsPhonePortrait();
   const [chatDraft, setChatDraft] = useState("");
-  const [chatError, setChatError] = useState<string | null>(null);
-  const [lobbyError, setLobbyError] = useState<string | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isJoinCodeOpen, setIsJoinCodeOpen] = useState(false);
   const [isRoomScreenHidden, setIsRoomScreenHidden] = useState(false);
@@ -65,29 +64,8 @@ export function MultiplayerLobby({
     }
   }, [activeRoom]);
 
-  // Visas kļūdas ir IZGAISTOŠAS (transient), lai tās nekad nepaliek "iestrēgušas"
-  // lobby (piem. spēles kļūda "does not own current turn" pēc spēles beigām).
-  //   - Čata kļūdas (rate-limit/nederīga) → čata konteinerā (4 s).
-  //   - Pārējās → augšējā lobby josla (6 s).
-  // `view.lastError` atsauce mainās uz katru jaunu ERROR → efekts pārstartē taimeri.
-  // Kad `lastError` tiek notīrīts (piem. ROOM_LEFT), abas joslas nodziest uzreiz.
-  useEffect(() => {
-    const error = view.lastError;
-    if (!error) {
-      setChatError(null);
-      setLobbyError(null);
-      return;
-    }
-    const chatText = chatErrorText(error.code, t);
-    if (chatText !== undefined) {
-      setChatError(chatText);
-      const timeout = window.setTimeout(() => setChatError(null), 4000);
-      return () => window.clearTimeout(timeout);
-    }
-    setLobbyError(error.message);
-    const timeout = window.setTimeout(() => setLobbyError(null), 6000);
-    return () => window.clearTimeout(timeout);
-  }, [view.lastError, t]);
+  // Izgaistošās (transient) lobby kļūdas — sk. useLobbyTransientErrors.
+  const { chatError, lobbyError } = useLobbyTransientErrors(view.lastError, t);
 
   const submitChat = (event: React.FormEvent) => {
     event.preventDefault();
@@ -265,15 +243,4 @@ export function MultiplayerLobby({
 
 function isDisplayIdSeated(room: RoomView, displayId: string | undefined): boolean {
   return displayId !== undefined && room.seats.some((seat) => seat.kind === "human" && seat.displayId === displayId);
-}
-
-/**
- * Lokalizēts čata kļūdas teksts pēc servera koda, vai `undefined`, ja kļūda nav
- * čata kļūda (tad to rāda vispārējā augšējā joslā). Čata kļūdas (rate-limit /
- * nederīga ziņa) tiek rādītas izgaistoši TIKAI čata konteinerā.
- */
-function chatErrorText(code: string, t: AppStrings): string | undefined {
-  if (code === "RATE_LIMITED") return t.mpChatRateLimited;
-  if (code === "INVALID_MESSAGE") return t.mpChatInvalid;
-  return undefined;
 }
