@@ -46,7 +46,7 @@ const roomOwnership = isRoomLeaseStore(storage)
   ? new LeaseBackedRoomOwnershipGuard({
       store: storage,
       ownerInstanceId: instanceId,
-      ttlMs: 30_000,
+      ttlMs: config.roomLeaseTtlMs,
       clock
     })
   : undefined;
@@ -80,39 +80,39 @@ const rooms = new RoomManager({
   onMatchFinished: (matchId, standings) => outcomes.gameOver(matchId, standings),
   onPlayerForfeited: (matchId, corePlayerId) => outcomes.playerForfeited(matchId, corePlayerId),
   onRoomAbandoned: (matchId) => outcomes.matchAbandoned(matchId),
-  // Pirms-spēles 10s atskaite uz galda, lai lēnāki klienti paspēj ielādēt galdu
+  // Pirms-spēles atskaite uz galda, lai lēnāki klienti paspēj ielādēt galdu
   // pirms sākas solījumi (sk. RoomManager.startGame / GAME_STARTING).
-  preGameDelayMs: 10_000,
-  // Botu gājienus izspēlē PA VIENAM ar aizturi (secīga plūsma + cilvēka 10s
-  // deadline sākas tikai tad, kad boti nospēlējuši). trickPauseMs ≥ klienta aizture.
-  botPaceMs: 800,
-  trickPauseMs: 1700,
-  // Grace (60s, Fāze 3 5.6): (a) per-sēdvietas auto-forfeit, ja spēlētājs paliek
+  preGameDelayMs: config.preGameDelayMs,
+  // Botu gājienus izspēlē PA VIENAM ar aizturi (secīga plūsma + cilvēka turn
+  // deadline sākas tikai tad, kad boti nospēlējuši). trickPauseMs ≥ klienta
+  // aizture (config validē apakšējo robežu).
+  botPaceMs: config.botPaceMs,
+  trickPauseMs: config.trickPauseMs,
+  // Grace (Fāze 3 5.6): (a) per-sēdvietas auto-forfeit, ja spēlētājs paliek
   // offline, kamēr citi turpina; (b) pilnas istabas iznīcināšana, ja VISI cilvēki
   // atvienojušies. Dod laiku refresh/reconnect atgriezties pirms forfeit/iznīcināšanas.
-  abandonGraceMs: 60_000
+  abandonGraceMs: config.abandonGraceMs
 });
-// Cik čata ziņas paturēt atmiņā / ielādēt no DB startā (čats pārdzīvo restartu).
-const CHAT_HISTORY_LIMIT = 50;
 const chat = new LobbyChat({
   clock,
-  historyLimit: CHAT_HISTORY_LIMIT,
+  // Cik čata ziņas paturēt atmiņā / ielādēt no DB startā (čats pārdzīvo restartu).
+  historyLimit: config.chatHistoryLimit,
   // Fāze 10.3: pieņemtā ziņa → DB (fire-and-forget).
   onMessage: (message) => persistence.chatMessage(message)
 });
 // Hidratācija startā: ielādējam pēdējās ziņas no DB, lai CHAT_HISTORY jaunam
 // dalībniekam iekļautu pirms-restarta ziņas. Top-level await (ESM modulis).
 try {
-  chat.hydrate(await storage.loadRecentChatMessages(CHAT_HISTORY_LIMIT));
+  chat.hydrate(await storage.loadRecentChatMessages(config.chatHistoryLimit));
 } catch (error) {
   console.error("[persistence] chat hydrate failed:", error);
 }
-// Produkcijā koalescējam LOBBY_STATE broadcastus (200ms), lai pie liela klientu
+// Produkcijā koalescējam LOBBY_STATE broadcastus, lai pie liela klientu
 // skaita (1000+) istabu izmaiņu plūsma neveidotu fanout pārslodzi.
 const router = new CoreMessageRouter({
   rooms,
   chat,
-  lobbyStateDebounceMs: 200,
+  lobbyStateDebounceMs: config.lobbyStateDebounceMs,
   ...(roomOwnership ? { roomOwnership } : {})
 });
 const gateway = new WebSocketGateway({

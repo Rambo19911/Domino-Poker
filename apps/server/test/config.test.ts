@@ -4,6 +4,17 @@ import { loadServerConfig } from "../src/config.js";
 
 const missingEnvPath = "__missing_domino_poker_test_env__";
 
+/** Operacionālie noklusējumi (16. punkts) = iepriekšējie `index.ts` literāļi. */
+const opsDefaults = {
+  roomLeaseTtlMs: 30_000,
+  preGameDelayMs: 10_000,
+  botPaceMs: 800,
+  trickPauseMs: 1700,
+  abandonGraceMs: 60_000,
+  lobbyStateDebounceMs: 200,
+  chatHistoryLimit: 50
+};
+
 describe("loadServerConfig", () => {
   it("uses defaults when env values are missing", () => {
     expect(loadServerConfig({}, missingEnvPath)).toEqual({
@@ -12,6 +23,7 @@ describe("loadServerConfig", () => {
       databaseUrl: "./data/dev.sqlite",
       nodeEnv: "development",
       turnDurationMs: 10_000,
+      ...opsDefaults,
       pg: { max: 10, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 0 },
       webOrigins: ["http://localhost:3000"],
       trustProxy: false,
@@ -36,11 +48,61 @@ describe("loadServerConfig", () => {
       databaseUrl: "./data/dev.sqlite",
       nodeEnv: "production",
       turnDurationMs: 5000,
+      ...opsDefaults,
       pg: { max: 10, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 0 },
       webOrigins: ["http://localhost:3000"],
       trustProxy: false,
       email: { resendApiKey: undefined, from: undefined, appBaseUrl: "http://localhost:3000" }
     });
+  });
+
+  it("reads configurable operational values (lease TTL, pacing, grace, debounce, chat limit)", () => {
+    const config = loadServerConfig(
+      {
+        ROOM_LEASE_TTL_MS: "45000",
+        PRE_GAME_DELAY_MS: "0",
+        BOT_PACE_MS: "0",
+        TRICK_PAUSE_MS: "2500",
+        ABANDON_GRACE_MS: "90000",
+        LOBBY_STATE_DEBOUNCE_MS: "0",
+        CHAT_HISTORY_LIMIT: "100"
+      },
+      missingEnvPath
+    );
+    expect(config.roomLeaseTtlMs).toBe(45_000);
+    expect(config.preGameDelayMs).toBe(0); // 0 = bez pirms-spēles atskaites
+    expect(config.botPaceMs).toBe(0); // 0 = bez botu aiztures
+    expect(config.trickPauseMs).toBe(2500);
+    expect(config.abandonGraceMs).toBe(90_000);
+    expect(config.lobbyStateDebounceMs).toBe(0); // 0 = tūlītējs broadcast
+    expect(config.chatHistoryLimit).toBe(100);
+  });
+
+  it("rejects a non-positive ROOM_LEASE_TTL_MS (lease would expire instantly)", () => {
+    expect(() => loadServerConfig({ ROOM_LEASE_TTL_MS: "0" }, missingEnvPath)).toThrow(
+      "ROOM_LEASE_TTL_MS must be a positive integer."
+    );
+  });
+
+  it("rejects a non-positive CHAT_HISTORY_LIMIT", () => {
+    expect(() => loadServerConfig({ CHAT_HISTORY_LIMIT: "0" }, missingEnvPath)).toThrow(
+      "CHAT_HISTORY_LIMIT must be a positive integer."
+    );
+  });
+
+  it("rejects a negative ABANDON_GRACE_MS", () => {
+    expect(() => loadServerConfig({ ABANDON_GRACE_MS: "-1" }, missingEnvPath)).toThrow(
+      "ABANDON_GRACE_MS must be a non-negative integer."
+    );
+  });
+
+  it("rejects TRICK_PAUSE_MS below the web trick-freeze floor (1500ms)", () => {
+    // Sargs pret pārrobežu invarianta pārkāpumu: klients aiztur pabeigto triku
+    // 1500 ms; īsāka servera pauze ļautu nākamajam gājienam ielauzties aizturē.
+    expect(() => loadServerConfig({ TRICK_PAUSE_MS: "1499" }, missingEnvPath)).toThrow(
+      "TRICK_PAUSE_MS must be an integer >= 1500"
+    );
+    expect(loadServerConfig({ TRICK_PAUSE_MS: "1500" }, missingEnvPath).trickPauseMs).toBe(1500);
   });
 
   it("parses TRUST_PROXY as a boolean flag (true/1 → true; else false)", () => {

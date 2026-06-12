@@ -16,6 +16,22 @@ const MAX_TURN_DURATION_MS = 600_000;
 const DEFAULT_PG_POOL_MAX = 10;
 const DEFAULT_PG_IDLE_TIMEOUT_MS = 10_000;
 const DEFAULT_PG_CONNECTION_TIMEOUT_MS = 0;
+// Operacionālie noklusējumi (Fāze 3, 16. punkts) = iepriekšējie `index.ts`
+// literāļi, lai konfigurācijas pievienošana NEMAINA uzvedību bez env override.
+const DEFAULT_ROOM_LEASE_TTL_MS = 30_000;
+const DEFAULT_PRE_GAME_DELAY_MS = 10_000;
+const DEFAULT_BOT_PACE_MS = 800;
+const DEFAULT_TRICK_PAUSE_MS = 1700;
+const DEFAULT_ABANDON_GRACE_MS = 60_000;
+const DEFAULT_LOBBY_STATE_DEBOUNCE_MS = 200;
+const DEFAULT_CHAT_HISTORY_LIMIT = 50;
+/**
+ * Apakšējā robeža `TRICK_PAUSE_MS`: web klients aiztur pabeigto triku 1500 ms
+ * (`useTrickFreeze` TRICK_FREEZE_MS) — ja serveris turpinātu ātrāk, nākamais
+ * gājiens ielauztos aizturē. Lokāla konstante (NEimportē no web; servera config
+ * nedrīkst būt atkarīgs no web bundle), vērtībām jāpaliek saskaņotām.
+ */
+const MIN_TRICK_PAUSE_MS = 1500;
 
 /**
  * PostgreSQL savienojumu pool limiti (tikai PG režīmā; SQLite tos ignorē).
@@ -45,6 +61,20 @@ export interface ServerConfig {
   nodeEnv: string;
   /** Turna ilgums (ms) — solīšanas/gājiena countdown (`TURN_DURATION_MS`; noklusējums 10000). */
   turnDurationMs: number;
+  /** Istabas īpašumtiesību nomas TTL ms PG režīmā (`ROOM_LEASE_TTL_MS`; noklusējums 30000; ≥1). */
+  roomLeaseTtlMs: number;
+  /** Pirms-spēles atskaite ms uz galda (`PRE_GAME_DELAY_MS`; noklusējums 10000; 0 = bez atskaites). */
+  preGameDelayMs: number;
+  /** Aizture starp botu gājieniem ms (`BOT_PACE_MS`; noklusējums 800; 0 = bez aiztures). */
+  botPaceMs: number;
+  /** Pauze pēc pabeigta trika ms (`TRICK_PAUSE_MS`; noklusējums 1700; ≥1500 — web klienta triku-aizture). */
+  trickPauseMs: number;
+  /** Grace ms pirms auto-forfeit/istabas iznīcināšanas pēc atvienošanās (`ABANDON_GRACE_MS`; noklusējums 60000). */
+  abandonGraceMs: number;
+  /** LOBBY_STATE broadcastu koalescēšanas logs ms (`LOBBY_STATE_DEBOUNCE_MS`; noklusējums 200; 0 = tūlītējs). */
+  lobbyStateDebounceMs: number;
+  /** Cik čata ziņas paturēt atmiņā / ielādēt startā (`CHAT_HISTORY_LIMIT`; noklusējums 50; ≥1). */
+  chatHistoryLimit: number;
   /** PostgreSQL pool limiti (tikai PG režīmā; SQLite tos ignorē). */
   pg: PgPoolConfig;
   /**
@@ -91,6 +121,37 @@ export function loadServerConfig(
     databaseUrl: readDatabaseUrl(env.DATABASE_URL ?? fileEnv.DATABASE_URL),
     nodeEnv: readNonEmpty(env.NODE_ENV ?? fileEnv.NODE_ENV, DEFAULT_NODE_ENV),
     turnDurationMs: readTurnDuration(env.TURN_DURATION_MS ?? fileEnv.TURN_DURATION_MS),
+    roomLeaseTtlMs: readPositiveInt(
+      "ROOM_LEASE_TTL_MS",
+      env.ROOM_LEASE_TTL_MS ?? fileEnv.ROOM_LEASE_TTL_MS,
+      DEFAULT_ROOM_LEASE_TTL_MS
+    ),
+    preGameDelayMs: readNonNegativeInt(
+      "PRE_GAME_DELAY_MS",
+      env.PRE_GAME_DELAY_MS ?? fileEnv.PRE_GAME_DELAY_MS,
+      DEFAULT_PRE_GAME_DELAY_MS
+    ),
+    botPaceMs: readNonNegativeInt(
+      "BOT_PACE_MS",
+      env.BOT_PACE_MS ?? fileEnv.BOT_PACE_MS,
+      DEFAULT_BOT_PACE_MS
+    ),
+    trickPauseMs: readTrickPause(env.TRICK_PAUSE_MS ?? fileEnv.TRICK_PAUSE_MS),
+    abandonGraceMs: readNonNegativeInt(
+      "ABANDON_GRACE_MS",
+      env.ABANDON_GRACE_MS ?? fileEnv.ABANDON_GRACE_MS,
+      DEFAULT_ABANDON_GRACE_MS
+    ),
+    lobbyStateDebounceMs: readNonNegativeInt(
+      "LOBBY_STATE_DEBOUNCE_MS",
+      env.LOBBY_STATE_DEBOUNCE_MS ?? fileEnv.LOBBY_STATE_DEBOUNCE_MS,
+      DEFAULT_LOBBY_STATE_DEBOUNCE_MS
+    ),
+    chatHistoryLimit: readPositiveInt(
+      "CHAT_HISTORY_LIMIT",
+      env.CHAT_HISTORY_LIMIT ?? fileEnv.CHAT_HISTORY_LIMIT,
+      DEFAULT_CHAT_HISTORY_LIMIT
+    ),
     pg: {
       max: readPositiveInt(
         "PG_POOL_MAX",
@@ -166,6 +227,23 @@ function readNonNegativeInt(name: string, value: string | undefined, fallback: n
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 0) {
     throw new Error(`${name} must be a non-negative integer.`);
+  }
+  return parsed;
+}
+
+/**
+ * Trika pauze (ms): vesels skaitlis ≥ `MIN_TRICK_PAUSE_MS` (1500); noklusējums 1700.
+ * Apakšējā robeža sargā web klienta triku-aiztures invariantu (sk. konstanti augšā).
+ */
+function readTrickPause(value: string | undefined): number {
+  if (value === undefined || value.trim() === "") {
+    return DEFAULT_TRICK_PAUSE_MS;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < MIN_TRICK_PAUSE_MS) {
+    throw new Error(
+      `TRICK_PAUSE_MS must be an integer >= ${MIN_TRICK_PAUSE_MS} (web client trick freeze).`
+    );
   }
   return parsed;
 }
