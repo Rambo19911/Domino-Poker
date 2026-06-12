@@ -43,6 +43,17 @@ interface GamePlayerOptions {
   readonly playerType: PlayerType;
 }
 
+/**
+ * ⚠️ PLĀNOTĀ CENTRALIZĀCIJA (arhitektūras audita Fāze 3, 15. punkts — apzināti ATLIKTA):
+ * spēles pamatkonstantes (4 spēlētāji, 7 kauliņi rokā, 28-kauliņu komplekta
+ * invariants, raundu robežas) šobrīd ir izkaisītas ≥5 failos (šeit,
+ * `dominoTile.ts` 0..6 komplekts, `multiplayer/invariants.ts` 28, `aiService.ts`,
+ * web `HAND_SIZE`). Minimālu `Ruleset`/`GameConfig` ievieš TIKAI tad, kad sākas
+ * jauni spēles režīmi (citādāks spēlētāju/kauliņu skaits), NE preventīvi — abu
+ * auditu konsolidētais slēdziens. Kad jauns režīms sākas: definē `Ruleset` šeit
+ * core (viens avots), caurvada caur `createNewGame`/MP komandu ceļu, un dedublē
+ * web/server kopijas. Verifikācija: core unit + simulatori + MP e2e smoke.
+ */
 const minNumberOfRounds = 1;
 const maxNumberOfRounds = 50;
 const tilesPerPlayer = 7;
