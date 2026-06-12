@@ -1,100 +1,245 @@
 # AI Working Rules
 
-## Read Before Major Edits
+Last refreshed: 2026-06-12.
 
-- For rule behavior: read `packages/core/src/dominoTile.ts`, `packages/core/src/player.ts`, `packages/core/src/gameState.ts`, and `packages/core/test/dominoRules.test.ts`.
-- For multiplayer work: keep MP implementation in `apps/server`, `packages/shared`, and `packages/core/src/multiplayer/` rather than mixing into existing single-player UI flow. (Project context lives in `project_context/`; the four rules/strategy docs are tracked, while `docs/SCALING.md`, `docs/DEPLOYMENT.md`, `docs/DB_MIGRATION.md`, `docs/TODO/`, and `docs/mockups/` are local/ignored planning references and may not exist in clean clones.)
-- For multiplayer core-adjacent deterministic helpers: use `packages/core/src/multiplayer/` and tests under `packages/core/test/multiplayer/`; do not modify single-player shuffle/deal behavior for MP determinism.
-- For multiplayer state fields, use `packages/core/src/multiplayer/types.ts`; do not add MP-only fields directly to single-player `GameState` or `Player`.
-- For multiplayer command/event contracts, use `packages/core/src/multiplayer/commands.ts` and `packages/core/src/multiplayer/events.ts`; commands carry `requestId`, events carry `eventSeq`.
-- For multiplayer command execution, use `packages/core/src/multiplayer/applyCommand.ts`; unsupported commands should fail explicitly until their rule delegation is implemented.
-- `packages/core` source keeps extensionless relative imports for Next/Turbopack workspace transpilation. Its build script runs `packages/core/scripts/fix-esm-imports.cjs` after `tsc` so emitted `dist/*.js` files have Node-compatible `.js` ESM specifiers.
-- For AI behavior: read `packages/core/src/aiService.ts` before changing heuristics.
-- For app/lobby flow: read `apps/web/components/AppShell.tsx` (routing + session persistence) and `apps/web/components/LobbyScreen.tsx` (lobby UI + settings/rules/auth dialogs), plus `apps/web/lib/i18n.ts` and `apps/web/components/AudioControls.tsx`.
-- For optional auth/account work: read `apps/server/src/auth/*`, `apps/server/src/http/authRoutes.ts`, `apps/server/src/storage/migrations.ts`, `apps/web/components/auth/*`, `apps/web/lib/auth/*`, `packages/shared/src/avatarCatalog.ts`, `packages/shared/src/clientMessages.ts`, and `packages/shared/src/serverEvents.ts`.
-- For lobby UI controls: keep desktop wheel and compact lobby rendering in `apps/web/components/LobbyWheel.tsx`, with shared selected round count passed from `AppShell`.
-- For UI/game flow: read `apps/web/components/DominoPokerGame.tsx` and the relevant `apps/web/styles/*.css` partial (entry `apps/web/app/globals.css` is @import-only — never add rules there; import order = cascade order). Design tokens (colors, radius, z-index layers) live only in `apps/web/styles/tokens.css`; component-local z-index 1–8 and fixed-stage geometry in `mp-mobile-table.css` stay literal.
-- For game-table UI extraction: use `apps/web/components/GameDialogs.tsx`, `apps/web/components/PlayerSeat.tsx`, `apps/web/components/InfoPanel.tsx`, and `apps/web/components/DominoTileView.tsx`; do not move deck creation, shuffle, dealing, AI timers, or trick state transitions into these UI components.
-- For modal/dialog UI: use `apps/web/components/Dialog.tsx` with `apps/web/components/useDialogFocus.ts` instead of duplicating `role="dialog"`, `aria-modal`, focus trap, Escape, or focus restoration behavior.
+## Before Major Edits
 
-## Rule-Specific Care Points
+- Read `project_context/repo_overview.md`, `project_context/module_map.json`, and `project_context/repo_map.json` before broad changes.
+- Respect the layer split:
+  - Domain rules: `packages/core`.
+  - Multiplayer state machine: `packages/core/src/multiplayer`.
+  - Protocol contracts and external input validation: `packages/shared`.
+  - Authoritative multiplayer application/infrastructure: `apps/server`.
+  - Browser presentation/client state: `apps/web`.
+- Do not deep-import private files across module boundaries when a public package entrypoint exists.
+- Keep core domain logic independent from React, Node server code, WebSocket, database adapters, and file-system code.
+- Keep server-side multiplayer authoritative. Browser clients render snapshots and send intents; they do not accept/reject moves as truth.
 
-- Preserve tested TypeScript behavior over stale docs when they disagree. Known disagreement: `docs/domino_poker_rules_summary.md` says overtricks are `-1`, but `docs/PUNKTU_SISTEMA_PIEMERI.md` and current tests use `tricksWon * 5`.
-- `shuffleSet()` intentionally uses an imperfect human-style random cut + overhand packet shuffle + random cut. This is a game-design choice to create more varied hands with more frequent 0, 5, 6, and occasional 7 trump hands. Do not replace it with Fisher-Yates unless explicitly requested.
-- MP deterministic shuffle/setup/state wrappers are isolated in `packages/core/src/multiplayer/`; extend that MP path instead of changing `shuffleSet()`, `createNewGame()`, or core `types.ts` for multiplayer needs.
-- Public setup APIs must validate `dealerIndex` and custom round decks before dealing; custom decks must contain exactly 28 unique legal domino tiles after normalized duplicate checks, while preserving the supplied order and tile orientation for dealing.
-- 0-6 is special: it is an ace only when played/required as 0; when declared as 6 it behaves as a regular 6 for ace comparison.
-- AI trick-strength prediction (`aiService.ts` `wouldWinTrick`) uses the SAME authoritative comparison as the engine's `determineTrickWinner` (`isStrongerTile(state, …)` → `isPlayedAsAce` + no `breakAceTiesByTotalValue`), so the AI predicts the real winner — including the 0-6 special tile (an ace only when played/required as 0). Keep them aligned: do not reintroduce a separate AI-only ace heuristic (the old `isStrongerTileForAi` with raw `isAce` + `breakAceTiesByTotalValue:true`, which mis-predicted 0-6).
-- Trump lead requires a stronger trump if the player has one stronger than the highest trump already in the trick.
-- Non-trump required-number leads require a non-trump matching number before trumping.
-- UI invalid-move messages should use core `getInvalidMoveReason(...)` from `packages/core/src/player.ts`; do not infer message type directly from approximate `GameState` flags.
-- Round winner tiebreakers are round score, then bid, then tricks won, then seat order from dealer.
-- Final game winner tiebreakers are total score first, then the same bid/tricks-won/seat-order tiebreakers used for round winners.
-- The next round dealer is the previous round winner.
+## Source Files To Inspect By Change Area
+
+### Core Rules
+
+Read these before changing game rules, scoring, trick behavior, shuffle/deal, AI, or single-player state:
+
+- `packages/core/src/dominoTile.ts`
+- `packages/core/src/shuffleAlgorithm.ts`
+- `packages/core/src/player.ts`
+- `packages/core/src/gameState.ts`
+- `packages/core/src/aiService.ts`
+- `packages/core/test/dominoRules.test.ts`
+
+Care points:
+
+- `shuffleSet()` intentionally uses human-style cut/overhand shuffle. Do not replace it with Fisher-Yates unless explicitly requested.
+- `getInvalidMoveReason()` is the structured source for invalid-move reasons; do not duplicate approximate rule checks in UI.
+- 0-6 has special ace behavior depending on declared/required context. Verify against tests.
+- Round scoring, dealer rotation, round winner, final standings, and tiebreakers are high-risk.
+- Game constants such as 4 players, 7 tiles, 28 tiles, and round limits are still duplicated in places by design; do not introduce new variants without first defining a deliberate ruleset/config path.
+
+### Core Multiplayer
+
+Read these before changing multiplayer state, events, snapshots, replay, timers, inactivity, auto actions, or legal helper behavior:
+
+- `packages/core/src/multiplayer/types.ts`
+- `packages/core/src/multiplayer/commands.ts`
+- `packages/core/src/multiplayer/events.ts`
+- `packages/core/src/multiplayer/applyCommand.ts`
+- `packages/core/src/multiplayer/gameSetup.ts`
+- `packages/core/src/multiplayer/determinism.ts`
+- `packages/core/src/multiplayer/snapshots.ts`
+- `packages/core/src/multiplayer/replay.ts`
+- `packages/core/src/multiplayer/invariants.ts`
+- `packages/core/test/multiplayer/*.test.ts`
+- `tools/simulators/src/playGame.ts`
+
+Care points:
+
+- `applyCommand()` is the central state transition entrypoint.
+- Multiplayer setup/shuffle must stay seed-driven and deterministic.
+- Do not use `Math.random` or `Date.now` for MP decisions. Inject time/seed through command/setup paths.
+- Public snapshots must not leak opponent hands; player snapshots should reveal only the viewer hand.
+- Legal moves/bids helpers are read-only; mutations still go through commands.
+- Simulator randomness must be seeded and reproducible.
+
+### Shared Protocol
+
+Read these before changing client/server protocol messages, room DTOs, error codes, snapshots, titles, avatars, or protocol validation:
+
+- `packages/shared/src/clientMessages.ts`
+- `packages/shared/src/serverEvents.ts`
+- `packages/shared/src/roomTypes.ts`
+- `packages/shared/src/errors.ts`
+- `packages/shared/src/protocolVersion.ts`
+- `packages/shared/src/avatarCatalog.ts`
+- `packages/shared/src/titles.ts`
+- `packages/shared/test/*.test.ts`
+- `packages/core/src/multiplayer/events.ts`
+- `packages/core/src/multiplayer/snapshots.ts`
+
+Care points:
+
+- `clientMessages.ts` validates external input. Keep max lengths, pips, bids, room ids/codes, request ids, and chat text bounded.
+- `serverEvents.ts` imports core MP event/snapshot types. Shared protocol changes may require coordinated updates in core MP, server routing, web client reducer/views, tests, simulators, and load-test.
+- Keep shared package free of server infrastructure and UI logic.
+
+### Multiplayer Server
+
+Read these before changing server lifecycle, routing, rooms, timers, reconnect, chat, auth handshake, persistence hooks, fanout, or metrics:
+
+- `apps/server/src/index.ts`
+- `apps/server/src/config.ts`
+- `apps/server/src/httpServer.ts`
+- `apps/server/src/net/WebSocketGateway.ts`
+- `apps/server/src/net/messageRouter.ts`
+- `apps/server/src/net/wsTransport.ts`
+- `apps/server/src/net/PostgresEventBus.ts`
+- `apps/server/src/rooms/RoomManager.ts`
+- `apps/server/src/rooms/RoomEngine.ts`
+- `apps/server/src/rooms/LobbyManager.ts`
+- `apps/server/src/rooms/GameDirector.ts`
+- `apps/server/src/rooms/RoomOwnershipGuard.ts`
+- `apps/server/src/chat/LobbyChat.ts`
+- `apps/server/src/sessions/SessionManager.ts`
+- relevant tests under `apps/server/test/net`, `apps/server/test/rooms`, `apps/server/test/timers`, and `apps/server/test/chat`
+
+Care points:
+
+- `RoomEngine` is the single-writer room mutation path.
+- `messageRouter.ts` is routing/application workflow; keep domain rules out of it.
+- The server overrides/owns authoritative time and state.
+- Room lifecycle invariants are high-risk: game-over teardown, disconnect/resume, durable session release, room TTL, abandoned-room cleanup, forfeit, and rate limits.
+- PostgreSQL multi-instance support includes leases, durable sessions, and event fanout; it is not full active room-state failover.
+- If adding active room failover later, server-initiated mutations also need ownership/failover handling.
+
+### Storage And Database
+
+Read these before changing persistence, migrations, storage adapters, auth storage, stats, chat persistence, leases, sessions, or metrics DB health:
+
+- `apps/server/src/storage/StoragePort.ts`
+- `apps/server/src/storage/schema.ts`
+- `apps/server/src/storage/migrations.ts`
+- `apps/server/src/storage/SqliteStorage.ts`
+- `apps/server/src/storage/PostgresStorage.ts`
+- `apps/server/src/storage/MatchPersistence.ts`
+- `apps/server/src/storage/OutcomeRecorder.ts`
+- `apps/server/src/storage/RoomLeaseStore.ts`
+- `apps/server/test/storage/storageContract.ts`
+- `apps/server/test/storage/*.test.ts`
+
+Care points:
+
+- `schema.ts` is the single DDL source for SQLite and PostgreSQL.
+- Migration IDs are production identity. Append new migrations only; do not renumber, reorder, or rewrite previous IDs.
+- Keep SQLite/PostgreSQL behavior aligned through storage contract tests.
+- Local runtime files `data/*.sqlite*` are ignored and must not be committed.
+- PostgreSQL pool settings apply to storage and event bus pools; total DB connections are operationally relevant.
+
+### Auth And Security
+
+Read these before changing auth, profile, password reset, avatar upload/serve, tokens, CORS, rate limits, or client auth state:
+
+- `apps/server/src/auth/AuthService.ts`
+- `apps/server/src/auth/AuthStore.ts`
+- `apps/server/src/auth/passwords.ts`
+- `apps/server/src/auth/EmailSender.ts`
+- `apps/server/src/http/authRoutes.ts`
+- `apps/server/src/http/rateLimiter.ts`
+- `apps/server/src/http/readJsonBody.ts`
+- `apps/web/lib/auth/authApi.ts`
+- `apps/web/lib/auth/useAuthUser.ts`
+- `apps/web/lib/auth/avatarUpload.ts`
+- `apps/web/lib/auth/avatarUrl.ts`
+- `apps/web/components/auth/*.tsx`
+- `packages/shared/src/avatarCatalog.ts`
+
+Care points:
+
+- Auth is optional. Anonymous single-player and anonymous multiplayer must remain playable.
+- Do not log raw auth tokens, reset tokens, passwords, password hashes, DB credentials, or secrets.
+- Tokens are opaque client-side values; storage keeps hashes.
+- Password reset must remain anti-enumeration, single-use, hashed-token based, and URL-hash based on the client.
+- Avatar upload is client-resized/compressed; server validates size/magic bytes and serves with fixed content type and nosniff.
+- `WEB_ORIGIN` is the auth CORS allowlist. Do not use wildcard CORS for auth.
+- `TRUST_PROXY` should be enabled only behind a trusted reverse proxy.
+
+### Web UI
+
+Read these before changing shell routing, lobby, single-player UI, multiplayer UI, layout, dialogs, audio, localization, PWA, or web storage:
+
+- `apps/web/components/AppShell.tsx`
+- `apps/web/components/LobbyScreen.tsx`
+- `apps/web/components/LobbyWheel.tsx`
+- `apps/web/components/DominoPokerGame.tsx`
+- `apps/web/components/GameDialogs.tsx`
+- `apps/web/components/Dialog.tsx`
+- `apps/web/components/useDialogFocus.ts`
+- `apps/web/components/MultiplayerLobby.tsx`
+- `apps/web/components/mp/*.tsx`
+- `apps/web/lib/mp/*.ts`
+- `apps/web/lib/i18n.ts`
+- `apps/web/lib/locales/en.ts`
+- `apps/web/lib/locales/lv.ts`
+- `apps/web/lib/safeStorage.ts`
+- `apps/web/lib/useAudioSettings.ts`
+- relevant CSS partials under `apps/web/styles/`
+
+Care points:
+
+- `apps/web/app/globals.css` is import-only. Add rules to feature CSS partials under `apps/web/styles/`.
+- `apps/web/styles/tokens.css` is the design-token source.
+- Use `Dialog`/`useDialogFocus` for modal semantics and focus behavior.
+- Keep user-facing strings in locale files and pass labels through props.
+- Use `safeStorage` wrappers for localStorage/sessionStorage.
+- `AppShell` owns locale, screen routing, auth state, audio, selected round count, session restore, and reset-token routing.
+- Multiplayer UI sends intents only. Do not add authoritative move acceptance/rejection to the browser.
+- Layout has multiple contracts: desktop fixed stage, phone portrait game stage, and responsive MP lobby. Meaningful layout changes need browser/e2e verification.
+- PWA/service-worker changes can be affected by stale caches; verify manually when changing `manifest.ts`, `sw.js`, icons, or public assets.
 
 ## Commands
 
-- Node ≥ 22.5 is REQUIRED (server uses built-in `node:sqlite`) and enforced: root `package.json` `engines.node` + `.npmrc` `engine-strict=true` make `npm install`/`npm ci` hard-fail on older Node; `.nvmrc`/`.node-version` pin `24` (matches `deploy/Dockerfile`). Do not remove these or relax `engine-strict` without a reason.
-- `node:sqlite` API stability can change across Node minors (local Node 24.14 still emits `ExperimentalWarning`; current Node 24 docs mark SQLite as release candidate). Treat that warning as expected for the pinned runtime, and do not bump Node major/minor without rerunning server storage/persistence tests.
 - Install: `npm install`
-- If build/test/typecheck fails with `Cannot find module '@domino-poker/...'`, first check the local workspace install: `node_modules/@domino-poker/*` should be npm workspace junctions/symlinks, not empty regular directories. Run `npm install` to repair a local broken install; use `npm ci` in clean CI environments.
-- Typecheck: `npm run typecheck`
-- Lint: `npm run lint` (ESLint 9 flat config `eslint.config.mjs`: JS + typescript-eslint recommended + React Hooks rules for `apps/web`; NOT type-aware, so it does not duplicate `tsc`). Keep it green; `_`-prefixed args/vars are treated as intentionally unused.
-- Test: `npm run test`
-- Optional real PostgreSQL integration tests: run `npm run test:postgres:docker` for a disposable Docker PostgreSQL database, or set `TEST_POSTGRES_DATABASE_URL` and run `npm run test:postgres --workspace apps/server` against an existing disposable database. The specs create/drop their own schemas and are skipped in the normal suite when the env var is absent.
-- PostgreSQL migrations (build first): `npm run migrate --workspace apps/server` (runs `dist/storage/migrate.js`). PostgreSQL-only; against a SQLite/`:memory:` `DATABASE_URL` it is a logged no-op. The server also migrates on startup (`PostgresStorage.open`), so this standalone command is an optional pre-deploy step, not the only path.
-- Storage schema DDL has ONE source: `apps/server/src/storage/schema.ts` (`buildMigrations(dialect)`); migration ids 0001..0005 are production identity — append new migrations at the end, never renumber/reorder, and keep edits type-token-level only (no ORM/DSL). Both backends version-track via `schema_migrations` (PG: `migrations.ts` runner; SQLite: runner inside `SqliteStorage.migrate()`). When changing `StoragePort` behavior, extend the parametrized contract suite `apps/server/test/storage/storageContract.ts` so both backends stay provably identical.
-- Web smoke tests: `npm run test:web`
-- Build: `npm run build`
-- Dev server: `npm run dev`
-- Dev multiplayer server: `npm run dev:server`
+- Web dev: `npm run dev`
+- Server dev: `npm run dev:server`
+- Typecheck all: `npm run typecheck`
+- Lint: `npm run lint`
+- Unit tests: `npm run test`
+- Playwright e2e: `npm run test:web`
+- Build all: `npm run build`
 - Simulation: `npm run simulate`
-- Local load-test: `npm run load:local`
-- Windows launcher: `start-domino-poker.bat`
-- Server workspace build/typecheck: `npm run build --workspace apps/server`, `npm run typecheck --workspace apps/server`
-- Shared workspace build/typecheck: `npm run build --workspace packages/shared`, `npm run typecheck --workspace packages/shared`
-- After changing `packages/shared`, run `npm run build --workspace packages/shared` before server tests because server runtime tests import the shared package from `packages/shared/dist`.
-- The `dev:server` script builds in dependency order `core → shared → server` (`packages/shared` is required because the server imports `@domino-poker/shared`); do not drop the `packages/shared` build step or reorder it after the server build.
-- TypeScript incremental/composite builds (`packages/shared`, `apps/server`) write a `*.tsbuildinfo` next to their tsconfig. Gotcha: if you delete `dist/` manually but leave `*.tsbuildinfo`, `tsc` treats the build as up-to-date and skips emit, so `dist/` stays empty and downstream builds fail with `Cannot find module '@domino-poker/...'`. A fresh clone has no `*.tsbuildinfo`, so it is unaffected. When cleaning a build locally to validate from scratch, delete `*.tsbuildinfo` together with `dist/` (e.g. `packages/shared/tsconfig.tsbuildinfo`, `apps/server/tsconfig.build.tsbuildinfo`).
+- Local load-test: `npm run load:local -- <clients>`
+- Disposable PostgreSQL integration: `npm run test:postgres:docker`
+- Existing PostgreSQL integration: set `TEST_POSTGRES_DATABASE_URL`, then `npm run test:postgres --workspace apps/server`
+- Server migration command after build: `npm run migrate --workspace apps/server`
 
-Run `npm run typecheck`, `npm run test`, `npm run test:web`, and `npm run build` sequentially rather than in parallel because Next rewrites `.next/types` during builds and Playwright owns a dev server during smoke tests.
+Important ordering:
 
-## Architecture Rules
+- `npm run dev:server` builds `packages/core`, then `packages/shared`, then `apps/server`, then runs server dist.
+- `npm run test:web` expects `apps/server/dist/index.js` to exist because Playwright starts `node dist/index.js` in `apps/server`.
+- If runtime tests cannot resolve `@domino-poker/*`, check workspace links and whether required dist builds exist.
+- Run typecheck, lint, tests, Playwright, and build sequentially when doing broad verification; do not race generated outputs.
 
-- The app has TWO game modes: local single-player (backend-free gameplay) and live authoritative multiplayer (bundled `apps/server`). Optional accounts/auth are additive profile/stat features and must not become required for single-player or multiplayer. Do not add third-party game-hosting or matchmaking. Multiplayer already ships a self-hosted WS server + persistence (SQLite by default, PostgreSQL by `DATABASE_URL`) — treat those as part of the product, not something to remove.
-- The main lobby exposes a LIVE multiplayer entry (`onStartMultiplayer` → `MultiplayerLobby`); it is not disabled. Do not "re-disable" it.
-- Match results and per-player stats ARE persisted at `GAME_OVER` (`MatchPersistence` → `StoragePort`; default SQLite via `node:sqlite`, optional PostgreSQL via `pg` when `DATABASE_URL` starts with `postgres://` or `postgresql://`). Do not remove stats storage or claim it was removed; player stats must be updated through `StoragePort.incrementPlayerStats(...)` so the concrete DB adapter can perform an atomic increment instead of a read-modify-write cycle.
-- Account statistics are countable only when the match starts with 4 human seats mapped to 4 distinct registered `userId`s. Use `OutcomeRecorder`/`recordUserMatchOutcome` so forfeit/abandon/GAME_OVER produce exactly one win/loss outcome per user per match.
-- PostgreSQL multi-instance foundations are implemented in three parts: room ownership leases (`room_leases` via `RoomLeaseStore`/`RoomOwnershipGuard`), durable reconnect sessions (`player_sessions` via `DurableSessionStore`/`SessionManager.registerAsync`), and cross-instance WebSocket fanout (`PostgresEventBus` using `server_event_fanout` + LISTEN/NOTIFY). `CoreMessageRouter` still owns room-scoped command execution through the lease guard; do not bypass it. Active room state is still in the owning Node process: full production horizontal scaling needs room-affinity/owner routing or explicit state rehydration/command forwarding, plus deploy/load-balancer routing and operational monitoring. These three code foundations are no longer TODOs, but do not claim full active room failover yet.
-- The PostgreSQL schema has a SINGLE source of truth: the ordered `MIGRATIONS` array in `apps/server/src/storage/migrations.ts`. Do not reintroduce inline `CREATE TABLE` schema in `PostgresStorage` or `PostgresEventBus` (both now just call `runMigrations`); add new schema only by appending a new `{ id, up }` migration to the END of the array (forward-only, never reorder/rewrite past ids). Write each `up` idempotently (`IF NOT EXISTS`/`IF EXISTS`) since a run that crashes between applying `up` and recording the id will re-run it. `schema_migrations` tracks applied ids. SQLite is out of scope — it provisions its schema with `CREATE IF NOT EXISTS` on open.
-- If active room-state failover/rehydration is added later, also gate server-initiated room mutations (turn-timeout, bot pacing, abandoned-room cleanup, and related fanout) by current room ownership. The current lease guard protects client-routed room commands; it is not a complete failover ownership model by itself.
-- Server resource lifecycle invariants (do not regress): a finished game (`GAME_OVER`) destroys its room via `RoomManager.destroyFinishedRoom`, driven centrally by `messageRouter.publishAndFinalize`; durable sessions are released on membership loss while offline (`setMemberDepartedHandler` → `WebSocketGateway.releaseSession`, offline-guarded) and intentionally NOT on disconnect (the reconnect token must survive disconnect for reconnect grace + wrong-token impostor rejection — see the `WebSocketGateway.test.ts` "token mismatch" test); room creation is per-connection token-bucket rate-limited; DESTROYED room tombstones + their codes are pruned in `LobbyManager.destroyExpired`.
-- Client-controlled identity strings (`clientId`, `reconnectToken`) are length-capped via `maxIdentifierLength` in `packages/shared/src/clientMessages.ts`; keep `.max(...)` bounds on client strings that become durable map keys or log fields.
-- Browser audio settings are localStorage-only and do not contain secrets.
-- `useAudioSettings()` reuses a small pool of effect audio elements; do not switch back to creating a new `Audio` object on every effect play.
-- Use `apps/web/lib/safeStorage.ts` for localStorage access so unavailable, blocked, or throwing storage does not crash the app.
-- Keep `useAudioSettings()` owned by `AppShell` so lobby and game share one audio state and one background music element.
-- Keep configurable game setup owned by `AppShell`; the lobby-selected round count is passed into `DominoPokerGame` as `numberOfRounds`.
-- Multiplayer implementation exists across `packages/core/src/multiplayer`, `packages/shared`, `apps/server`, and `apps/web/lib/mp`/`components/MultiplayerLobby.tsx`. Keep new MP protocol/UI work in those zones and do not mix it into single-player logic.
-- MP clients must not accept/reject moves authoritatively. They may use shared `packages/core` helpers only for non-authoritative UI hints (for example `viewerValidTileKeys` highlighting/disabled state in `apps/web/lib/mp/gameTableView.ts`); the server still validates every submitted bid/move.
-- The lobby uses the circular mode wheel for desktop-sized viewports and a separate compact control panel for narrow or short viewports. Do not solve lobby fit issues by uniformly shrinking the wheel until labels and controls become impractical.
-- The game table currently preserves a fixed 1920x1080 coordinate layout and uses uniform contain scaling so the full stage remains visible. Do not convert this to phone portrait reflow unless explicitly requested.
-- Keep user-facing web text in `apps/web/lib/locales/*.ts` and register locales through `apps/web/lib/i18n.ts`; pass the active locale strings through component props instead of importing a fixed strings object or writing hardcoded JSX text.
-- Keep locale switching owned by `AppShell`; the selected locale is persisted in `localStorage` under `domino-poker-locale`.
+## Environment And Runtime Data
 
-## Security And Configuration
-
-- Never commit secrets, service keys, OAuth credentials, session credentials, or local secret files.
-- Never commit local runtime databases; `data/*.sqlite` is intentionally ignored.
-- Server config comes from env (`SERVER_PORT`/`HTTP_PORT`, `SERVER_HOST`, `DATABASE_URL`, `TURN_DURATION_MS`, `NODE_ENV`, `WEB_ORIGIN`, and PostgreSQL pool limits `PG_POOL_MAX`/`PG_POOL_IDLE_TIMEOUT_MS`/`PG_POOL_CONNECTION_TIMEOUT_MS`; see `apps/server/src/config.ts` and `.env.example`). `DATABASE_URL` accepts SQLite file paths/`:memory:`/`file:` or PostgreSQL URLs; do not log or hardcode DB credentials. Multiplayer identity starts as client-chosen `clientId` + server-issued `reconnectToken`/anonymous `displayId`; a valid optional `authToken` can attach `userId` and public username/avatar.
-- PostgreSQL pool limits apply to BOTH pools (storage + event bus) plus the LISTEN client, so total DB connections ≈ `2 × PG_POOL_MAX + 1`; keep that under the server's `max_connections`. Pool limits are PostgreSQL-only (SQLite ignores them). Defaults equal the `pg` driver defaults, so omitting them does not change connection count.
-- `/metrics` adds a `db` sub-object only in PostgreSQL mode, sourced from `PostgresStorage.healthCheck`: `{ ok, latencyMs, pool, fanout: { rows, oldestAgeMs }, tables: { <name>: { rows, bytes } }, eventBusPool? }`. `pool`/`eventBusPool` are connection-pool saturation (storage + event-bus pools, for trends); `fanout` is the `server_event_fanout` backlog (growing `rows`/`oldestAgeMs` means prune is falling behind); `tables` are approximate per-table sizes from `pg_stat_user_tables` (`n_live_tup` + `pg_total_relation_size`, scoped to `current_schema()`, no table scan). `healthCheck` returns `ok:false` with empty stats on `SELECT 1` failure rather than throwing (a health probe must not crash `/metrics`); do not make it throw. `eventBusPool` is merged in by `index.ts` (it lives on `PostgresEventBus.poolStats`, not storage). Operational backup/restore steps live in `deploy/BACKUP.md`.
-- Both single-player and the multiplayer lobby/game are playable without authentication. `/auth/*` is optional and uses bearer tokens, Zod validation, rate limits, scrypt password hashes, and `WEB_ORIGIN` CORS allowlisting; never make auth mandatory for anonymous play.
-- Client components must not depend on server-only secrets or external service SDKs.
-- Auth tokens are stored client-side via `apps/web/lib/safeStorage.ts` under `domino-poker-auth-token`; do not log them, put them into URLs, or expose them outside `/auth/*` and MP HELLO.
+- Server config comes from env and `.env` through `apps/server/src/config.ts`.
+- `DATABASE_URL` accepts SQLite file paths, `:memory:`, `file:` paths, or PostgreSQL URLs.
+- `.env` and `.env.*` are ignored except `.env.example`.
+- `data/*.sqlite`, `data/*.sqlite-wal`, and `data/*.sqlite-shm` are ignored runtime files.
+- `logs/` is ignored. MP action logging is opt-in through `MP_ACTION_LOG=1`.
+- Local docs under `docs/DEPLOYMENT.md`, `docs/SCALING.md`, `docs/DB_MIGRATION.md`, `docs/TODO/*`, and `docs/mockups/*` may exist but are ignored; do not assume they exist in clean clones.
+- `deploy.sh` is ignored/local and may contain host-specific deployment assumptions.
 
 ## Testing Expectations
 
-- Add or update Vitest tests in `packages/core/test` for any scoring, legal-play, trick-resolution, AI, or round-flow changes.
-- Add or update Vitest tests in `apps/server/test` for multiplayer server changes (routing, room lifecycle, sessions/reconnect, persistence, timers, rate limits) and in `packages/shared/test` for protocol/schema changes.
-- Use Playwright browser smoke checks in `tests/e2e` for meaningful UI changes, especially lobby start, bidding, number selection, trick completion delay, and round summary behavior. Note: e2e selectors must disambiguate the single-player "Play" button from the multiplayer "Lobby"/"Multiplayer" button (use `{ name: "Play", exact: true }` / `.playButton:not(.multiplayerButton)`).
+- Core rule changes: update/run `packages/core/test/dominoRules.test.ts` and relevant `packages/core/test/multiplayer/*.test.ts`.
+- Multiplayer state-machine changes: run core MP tests and simulator tests.
+- Server routing/lifecycle changes: update/run relevant `apps/server/test/net/*`, `apps/server/test/rooms/*`, and timer/session tests.
+- Storage changes: extend the storage contract suite and run SQLite plus PostgreSQL tests where applicable.
+- Protocol changes: update shared tests, server/client consumers, and load-test/simulator expectations if needed.
+- UI changes: run focused web Vitest tests and Playwright e2e for affected flows.
+- Security/auth changes: run auth route/service/storage tests and inspect CORS/rate-limit/token behavior.
+
+## Known Local Context
+
+- `README.md` still has wording in one place saying server dev builds "core + server"; the actual root script builds core, shared, and server.
+- `.gitignore` contains a duplicate `docs/*` ignore block. It is harmless but noisy.
+- Some terminal output may show mojibake for Latvian comments depending on shell encoding; inspect files directly with UTF-8-aware tooling before changing text for encoding reasons.
