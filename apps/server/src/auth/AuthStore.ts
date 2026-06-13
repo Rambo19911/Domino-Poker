@@ -8,10 +8,16 @@
  * Laiks visur ir servera ms (BIGINT/INTEGER), kā pārējā shēmā.
  */
 
+import type { GameLanguage } from "@domino-poker/shared";
+
 import type { UserStatsRecord } from "../storage/StoragePort.js";
 
-/** Atbalstītā spēles valoda (sakrīt ar web `i18n` locale). DB `CHECK` to ierobežo. */
-export type AccountLanguage = "en" | "lv";
+/**
+ * Atbalstītā spēles valoda. Viens autoritatīvais avots ir `GameLanguage`
+ * (`@domino-poker/shared`); šis aliass to dara pieejamu storage slānī. DB `CHECK`
+ * (`schema.ts` `user_preferences`) ierobežo tās pašas vērtības glabātuvē.
+ */
+export type AccountLanguage = GameLanguage;
 
 /** Noklusējuma valoda, ja lietotājam vēl nav `user_preferences` rindas. */
 export const DEFAULT_ACCOUNT_LANGUAGE: AccountLanguage = "en";

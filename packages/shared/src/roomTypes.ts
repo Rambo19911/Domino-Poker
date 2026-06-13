@@ -4,6 +4,7 @@
  * `Room`/`Seat` (ar `playerId`) paliek `apps/server` (LobbyManager).
  */
 
+import type { RankBadgeId } from "./leaderboard.js";
 import type { TitleId } from "./titles.js";
 
 export type RoomStatus =
@@ -35,6 +36,13 @@ export interface RoomSeatView {
    */
   readonly avatar?: string | undefined;
   readonly title?: TitleId | undefined;
+  /**
+   * Globālā ranga badge (Leaderboard fāze): atvasināts no spēlētāja vietas topā
+   * caur `rankToBadge`. `undefined`, ja spēlētājs nav badge-piešķirošā rangā (71+),
+   * bots vai anonīms. Serveris to aizpilda no LeaderboardService keša (F4). Klients
+   * rāda kā badge pārklājumu uz sēdvietas avatara (waiting-room + spēles galds).
+   */
+  readonly rankBadge?: RankBadgeId | undefined;
 }
 
 export interface RoomSummary {
