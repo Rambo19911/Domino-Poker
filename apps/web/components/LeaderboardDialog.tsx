@@ -49,6 +49,15 @@ export function LeaderboardDialog({
     };
   }, [getToken, reloadKey]);
 
+  // "?" info pats pazūd pēc 5s (atkārtots klikšķis atiestata taimeri; manuāla aizvēršana to notīra).
+  useEffect(() => {
+    if (!infoOpen) {
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setInfoOpen(false), 5000);
+    return () => window.clearTimeout(timer);
+  }, [infoOpen]);
+
   const handleClose = () => {
     audio.play("uiClick");
     onClose();
@@ -194,7 +203,14 @@ function LeaderboardRow({
         {entry.username}
       </span>
       <span className="lbBadge" role="cell">
-        {badge ? <img className="lbBadgeImg" src={badgeAssetPath(badge)} alt="" aria-hidden="true" /> : null}
+        {badge ? (
+          <img
+            className={`lbBadgeImg ${entry.rank === 1 ? "top1" : entry.rank <= 3 ? "top3" : ""}`}
+            src={badgeAssetPath(badge)}
+            alt=""
+            aria-hidden="true"
+          />
+        ) : null}
       </span>
       <span className="lbNum" role="cell">{entry.wins}</span>
       <span className="lbNum" role="cell">{entry.losses}</span>

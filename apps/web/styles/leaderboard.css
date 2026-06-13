@@ -82,6 +82,13 @@
   /* TIKAI vertikāls scroll: `overflow-y:auto` citādi liek `overflow-x` aprēķināties
      kā `auto`, un vertikālā scrollbar atņemtais platums radītu lieku horizontālo scroll. */
   overflow-x: hidden;
+  /* Neredzama ritjosla (paliek ritināma ar peli/skārienu): novērš balto joslu un tās
+     atņemtā platuma radīto galvenes/datu nobīdi. */
+  scrollbar-width: none;
+}
+
+.leaderboardTable::-webkit-scrollbar {
+  display: none;
 }
 
 .leaderboardRow {
@@ -102,8 +109,14 @@
   border-bottom: 1px solid rgb(var(--text-primary-rgb) / 0.2);
   background: rgb(var(--overlay-rgb) / 0.92);
   color: var(--text-secondary);
-  font-size: 0.74rem;
+  /* NEMAINĀM font-size: `--lb-cols` skaitļu celiņi ir `ch`, kas atrisinās pēc ŠĪS
+     rindas font-size. Atšķirīgs galvenes fonts → atšķirīgs `ch` → kolonnu nobīde.
+     Mazāku galvenes tekstu panākam ar mērogu uz šūnām (NEietekmē grid `ch`). */
   text-transform: uppercase;
+}
+
+.leaderboardHead span {
+  font-size: 0.82em;
 }
 
 .leaderboardRow.self {
@@ -141,12 +154,26 @@
 .lbBadge {
   display: flex;
   justify-content: center;
+  /* Lielākais (1. vietas) kauss ir platāks par šauro celiņu — ļaujam tam pārplūst
+     centrēti tukšumā (grid celiņš paliek fiksēts, nepaplašinās). */
+  overflow: visible;
 }
 
 .lbBadgeImg {
   width: 22px;
   height: 22px;
   object-fit: contain;
+}
+
+/* Podium hierarhija: 1. vieta lielākais kauss, 2.–3. vidējs (izceļ līderus). */
+.lbBadgeImg.top3 {
+  width: 30px;
+  height: 30px;
+}
+
+.lbBadgeImg.top1 {
+  width: 42px;
+  height: 42px;
 }
 
 .lbNum {
@@ -211,5 +238,15 @@
   .lbBadgeImg {
     width: 19px;
     height: 19px;
+  }
+
+  .lbBadgeImg.top3 {
+    width: 26px;
+    height: 26px;
+  }
+
+  .lbBadgeImg.top1 {
+    width: 36px;
+    height: 36px;
   }
 }
