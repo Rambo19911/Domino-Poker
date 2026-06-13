@@ -7,7 +7,8 @@ const EXPECTED_IDS = [
   "0002_auth_schema",
   "0003_user_stats",
   "0004_password_reset_tokens",
-  "0005_custom_avatars"
+  "0005_custom_avatars",
+  "0006_user_preferences"
 ];
 
 const SHARED_TABLES = [
@@ -20,7 +21,8 @@ const SHARED_TABLES = [
   "user_stats",
   "match_user_outcomes",
   "password_reset_tokens",
-  "user_avatars"
+  "user_avatars",
+  "user_preferences"
 ];
 
 const PG_ONLY_TABLES = ["player_sessions", "room_leases", "server_event_fanout"];

@@ -10,6 +10,41 @@
 
 import type { UserStatsRecord } from "../storage/StoragePort.js";
 
+/** Atbalstītā spēles valoda (sakrīt ar web `i18n` locale). DB `CHECK` to ierobežo. */
+export type AccountLanguage = "en" | "lv";
+
+/** Noklusējuma valoda, ja lietotājam vēl nav `user_preferences` rindas. */
+export const DEFAULT_ACCOUNT_LANGUAGE: AccountLanguage = "en";
+
+/**
+ * Viena Leaderboard rinda: globālais rangs + konta publiskie stats + valoda
+ * (Leaderboard fāze). Rangs ir `ROW_NUMBER()` pozīcija (1-bāzēts, bez caurumiem)
+ * pār kvalificētajiem kontiem (`games_played >= minGames`), kārtots pēc win rate.
+ * `email`/`passwordHash` šeit NEKAD neparādās (tikai publiskie lauki).
+ */
+export interface LeaderboardEntryRecord {
+  /** 1-bāzēta globālā vieta (ROW_NUMBER; nav caurumu pie neizšķirtiem). */
+  readonly rank: number;
+  readonly userId: string;
+  readonly username: string;
+  /** Avatar id no `avatarCatalog` (UI atrisina ceļu/fallback). */
+  readonly avatar: string;
+  readonly wins: number;
+  readonly losses: number;
+  readonly gamesPlayed: number;
+  /** Uzvaru īpatsvars 0..1 (`wins / games_played`). */
+  readonly winRate: number;
+  readonly language: AccountLanguage;
+  /** Servera laiks (ms) pēdējam stats atjauninājumam. */
+  readonly updatedAt: number;
+}
+
+/** Viegls (userId + rangs) ieraksts kešam (Leaderboard rangu snapshot). */
+export interface RankSnapshotRecord {
+  readonly userId: string;
+  readonly rank: number;
+}
+
 /** Lietotāja ieraksts (DTO; JSON-drošs). `passwordHash`/`email` NEKAD nesūta citiem. */
 export interface UserRecord {
   readonly id: string;
@@ -79,6 +114,29 @@ export interface AuthStore {
   deleteExpiredAuthTokens(now: number): Promise<void>;
   /** Konta MP statistika (Fāze 3) vai `undefined`, ja vēl nav ieskaitītu spēļu. */
   getUserStats(userId: string): Promise<UserStatsRecord | undefined>;
+  // --- Leaderboard (globālā statistika) ---
+  /**
+   * Top `limit` ranžētie konti pēc win rate (DESC), kārtoti ar stabilu tie-break
+   * (`win_rate, wins, games_played, username, user_id`). Iekļauj tikai kontus ar
+   * `games_played >= minGames`. Rangs ir 1-bāzēts `ROW_NUMBER()`.
+   */
+  getLeaderboard(limit: number, minGames: number): Promise<readonly LeaderboardEntryRecord[]>;
+  /**
+   * Viena lietotāja GLOBĀLĀ vieta (rangs pār visiem kvalificētajiem, ne tikai
+   * top-N), vai `null`, ja lietotājs nav kvalificēts (`games_played < minGames`
+   * vai nav stats). Lieto "mana vieta" panelim, kad spēlētājs ir ārpus top 100.
+   */
+  getUserRank(userId: string, minGames: number): Promise<LeaderboardEntryRecord | null>;
+  /**
+   * Visu kvalificēto kontu (userId + rangs) momentuzņēmums kešam (LeaderboardService).
+   * Bez `limit` — pilns rangu saraksts, lai badge pārklājumu varētu rādīt jebkuram seat'am.
+   */
+  getRankedSnapshot(minGames: number): Promise<readonly RankSnapshotRecord[]>;
+  // --- Konta valodas preference (`user_preferences`) ---
+  /** Upsert spēles valodu kontam (idempotents pēc `userId`). */
+  setUserLanguage(userId: string, language: AccountLanguage, updatedAt: number): Promise<void>;
+  /** Konta saglabātā valoda vai `undefined`, ja vēl nav preferences rindas. */
+  getUserLanguage(userId: string): Promise<AccountLanguage | undefined>;
   // --- Paroles atjaunošana pa e-pastu (Fāze 5) ---
   createPasswordResetToken(record: PasswordResetTokenRecord): Promise<void>;
   /** Dzēš lietotāja neizmantotos reset tokenus (pie jauna pieprasījuma — invalidē vecos). */

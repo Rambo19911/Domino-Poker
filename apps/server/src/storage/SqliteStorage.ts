@@ -18,12 +18,15 @@ import type {
   UserStatsRecord
 } from "./StoragePort.js";
 import type {
+  AccountLanguage,
   AuthStore,
   AuthTokenRecord,
   CreateUserResult,
   CustomAvatarRecord,
+  LeaderboardEntryRecord,
   PasswordResetTokenRecord,
   ProfileUpdate,
+  RankSnapshotRecord,
   UpdateProfileResult,
   UserRecord
 } from "../auth/AuthStore.js";
@@ -539,6 +542,72 @@ export class SqliteStorage implements StoragePort, AuthStore {
     };
   }
 
+  async getLeaderboard(limit: number, minGames: number): Promise<readonly LeaderboardEntryRecord[]> {
+    // CTE: vispirms aprēķina `win_rate` (REAL), tad ranžē (nedrīkst lietot SELECT
+    // aliasu ORDER BY iekšā ROW_NUMBER). LEFT JOIN preferences + COALESCE → veci
+    // konti bez valodas rindas nav jābackfillo.
+    const rows = this.db
+      .prepare(
+        `${SQLITE_LEADERBOARD_CTE}
+         SELECT ${LEADERBOARD_RANK_EXPR} AS leaderboard_rank, ${LEADERBOARD_COLUMNS}
+         FROM eligible
+         ORDER BY leaderboard_rank
+         LIMIT ?`
+      )
+      .all(minGames, limit) as unknown as LeaderboardRow[];
+    return rows.map(rowToLeaderboardEntry);
+  }
+
+  async getUserRank(userId: string, minGames: number): Promise<LeaderboardEntryRecord | null> {
+    // Ranžē VISU kvalificēto kopu (globālā vieta), tikai pēc tam filtrē lietotāju.
+    const row = this.db
+      .prepare(
+        `${SQLITE_LEADERBOARD_CTE},
+         ranked AS (
+           SELECT ${LEADERBOARD_RANK_EXPR} AS leaderboard_rank, ${LEADERBOARD_COLUMNS}
+           FROM eligible
+         )
+         SELECT * FROM ranked WHERE user_id = ?`
+      )
+      .get(minGames, userId) as LeaderboardRow | undefined;
+    return row ? rowToLeaderboardEntry(row) : null;
+  }
+
+  async getRankedSnapshot(minGames: number): Promise<readonly RankSnapshotRecord[]> {
+    const rows = this.db
+      .prepare(
+        `${SQLITE_LEADERBOARD_CTE}
+         SELECT ${LEADERBOARD_RANK_EXPR} AS leaderboard_rank, user_id
+         FROM eligible
+         ORDER BY leaderboard_rank`
+      )
+      .all(minGames) as Array<{ readonly leaderboard_rank: number | bigint; readonly user_id: string }>;
+    return rows.map((row) => ({ userId: row.user_id, rank: Number(row.leaderboard_rank) }));
+  }
+
+  async setUserLanguage(
+    userId: string,
+    language: AccountLanguage,
+    updatedAt: number
+  ): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT INTO user_preferences (user_id, language, updated_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(user_id) DO UPDATE SET
+           language   = excluded.language,
+           updated_at = excluded.updated_at`
+      )
+      .run(userId, language, updatedAt);
+  }
+
+  async getUserLanguage(userId: string): Promise<AccountLanguage | undefined> {
+    const row = this.db
+      .prepare(`SELECT language FROM user_preferences WHERE user_id = ?`)
+      .get(userId) as { readonly language: AccountLanguage } | undefined;
+    return row?.language;
+  }
+
   async close(): Promise<void> {
     this.db.close();
   }
@@ -623,6 +692,57 @@ interface UserStatsRow {
   readonly wins: number;
   readonly losses: number;
   readonly updated_at: number;
+}
+
+/**
+ * Leaderboard ranžēšanas kārtība (tie-break): win rate DESC, tad wins, games,
+ * username, un kā pēdējais — STABILAIS `user_id` (deterministiska secība pie
+ * pilnīga neizšķirta). Lietota gan `ROW_NUMBER` logā, gan visos 3 vaicājumos.
+ */
+const LEADERBOARD_ORDER =
+  "win_rate DESC, wins DESC, games_played DESC, username ASC, user_id ASC";
+const LEADERBOARD_RANK_EXPR = `ROW_NUMBER() OVER (ORDER BY ${LEADERBOARD_ORDER})`;
+const LEADERBOARD_COLUMNS =
+  "user_id, username, avatar, wins, losses, games_played, win_rate, language, updated_at";
+/** `eligible` CTE (SQLite): win_rate kā REAL; tikai games_played >= ? (param 1). */
+const SQLITE_LEADERBOARD_CTE = `WITH eligible AS (
+  SELECT u.id AS user_id, u.username, u.avatar,
+         us.wins, us.losses, us.games_played,
+         (CAST(us.wins AS REAL) / us.games_played) AS win_rate,
+         COALESCE(p.language, 'en') AS language,
+         us.updated_at
+  FROM user_stats us
+  JOIN users u ON u.id = us.user_id
+  LEFT JOIN user_preferences p ON p.user_id = u.id
+  WHERE us.games_played >= ?
+)`;
+
+interface LeaderboardRow {
+  readonly leaderboard_rank: number | bigint;
+  readonly user_id: string;
+  readonly username: string;
+  readonly avatar: string;
+  readonly wins: number;
+  readonly losses: number;
+  readonly games_played: number;
+  readonly win_rate: number;
+  readonly language: AccountLanguage;
+  readonly updated_at: number | bigint;
+}
+
+function rowToLeaderboardEntry(row: LeaderboardRow): LeaderboardEntryRecord {
+  return {
+    rank: Number(row.leaderboard_rank),
+    userId: row.user_id,
+    username: row.username,
+    avatar: row.avatar,
+    wins: Number(row.wins),
+    losses: Number(row.losses),
+    gamesPlayed: Number(row.games_played),
+    winRate: Number(row.win_rate),
+    language: row.language,
+    updatedAt: Number(row.updated_at)
+  };
 }
 
 function rowToUser(row: UserRow): UserRecord {

@@ -24,12 +24,15 @@ import type {
   NewDurableSessionRecord
 } from "../sessions/DurableSessionStore.js";
 import type {
+  AccountLanguage,
   AuthStore,
   AuthTokenRecord,
   CreateUserResult,
   CustomAvatarRecord,
+  LeaderboardEntryRecord,
   PasswordResetTokenRecord,
   ProfileUpdate,
+  RankSnapshotRecord,
   UpdateProfileResult,
   UserRecord
 } from "../auth/AuthStore.js";
@@ -681,6 +684,69 @@ export class PostgresStorage
     };
   }
 
+  async getLeaderboard(limit: number, minGames: number): Promise<readonly LeaderboardEntryRecord[]> {
+    // CTE: win_rate kā double precision PIRMS ranžēšanas (nedrīkst aliasu ORDER BY
+    // iekšā ROW_NUMBER). LEFT JOIN preferences + COALESCE → bez backfill veciem kontiem.
+    const result = await this.pool.query<LeaderboardRow>(
+      `${PG_LEADERBOARD_CTE}
+       SELECT ${LEADERBOARD_RANK_EXPR} AS leaderboard_rank, ${LEADERBOARD_COLUMNS}
+       FROM eligible
+       ORDER BY leaderboard_rank
+       LIMIT $2`,
+      [minGames, limit]
+    );
+    return result.rows.map(rowToLeaderboardEntry);
+  }
+
+  async getUserRank(userId: string, minGames: number): Promise<LeaderboardEntryRecord | null> {
+    // Ranžē VISU kvalificēto kopu (globālā vieta), tikai pēc tam filtrē lietotāju.
+    const result = await this.pool.query<LeaderboardRow>(
+      `${PG_LEADERBOARD_CTE},
+       ranked AS (
+         SELECT ${LEADERBOARD_RANK_EXPR} AS leaderboard_rank, ${LEADERBOARD_COLUMNS}
+         FROM eligible
+       )
+       SELECT * FROM ranked WHERE user_id = $2`,
+      [minGames, userId]
+    );
+    const row = result.rows[0];
+    return row ? rowToLeaderboardEntry(row) : null;
+  }
+
+  async getRankedSnapshot(minGames: number): Promise<readonly RankSnapshotRecord[]> {
+    const result = await this.pool.query<{ leaderboard_rank: string; user_id: string }>(
+      `${PG_LEADERBOARD_CTE}
+       SELECT ${LEADERBOARD_RANK_EXPR} AS leaderboard_rank, user_id
+       FROM eligible
+       ORDER BY leaderboard_rank`,
+      [minGames]
+    );
+    return result.rows.map((row) => ({ userId: row.user_id, rank: Number(row.leaderboard_rank) }));
+  }
+
+  async setUserLanguage(
+    userId: string,
+    language: AccountLanguage,
+    updatedAt: number
+  ): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO user_preferences (user_id, language, updated_at)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id) DO UPDATE SET
+         language   = EXCLUDED.language,
+         updated_at = EXCLUDED.updated_at`,
+      [userId, language, updatedAt]
+    );
+  }
+
+  async getUserLanguage(userId: string): Promise<AccountLanguage | undefined> {
+    const result = await this.pool.query<{ language: AccountLanguage }>(
+      `SELECT language FROM user_preferences WHERE user_id = $1`,
+      [userId]
+    );
+    return result.rows[0]?.language;
+  }
+
   async close(): Promise<void> {
     await this.pool.end();
   }
@@ -824,6 +890,56 @@ interface UserStatsRow {
   readonly wins: number | string;
   readonly losses: number | string;
   readonly updated_at: number | string;
+}
+
+/**
+ * Leaderboard ranžēšanas kārtība (tie-break): identiska SQLite pusei (paritāte) —
+ * win rate DESC, tad wins, games, username, un kā pēdējais STABILAIS `user_id`.
+ */
+const LEADERBOARD_ORDER =
+  "win_rate DESC, wins DESC, games_played DESC, username ASC, user_id ASC";
+const LEADERBOARD_RANK_EXPR = `ROW_NUMBER() OVER (ORDER BY ${LEADERBOARD_ORDER})`;
+const LEADERBOARD_COLUMNS =
+  "user_id, username, avatar, wins, losses, games_played, win_rate, language, updated_at";
+/** `eligible` CTE (PG): win_rate kā double precision; games_played >= $1. */
+const PG_LEADERBOARD_CTE = `WITH eligible AS (
+  SELECT u.id AS user_id, u.username, u.avatar,
+         us.wins, us.losses, us.games_played,
+         (us.wins::double precision / us.games_played) AS win_rate,
+         COALESCE(p.language, 'en') AS language,
+         us.updated_at
+  FROM user_stats us
+  JOIN users u ON u.id = us.user_id
+  LEFT JOIN user_preferences p ON p.user_id = u.id
+  WHERE us.games_played >= $1
+)`;
+
+interface LeaderboardRow {
+  readonly leaderboard_rank: number | string;
+  readonly user_id: string;
+  readonly username: string;
+  readonly avatar: string;
+  readonly wins: number | string;
+  readonly losses: number | string;
+  readonly games_played: number | string;
+  readonly win_rate: number | string;
+  readonly language: AccountLanguage;
+  readonly updated_at: number | string;
+}
+
+function rowToLeaderboardEntry(row: LeaderboardRow): LeaderboardEntryRecord {
+  return {
+    rank: Number(row.leaderboard_rank),
+    userId: row.user_id,
+    username: row.username,
+    avatar: row.avatar,
+    wins: Number(row.wins),
+    losses: Number(row.losses),
+    gamesPlayed: Number(row.games_played),
+    winRate: Number(row.win_rate),
+    language: row.language,
+    updatedAt: Number(row.updated_at)
+  };
 }
 
 function rowToUser(row: UserRow): UserRecord {

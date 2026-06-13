@@ -231,12 +231,13 @@ describe("SqliteStorage schema version tracking", () => {
       "0002_auth_schema",
       "0003_user_stats",
       "0004_password_reset_tokens",
-      "0005_custom_avatars"
+      "0005_custom_avatars",
+      "0006_user_preferences"
     ]);
 
-    // Reopen: nepiemēro neko atkārtoti (joprojām tieši 5 rindas).
+    // Reopen: nepiemēro neko atkārtoti (joprojām tieši 6 rindas).
     const second = new SqliteStorage({ filename: tmpFile });
     await second.close();
-    expect(recordedMigrations()).toHaveLength(5);
+    expect(recordedMigrations()).toHaveLength(6);
   });
 });

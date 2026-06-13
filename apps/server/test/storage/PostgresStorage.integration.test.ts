@@ -283,4 +283,52 @@ describeIfPostgres("PostgresStorage integration", () => {
     await storage.deleteSession("client-A");
     await expect(storage.getSession("client-A")).resolves.toBeUndefined();
   });
+
+  it("ranks the leaderboard identically to SQLite (parity) through PostgreSQL", async () => {
+    const mkUser = (id: string) => ({
+      id,
+      username: id,
+      usernameNorm: id,
+      passwordHash: "scrypt$16384$8$1$AA==$AA==",
+      avatar: "avatar-01",
+      createdAt: 1000,
+      updatedAt: 1000
+    });
+    const seed = async (id: string, wins: number, losses: number) => {
+      await storage.createUser(mkUser(id));
+      let match = 0;
+      for (let i = 0; i < wins; i += 1, match += 1) {
+        await storage.recordUserMatchOutcome(`${id}-m${match}`, id, "win", 2000 + match);
+      }
+      for (let i = 0; i < losses; i += 1, match += 1) {
+        await storage.recordUserMatchOutcome(`${id}-m${match}`, id, "lose", 2000 + match);
+      }
+    };
+
+    await seed("carol", 9, 1); // 0.90
+    await seed("alice", 8, 2); // 0.80
+    await seed("bob", 6, 4); //   0.60
+    await seed("rookie", 5, 0); // 1.0 but only 5 games
+
+    const board = await storage.getLeaderboard(100, 10);
+    expect(board.map((e) => [e.rank, e.userId])).toEqual([
+      [1, "carol"],
+      [2, "alice"],
+      [3, "bob"]
+    ]);
+    expect(board[0]?.winRate).toBeCloseTo(0.9, 6);
+    expect(board[0]).toMatchObject({ gamesPlayed: 10, wins: 9, losses: 1, language: "en" });
+
+    expect(await storage.getUserRank("rookie", 10)).toBeNull();
+    expect(await storage.getUserRank("bob", 10)).toMatchObject({ rank: 3, userId: "bob" });
+    expect(await storage.getRankedSnapshot(10)).toEqual([
+      { userId: "carol", rank: 1 },
+      { userId: "alice", rank: 2 },
+      { userId: "bob", rank: 3 }
+    ]);
+
+    await storage.setUserLanguage("carol", "lv", 9000);
+    expect(await storage.getUserLanguage("carol")).toBe("lv");
+    expect((await storage.getLeaderboard(100, 10))[0]?.language).toBe("lv");
+  });
 });

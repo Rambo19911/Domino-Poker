@@ -224,6 +224,25 @@ function customAvatarSchema(t: DialectTypes): string {
 }
 
 /**
+ * 0006: konta preferences (Leaderboard fāze). Pagaidām tikai `language` (spēles
+ * valoda), ko leaderboard parāda blakus statistikai. Apzināti ATSEVIŠĶA tabula,
+ * NE `ALTER TABLE users ADD COLUMN`: `node:sqlite` neatbalsta
+ * `ADD COLUMN IF NOT EXISTS`, tāpēc ALTER nebūtu idempotents pie crash-rerun
+ * (runner palaiž `up` PIRMS ieraksta `schema_migrations`). `CREATE TABLE IF NOT
+ * EXISTS` ir idempotents abos dialektos un neaiztiek `users` lasīšanas ceļu.
+ * `CHECK` ierobežo valodu (kā `match_user_outcomes.outcome`). FK CASCADE.
+ */
+function userPreferencesSchema(t: DialectTypes): string {
+  return `
+  CREATE TABLE IF NOT EXISTS user_preferences (
+    user_id    TEXT PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
+    language   TEXT NOT NULL DEFAULT 'en' CHECK (language IN ('en', 'lv')),
+    updated_at ${t.bigint} NOT NULL DEFAULT 0
+  );
+`;
+}
+
+/**
  * Renderē sakārtoto migrāciju sarakstu dotajam dialektam. ID un secība ir
  * STABILA un identiska abiem dialektiem (versionēšanas paritāte); atšķiras tikai
  * kolonnu tipi un PG-only tabulu klātbūtne (tikai 0001).
@@ -237,6 +256,7 @@ export function buildMigrations(dialect: SchemaDialect): readonly SchemaMigratio
     { id: "0002_auth_schema", up: authSchema(t) },
     { id: "0003_user_stats", up: userStatsSchema(t) },
     { id: "0004_password_reset_tokens", up: passwordResetSchema(t) },
-    { id: "0005_custom_avatars", up: customAvatarSchema(t) }
+    { id: "0005_custom_avatars", up: customAvatarSchema(t) },
+    { id: "0006_user_preferences", up: userPreferencesSchema(t) }
   ];
 }
