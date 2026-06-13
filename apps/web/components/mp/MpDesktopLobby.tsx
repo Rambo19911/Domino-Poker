@@ -14,6 +14,7 @@ import type { AppStrings } from "../../lib/i18n";
 import type { ConnectionStatus } from "../../lib/mp/clientView";
 import { VolumeIcon, VolumeOffIcon } from "../AudioControls";
 import { HelpIcon } from "../RulesDialog";
+import { Button } from "../ui/Button";
 import { ConnectionBanner } from "./ConnectionBanner";
 
 const CHAT_MAX_LENGTH = 200;
@@ -146,26 +147,20 @@ export function MpDesktopLobby({
       ) : (
         <>
           <div className="mpLobbyActionRow">
-            <button
-              className="mpPrimaryButton"
-              type="button"
-              disabled={hasHiddenRoom}
-              onClick={onCreateRoom}
-            >
+            <Button variant="primary" disabled={hasHiddenRoom} onClick={onCreateRoom}>
               + {t.mpCreateRoom}
-            </button>
-            <button
-              className="mpRoomButton"
-              type="button"
+            </Button>
+            <Button
+              variant="secondary"
               disabled={connection !== "connected" || hasHiddenRoom}
               onClick={onJoinWithCode}
             >
               {t.mpJoinWithCode}
-            </button>
+            </Button>
             {hasHiddenRoom ? (
-              <button className="mpRoomButton" type="button" onClick={onOpenHiddenRoom}>
+              <Button variant="secondary" onClick={onOpenHiddenRoom}>
                 {t.mpOpenRoom}
-              </button>
+              </Button>
             ) : null}
             <p className="mpPreviewNote" role="note">{t.mpPreviewNote}</p>
             {hasHiddenRoom ? (
@@ -365,19 +360,19 @@ function WaitingRoom({
       </div>
 
       <div className="mpWaitingActions">
-        <button className="mpRoomButton" type="button" onClick={onFillBots} disabled={!canFillBots}>
+        <Button variant="secondary" onClick={onFillBots} disabled={!canFillBots}>
           {t.mpFillBots}
-        </button>
-        <button className="mpPrimaryButton" type="button" onClick={onStart} disabled={!canStart}>
+        </Button>
+        <Button variant="primary" onClick={onStart} disabled={!canStart}>
           {t.mpStartRoom}
-        </button>
-        <button className="mpHeaderButton" type="button" onClick={onBackToLobby}>
+        </Button>
+        <Button variant="secondary" onClick={onBackToLobby}>
           {t.mpBackToLobby}
-        </button>
+        </Button>
         {!isHost && isSeated ? (
-          <button className="mpHeaderButton" type="button" onClick={exitRoom}>
+          <Button variant="secondary" onClick={exitRoom}>
             {exitLabel}
-          </button>
+          </Button>
         ) : null}
       </div>
     </section>

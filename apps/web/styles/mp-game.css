@@ -260,8 +260,7 @@
 }
 
 .mpPrimaryButton:disabled,
-.mpRoomButton:disabled,
-.mpHeaderButton:disabled {
+.mpRoomButton:disabled {
   cursor: not-allowed;
   opacity: 0.52;
   transform: none;
