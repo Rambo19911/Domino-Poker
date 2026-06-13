@@ -15,6 +15,7 @@ import type { ConnectionStatus } from "../../lib/mp/clientView";
 import { VolumeIcon, VolumeOffIcon } from "../AudioControls";
 import { HelpIcon } from "../RulesDialog";
 import { Button } from "../ui/Button";
+import { IconButton } from "../ui/IconButton";
 import { ConnectionBanner } from "./ConnectionBanner";
 
 const CHAT_MAX_LENGTH = 200;
@@ -101,34 +102,31 @@ export function MpDesktopLobby({
         </h1>
         <div className="mpLobbyHeaderActions">
           <ConnectionBanner status={connection} labels={t} />
-          <button
-            className="iconButton mpHeaderIconButton mpHelpButton"
-            type="button"
-            aria-label={t.rules}
+          <IconButton
+            className="mpHeaderIconButton mpHelpButton"
+            label={t.rules}
             title={t.rules}
             onClick={onOpenRules}
           >
             <HelpIcon />
-          </button>
-          <button
-            className="iconButton mpHeaderIconButton mpSoundButton"
-            type="button"
-            aria-label={isMuted ? t.mutedSoundSettings : t.soundSettings}
+          </IconButton>
+          <IconButton
+            className="mpHeaderIconButton mpSoundButton"
+            label={isMuted ? t.mutedSoundSettings : t.soundSettings}
             aria-pressed={isMuted}
             title={isMuted ? t.mutedSoundSettings : t.soundSettings}
             onClick={onToggleMute}
           >
             {isMuted ? <VolumeOffIcon /> : <VolumeIcon />}
-          </button>
-          <button
-            className="iconButton mpHeaderIconButton mpExitButton"
-            type="button"
-            aria-label={t.exit}
+          </IconButton>
+          <IconButton
+            className="mpHeaderIconButton mpExitButton"
+            label={t.exit}
             title={t.exit}
             onClick={onExit}
           >
             <ReturnIcon />
-          </button>
+          </IconButton>
         </div>
       </header>
 

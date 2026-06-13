@@ -60,6 +60,20 @@
   color: var(--text-primary);
 }
 
+/* Saglabā katras header ikon-pogas MIERA krāsu arī uz hover: IconButton primitīva
+   `.uiIconButton:hover` citādi to pārrakstītu uz `--text-primary`. Border-hover polish
+   no primitīva paliek; tikai ikonas krāsa nemainās. (Mantotajai `.iconButton` versijai
+   — mobilais lobby — bez efekta, jo krāsa = miera krāsa.) */
+.mpHelpButton:hover:not(:disabled) {
+  color: var(--primary);
+}
+.mpSoundButton:hover:not(:disabled) {
+  color: var(--text-secondary);
+}
+.mpExitButton:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
 .mpRulesDialog {
   min-height: 180px;
 }
