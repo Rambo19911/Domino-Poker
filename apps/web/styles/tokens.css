@@ -123,11 +123,21 @@
   --weight-semibold: 700;
   --weight-bold: 800;
 
-  /* Dark-glass tokeni (lietoti Fāzē 4) */
-  --glass-bg: rgb(var(--surface-rgb) / 0.55);
-  --glass-bg-strong: rgb(var(--surface-rgb) / 0.72);
-  --glass-border: rgb(var(--text-primary-rgb) / 0.12);
-  --glass-blur: 14px;
+  /* Dark/BLACK-glass tokeni (Fāze 4). Tonis = `--overlay-rgb` (gandrīz-melns), NE
+     `--surface-rgb` (citādi sanāk zaļš stikls). Zema necaurspīdība, lai frosted blur
+     ir REDZAMS; glancējumu dod balts top-highlight + gaiša mala + dziļa ēna.
+     `*-fallback` = necaurspīdīgs variants pārlūkiem bez backdrop-filter (lasāms).
+     `saturate` zems (1.35) — lai zaļais galds nespīd cauri pārāk un nepievelk uz zaļu. */
+  --glass-bg: rgb(var(--overlay-rgb) / 0.34);
+  --glass-bg-strong: rgb(var(--overlay-rgb) / 0.44);
+  --glass-bg-fallback: rgb(var(--overlay-rgb) / 0.92);
+  --glass-bg-strong-fallback: rgb(var(--overlay-rgb) / 0.96);
+  --glass-border: rgb(var(--text-primary-rgb) / 0.22);
+  --glass-border-strong: rgb(var(--text-primary-rgb) / 0.28);
+  --glass-highlight-rgb: 255 255 255;
+  --glass-blur: 22px;
+  --glass-saturate: 1.35;
+  --modal-scrim: rgb(0 0 0 / 0.30);
 }
 
 /* ── TĒMU VEIDNE ──────────────────────────────────────────────────────────────

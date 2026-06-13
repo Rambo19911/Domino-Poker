@@ -1,0 +1,50 @@
+/* Dark/BLACK-glass slānis (Fāze 4) — TIKAI chrome (dialogi caur Dialog.tsx, sound
+   panelis, peldoši elementi), NEKAD blīvām vai galda virsmām (daudzi blur slāņi nogalina
+   mobilo FPS). Lieto Fāzes 2/4 glass tokenus.
+
+   Recepte: gandrīz-melna ZEMA necaurspīdības virsma + spēcīgs `backdrop-filter` blur →
+   REDZAMS frosted melnstikls; GLANCĒJUMU dod balts top-highlight (inset + gradients-sheen),
+   gaiša mala un dziļa ēna (NE necaurspīdība, NE zaļš tonis). Bāze ir necaurspīdīgs FALLBACK
+   (pārlūkiem bez backdrop-filter — lasāms); īsto stiklu ieslēdz `@supports`. */
+.glass,
+.soundPanel {
+  background: var(--glass-bg-fallback);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    0 22px 60px rgb(0 0 0 / 0.48),
+    inset 0 1px 0 rgb(var(--glass-highlight-rgb) / 0.22),
+    inset 0 -1px 0 rgb(0 0 0 / 0.34);
+}
+
+.glass-strong {
+  background: var(--glass-bg-strong-fallback);
+  border-color: var(--glass-border-strong);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass,
+  .soundPanel {
+    /* Balts atspīduma sheen (augšā spilgtāks) virs caurspīdīgās melnās virsmas. */
+    background:
+      linear-gradient(
+        180deg,
+        rgb(var(--glass-highlight-rgb) / 0.16) 0%,
+        rgb(var(--glass-highlight-rgb) / 0.055) 38%,
+        rgb(var(--glass-highlight-rgb) / 0.015) 100%
+      ),
+      var(--glass-bg);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  }
+
+  .glass-strong {
+    background:
+      linear-gradient(
+        180deg,
+        rgb(var(--glass-highlight-rgb) / 0.18) 0%,
+        rgb(var(--glass-highlight-rgb) / 0.065) 38%,
+        rgb(var(--glass-highlight-rgb) / 0.02) 100%
+      ),
+      var(--glass-bg-strong);
+  }
+}

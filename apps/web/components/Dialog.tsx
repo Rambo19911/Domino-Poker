@@ -37,9 +37,11 @@ export function Dialog({
     <div className={`modalBackdrop ${transparent ? "transparentBackdrop" : ""}`}>
       {/* Ietinējs proporcionālai mērogošanai mobilajā (desktopā display:contents — bez ietekmes). */}
       <div className="modalScale">
+        {/* Glass tēma centralizēta ŠEIT — VISI dialogi to saņem konsekventi (Fāze 4);
+            atsevišķi dialogi vairs neopt-in pa vienam. */}
         <section
           ref={dialogRef}
-          className={className}
+          className={`glass glass-strong ${className}`}
           role="dialog"
           aria-modal="true"
           aria-labelledby={ariaLabelledBy}

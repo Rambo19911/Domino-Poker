@@ -8,6 +8,14 @@
   background: rgba(0, 0, 0, 0.45);
 }
 
+/* Glass dialogiem — vieglāks scrim (ne aptumšots līdz melnam), lai dialoga PAŠA
+   backdrop-filter frosted efekts strādā. APZINĀTI BEZ pilnekrāna backdrop blur:
+   dialoga paneļa blur pietiek; dubults blur (backdrop + panelis) spēles modāļiem
+   virs animētā galda maksātu mobilo FPS. */
+.modalBackdrop:has(.glass):not(.transparentBackdrop) {
+  background: var(--modal-scrim);
+}
+
 .transparentBackdrop {
   background: transparent;
   pointer-events: none;
@@ -25,6 +33,12 @@
   border-radius: var(--radius-xl);
   background: rgba(14, 14, 14, 0.8);
   animation: dialogIn 300ms ease-out both;
+}
+
+/* Bid dialogs saņem centralizēto glass virsmu (caur Dialog.tsx), bet PATUR savu
+   zelta 2px malu — "aktīvas spēles izvēles" identitāte (Codex). */
+.bidDialog.glass {
+  border: 2px solid var(--primary);
 }
 
 .bidDialog h2 {

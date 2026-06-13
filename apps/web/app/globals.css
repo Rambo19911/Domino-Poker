@@ -22,3 +22,5 @@
 @import "../styles/lobby-profile.css";
 @import "../styles/auth.css";
 @import "../styles/install-prompt.css";
+/* Glass slānis pēdējais — `.glass`/`.glass-strong` jāpārraksta chrome elementu foni. */
+@import "../styles/glass.css";
