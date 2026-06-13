@@ -6,6 +6,7 @@ import type { AppStrings } from "../../lib/i18n";
 import { avatarUrl } from "../../lib/auth/avatarUrl";
 import { titleLabel } from "../../lib/auth/titleLabel";
 import type { MpGameTableView, MpTableSeat, MpTrickPlay } from "../../lib/mp/gameTableView";
+import { bidWonColor } from "../../lib/mp/bidWon";
 import {
   MP_MOBILE_POS,
   MP_MOBILE_SIZE,
@@ -170,7 +171,7 @@ function MpmSeat({
   // Tekošā raunda punkti (kopsumma ir augšējā tabulā). Pirms solījuma — "–".
   const roundScore = hasBid ? calculateRoundScore({ bid: seat.bid, tricksWon: seat.tricksWon }) : null;
   // Cipari: zaļi, ja paņemts tieši solītais; sarkani, ja pārņemts; citādi neitrāli.
-  const bidWonState = !hasBid ? "" : seat.tricksWon === seat.bid ? "matched" : seat.tricksWon > seat.bid ? "over" : "";
+  const bidWonState = bidWonColor(seat.bid, seat.tricksWon);
 
   return (
     <>
@@ -255,6 +256,7 @@ function MpmSummaryTable({
       {ordered.map((seat) => {
         const isActive = seat.gameSeatIndex === activeSeatIndex;
         const isDisconnected = seat.connectionState === "disconnected" && !seat.isAI;
+        const bidWonState = bidWonColor(seat.bid, seat.tricksWon);
         return (
           <div
             className={`mpmSummaryRow ${isActive ? "active" : ""} ${isDisconnected ? "disconnected" : ""}`}
@@ -262,15 +264,18 @@ function MpmSummaryTable({
           >
             <span className="mpmSummaryName">
               {seat.isHost ? <span className="mpHostMark" aria-label={t.mpHost}>★</span> : null}
-              {seat.isDealer ? <span className="mpmDealerMark" role="img" aria-label={t.dealer}>D</span> : null}
               <span className="mpmSummaryNameText">
                 {seatLabel(seat.displayId, seat.isAI, seat.gameSeatIndex, t)}
               </span>
             </span>
+            {/* Dīlera kolonna (vienmēr rezervēta, lai ciparu kolonnas izlīdzinās). */}
+            <span className="mpmSummaryDealer">
+              {seat.isDealer ? <span className="mpmDealerMark" role="img" aria-label={t.dealer}>D</span> : null}
+            </span>
             {/* Pieteiktie/paņemtie stiķi (bid/won) — dublēts no sēdvietas, jo stiķa
-                dialogs pārklāj sānu profilus; formāts saskan ar `.mpmBidWon` badge. */}
+                dialogs pārklāj sānu profilus; krāsa kā `.mpmBidWon` badge. */}
             <span
-              className="mpmSummaryBid"
+              className={`mpmSummaryBid ${bidWonState}`}
               aria-label={`${t.tricksBid}/${t.tricksWon}: ${seat.bid >= 0 ? seat.bid : "?"}/${seat.tricksWon}`}
             >
               {seat.bid >= 0 ? seat.bid : "?"}/{seat.tricksWon}

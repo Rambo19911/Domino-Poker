@@ -4,6 +4,7 @@ import { calculateRoundScore, tileKey } from "@domino-poker/core";
 import type { DominoTile, GameState } from "@domino-poker/core";
 
 import type { AppStrings } from "../lib/i18n";
+import { bidWonColor } from "../lib/mp/bidWon";
 import type { VisualSeat } from "../lib/mp/gameTableView";
 import {
   MP_MOBILE_POS,
@@ -165,13 +166,7 @@ function SpmSeat({
   // Tekošā raunda punkti (kopsumma ir augšējā tabulā). Pirms solījuma — "–".
   const roundScore = hasBid ? calculateRoundScore({ bid: player.bid, tricksWon: player.tricksWon }) : null;
   // Cipari: zaļi, ja paņemts tieši solītais; sarkani, ja pārņemts; citādi neitrāli.
-  const bidWonState = !hasBid
-    ? ""
-    : player.tricksWon === player.bid
-      ? "matched"
-      : player.tricksWon > player.bid
-        ? "over"
-        : "";
+  const bidWonState = bidWonColor(player.bid, player.tricksWon);
 
   return (
     <>
@@ -242,15 +237,18 @@ function SpmSummaryTable({
       {players.map((player, index) => (
         <div className={`mpmSummaryRow ${index === activeIndex ? "active" : ""}`} key={player.id}>
           <span className="mpmSummaryName">
+            <span className="mpmSummaryNameText">{player.name}</span>
+          </span>
+          {/* Dīlera kolonna (vienmēr rezervēta, lai ciparu kolonnas izlīdzinās). */}
+          <span className="mpmSummaryDealer">
             {index === dealerIndex ? (
               <span className="mpmDealerMark" role="img" aria-label={t.dealer}>D</span>
             ) : null}
-            <span className="mpmSummaryNameText">{player.name}</span>
           </span>
           {/* Pieteiktie/paņemtie stiķi (bid/won) — dublēts no sēdvietas, jo stiķa
-              dialogs pārklāj sānu profilus; formāts saskan ar `.mpmBidWon` badge. */}
+              dialogs pārklāj sānu profilus; krāsa kā `.mpmBidWon` badge. */}
           <span
-            className="mpmSummaryBid"
+            className={`mpmSummaryBid ${bidWonColor(player.bid, player.tricksWon)}`}
             aria-label={`${t.tricksBid}/${t.tricksWon}: ${player.bid >= 0 ? player.bid : "?"}/${player.tricksWon}`}
           >
             {player.bid >= 0 ? player.bid : "?"}/{player.tricksWon}

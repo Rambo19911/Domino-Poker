@@ -217,10 +217,18 @@
   background: rgba(14, 14, 14, 0.78);
 }
 
+/* FIKSĒTAS kolonnas ("statiskas sienas"): vārds | dīleris | stiķi | punkti.
+   Cipari (stiķi/punkti) ir labi izlīdzināti ar fiksētu platumu + tabular-nums, lai
+   ciparu skaita maiņa NEpārbīda rindu un kolonnas izlīdzinās starp visām rindām.
+   Vārds = vienīgā elastīgā kolonna (1fr) — pārāk garš tiek nogriezts (ellipsis),
+   nekad nepārbīdot ciparu kolonnas. `border-box` (globāls) + rezervēta caurspīdīga
+   apmale → `.active` apmale nemaina izkārtojumu. */
 .mpmSummaryRow {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px 72px 110px;
   align-items: center;
-  gap: 22px;
+  column-gap: 16px;
+  width: 100%;
   padding: 5px 16px;
   border: 2px solid transparent;
   border-radius: 18px;
@@ -244,7 +252,6 @@
   display: flex;
   align-items: center;
   gap: 13px;
-  flex: 1 1 0;
   min-width: 0;
 }
 
@@ -255,9 +262,15 @@
   white-space: nowrap;
 }
 
+/* Dīlera kolonna: vienmēr rezervēta (arī ne-dīlerim tukša), lai ciparu kolonnas
+   izlīdzinās starp visām rindām; "D" čips centrēts. */
+.mpmSummaryDealer {
+  display: grid;
+  place-items: center;
+}
+
 /* "D" čips, kas tabulā atzīmē dīleri (sānu profilu gredzens var būt aiz dialoga). */
 .mpmDealerMark {
-  flex: 0 0 auto;
   display: inline-grid;
   place-items: center;
   width: 38px;
@@ -270,18 +283,29 @@
   line-height: 1;
 }
 
-/* Pieteiktie/paņemtie stiķi (bid/won) — vienmēr redzami, arī kad dialogs sedz profilus. */
+/* Pieteiktie/paņemtie stiķi (bid/won) — vienmēr redzami, arī kad dialogs sedz profilus.
+   Krāsa kā sēdvietas badge: paņemts tieši solītais → zaļš; pārņemts → sarkans. */
 .mpmSummaryBid {
-  flex: 0 0 auto;
+  text-align: right;
   color: var(--text-primary);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.mpmSummaryBid.matched {
+  color: #4caf50;
+}
+.mpmSummaryBid.over {
+  color: var(--error);
 }
 
 .mpmSummaryScore {
-  flex: 0 0 auto;
+  text-align: right;
   color: var(--primary);
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* Atlikušo raundu skaitlis (SP + MP) — liels skaitlis kreisajā ailē, vertikāli
