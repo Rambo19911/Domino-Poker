@@ -68,6 +68,8 @@
   --radius-md: 10px;
   --radius-lg: 12px;
   --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 28px;
   --radius-pill: 999px;
 
   /* Z-index slāņi (globālā kārtošana; komponentu lokālie z-index 1–8
@@ -82,6 +84,50 @@
   --z-floating: 30;
   --z-sheet: 40;
   --z-toast: 50;
+
+  /* ── Fāze 2 skalas (tīri papildinājumi; vēl nekur nereferencēti → 0 vizuālu
+        izmaiņu). Komponenti tos pakāpeniski adoptēs Fāzēs 3–5. ──────────────── */
+
+  /* Ēnas — smalkas, NE smagi melnas */
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.20);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.28);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.36);
+
+  /* Kustība — tikai transform/opacity */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 320ms;
+
+  /* Atstatumi (4px bāze) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Tipogrāfija */
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-md: 15px;
+  --font-size-lg: 18px;
+  --font-size-xl: 22px;
+  --font-size-2xl: 28px;
+  --line-tight: 1.2;
+  --line-normal: 1.45;
+  --weight-regular: 400;
+  --weight-medium: 600;
+  --weight-semibold: 700;
+  --weight-bold: 800;
+
+  /* Dark-glass tokeni (lietoti Fāzē 4) */
+  --glass-bg: rgb(var(--surface-rgb) / 0.55);
+  --glass-bg-strong: rgb(var(--surface-rgb) / 0.72);
+  --glass-border: rgb(var(--text-primary-rgb) / 0.12);
+  --glass-blur: 14px;
 }
 
 /* ── TĒMU VEIDNE ──────────────────────────────────────────────────────────────
