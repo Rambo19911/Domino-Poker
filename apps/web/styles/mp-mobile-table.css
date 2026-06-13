@@ -294,7 +294,7 @@
   overflow: hidden;
 }
 .mpmSummaryBid.matched {
-  color: #4caf50;
+  color: var(--positive);
 }
 .mpmSummaryBid.over {
   color: var(--error);
@@ -370,7 +370,7 @@
 }
 
 .mpmBidWon.matched {
-  color: #4caf50;
+  color: var(--positive);
 }
 
 .mpmBidWon.over {

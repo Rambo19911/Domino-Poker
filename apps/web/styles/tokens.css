@@ -42,6 +42,26 @@
   --slider-inactive: #616161;
   --card-shadow: #000000;
 
+  /* Semantiskie statusa/virsmas tokeni (Fāze 1 — MP paletes remonts). RGB-kanāla
+     pāris tikai tur, kur vajag caurspīdīgu variantu; HEX un kanāls sinhroni.
+     --surface-floating: pacelti/peldoši elementi (sākotnēji = --surface, atsevišķs
+       alias, lai nākotnes glass tos varētu apstrādāt citādi).
+     --danger ≠ --error (#e1233f, validācija); --positive ≠ --success (#2e7d32) un
+       ≠ --slider-active (audio slīdnis) — vēsturiski DIVi sarkanie un DIVi zaļie,
+       neapvienojam.
+     (--warning izlaists: neviens CSS literālis vai aizvietošana to nereferencē;
+       pievienot, kad reāli parādās warning stāvoklis.) */
+  --surface-floating: #1a5a45;
+  --surface-floating-rgb: 26 90 69;
+  --danger: #c0392b;
+  --danger-rgb: 192 57 43;
+  --online: #46c46a;
+  --online-rgb: 70 196 106;
+  --positive: #4caf50;
+  --positive-rgb: 76 175 80;
+  --neutral: #8a8f94;
+  --on-primary: #1a1207;
+
   /* Rādiusu skala (no esošo vērtību audita; 50% un kombinētās vērtības
      paliek literāļos kā ģeometrija) */
   --radius-sm: 8px;

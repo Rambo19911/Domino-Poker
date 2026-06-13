@@ -71,7 +71,7 @@
   border: 0;
   border-radius: var(--radius-lg);
   background: var(--primary);
-  color: #1a1207;
+  color: var(--on-primary);
   text-align: left;
 }
 .mplSectionTitle { flex: 1 1 auto; font-size: 18px; font-weight: 800; }
@@ -109,7 +109,7 @@
   padding: 12px 14px;
   border: 1px solid rgba(201, 162, 62, 0.25);
   border-radius: var(--radius-lg);
-  background: rgba(120, 30, 40, 0.5);
+  background: rgb(var(--surface-floating-rgb) / 0.5);
 }
 .mplRow.isLocked { opacity: 0.7; }
 .mplRowMeta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -136,7 +136,7 @@
   white-space: nowrap;
 }
 .mplRowBtn:disabled { opacity: 0.4; }
-.mplRowBtn.start { border-color: var(--primary); background: var(--primary); color: #1a1207; }
+.mplRowBtn.start { border-color: var(--primary); background: var(--primary); color: var(--on-primary); }
 
 /* Čata poga (FAB, piestiprināta pie ekrāna labās malas) */
 .mplChatFab {
@@ -152,7 +152,7 @@
   border: 2px solid rgba(201, 162, 62, 0.5);
   border-right: 0;
   border-radius: 30px 0 0 30px;
-  background: rgba(120, 30, 40, 0.92);
+  background: rgb(var(--surface-floating-rgb) / 0.92);
   color: var(--text-primary);
   z-index: var(--z-floating);
 }
@@ -164,8 +164,8 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #46c46a;
-  box-shadow: 0 0 8px 1px rgba(70, 196, 106, 0.7);
+  background: var(--online);
+  box-shadow: 0 0 8px 1px rgb(var(--online-rgb) / 0.7);
 }
 
 /* Pilnekrāna čats — VIEWPORT-līmeņa slānis (augstums no visualViewport inline stila) */
@@ -183,7 +183,7 @@
 }
 .mplChatHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex: 0 0 auto; }
 .mplChatOnline { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-secondary); }
-.mplChatOnlineDot { width: 10px; height: 10px; border-radius: 50%; background: #46c46a; }
+.mplChatOnlineDot { width: 10px; height: 10px; border-radius: 50%; background: var(--online); }
 .mplChatClose {
   display: grid;
   place-items: center;
@@ -231,7 +231,7 @@
   border: 0;
   border-radius: var(--radius-lg);
   background: var(--primary);
-  color: #1a1207;
+  color: var(--on-primary);
   font-size: 15px;
   font-weight: 700;
 }
