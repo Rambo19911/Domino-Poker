@@ -84,7 +84,7 @@ export function AuthDialog(props: AuthDialogProps) {
   return (
     <Dialog
       ariaLabelledBy="auth-dialog-title"
-      className="alertDialog authDialog"
+      className={`alertDialog authDialog ${authenticated ? "authDialogAuthenticated" : ""}`}
       onEscape={onClose}
       resetScrollOnMount
     >

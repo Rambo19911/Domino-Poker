@@ -2,6 +2,37 @@
 .authDialog {
   width: min(440px, 92vw);
 }
+/* Stabils augstums autentificētajam dialogam: Profile (garākais saturs) nosaka
+   izmēru, Personalization aizpilda to pašu augstumu ar brīvu vietu — pārslēdzot
+   tabus, logs NEmainās. FIKSĒTS `height` (ne `min-height`): (1) īsā skatā
+   `calc(100vh - 40px)` neļauj pārsniegt logu (ritina iekšēji); (2) Profile saturs,
+   kas pārsniedz augstumu (piem. vārda-maiņas brīdinājums), ritinās, nevis aug, tāpēc
+   tab-maiņa nekad nemaina izmēru. 600px = mērīts Profile border-box augstums (ar
+   avatāru režģi tā 220px ierobežojumā). Ja Profile saturs mainās, atjaunini. */
+.authDialogAuthenticated {
+  height: min(600px, calc(100vh - 40px));
+  overflow: auto;
+}
+
+/* Auth dialoga tabi (Login/Register vai Profile/Personalization): mazāki un ne
+   trekni (lietotāja lūgums; SettingsDialog tabi paliek neskarti). */
+.authDialog .settingsTab {
+  font-size: 15px;
+  font-weight: 500;
+}
+/* Aktīvais tabs SKAIDRI izceļams: zeltains teksts + zelta-tonēts pilis. AuthDialog
+   tabi lieto `aria-selected` (NE `aria-pressed`), tāpēc to aktīvais stils trūka. */
+.authDialog .settingsTab[aria-selected="false"] {
+  color: var(--text-secondary);
+  background: transparent;
+}
+.authDialog .settingsTab[aria-selected="true"] {
+  color: var(--primary);
+  background: rgb(var(--primary-rgb) / 0.16);
+}
+.authDialog .settingsTab[aria-selected="false"]:hover {
+  color: var(--text-primary);
+}
 .authForm {
   display: flex;
   flex-direction: column;
