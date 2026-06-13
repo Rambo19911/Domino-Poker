@@ -1,6 +1,12 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
-import { DEFAULT_AVATAR_ID, isValidAvatarId, titleForWins, type TitleId } from "@domino-poker/shared";
+import {
+  DEFAULT_AVATAR_ID,
+  isValidAvatarId,
+  titleForWins,
+  type GameLanguage,
+  type TitleId
+} from "@domino-poker/shared";
 
 import type { AuthStore, CustomAvatarRecord, UserRecord } from "./AuthStore.js";
 import type { EmailLocale, EmailSender } from "./EmailSender.js";
@@ -211,6 +217,16 @@ export class AuthService {
       return undefined;
     }
     return { wins: stats.wins, losses: stats.losses, gamesPlayed: stats.gamesPlayed };
+  }
+
+  /** Konta saglabātā spēles valoda; noklusējums `'en'`, ja vēl nav preferences. */
+  async getLanguage(userId: string): Promise<GameLanguage> {
+    return (await this.store.getUserLanguage(userId)) ?? "en";
+  }
+
+  /** Upsert konta spēles valodu (Leaderboard fāze). Validāciju veic HTTP slānis (Zod). */
+  async setLanguage(userId: string, language: GameLanguage): Promise<void> {
+    await this.store.setUserLanguage(userId, language, this.clock());
   }
 
   async updateProfile(userId: string, input: ProfileInput): Promise<UpdateProfileResult> {

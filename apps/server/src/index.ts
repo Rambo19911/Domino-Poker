@@ -8,6 +8,7 @@ import { loadServerConfig } from "./config.js";
 import { createAuthHandler } from "./http/authRoutes.js";
 import { createHealthHttpServer } from "./httpServer.js";
 import { DisplayIdRegistry } from "./identity/DisplayIdRegistry.js";
+import { LeaderboardService } from "./leaderboard/LeaderboardService.js";
 import { CoreMessageRouter } from "./net/messageRouter.js";
 import { PostgresEventBus } from "./net/PostgresEventBus.js";
 import { WebSocketGateway } from "./net/WebSocketGateway.js";
@@ -40,6 +41,18 @@ const emailSender = createEmailSender({
 });
 const authService = isAuthStore(storage)
   ? new AuthService({ store: storage, clock, emailSender, appBaseUrl: config.email.appBaseUrl })
+  : undefined;
+// Globālā Leaderboard serviss (kešots rangu momentuzņēmums; lēmums B). Pieejams
+// tikai ar auth-spējīgu glabātuvi (abas to ir). F3: kešu atsvaidzina TTL
+// (`leaderboardRefreshMs`); game-over `notifyStatsChanged` pieslēgšana → F4.
+const leaderboard = isAuthStore(storage)
+  ? new LeaderboardService({
+      store: storage,
+      clock,
+      size: config.leaderboardSize,
+      minGames: config.leaderboardMinGames,
+      refreshMs: config.leaderboardRefreshMs
+    })
   : undefined;
 const instanceId = randomUUID();
 const roomOwnership = isRoomLeaseStore(storage)
@@ -166,6 +179,7 @@ const server = createHealthHttpServer({
     ? {
         authHandler: createAuthHandler({
           auth: authService,
+          leaderboard,
           webOrigins: config.webOrigins,
           clock,
           dev: config.nodeEnv !== "production",

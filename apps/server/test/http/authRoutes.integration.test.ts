@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AuthService } from "../../src/auth/AuthService.js";
 import { createAuthHandler } from "../../src/http/authRoutes.js";
 import { createHealthHttpServer } from "../../src/httpServer.js";
+import { LeaderboardService } from "../../src/leaderboard/LeaderboardService.js";
 import { SqliteStorage } from "../../src/storage/SqliteStorage.js";
 
 const ORIGIN = "http://localhost:3000";
@@ -17,9 +18,18 @@ describe("auth HTTP routes (integration)", () => {
   beforeEach(async () => {
     storage = new SqliteStorage({ filename: ":memory:" });
     const auth = new AuthService({ store: storage, clock: () => Date.now() });
+    // minGames=1 → reģistrēts spēlētājs ar ≥1 spēli ir ranžēts; refreshMs=0 → vienmēr svaigs (testiem).
+    const leaderboard = new LeaderboardService({
+      store: storage,
+      clock: () => Date.now(),
+      size: 100,
+      minGames: 1,
+      refreshMs: 0
+    });
     server = createHealthHttpServer({
       authHandler: createAuthHandler({
         auth,
+        leaderboard,
         webOrigins: [ORIGIN],
         clock: () => Date.now(),
         dev: true,
@@ -46,6 +56,28 @@ describe("auth HTTP routes (integration)", () => {
       },
       body: JSON.stringify(body)
     });
+  }
+
+  function patch(path: string, body: unknown, token?: string): Promise<Response> {
+    return fetch(`${base}${path}`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        ...(token ? { authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify(body)
+    });
+  }
+
+  /** Reģistrē kontu un atgriež { token, id }. */
+  async function registerUser(username: string): Promise<{ token: string; id: string }> {
+    const res = await post("/auth/register", {
+      username,
+      password: "secret123",
+      email: `${username.toLowerCase()}@x.co`
+    });
+    const body = (await res.json()) as { token: string; user: { id: string } };
+    return { token: body.token, id: body.user.id };
   }
 
   it("keeps anonymous /health working (no regression)", async () => {
@@ -213,5 +245,72 @@ describe("auth HTTP routes (integration)", () => {
     });
     expect(res.status).toBe(204);
     expect(res.headers.get("access-control-allow-origin")).toBe(devOrigin);
+  });
+
+  it("serves an anonymous leaderboard (entries + anonymous self)", async () => {
+    const winner = await registerUser("Winner");
+    const loser = await registerUser("Loser");
+    await storage.recordUserMatchOutcome("m1", winner.id, "win", 5000); // 100%
+    await storage.recordUserMatchOutcome("m2", loser.id, "lose", 5000); //   0%
+
+    const res = await fetch(`${base}/auth/leaderboard`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      entries: { rank: number; username: string }[];
+      me: { status: string };
+    };
+    expect(body.entries.map((e) => [e.rank, e.username])).toEqual([
+      [1, "Winner"],
+      [2, "Loser"]
+    ]);
+    expect(body.entries[0]).not.toHaveProperty("userId");
+    expect(body.me).toEqual({ status: "anonymous" });
+  });
+
+  it("reports the caller's own ranked position via bearer", async () => {
+    const winner = await registerUser("Winner");
+    const loser = await registerUser("Loser");
+    await storage.recordUserMatchOutcome("m1", winner.id, "win", 5000);
+    await storage.recordUserMatchOutcome("m2", loser.id, "lose", 5000);
+
+    const res = await fetch(`${base}/auth/leaderboard`, {
+      headers: { authorization: `Bearer ${loser.token}` }
+    });
+    const body = (await res.json()) as { me: { status: string; entry?: { rank: number } } };
+    expect(body.me.status).toBe("ranked");
+    expect(body.me.entry?.rank).toBe(2);
+  });
+
+  it("reports an authenticated but unranked caller (no games yet)", async () => {
+    const fresh = await registerUser("Fresh");
+    const res = await fetch(`${base}/auth/leaderboard`, {
+      headers: { authorization: `Bearer ${fresh.token}` }
+    });
+    const body = (await res.json()) as { me: unknown };
+    expect(body.me).toEqual({ status: "unranked", minGames: 1, gamesPlayed: 0 });
+  });
+
+  it("defaults /auth/me language to 'en' and persists a change via PATCH", async () => {
+    const { token } = await registerUser("Lina");
+
+    const before = (await (await fetch(`${base}/auth/me`, {
+      headers: { authorization: `Bearer ${token}` }
+    })).json()) as { language: string };
+    expect(before.language).toBe("en");
+
+    expect((await patch("/auth/me/language", { language: "lv" }, token)).status).toBe(200);
+
+    const after = (await (await fetch(`${base}/auth/me`, {
+      headers: { authorization: `Bearer ${token}` }
+    })).json()) as { language: string };
+    expect(after.language).toBe("lv");
+  });
+
+  it("rejects language changes without a token (401) and invalid values (400)", async () => {
+    expect((await patch("/auth/me/language", { language: "lv" })).status).toBe(401);
+
+    const { token } = await registerUser("Lina");
+    expect((await patch("/auth/me/language", { language: "xx" }, token)).status).toBe(400);
+    expect((await patch("/auth/me/language", {}, token)).status).toBe(400);
   });
 });

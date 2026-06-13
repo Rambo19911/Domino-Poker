@@ -25,6 +25,10 @@ const DEFAULT_TRICK_PAUSE_MS = 1700;
 const DEFAULT_ABANDON_GRACE_MS = 60_000;
 const DEFAULT_LOBBY_STATE_DEBOUNCE_MS = 200;
 const DEFAULT_CHAT_HISTORY_LIMIT = 50;
+// Leaderboard (globālā statistika): cik kontu topā, min spēles ranžēšanai, keša TTL.
+const DEFAULT_LEADERBOARD_SIZE = 100;
+const DEFAULT_LEADERBOARD_MIN_GAMES = 10;
+const DEFAULT_LEADERBOARD_REFRESH_MS = 30_000;
 /**
  * Apakšējā robeža `TRICK_PAUSE_MS`: web klients aiztur pabeigto triku 1500 ms
  * (`useTrickFreeze` TRICK_FREEZE_MS) — ja serveris turpinātu ātrāk, nākamais
@@ -75,6 +79,12 @@ export interface ServerConfig {
   lobbyStateDebounceMs: number;
   /** Cik čata ziņas paturēt atmiņā / ielādēt startā (`CHAT_HISTORY_LIMIT`; noklusējums 50; ≥1). */
   chatHistoryLimit: number;
+  /** Cik kontu rādīt globālajā topā (`LEADERBOARD_SIZE`; noklusējums 100; ≥1). */
+  leaderboardSize: number;
+  /** Min nospēlēto spēļu skaits, lai parādītos topā/saņemtu badge (`LEADERBOARD_MIN_GAMES`; noklusējums 10; ≥1). */
+  leaderboardMinGames: number;
+  /** Leaderboard rangu keša svaiguma TTL ms (`LEADERBOARD_REFRESH_MS`; noklusējums 30000; ≥0). */
+  leaderboardRefreshMs: number;
   /** PostgreSQL pool limiti (tikai PG režīmā; SQLite tos ignorē). */
   pg: PgPoolConfig;
   /**
@@ -151,6 +161,21 @@ export function loadServerConfig(
       "CHAT_HISTORY_LIMIT",
       env.CHAT_HISTORY_LIMIT ?? fileEnv.CHAT_HISTORY_LIMIT,
       DEFAULT_CHAT_HISTORY_LIMIT
+    ),
+    leaderboardSize: readPositiveInt(
+      "LEADERBOARD_SIZE",
+      env.LEADERBOARD_SIZE ?? fileEnv.LEADERBOARD_SIZE,
+      DEFAULT_LEADERBOARD_SIZE
+    ),
+    leaderboardMinGames: readPositiveInt(
+      "LEADERBOARD_MIN_GAMES",
+      env.LEADERBOARD_MIN_GAMES ?? fileEnv.LEADERBOARD_MIN_GAMES,
+      DEFAULT_LEADERBOARD_MIN_GAMES
+    ),
+    leaderboardRefreshMs: readNonNegativeInt(
+      "LEADERBOARD_REFRESH_MS",
+      env.LEADERBOARD_REFRESH_MS ?? fileEnv.LEADERBOARD_REFRESH_MS,
+      DEFAULT_LEADERBOARD_REFRESH_MS
     ),
     pg: {
       max: readPositiveInt(

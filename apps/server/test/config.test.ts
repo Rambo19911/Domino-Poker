@@ -12,7 +12,10 @@ const opsDefaults = {
   trickPauseMs: 1700,
   abandonGraceMs: 60_000,
   lobbyStateDebounceMs: 200,
-  chatHistoryLimit: 50
+  chatHistoryLimit: 50,
+  leaderboardSize: 100,
+  leaderboardMinGames: 10,
+  leaderboardRefreshMs: 30_000
 };
 
 describe("loadServerConfig", () => {
@@ -87,6 +90,26 @@ describe("loadServerConfig", () => {
   it("rejects a non-positive CHAT_HISTORY_LIMIT", () => {
     expect(() => loadServerConfig({ CHAT_HISTORY_LIMIT: "0" }, missingEnvPath)).toThrow(
       "CHAT_HISTORY_LIMIT must be a positive integer."
+    );
+  });
+
+  it("reads configurable leaderboard tunables (size, min games, refresh interval)", () => {
+    const config = loadServerConfig(
+      {
+        LEADERBOARD_SIZE: "50",
+        LEADERBOARD_MIN_GAMES: "5",
+        LEADERBOARD_REFRESH_MS: "0"
+      },
+      missingEnvPath
+    );
+    expect(config.leaderboardSize).toBe(50);
+    expect(config.leaderboardMinGames).toBe(5);
+    expect(config.leaderboardRefreshMs).toBe(0); // 0 = vienmēr svaigs (bez keša TTL)
+  });
+
+  it("rejects a non-positive LEADERBOARD_MIN_GAMES (would divide by zero on win rate)", () => {
+    expect(() => loadServerConfig({ LEADERBOARD_MIN_GAMES: "0" }, missingEnvPath)).toThrow(
+      "LEADERBOARD_MIN_GAMES must be a positive integer."
     );
   });
 

@@ -1,8 +1,10 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+import { GAME_LANGUAGES } from "@domino-poker/shared";
 import { z } from "zod";
 
 import type { AuthService } from "../auth/AuthService.js";
+import type { LeaderboardService } from "../leaderboard/LeaderboardService.js";
 import { MAX_AVATAR_BYTES, readBinaryBody, readJsonBody } from "./readJsonBody.js";
 import { RateLimiter } from "./rateLimiter.js";
 
@@ -54,9 +56,15 @@ const resetPasswordSchema = z.object({
   token: z.string().min(1).max(256),
   password: passwordField
 });
+const languageSchema = z.object({ language: z.enum(GAME_LANGUAGES) });
 
 export interface AuthRoutesOptions {
   readonly auth: AuthService;
+  /**
+   * Globālā Leaderboard serviss (Leaderboard fāze). Ja `undefined`, leaderboard
+   * maršruts atbild 503 (funkcija nav konfigurēta). Konstruēts kopā ar `auth`.
+   */
+  readonly leaderboard?: LeaderboardService | undefined;
   /** Atļauto izcelšu (Origin) saraksts CORS — NEKAD `*`. No `config.webOrigins`. */
   readonly webOrigins: readonly string[];
   readonly clock: () => number;
@@ -89,6 +97,10 @@ export function createAuthHandler(options: AuthRoutesOptions): AuthHandler {
   const resetIpLimiter = new RateLimiter(10, 15 * 60_000, options.clock);
   // Avatara augšupielāde: 10/15min uz IP.
   const avatarLimiter = new RateLimiter(10, 15 * 60_000, options.clock);
+  // Leaderboard (publisks lasāmais): 100/15min uz IP (pret scraping; dāsns pārlūkam).
+  const leaderboardLimiter = new RateLimiter(100, 15 * 60_000, options.clock);
+  // Valodas maiņa (autentificēta, reta): 30/15min uz IP.
+  const languageLimiter = new RateLimiter(30, 15 * 60_000, options.clock);
 
   return async (request, response) => {
     const path = new URL(request.url ?? "/", "http://localhost").pathname;
@@ -117,8 +129,19 @@ export function createAuthHandler(options: AuthRoutesOptions): AuthHandler {
         );
       } else if (request.method === "GET" && path === "/auth/me") {
         await handleMe(request, response, options.auth);
+      } else if (request.method === "PATCH" && path === "/auth/me/language") {
+        await handleSetLanguage(request, response, options.auth, languageLimiter, options.trustProxy);
       } else if (request.method === "PATCH" && path === "/auth/me") {
         await handleUpdateProfile(request, response, options.auth);
+      } else if (request.method === "GET" && path === "/auth/leaderboard") {
+        await handleLeaderboard(
+          request,
+          response,
+          options.auth,
+          options.leaderboard,
+          leaderboardLimiter,
+          options.trustProxy
+        );
       } else if (request.method === "POST" && path === "/auth/logout") {
         await handleLogout(request, response, options.auth);
       } else if (request.method === "POST" && path === "/auth/forgot-password") {
@@ -223,8 +246,72 @@ async function handleMe(
     writeJson(response, 401, { error: "unauthorized" });
     return;
   }
-  const stats = await auth.getStats(user.id);
-  writeJson(response, 200, { user, stats: stats ?? null });
+  const [stats, language] = await Promise.all([auth.getStats(user.id), auth.getLanguage(user.id)]);
+  writeJson(response, 200, { user, stats: stats ?? null, language });
+}
+
+/**
+ * GET /auth/leaderboard?limit=N — publiskais tops (top N + izsaucēja paša stāvoklis).
+ * Bearer ir OPCIONĀLS: ja dots un derīgs, `me` atspoguļo izsaucēja vietu; citādi
+ * `me = anonymous`. `no-store` (atbilde ir per-user `me` dēļ; servera kešs absorbē
+ * DB slodzi). `limit` clamp servisā uz `LEADERBOARD_SIZE`.
+ */
+async function handleLeaderboard(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthService,
+  leaderboard: LeaderboardService | undefined,
+  limiter: RateLimiter,
+  trustProxy: boolean
+): Promise<void> {
+  if (leaderboard === undefined) {
+    writeJson(response, 503, { error: "unavailable" });
+    return;
+  }
+  if (!limiter.check(clientIp(request, trustProxy))) {
+    writeJson(response, 429, { error: "rate_limited" });
+    return;
+  }
+  const token = bearerToken(request);
+  const user = token ? await auth.resolveToken(token) : undefined;
+  const url = new URL(request.url ?? "/", "http://localhost");
+  const rawLimit = Number(url.searchParams.get("limit"));
+  // Nederīgs/iztrūkstošs limit → 0; serviss to clamp uz [1, size] (size = noklusējums).
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : Number.MAX_SAFE_INTEGER;
+  const body = await leaderboard.getResponse(user?.id ?? null, limit);
+  writeJson(response, 200, body);
+}
+
+/** PATCH /auth/me/language — autentificēts; saglabā konta spēles valodu (`en`/`lv`). */
+async function handleSetLanguage(
+  request: IncomingMessage,
+  response: ServerResponse,
+  auth: AuthService,
+  limiter: RateLimiter,
+  trustProxy: boolean
+): Promise<void> {
+  const token = bearerToken(request);
+  const user = token ? await auth.resolveToken(token) : undefined;
+  if (!user) {
+    writeJson(response, 401, { error: "unauthorized" });
+    return;
+  }
+  if (!limiter.check(clientIp(request, trustProxy))) {
+    writeJson(response, 429, { error: "rate_limited" });
+    return;
+  }
+  const body = await readJsonBody(request);
+  if (!body.ok) {
+    writeJson(response, body.status, { error: body.status === 413 ? "too_large" : "invalid_input" });
+    return;
+  }
+  const parsed = languageSchema.safeParse(body.value);
+  if (!parsed.success) {
+    writeJson(response, 400, { error: "invalid_input" });
+    return;
+  }
+  await auth.setLanguage(user.id, parsed.data.language);
+  writeJson(response, 200, { ok: true });
 }
 
 async function handleUpdateProfile(
