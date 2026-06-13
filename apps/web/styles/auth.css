@@ -39,28 +39,8 @@
   gap: 14px;
   margin-top: 10px;
 }
-.authField {
-  display: grid;
-  gap: 6px;
-  text-align: left;
-}
-.authField > span {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-.authField input {
-  height: 40px;
-  padding: 0 12px;
-  border-radius: var(--radius-md);
-  border: 1.5px solid rgba(201, 162, 62, 0.5);
-  background: rgba(0, 0, 0, 0.25);
-  color: var(--text-primary);
-  font-size: 15px;
-}
-.authField small {
-  font-size: 11px;
-  color: var(--text-secondary);
-}
+/* Auth lauki lieto `TextField` primitīvu (.uiField*); lauku stils dzīvo
+   ui-text-field.css. Šeit paliek tikai auth-specifiskie formas elementi. */
 .authError {
   margin: 4px 0 0;
   color: var(--error);
@@ -68,8 +48,7 @@
 }
 /* Brīdinājums par lietotājvārda maiņu (maina ielogošanās vārdu) — zelta akcents,
    ne sarkans: tā nav kļūda, bet svarīga sekas-informācija pirms saglabāšanas.
-   Pārraksta `.authField small` sekundāro krāsu/izmēru. */
-.authField small.authWarning,
+   Stāv kā `<small className="authWarning">` tieši zem TextField lauka. */
 .authWarning {
   display: block;
   margin: 6px 0 0;

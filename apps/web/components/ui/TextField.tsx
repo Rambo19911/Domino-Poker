@@ -5,12 +5,13 @@ import type { InputHTMLAttributes } from "react";
 
 export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "id"> {
   /** Redzams lauka nosaukums (saistīts ar `<input>` caur `htmlFor`/`id`). Ja nav —
-      izsaucējs nodod `aria-label` caur rest (piem. čata ievade bez redzama label). */
-  readonly label?: string;
+      izsaucējs nodod `aria-label` caur rest (piem. čata ievade bez redzama label).
+      `| undefined` atļauj izsaucējiem nosacītu vērtību (`cond ? x : undefined`). */
+  readonly label?: string | undefined;
   /** Palīgteksts zem lauka (`aria-describedby`). */
-  readonly hint?: string;
+  readonly hint?: string | undefined;
   /** Kļūdas teksts — uzstāda `aria-invalid`, sarkanu malu un aizvieto hint. */
-  readonly error?: string;
+  readonly error?: string | undefined;
 }
 
 /**

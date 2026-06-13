@@ -16,6 +16,7 @@ import type {
 import { avatarUrl } from "../../lib/auth/avatarUrl";
 import { prepareAvatar } from "../../lib/auth/avatarUpload";
 import { IconButton } from "../ui/IconButton";
+import { TextField } from "../ui/TextField";
 import type { AuthStatus } from "../../lib/auth/useAuthUser";
 import type { AppStrings } from "../../lib/i18n";
 import { readLocalStorage, removeLocalStorage, writeLocalStorage } from "../../lib/safeStorage";
@@ -332,42 +333,36 @@ function CredentialsForm({
         onSubmit({ username, password, ...(withEmail ? { email } : {}) });
       }}
     >
-      <label className="authField">
-        <span>{t.username}</span>
-        <input
-          type="text"
-          autoComplete="username"
-          value={username}
-          maxLength={20}
-          onChange={(event) => setUsername(event.currentTarget.value)}
-          required
-        />
-        {withEmail ? <small>{t.usernameHint}</small> : null}
-      </label>
-      <label className="authField">
-        <span>{t.password}</span>
-        <input
-          type="password"
-          autoComplete={withEmail ? "new-password" : "current-password"}
-          value={password}
-          maxLength={200}
-          onChange={(event) => setPassword(event.currentTarget.value)}
-          required
-        />
-        {withEmail ? <small>{t.passwordHint}</small> : null}
-      </label>
+      <TextField
+        label={t.username}
+        type="text"
+        autoComplete="username"
+        value={username}
+        maxLength={20}
+        onChange={(event) => setUsername(event.currentTarget.value)}
+        required
+        hint={withEmail ? t.usernameHint : undefined}
+      />
+      <TextField
+        label={t.password}
+        type="password"
+        autoComplete={withEmail ? "new-password" : "current-password"}
+        value={password}
+        maxLength={200}
+        onChange={(event) => setPassword(event.currentTarget.value)}
+        required
+        hint={withEmail ? t.passwordHint : undefined}
+      />
       {withEmail ? (
-        <label className="authField">
-          <span>{t.email}</span>
-          <input
-            type="email"
-            autoComplete="email"
-            value={email}
-            maxLength={254}
-            onChange={(event) => setEmail(event.currentTarget.value)}
-            required
-          />
-        </label>
+        <TextField
+          label={t.email}
+          type="email"
+          autoComplete="email"
+          value={email}
+          maxLength={254}
+          onChange={(event) => setEmail(event.currentTarget.value)}
+          required
+        />
       ) : null}
       <div className="dialogActions">
         <button className="mpPrimaryButton" type="submit" disabled={busy}>
@@ -428,24 +423,26 @@ function ProfileForm({
         onSave({ username, avatar });
       }}
     >
-      <label className="authField">
-        <span>{t.username}</span>
-        <input
+      {/* Lauks + brīdinājums vienā ietinējā, lai brīdinājums paliek TIEŠI zem lauka
+          (6px), nevis saņem `.authForm` 14px atstarpi kā atsevišķa rinda. */}
+      <div className="authUsernameField">
+        <TextField
+          label={t.username}
           type="text"
           value={username}
           maxLength={20}
           onChange={(event) => setUsername(event.currentTarget.value)}
           required
+          hint={t.usernameHint}
         />
-        <small>{t.usernameHint}</small>
         {/* Brīdinājums TIKAI tad, kad vārds reāli mainīts: lietotājvārds ir arī
             ielogošanās identifikators, tāpēc maiņa maina ielogošanās datus.
-            `small` (derīgs label saturs) + `role="status"` (pieklājīgs paziņojums,
-            ne agresīvs alert — tā ir seku informācija, ne kļūda). */}
+            `role="status"` (pieklājīgs paziņojums, ne agresīvs alert — tā ir seku
+            informācija, ne kļūda). */}
         {username.trim() !== user.username ? (
           <small className="authWarning" role="status">{t.usernameChangeWarning}</small>
         ) : null}
-      </label>
+      </div>
 
       <fieldset className="avatarPicker">
         <legend>{t.chooseAvatar}</legend>
@@ -591,17 +588,15 @@ function ForgotPasswordForm({
       {error !== null ? (
         <p className="authError" role="alert">{error}</p>
       ) : null}
-      <label className="authField">
-        <span>{t.email}</span>
-        <input
-          type="email"
-          autoComplete="email"
-          value={email}
-          maxLength={254}
-          onChange={(event) => setEmail(event.currentTarget.value)}
-          required
-        />
-      </label>
+      <TextField
+        label={t.email}
+        type="email"
+        autoComplete="email"
+        value={email}
+        maxLength={254}
+        onChange={(event) => setEmail(event.currentTarget.value)}
+        required
+      />
       <div className="dialogActions authProfileActions">
         <button className="textButton" type="button" onClick={onBack} disabled={busy}>
           {t.backToLogin}

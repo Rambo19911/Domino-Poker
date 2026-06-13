@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { apiResetPassword } from "../../lib/auth/authApi";
 import type { AppStrings } from "../../lib/i18n";
+import { TextField } from "../ui/TextField";
 
 /**
  * Paroles atjaunošanas ekrāns (Fāze 5). Atvērts no e-pasta linka — `AppShell` izlasa
@@ -75,18 +76,16 @@ export function ResetPasswordScreen({
             {error !== null ? (
               <p className="authError" role="alert">{error}</p>
             ) : null}
-            <label className="authField">
-              <span>{t.newPassword}</span>
-              <input
-                type="password"
-                autoComplete="new-password"
-                value={password}
-                maxLength={200}
-                onChange={(event) => setPassword(event.currentTarget.value)}
-                required
-              />
-              <small>{t.passwordHint}</small>
-            </label>
+            <TextField
+              label={t.newPassword}
+              type="password"
+              autoComplete="new-password"
+              value={password}
+              maxLength={200}
+              onChange={(event) => setPassword(event.currentTarget.value)}
+              required
+              hint={t.passwordHint}
+            />
             <div className="dialogActions authProfileActions">
               <button className="textButton" type="button" onClick={onDone} disabled={busy}>
                 {t.backToLogin}
