@@ -1,0 +1,62 @@
+/* Atkārtoti lietojamais teksta lauks (Fāze 3 primitīvs — `components/ui/TextField.tsx`).
+   Unificē vēsturiski nekonsekventos ievades stilus (auth/čats/kods) vienā tokenu-
+   balstītā izskatā. Sadursmju-drošs: dedicēts `.uiField*` prefikss + data-atribūts
+   nederīgam stāvoklim. Bāze atvasināta no auth-lauka (form-veidīgākā) izskata. */
+.uiField {
+  display: grid;
+  gap: var(--space-2);
+  text-align: left;
+}
+
+.uiFieldLabel {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.uiFieldInput {
+  width: 100%;
+  height: 40px;
+  padding: 0 var(--space-3);
+  border: 1.5px solid rgb(var(--primary-rgb) / 0.5);
+  border-radius: var(--radius-md);
+  background: rgb(var(--overlay-rgb) / 0.25);
+  color: var(--text-primary);
+  font-size: var(--font-size-md);
+  transition:
+    border-color var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+.uiFieldInput::placeholder {
+  color: var(--text-secondary);
+}
+
+.uiFieldInput:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgb(var(--primary-rgb) / 0.4);
+}
+
+.uiFieldInput:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ── Nederīgs stāvoklis ──────────────────────────────────────────────────────── */
+.uiField[data-invalid="true"] .uiFieldInput {
+  border-color: var(--error);
+}
+.uiField[data-invalid="true"] .uiFieldInput:focus-visible {
+  box-shadow: 0 0 0 3px rgb(var(--error-rgb) / 0.4);
+}
+
+/* ── Palīg-/kļūdas teksts ────────────────────────────────────────────────────── */
+.uiFieldHint {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.uiFieldError {
+  font-size: var(--font-size-xs);
+  color: var(--error);
+}
