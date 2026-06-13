@@ -185,7 +185,10 @@
   display: flex;
   flex-direction: column;
   padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
-  background: rgba(8, 8, 8, 0.98);
+  /* Pilnekrāna čata sheet paliek NECAURSPĪDĪGS (lasīšanas virsma, ne glass chrome;
+     pilnekrāna backdrop-filter = augstākais mobilo FPS risks). Tonis tokenizēts, lai
+     sekotu tēmai. */
+  background: rgb(var(--overlay-rgb) / 0.98);
   z-index: var(--z-sheet);
 }
 .mplChatHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex: 0 0 auto; }
