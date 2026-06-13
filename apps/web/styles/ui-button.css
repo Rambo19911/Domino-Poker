@@ -1,0 +1,116 @@
+/* Atkārtoti lietojamā poga (Fāze 3 primitīvs — `components/ui/Button.tsx`).
+   Variantu/izmēru/stāvokļus izsaka data-atribūti, lai izvairītos no sadursmēm ar
+   esošajām globālajām `.mp*` pogu klasēm. Lieto Fāzes 2 tokenus (motion / radius /
+   space / typography). TIKAI prezentācija — bez biznesa loģikas. */
+.uiButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard);
+}
+
+.uiButton:active {
+  transform: translateY(1px);
+}
+
+.uiButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(var(--primary-rgb) / 0.4);
+}
+
+.uiButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.uiButton[aria-busy="true"] {
+  cursor: progress;
+}
+
+/* ── Izmēri ───────────────────────────────────────────────────────────────── */
+.uiButton[data-size="sm"] {
+  padding: 0 var(--space-3);
+  font-size: var(--font-size-xs);
+}
+
+/* ── iconOnly — kvadrātveida (vienāds platums/augstums) ───────────────────── */
+.uiButton[data-icon-only="true"] {
+  width: 44px;
+  padding: 0;
+}
+.uiButton[data-icon-only="true"][data-size="sm"] {
+  width: 36px;
+  min-height: 36px;
+}
+
+/* ── Varianti ─────────────────────────────────────────────────────────────── */
+/* primary — aizpildīts zelta CTA */
+.uiButton[data-variant="primary"] {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+}
+.uiButton[data-variant="primary"]:hover:not(:disabled) {
+  background: rgb(var(--primary-rgb) / 0.85);
+}
+
+/* secondary — kontūra uz tumša fona */
+.uiButton[data-variant="secondary"] {
+  background: rgb(var(--overlay-rgb) / 0.5);
+  border-color: rgb(var(--primary-rgb) / 0.55);
+  color: var(--primary);
+}
+.uiButton[data-variant="secondary"]:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: rgb(var(--overlay-rgb) / 0.75);
+}
+
+/* text — bez fona/malas */
+.uiButton[data-variant="text"] {
+  background: transparent;
+  border-color: transparent;
+  color: var(--primary);
+}
+.uiButton[data-variant="text"]:hover:not(:disabled) {
+  background: rgb(var(--primary-rgb) / 0.12);
+}
+
+/* danger — sarkans (destruktīvas darbības) */
+.uiButton[data-variant="danger"] {
+  background: rgb(var(--danger-rgb) / 0.16);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.uiButton[data-variant="danger"]:hover:not(:disabled) {
+  background: rgb(var(--danger-rgb) / 0.28);
+}
+
+/* ── Loading spinneris — tikai transform (globālais reduced-motion to aptur) ── */
+.uiButtonSpinner {
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: uiButtonSpin var(--motion-slow) linear infinite;
+}
+
+@keyframes uiButtonSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
