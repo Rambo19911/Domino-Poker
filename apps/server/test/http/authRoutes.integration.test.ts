@@ -286,8 +286,9 @@ describe("auth HTTP routes (integration)", () => {
     const res = await fetch(`${base}/auth/leaderboard`, {
       headers: { authorization: `Bearer ${fresh.token}` }
     });
-    const body = (await res.json()) as { me: unknown };
-    expect(body.me).toEqual({ status: "unranked", minGames: 1, gamesPlayed: 0 });
+    const body = (await res.json()) as { me: unknown; minGames: number };
+    expect(body.me).toEqual({ status: "unranked", gamesPlayed: 0 });
+    expect(body.minGames).toBe(1); // top-level threshold (test config minGames = 1)
   });
 
   it("defaults /auth/me language to 'en' and persists a change via PATCH", async () => {

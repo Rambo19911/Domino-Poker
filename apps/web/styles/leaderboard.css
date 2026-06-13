@@ -1,0 +1,186 @@
+/* Globālā Leaderboard dialogs (Leaderboard fāze). Fiksētu kolonnu grid: rinda
+   NEpārbīdās gara nickname dēļ — visi celiņi fiksēti, tikai nickname `minmax(0,1fr)`
+   + ellipsis. Viens template galvenei + rindām + self panelim. Token-only (tēmējams).
+   Mobilajā: horizontāls scroll (`.leaderboardScroll`), kolonnas nepārkārtojas. */
+
+.leaderboardDialog {
+  width: min(660px, 92vw);
+  max-width: 92vw;
+}
+
+.leaderboardDialog h2 .trophyAssetIcon {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  vertical-align: -7px;
+}
+
+/* "?" info poga galvenē. */
+.leaderboardInfoButton {
+  margin-left: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgb(var(--primary-rgb) / 0.6);
+  background: rgb(var(--primary-rgb) / 0.12);
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.leaderboardInfoButton:hover,
+.leaderboardInfoButton:focus-visible {
+  background: rgb(var(--primary-rgb) / 0.22);
+}
+
+.leaderboardInfo {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: rgb(var(--primary-rgb) / 0.1);
+  border: 1px solid rgb(var(--primary-rgb) / 0.3);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.leaderboardStatus {
+  padding: 28px 8px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.leaderboardRetry {
+  margin-top: 10px;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.leaderboardRetry:hover,
+.leaderboardRetry:focus-visible {
+  background: rgb(var(--text-primary-rgb) / 0.08);
+}
+
+/* Scroll ietinējs — uz šaurām ekrāniem tabula scrollojas horizontāli, paliek fiksēta. */
+.leaderboardScroll {
+  overflow-x: auto;
+}
+
+.leaderboardTable {
+  /* avatar | rank# vietā: # | avatar | nickname | badge | wins | losses | games | win% | lang */
+  --lb-cols: 2.2rem 2.4rem minmax(0, 1fr) 2.4rem 3rem 3.4rem 3.4rem 3.4rem 2.8rem;
+  display: flex;
+  flex-direction: column;
+  min-width: 30rem;
+}
+
+.leaderboardRow {
+  display: grid;
+  grid-template-columns: var(--lb-cols);
+  align-items: center;
+  gap: 6px;
+  padding: 6px 4px;
+  border-bottom: 1px solid rgb(var(--border-rgb) / 0.4);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.leaderboardHead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 1px solid rgb(var(--text-primary-rgb) / 0.2);
+  background: rgb(var(--overlay-rgb) / 0.55);
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+}
+
+.leaderboardRow.self {
+  background: rgb(var(--primary-rgb) / 0.14);
+  border-radius: var(--radius-sm);
+  border-bottom-color: transparent;
+}
+
+.lbRank {
+  text-align: center;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.lbAvatar {
+  display: flex;
+  justify-content: center;
+}
+
+.lbAvatarImg {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  object-fit: cover;
+  border: 1px solid rgb(var(--primary-rgb) / 0.5);
+}
+
+.lbName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lbBadge {
+  display: flex;
+  justify-content: center;
+}
+
+.lbBadgeImg {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.lbNum {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.lbLang {
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+/* "Mana vieta" panelis apakšā (anonīms / vēl-nav-ranžēts / ārpus top N). */
+.leaderboardSelf {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: rgb(var(--overlay-rgb) / 0.35);
+  border: 1px solid rgb(var(--text-primary-rgb) / 0.12);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.leaderboardSelfLabel {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+}
+
+.leaderboardSelfTable {
+  min-width: 0;
+}
+
+.leaderboardSelfTable .leaderboardRow {
+  border-bottom: none;
+  padding: 4px;
+}

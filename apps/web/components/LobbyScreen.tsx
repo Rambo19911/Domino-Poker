@@ -7,6 +7,7 @@ import { AuthDialog } from "./auth/AuthDialog";
 import { LobbyProfile } from "./auth/LobbyProfile";
 import { Dialog } from "./Dialog";
 import { InstallPrompt } from "./InstallPrompt";
+import { LeaderboardDialog, TrophyIcon } from "./LeaderboardDialog";
 import { CompactLobbyPanel, LobbyWheel } from "./LobbyWheel";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
 import { IconButton } from "./ui/IconButton";
@@ -25,12 +26,21 @@ const minRoundCount = 1;
 const maxRoundCount = 50;
 
 /**
- * Lobby ekrānam vajadzīgā auth daļa. MP/sesijas-šļūdes lauki (`token`/`getToken`/
- * `refresh`) NETIEK padoti — tie pieder `AppShell` router/sesijas slānim.
+ * Lobby ekrānam vajadzīgā auth daļa. `getToken` ir iekļauts (Leaderboard dialogam
+ * vajag bearer "manai vietai"), bet `token`/`refresh` NETIEK padoti — tie pieder
+ * `AppShell` router/sesijas slānim.
  */
 type LobbyAuth = Pick<
   UseAuthUser,
-  "status" | "user" | "stats" | "register" | "login" | "logout" | "updateProfile" | "uploadAvatar"
+  | "status"
+  | "user"
+  | "stats"
+  | "register"
+  | "login"
+  | "logout"
+  | "updateProfile"
+  | "uploadAvatar"
+  | "getToken"
 >;
 
 /**
@@ -62,6 +72,7 @@ export function LobbyScreen({
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
 
   const openAuth = () => {
@@ -92,6 +103,17 @@ export function LobbyScreen({
           }}
         >
           <HelpIcon />
+        </IconButton>
+        <IconButton
+          className="lobbyLeaderboardButton"
+          label={t.leaderboard}
+          title={t.leaderboard}
+          onClick={() => {
+            audio.play("uiClick");
+            setLeaderboardOpen(true);
+          }}
+        >
+          <TrophyIcon />
         </IconButton>
         <IconButton
           className="lobbySettingsButton"
@@ -155,10 +177,21 @@ export function LobbyScreen({
         />
       ) : null}
 
+      {leaderboardOpen ? (
+        <LeaderboardDialog
+          audio={audio}
+          labels={t}
+          getToken={auth.getToken}
+          onClose={() => setLeaderboardOpen(false)}
+        />
+      ) : null}
+
       {/* PWA instalēšanas piedāvājums — tikai galvenajā lobby, nekad spēles laikā.
           Paslēpts, kamēr atvērts kāds dialogs (banneris ir virs modālā fona slāņa
           un citādi paliktu klikšķināms ārpus modālā konteksta). */}
-      {!settingsOpen && !rulesOpen && !authOpen ? <InstallPrompt labels={t} /> : null}
+      {!settingsOpen && !rulesOpen && !leaderboardOpen && !authOpen ? (
+        <InstallPrompt labels={t} />
+      ) : null}
 
       {authOpen ? (
         <AuthDialog

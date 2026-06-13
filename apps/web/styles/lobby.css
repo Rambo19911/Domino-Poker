@@ -73,6 +73,26 @@
   pointer-events: auto;
 }
 
+.lobbyLeaderboardButton {
+  color: var(--primary);
+  pointer-events: auto;
+}
+
+/* Animēta trofejas GIF — tāds pats 32px izmērs kā rules ikonai; krāsas saglabātas. */
+.trophyAssetIcon {
+  position: relative;
+  display: block;
+  width: 32px;
+  height: 32px;
+}
+
+.trophyAssetImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .helpAssetIcon {
   position: relative;
   display: block;

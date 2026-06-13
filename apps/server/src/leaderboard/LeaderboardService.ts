@@ -105,7 +105,8 @@ export class LeaderboardService {
     const capped = Math.max(1, Math.min(this.size, Math.floor(limit)));
     return {
       entries: this.entries.slice(0, Number.isFinite(capped) ? capped : this.size),
-      me: await this.buildSelf(viewerUserId)
+      me: await this.buildSelf(viewerUserId),
+      minGames: this.minGames
     };
   }
 
@@ -176,7 +177,7 @@ export class LeaderboardService {
 
   private async unranked(viewerUserId: string): Promise<LeaderboardSelf> {
     const stats = await this.store.getUserStats(viewerUserId);
-    return { status: "unranked", minGames: this.minGames, gamesPlayed: stats?.gamesPlayed ?? 0 };
+    return { status: "unranked", gamesPlayed: stats?.gamesPlayed ?? 0 };
   }
 }
 

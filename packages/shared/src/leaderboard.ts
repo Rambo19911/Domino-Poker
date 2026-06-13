@@ -87,15 +87,21 @@ export interface LeaderboardEntry {
  *  - `unranked` — ielogojies, bet `gamesPlayed < minGames` (rāda "vēl nav ranžēts");
  *  - `ranked` — ir globālā vieta (rāda "mana vieta" paneli, ja ārpus top N).
  *
- * `ranked` nes tikai `entry` (rangs ir `entry.rank` — bez dublēšanas).
+ * `ranked` nes tikai `entry` (rangs ir `entry.rank` — bez dublēšanas). `minGames`
+ * slieksnis ir atbildes top-level (`LeaderboardResponse.minGames`), NE šeit.
  */
 export type LeaderboardSelf =
   | { readonly status: "anonymous" }
-  | { readonly status: "unranked"; readonly minGames: number; readonly gamesPlayed: number }
+  | { readonly status: "unranked"; readonly gamesPlayed: number }
   | { readonly status: "ranked"; readonly entry: LeaderboardEntry };
 
-/** Leaderboard HTTP atbilde: top N + izsaucēja paša stāvoklis. */
+/**
+ * Leaderboard HTTP atbilde: top N + izsaucēja paša stāvoklis + `minGames` slieksnis
+ * (lai klients var rādīt "?" skaidrojumu un "vēl nav ranžēts (vajag N)" jebkuram
+ * skatītājam — viens avots, NE dublēts `unranked` zarā).
+ */
 export interface LeaderboardResponse {
   readonly entries: readonly LeaderboardEntry[];
   readonly me: LeaderboardSelf;
+  readonly minGames: number;
 }

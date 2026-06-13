@@ -78,12 +78,13 @@ describe("LeaderboardService", () => {
     });
   });
 
-  it("returns top `size` entries without internal userId, and anonymous self", async () => {
+  it("returns top `size` entries without internal userId, anonymous self, and minGames", async () => {
     const res = await svc.getResponse(null, 100);
     expect(res.entries.map((e) => e.rank)).toEqual([1, 2, 3]);
     expect(res.entries[0]).not.toHaveProperty("userId");
     expect(res.entries[0]).toMatchObject({ rank: 1, username: "user-a", wins: 10, losses: 0 });
     expect(res.me).toEqual({ status: "anonymous" });
+    expect(res.minGames).toBe(10); // top-level threshold for the "?" info + unranked copy
   });
 
   it("clamps the limit to the configured size", async () => {
@@ -106,12 +107,12 @@ describe("LeaderboardService", () => {
   it("reports an authenticated but unranked viewer with their game count", async () => {
     store.stats.set("rookie", { userId: "rookie", gamesPlayed: 4, wins: 4, losses: 0, updatedAt: 1 });
     const res = await svc.getResponse("rookie", 3);
-    expect(res.me).toEqual({ status: "unranked", minGames: 10, gamesPlayed: 4 });
+    expect(res.me).toEqual({ status: "unranked", gamesPlayed: 4 });
   });
 
   it("unranked viewer with no stats row reports 0 games", async () => {
     const res = await svc.getResponse("ghost", 3);
-    expect(res.me).toEqual({ status: "unranked", minGames: 10, gamesPlayed: 0 });
+    expect(res.me).toEqual({ status: "unranked", gamesPlayed: 0 });
   });
 
   it("resolves seat badges synchronously from the cache", async () => {

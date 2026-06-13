@@ -1,3 +1,5 @@
+import type { LeaderboardResponse } from "@domino-poker/shared";
+
 import { resolveServerUrl } from "../mp/serverUrl";
 
 /**
@@ -121,6 +123,19 @@ export function apiUpdateProfile(
 
 export async function apiLogout(token: string): Promise<void> {
   await requestJson("/auth/logout", jsonInit("POST", {}, token));
+}
+
+/**
+ * Globālais tops (Leaderboard fāze). Tokens ir OPCIONĀLS: ja dots un derīgs,
+ * atbildes `me` atspoguļo izsaucēja vietu; citādi `me = anonymous`. Nederīgs/
+ * beidzies tokens → serveris to traktē kā anonīmu (NE kļūda) — dialogs nerāda
+ * auth kļūdu. Tikai `Authorization` header (GET bez body).
+ */
+export function apiLeaderboard(token?: string): Promise<AuthResult<LeaderboardResponse>> {
+  return requestJson<LeaderboardResponse>(
+    "/auth/leaderboard",
+    jsonInit("GET", undefined, token)
+  );
 }
 
 /**
