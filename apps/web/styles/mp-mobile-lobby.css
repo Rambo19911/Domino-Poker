@@ -156,6 +156,13 @@
   color: var(--text-primary);
   z-index: var(--z-floating);
 }
+/* FAB ir black-glass (`.glass`), bet PATUR savu zelta malu — primārās darbības
+   (čats) afordance identitāte. Mērena ēna (NE dialoga mēroga). */
+.mplChatFab.glass {
+  border: 2px solid rgb(var(--primary-rgb) / 0.5);
+  border-right: 0;
+  box-shadow: var(--shadow-lg);
+}
 .mplChatFab .iconSvg { width: 24px; height: 24px; }
 .mplChatUnread {
   position: absolute;

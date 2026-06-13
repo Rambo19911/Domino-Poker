@@ -7,13 +7,22 @@
    gaiša mala un dziļa ēna (NE necaurspīdība, NE zaļš tonis). Bāze ir necaurspīdīgs FALLBACK
    (pārlūkiem bez backdrop-filter — lasāms); īsto stiklu ieslēdz `@supports`. */
 .glass,
-.soundPanel {
+.soundPanel,
+.mpGameConnection .mpConnBanner:not(.mpConn-connected) {
   background: var(--glass-bg-fallback);
   border: 1px solid var(--glass-border);
   box-shadow:
     0 22px 60px var(--glass-shadow-color),
     inset 0 1px 0 rgb(var(--glass-highlight-rgb) / 0.22),
     inset 0 -1px 0 var(--glass-inset-shadow-color);
+}
+
+/* Savienojuma indikators (TIKAI spēlē, TIKAI ne-savienots stāvoklis ar tekstu) kļūst
+   par mazu frosted čipu; savienots = paliek tīrs punkts. Mērena floating ēna, ne dialoga. */
+.mpGameConnection .mpConnBanner:not(.mpConn-connected) {
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-md);
 }
 
 .glass-strong {
@@ -23,7 +32,8 @@
 
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .glass,
-  .soundPanel {
+  .soundPanel,
+  .mpGameConnection .mpConnBanner:not(.mpConn-connected) {
     /* Balts atspīduma sheen (augšā spilgtāks) virs caurspīdīgās melnās virsmas. */
     background:
       linear-gradient(

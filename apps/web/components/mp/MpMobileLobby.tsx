@@ -184,7 +184,7 @@ export function MpMobileLobby({
       </div>
 
       <button
-        className="mplChatFab"
+        className="mplChatFab glass"
         type="button"
         aria-label={t.mpOnlineChat}
         onClick={() => setChatOpen(true)}
