@@ -1,6 +1,6 @@
 # AI Working Rules
 
-Last refreshed: 2026-06-12.
+Last refreshed: 2026-06-13.
 
 ## Before Major Edits
 
@@ -14,6 +14,10 @@ Last refreshed: 2026-06-12.
 - Do not deep-import private files across module boundaries when a public package entrypoint exists.
 - Keep core domain logic independent from React, Node server code, WebSocket, database adapters, and file-system code.
 - Keep server-side multiplayer authoritative. Browser clients render snapshots and send intents; they do not accept/reject moves as truth.
+- For build/test/tooling changes, inspect `package.json`, workspace `package.json` files, `.github/workflows/ci.yml`, `eslint.config.mjs`, `tsconfig.base.json`, workspace `tsconfig*.json`, and relevant `vitest.config.ts`.
+- For e2e/UI runtime changes, inspect `playwright.config.ts`, affected `tests/e2e/*`, and `apps/web/next.config.ts`.
+- For runtime/env/security changes, inspect `.env.example`, `.npmrc`, `.nvmrc`, `.node-version`, and `apps/server/src/config.ts`.
+- For deploy/PWA/versioning changes, inspect `deploy/Dockerfile`, reverse-proxy examples under `deploy/`, `deploy/BACKUP.md`, `.dockerignore`, ignored local `deploy.sh` when present, `VERSION`, `apps/web/public/sw.js`, `apps/web/app/manifest.ts`, and `apps/web/next.config.ts`.
 
 ## Source Files To Inspect By Change Area
 
@@ -198,11 +202,14 @@ Care points:
 ## Commands
 
 - Install: `npm install`
+- Clean install / CI install: `npm ci`
 - Web dev: `npm run dev`
 - Server dev: `npm run dev:server`
+- Web production start after web build: `npm run start --workspace apps/web`
 - Typecheck all: `npm run typecheck`
 - Lint: `npm run lint`
 - Unit tests: `npm run test`
+- Playwright browser install for CI-like local setup: `npx playwright install --with-deps chromium`
 - Playwright e2e: `npm run test:web`
 - Build all: `npm run build`
 - Simulation: `npm run simulate`
@@ -210,23 +217,42 @@ Care points:
 - Disposable PostgreSQL integration: `npm run test:postgres:docker`
 - Existing PostgreSQL integration: set `TEST_POSTGRES_DATABASE_URL`, then `npm run test:postgres --workspace apps/server`
 - Server migration command after build: `npm run migrate --workspace apps/server`
+- Server Docker image: `docker build -f deploy/Dockerfile -t domino-poker .`
+- Server Docker run example: `docker run -d --name domino-poker -p 4000:4000 --env-file .env -v "$(pwd)/data:/app/data" --restart unless-stopped domino-poker`
+- Ignored local VPS deploy script, if intentionally used: `bash deploy.sh`
+- Skip dependency reinstall in ignored local deploy script: `DEPLOY_SKIP_DEPS=1 bash deploy.sh`
 
 Important ordering:
 
 - `npm run dev:server` builds `packages/core`, then `packages/shared`, then `apps/server`, then runs server dist.
-- `npm run test:web` expects `apps/server/dist/index.js` to exist because Playwright starts `node dist/index.js` in `apps/server`.
+- CI-like broad verification order is: `npm ci` -> build `packages/core`, `packages/shared`, `apps/server` -> `npm run typecheck` -> `npm run lint` -> `npm run test` -> PostgreSQL integration with `TEST_POSTGRES_DATABASE_URL` -> `npm run build --workspace apps/web` -> `npx playwright install --with-deps chromium` -> `npm run test:web`.
+- `npm run test:web` expects `apps/server/dist/index.js` to exist because Playwright starts `node dist/index.js` in `apps/server`; it also starts `apps/web` dev server on `127.0.0.1:3000`.
+- Local Playwright may reuse existing servers (`reuseExistingServer: true` outside CI), so stop stale local servers when validating configuration or startup behavior.
 - If runtime tests cannot resolve `@domino-poker/*`, check workspace links and whether required dist builds exist.
 - Run typecheck, lint, tests, Playwright, and build sequentially when doing broad verification; do not race generated outputs.
 
 ## Environment And Runtime Data
 
 - Server config comes from env and `.env` through `apps/server/src/config.ts`.
+- Node runtime is strict: `.nvmrc` and `.node-version` pin Node 24; `package.json` requires `>=22.5.0`; `.npmrc` has `engine-strict=true`.
 - `DATABASE_URL` accepts SQLite file paths, `:memory:`, `file:` paths, or PostgreSQL URLs.
+- CI PostgreSQL integration uses `postgres:17-alpine`; normal local `npm run test` skips DB integration without `TEST_POSTGRES_DATABASE_URL`.
 - `.env` and `.env.*` are ignored except `.env.example`.
+- `WEB_ORIGIN`, `RESEND_API_KEY`, `EMAIL_FROM`, and `APP_BASE_URL` are read by `apps/server/src/config.ts`; verify `.env.example` when changing auth CORS or password-reset email behavior because those examples can drift.
+- Reverse proxies must route `/ws` and `/auth/*` to the server port. Enable `TRUST_PROXY=true` only behind a trusted proxy that controls `X-Forwarded-For`.
+- `TRICK_PAUSE_MS` must remain aligned with the web client's completed-trick freeze (`apps/web/lib/mp/useTrickFreeze.ts`); config rejects values below 1500 ms.
 - `data/*.sqlite`, `data/*.sqlite-wal`, and `data/*.sqlite-shm` are ignored runtime files.
 - `logs/` is ignored. MP action logging is opt-in through `MP_ACTION_LOG=1`.
 - Local docs under `docs/DEPLOYMENT.md`, `docs/SCALING.md`, `docs/DB_MIGRATION.md`, `docs/TODO/*`, and `docs/mockups/*` may exist but are ignored; do not assume they exist in clean clones.
 - `deploy.sh` is ignored/local and may contain host-specific deployment assumptions.
+
+## Deploy And Operations
+
+- `deploy/Dockerfile` builds and runs only the server dependency chain (`core -> shared -> server`). It does not build or serve the Next web client.
+- Ignored local `deploy.sh`, when present, is not a generic deploy helper: it bumps `VERSION`, rewrites the `apps/web/public/sw.js` cache name, commits, pushes to `main`, copies the working tree to a VPS, builds server and web, and restarts `domino-poker` plus `domino-web`.
+- The tracked `deploy/` examples include `domino-poker.service` for the server, but not a `domino-web.service`; do not assume the web service unit is documented in this repo.
+- `VERSION`, `apps/web/next.config.ts`, and `apps/web/public/sw.js` are tied together for visible app version and PWA cache invalidation.
+- Reverse proxy examples must keep web traffic on the web app and `/ws` plus `/auth/*` on the server.
 
 ## Testing Expectations
 

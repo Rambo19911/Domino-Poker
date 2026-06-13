@@ -13,7 +13,11 @@
       "packages/core/src/aiService.ts"
     ],
     "depends_on": [],
-    "used_by": ["Core Multiplayer", "Web App", "Server Room Engine"],
+    "used_by": [
+      "Core Multiplayer",
+      "Web App",
+      "Server Room Engine"
+    ],
     "risks": [
       "Rule changes affect both single-player and multiplayer.",
       "The human-style shuffle is intentional and shared; do not replace it casually.",
@@ -43,8 +47,15 @@
       "packages/core/src/multiplayer/autoMove.ts",
       "packages/core/src/multiplayer/inactivity.ts"
     ],
-    "depends_on": ["Core Rules"],
-    "used_by": ["Multiplayer Server", "Shared Protocol", "Web App UI hints", "Multiplayer Simulators"],
+    "depends_on": [
+      "Core Rules"
+    ],
+    "used_by": [
+      "Multiplayer Server",
+      "Shared Protocol",
+      "Web App UI hints",
+      "Multiplayer Simulators"
+    ],
     "risks": [
       "Must remain seed-driven and deterministic; no Math.random or Date.now in decisions.",
       "State changes must go through applyCommand.",
@@ -67,19 +78,26 @@
       "packages/shared/src/avatarCatalog.ts",
       "packages/shared/src/titles.ts"
     ],
-    "depends_on": ["Core Multiplayer"],
-    "used_by": ["Multiplayer Server", "Web App", "Multiplayer Load Test"],
+    "depends_on": [
+      "Core Multiplayer"
+    ],
+    "used_by": [
+      "Multiplayer Server",
+      "Web App",
+      "Multiplayer Load Test"
+    ],
     "risks": [
       "clientMessages.ts is an external input boundary; keep Zod validation and max lengths strict.",
       "serverEvents.ts imports core MP event/snapshot types, so shared is protocol-facing but not fully domain-neutral.",
-      "Changing room/event/message contracts requires server, web, load-test, and shared tests."
+      "Changing room/event/message contracts requires server, web, load-test, and shared tests.",
+      "serverEvents.ts also carries fanout/event-bus contracts used by ServerEventBus/PostgresEventBus."
     ],
     "confidence": "high"
   },
   {
     "name": "Web App",
     "folder": "apps/web",
-    "purpose": "Next.js browser app for single-player, multiplayer lobby/table, optional account UI, localization, audio, PWA shell, and public assets.",
+    "purpose": "Next.js browser app for single-player, multiplayer lobby/table, optional account UI, localization, audio, responsive desktop/mobile layouts, UI primitives, PWA registration/install prompt, version display, and token-driven styling.",
     "main_files": [
       "apps/web/app/page.tsx",
       "apps/web/app/layout.tsx",
@@ -103,24 +121,53 @@
       "apps/web/lib/auth/useAuthUser.ts",
       "apps/web/lib/i18n.ts",
       "apps/web/lib/safeStorage.ts",
-      "apps/web/styles/tokens.css"
+      "apps/web/styles/tokens.css",
+      "apps/web/next.config.ts",
+      "VERSION",
+      "apps/web/components/PwaRegister.tsx",
+      "apps/web/components/InstallPrompt.tsx",
+      "apps/web/components/ui/Button.tsx",
+      "apps/web/components/ui/IconButton.tsx",
+      "apps/web/components/ui/TextField.tsx",
+      "apps/web/components/mp/ConnectionBanner.tsx",
+      "apps/web/components/mp/MpDesktopTable.tsx",
+      "apps/web/components/mp/MpMobileTable.tsx",
+      "apps/web/components/mp/MpLobbyDialogs.tsx",
+      "apps/web/lib/theme.ts",
+      "apps/web/lib/mp/mobileLayout.ts",
+      "apps/web/lib/mp/desktopStage.ts",
+      "apps/web/lib/mp/useTrickFreeze.ts",
+      "apps/web/styles/glass.css",
+      "apps/web/styles/ui-button.css",
+      "apps/web/styles/ui-icon-button.css",
+      "apps/web/styles/ui-text-field.css"
     ],
-    "depends_on": ["Core Rules", "Core Multiplayer", "Shared Protocol"],
-    "used_by": ["Browser users", "Playwright e2e tests"],
+    "depends_on": [
+      "Core Rules",
+      "Core Multiplayer",
+      "Shared Protocol"
+    ],
+    "used_by": [
+      "Browser users",
+      "Playwright e2e tests"
+    ],
     "risks": [
       "Multiplayer UI must render server snapshots and send intents only; server remains authoritative.",
       "AppShell is a central shell and can become a god component if unrelated workflow state is added.",
       "DominoPokerGame owns substantial single-player application workflow around core state.",
       "CSS entry globals.css is import-only; feature CSS belongs under apps/web/styles.",
       "PWA/service-worker cache can hide asset/UI changes during manual checks.",
-      "UI text should flow through localization files and passed labels."
+      "UI text should flow through localization files and passed labels.",
+      "gameTableView.ts may derive playable-tile hints from core, but multiplayer acceptance/rejection remains server-authoritative.",
+      "Theme/PWA/version changes cross `VERSION`, `next.config.ts`, `tokens.css`, `sw.js`, and deploy behavior.",
+      "Desktop/mobile multiplayer table split requires checking both MpDesktopTable and MpMobileTable before layout changes."
     ],
     "confidence": "high"
   },
   {
     "name": "Multiplayer Server",
     "folder": "apps/server/src",
-    "purpose": "Authoritative Node multiplayer application: config, HTTP health/metrics/auth, WebSocket gateway, routing, lobby/room lifecycle, game timers, chat, sessions, auth, persistence, and PostgreSQL fanout.",
+    "purpose": "Authoritative Node multiplayer application layer: HTTP/WS composition, gateway/hub/fanout, routing, room lifecycle, timers, reconnect/session identity, chat, auth integration, persistence hooks, metrics, and cleanup.",
     "main_files": [
       "apps/server/src/index.ts",
       "apps/server/src/config.ts",
@@ -137,16 +184,35 @@
       "apps/server/src/rooms/RoomOwnershipGuard.ts",
       "apps/server/src/chat/LobbyChat.ts",
       "apps/server/src/sessions/SessionManager.ts",
-      "apps/server/src/timers/SystemTurnTimerScheduler.ts"
+      "apps/server/src/timers/SystemTurnTimerScheduler.ts",
+      "apps/server/src/net/GatewayConnection.ts",
+      "apps/server/src/net/GatewayHub.ts",
+      "apps/server/src/net/gatewayEvents.ts",
+      "apps/server/src/net/ServerEventBus.ts",
+      "apps/server/src/net/gameUpdateDelivery.ts",
+      "apps/server/src/identity/DisplayIdRegistry.ts",
+      "apps/server/src/sessions/DurableSessionStore.ts"
     ],
-    "depends_on": ["Core Multiplayer", "Shared Protocol", "Server Storage", "Server Auth"],
-    "used_by": ["Multiplayer clients", "Load-test tool", "Playwright multiplayer smoke"],
+    "depends_on": [
+      "Core Multiplayer",
+      "Shared Protocol",
+      "Server Storage",
+      "Server Auth"
+    ],
+    "used_by": [
+      "Multiplayer clients",
+      "Load-test tool",
+      "Playwright multiplayer smoke"
+    ],
     "risks": [
       "RoomEngine is the per-room single-writer state mutation path.",
       "messageRouter.ts is large and mixes routing with lifecycle/finalization concerns; avoid adding rule logic there.",
       "Server time is authoritative; do not trust client timestamps for correctness.",
       "PostgreSQL multi-instance foundations exist, but active room failover is not complete.",
-      "Resource lifecycle invariants around game-over teardown, sessions, room TTL, and rate limits are high-risk."
+      "Resource lifecycle invariants around game-over teardown, sessions, room TTL, and rate limits are high-risk.",
+      "Gateway changes can affect heartbeat, backpressure, superseded sockets, reconnect, and cross-instance fanout.",
+      "Session/identity changes can break reconnect tokens, display ids, durable session cleanup, and public seat profile mapping.",
+      "Server internal flow should remain gateway -> router -> room manager/engine -> core, with storage/auth/session as infrastructure boundaries."
     ],
     "confidence": "high"
   },
@@ -161,8 +227,14 @@
       "apps/server/src/auth/EmailSender.ts",
       "apps/server/src/http/authRoutes.ts"
     ],
-    "depends_on": ["Server Storage", "Shared Protocol"],
-    "used_by": ["Multiplayer Server", "Web Auth UI"],
+    "depends_on": [
+      "Server Storage",
+      "Shared Protocol"
+    ],
+    "used_by": [
+      "Multiplayer Server",
+      "Web Auth UI"
+    ],
     "risks": [
       "Auth is optional and must not become required for single-player or anonymous multiplayer.",
       "Raw auth tokens must never be logged or stored; storage keeps hashes.",
@@ -187,14 +259,23 @@
       "apps/server/src/storage/OutcomeRecorder.ts",
       "apps/server/src/storage/RoomLeaseStore.ts"
     ],
-    "depends_on": ["Core Multiplayer", "Shared Protocol"],
-    "used_by": ["Multiplayer Server", "Server Auth"],
+    "depends_on": [
+      "Core Multiplayer",
+      "Shared Protocol"
+    ],
+    "used_by": [
+      "Multiplayer Server",
+      "Server Auth",
+      "Server Gateway And Sessions"
+    ],
     "risks": [
       "schema.ts is the single DDL source for both SQLite and PostgreSQL.",
       "Migration IDs are production identity; append new migrations only at the end.",
       "StoragePort behavior should be covered by the shared storage contract tests.",
       "SQLite files under data/ are runtime data and ignored; do not commit them.",
-      "PostgreSQL pool settings affect storage and event bus pools."
+      "PostgreSQL pool settings affect storage and event bus pools.",
+      "Storage implementations also provide contracts used by auth and durable session code, not only match/event persistence.",
+      "Room leases are PostgreSQL multi-instance coordination state and must stay aligned with RoomOwnershipGuard."
     ],
     "confidence": "high"
   },
@@ -212,8 +293,13 @@
       "apps/web/components/auth/LobbyProfile.tsx",
       "apps/web/components/auth/ResetPasswordScreen.tsx"
     ],
-    "depends_on": ["Shared Protocol", "Server Auth"],
-    "used_by": ["Web App"],
+    "depends_on": [
+      "Shared Protocol",
+      "Server Auth"
+    ],
+    "used_by": [
+      "Web App"
+    ],
     "risks": [
       "Auth tokens live in browser storage; use safeStorage and never put tokens into URLs.",
       "Avatar upload is intentionally client-side resized/compressed before POST.",
@@ -233,8 +319,13 @@
       "tools/simulators/test/playGame.test.ts",
       "tools/simulators/test/volume.test.ts"
     ],
-    "depends_on": ["Core Multiplayer"],
-    "used_by": ["npm run simulate", "Core regression checks"],
+    "depends_on": [
+      "Core Multiplayer"
+    ],
+    "used_by": [
+      "npm run simulate",
+      "Core regression checks"
+    ],
     "risks": [
       "Decision randomness must be seeded and reproducible.",
       "Simulator should import MP via the public @domino-poker/core/multiplayer entrypoint.",
@@ -253,8 +344,13 @@
       "tools/load-test/src/runLoadTest.ts",
       "tools/load-test/test/metrics.test.ts"
     ],
-    "depends_on": ["Shared Protocol", "Multiplayer Server"],
-    "used_by": ["npm run load:local"],
+    "depends_on": [
+      "Shared Protocol",
+      "Multiplayer Server"
+    ],
+    "used_by": [
+      "npm run load:local"
+    ],
     "risks": [
       "Requires a running server and should use disposable/local data when generating chat/game traffic.",
       "High latency is saturation signal; dropped sockets/server death are stability failures.",
@@ -274,8 +370,14 @@
       "tests/e2e/dialog-a11y.spec.ts",
       "tests/e2e/storage-resilience.spec.ts"
     ],
-    "depends_on": ["Web App", "Multiplayer Server"],
-    "used_by": ["npm run test:web", "CI"],
+    "depends_on": [
+      "Web App",
+      "Multiplayer Server"
+    ],
+    "used_by": [
+      "npm run test:web",
+      "CI"
+    ],
     "risks": [
       "Playwright config starts apps/server from dist, so server must be built before test:web.",
       "Browser selectors must distinguish single-player Play from multiplayer Lobby/Start actions.",
@@ -298,14 +400,24 @@
       ".npmrc",
       ".nvmrc",
       ".node-version",
-      "scripts/test-postgres-docker.mjs"
+      "scripts/test-postgres-docker.mjs",
+      ".dockerignore",
+      "deploy.sh",
+      "VERSION",
+      "apps/web/next.config.ts"
     ],
     "depends_on": [],
-    "used_by": ["All workspaces", "CI", "Developers"],
+    "used_by": [
+      "All workspaces",
+      "CI",
+      "Developers"
+    ],
     "risks": [
       "Node version pins are tied to node:sqlite support.",
       "Shared/server tests may require core/shared/server dist builds before runtime execution.",
-      "Run typecheck, lint, test, test:web, and build sequentially rather than racing generated outputs."
+      "Run typecheck, lint, test, test:web, and build sequentially rather than racing generated outputs.",
+      "Node 24 is pinned for local/CI/deploy while package engines require Node >=22.5.0 with engine-strict.",
+      "deploy.sh is ignored/local but mutates VERSION and sw.js, commits, and pushes to main."
     ],
     "confidence": "high"
   },
@@ -320,21 +432,34 @@
       "deploy/nginx.conf.example",
       "deploy/Caddyfile.example",
       "deploy/BACKUP.md",
-      ".dockerignore"
+      ".dockerignore",
+      "deploy.sh",
+      "VERSION",
+      "apps/web/next.config.ts",
+      "apps/web/public/sw.js"
     ],
-    "depends_on": ["Multiplayer Server", "Server Storage", "Web App"],
-    "used_by": ["Production/VPS deployment"],
+    "depends_on": [
+      "Multiplayer Server",
+      "Server Storage",
+      "Web App"
+    ],
+    "used_by": [
+      "Production/VPS deployment"
+    ],
     "risks": [
       "Do not commit real secrets, DB URLs, host/IP values, or local deploy scripts.",
       "Reverse proxy config must preserve WebSocket upgrade for /ws and protect /metrics.",
-      "For production behind proxy, SERVER_HOST should usually be 127.0.0.1 and TRUST_PROXY only when proxy is trusted."
+      "For production behind proxy, SERVER_HOST should usually be 127.0.0.1 and TRUST_PROXY only when proxy is trusted.",
+      "Docker image builds/runs only the server dependency chain, not the Next web client.",
+      "deploy.sh builds server and web on the VPS and restarts both domino-poker and domino-web, but only domino-poker.service is tracked under deploy/.",
+      "Reverse proxies must route /ws and /auth/* to the server port and should pair trusted X-Forwarded-For handling with TRUST_PROXY=true only behind a trusted proxy."
     ],
     "confidence": "high"
   },
   {
     "name": "Documentation And Local Planning",
-    "folder": "docs",
-    "purpose": "Tracked public game rules/strategy docs plus local ignored operational/planning/mockup notes in this working tree.",
+    "folder": ".",
+    "purpose": "Public README/rules docs, screenshots used by README, and local planning notes when present; only tracked docs should be assumed in a clean clone.",
     "main_files": [
       "README.md",
       "docs/Domino pokera Noteikumi.md",
@@ -347,11 +472,17 @@
       "Screenshots/gamerules-screen.png"
     ],
     "depends_on": [],
-    "used_by": ["Developers", "Players", "Future AI sessions"],
+    "used_by": [
+      "Developers",
+      "Players",
+      "Future AI sessions"
+    ],
     "risks": [
       "Implementation and tests are authoritative when docs disagree.",
       "Local ignored docs such as docs/DEPLOYMENT.md, docs/SCALING.md, docs/DB_MIGRATION.md, docs/TODO/*, and docs/mockups/* may not exist in clean clones.",
-      "Do not link ignored local docs from public README unless they become tracked."
+      "Do not link ignored local docs from public README unless they become tracked.",
+      "Screenshots are binary README assets; do not treat them as source-of-truth architecture docs.",
+      "Ignored local docs under docs/ may exist in this working tree but should not be assumed in clean clones."
     ],
     "confidence": "high"
   },
@@ -359,13 +490,53 @@
     "name": "Local Runtime Data",
     "folder": "data",
     "purpose": "Local SQLite runtime data directory for default server persistence.",
-    "main_files": ["data/.gitkeep"],
-    "depends_on": ["Server Storage"],
-    "used_by": ["Multiplayer Server"],
+    "main_files": [
+      "data/.gitkeep"
+    ],
+    "depends_on": [
+      "Server Storage"
+    ],
+    "used_by": [
+      "Multiplayer Server"
+    ],
     "risks": [
       "Only data/.gitkeep should be tracked.",
       "data/*.sqlite, data/*.sqlite-wal, and data/*.sqlite-shm are ignored runtime files.",
       "Use disposable DATABASE_URL values for tests/load runs that should not pollute local state."
+    ],
+    "confidence": "high"
+  },
+  {
+    "name": "Server Gateway And Sessions",
+    "folder": "apps/server/src",
+    "purpose": "Server connection/session boundary for WebSocket clients, active connection registry, in-process/PostgreSQL fanout, display ids, reconnect tokens, durable sessions, and delivery helpers.",
+    "main_files": [
+      "apps/server/src/net/WebSocketGateway.ts",
+      "apps/server/src/net/GatewayConnection.ts",
+      "apps/server/src/net/GatewayHub.ts",
+      "apps/server/src/net/gatewayEvents.ts",
+      "apps/server/src/net/ServerEventBus.ts",
+      "apps/server/src/net/PostgresEventBus.ts",
+      "apps/server/src/net/wsTransport.ts",
+      "apps/server/src/net/gameUpdateDelivery.ts",
+      "apps/server/src/identity/DisplayIdRegistry.ts",
+      "apps/server/src/sessions/SessionManager.ts",
+      "apps/server/src/sessions/DurableSessionStore.ts"
+    ],
+    "depends_on": [
+      "Shared Protocol",
+      "Server Storage",
+      "Server Auth"
+    ],
+    "used_by": [
+      "Multiplayer Server",
+      "E2E Tests",
+      "Multiplayer Load Test"
+    ],
+    "risks": [
+      "Protocol parsing, auth resolution, heartbeat, reconnect, supersede, and backpressure are all cross-cutting client/server behavior.",
+      "Durable sessions and display ids must not leak private tokens or break anonymous multiplayer.",
+      "PostgreSQL fanout is for multi-instance broadcast coordination; it is not active room-state failover."
     ],
     "confidence": "high"
   }
