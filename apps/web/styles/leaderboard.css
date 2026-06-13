@@ -1,10 +1,11 @@
 /* Globālā Leaderboard dialogs (Leaderboard fāze). Fiksētu kolonnu grid: rinda
    NEpārbīdās gara nickname dēļ — visi celiņi fiksēti, tikai nickname `minmax(0,1fr)`
-   + ellipsis. Viens template galvenei + rindām + self panelim. Token-only (tēmējams).
-   Mobilajā: horizontāls scroll (`.leaderboardScroll`), kolonnas nepārkārtojas. */
+   + ellipsis. Skaitļu kolonnas `ch` vienībās (cieša grupēšana). Galvene = saīsinājumi
+   (W/L/G/%) → ietilpst mobilajā BEZ horizontālā scroll. Body scrollojas VERTIKĀLI
+   (sticky galvene), lai 100 rindas neizstieptu modāli ārpus ekrāna. Token-only. */
 
 .leaderboardDialog {
-  width: min(660px, 92vw);
+  width: min(620px, 92vw);
   max-width: 92vw;
 }
 
@@ -68,17 +69,19 @@
   background: rgb(var(--text-primary-rgb) / 0.08);
 }
 
-/* Scroll ietinējs — uz šaurām ekrāniem tabula scrollojas horizontāli, paliek fiksēta. */
-.leaderboardScroll {
-  overflow-x: auto;
-}
-
+/* Vertikāls scroll konteiners: 100 rindas scrollojas DIALOGA iekšienē; galvene sticky.
+   `dvh` — mobilā pārlūka chrome neizgrūž saturu ārpus ekrāna. */
 .leaderboardTable {
-  /* avatar | rank# vietā: # | avatar | nickname | badge | wins | losses | games | win% | lang */
-  --lb-cols: 2.2rem 2.4rem minmax(0, 1fr) 2.4rem 3rem 3.4rem 3.4rem 3.4rem 2.8rem;
+  /* # | avatar | nickname | badge | W | L | G | % | lang.
+     Skaitļu celiņi `ch` — projektēti 3-ciparu uzvarām/spēlēm un "100%". */
+  --lb-cols: 1.9rem 2rem minmax(0, 1fr) 1.8rem 3ch 3ch 3.4ch 4ch 2.6ch;
   display: flex;
   flex-direction: column;
-  min-width: 30rem;
+  max-height: min(60vh, 60dvh);
+  overflow-y: auto;
+  /* TIKAI vertikāls scroll: `overflow-y:auto` citādi liek `overflow-x` aprēķināties
+     kā `auto`, un vertikālā scrollbar atņemtais platums radītu lieku horizontālo scroll. */
+  overflow-x: hidden;
 }
 
 .leaderboardRow {
@@ -97,7 +100,7 @@
   top: 0;
   z-index: 1;
   border-bottom: 1px solid rgb(var(--text-primary-rgb) / 0.2);
-  background: rgb(var(--overlay-rgb) / 0.55);
+  background: rgb(var(--overlay-rgb) / 0.92);
   color: var(--text-secondary);
   font-size: 0.74rem;
   text-transform: uppercase;
@@ -121,8 +124,8 @@
 }
 
 .lbAvatarImg {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: var(--radius-pill);
   object-fit: cover;
   border: 1px solid rgb(var(--primary-rgb) / 0.5);
@@ -177,10 +180,36 @@
 }
 
 .leaderboardSelfTable {
-  min-width: 0;
+  max-height: none;
+  overflow: visible;
 }
 
 .leaderboardSelfTable .leaderboardRow {
   border-bottom: none;
   padding: 4px;
+}
+
+/* Mobilais: ciešāki atstatumi + mazliet mazāks fonts, lai tabula ietilpst ~320px
+   bez horizontālā scroll (nickname ellipsē, skaitļi grupējas cieši). */
+@media (max-width: 480px) {
+  .leaderboardRow {
+    gap: 3px;
+    padding: 6px 2px;
+    font-size: 0.82rem;
+  }
+
+  .leaderboardTable {
+    --lb-cols: 1.7rem 1.7rem minmax(0, 1fr) 1.6rem 2.8ch 2.8ch 3.2ch 3.8ch 2.4ch;
+    max-height: min(64vh, 64dvh);
+  }
+
+  .lbAvatarImg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .lbBadgeImg {
+    width: 19px;
+    height: 19px;
+  }
 }

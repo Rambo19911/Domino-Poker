@@ -413,7 +413,8 @@
   .modalScale .numberDialog,
   .modalScale .summaryDialog,
   .modalScale .rulesDialog,
-  .modalScale .settingsDialog {
+  .modalScale .settingsDialog,
+  .modalScale .leaderboardDialog {
     width: min(560px, 110vw);
     max-width: none;
   }

@@ -239,11 +239,47 @@
   {
     "path": "apps/web/components/LobbyScreen.tsx",
     "type": "ui",
-    "purpose": "Main lobby screen with mode controls, settings/rules/auth/profile surfaces, and round-count selection.",
+    "purpose": "Main lobby screen with mode controls, settings/rules/leaderboard/auth/profile surfaces, and round-count selection.",
     "importance": "high",
     "related_files": [
       "apps/web/components/LobbyWheel.tsx",
-      "apps/web/components/auth/AuthDialog.tsx"
+      "apps/web/components/auth/AuthDialog.tsx",
+      "apps/web/components/LeaderboardDialog.tsx"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/LeaderboardDialog.tsx",
+    "type": "ui",
+    "purpose": "Global leaderboard dialog: fetches GET /auth/leaderboard, renders a fixed-column grid table (rank/avatar/nickname/badge/W/L/G/win%/lang) with loading/error/empty/ready states and a discriminated self panel; exports the lobby TrophyIcon.",
+    "importance": "high",
+    "related_files": [
+      "apps/web/lib/auth/authApi.ts",
+      "apps/web/lib/leaderboard/badgeAsset.ts",
+      "apps/web/styles/leaderboard.css",
+      "packages/shared/src/leaderboard.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/leaderboard/badgeAsset.ts",
+    "type": "utility",
+    "purpose": "Maps a RankBadgeId to its public badge asset path (/assets/Badges/<id>.svg); web-side asset resolution paired with shared rankToBadge.",
+    "importance": "low",
+    "related_files": [
+      "apps/web/components/LeaderboardDialog.tsx",
+      "packages/shared/src/leaderboard.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/styles/leaderboard.css",
+    "type": "ui",
+    "purpose": "Token-only styles for the leaderboard dialog: shared fixed-column grid template (head/rows/self), nickname ellipsis, vertical scroll with sticky header, and mobile column tightening.",
+    "importance": "low",
+    "related_files": [
+      "apps/web/components/LeaderboardDialog.tsx",
+      "apps/web/app/globals.css"
     ],
     "confidence": "high"
   },

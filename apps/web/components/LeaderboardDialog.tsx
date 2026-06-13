@@ -132,23 +132,23 @@ function LeaderboardTable({
       {data.entries.length === 0 ? (
         <p className="leaderboardStatus">{t.leaderboardEmpty}</p>
       ) : (
-        <div className="leaderboardScroll">
-          <div className="leaderboardTable" role="table" aria-label={t.leaderboard}>
-            <div className="leaderboardRow leaderboardHead" role="row">
-              <span className="lbRank" role="columnheader">#</span>
-              <span className="lbAvatar" role="columnheader" aria-hidden="true" />
-              <span className="lbName" role="columnheader">{t.leaderboardColPlayer}</span>
-              <span className="lbBadge" role="columnheader" aria-hidden="true" />
-              <span className="lbNum" role="columnheader">{t.leaderboardColWins}</span>
-              <span className="lbNum" role="columnheader">{t.leaderboardColLosses}</span>
-              <span className="lbNum" role="columnheader">{t.leaderboardColGames}</span>
-              <span className="lbNum" role="columnheader">{t.leaderboardColWinRate}</span>
-              <span className="lbLang" role="columnheader">{t.leaderboardColLanguage}</span>
-            </div>
-            {data.entries.map((entry) => (
-              <LeaderboardRow key={entry.rank} entry={entry} self={entry.rank === selfRank} />
-            ))}
+        <div className="leaderboardTable" role="table" aria-label={t.leaderboard}>
+          {/* Galvene: īsie saīsinājumi (W/L/G/%) lai tabula ietilpst mobilajā bez
+              horizontālā scroll; pilnais nosaukums paliek aria-label/title (a11y). */}
+          <div className="leaderboardRow leaderboardHead" role="row">
+            <span className="lbRank" role="columnheader">#</span>
+            <span className="lbAvatar" role="columnheader" aria-hidden="true" />
+            <span className="lbName" role="columnheader">{t.leaderboardColPlayer}</span>
+            <span className="lbBadge" role="columnheader" aria-hidden="true" />
+            <span className="lbNum" role="columnheader" aria-label={t.leaderboardColWins} title={t.leaderboardColWins}>W</span>
+            <span className="lbNum" role="columnheader" aria-label={t.leaderboardColLosses} title={t.leaderboardColLosses}>L</span>
+            <span className="lbNum" role="columnheader" aria-label={t.leaderboardColGames} title={t.leaderboardColGames}>G</span>
+            <span className="lbNum" role="columnheader" aria-label={t.leaderboardColWinRate} title={t.leaderboardColWinRate}>%</span>
+            <span className="lbLang" role="columnheader" aria-label={t.leaderboardColLanguage} title={t.leaderboardColLanguage} />
           </div>
+          {data.entries.map((entry) => (
+            <LeaderboardRow key={entry.rank} entry={entry} self={entry.rank === selfRank} />
+          ))}
         </div>
       )}
 

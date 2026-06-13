@@ -138,7 +138,7 @@ export const lv = {
   leaderboardAnonymous: "Piesakies, lai redzētu savu vietu topā.",
   leaderboardInfoLabel: "Par topu",
   leaderboardMinGamesInfo:
-    "Spēlētāji topā parādās pēc vismaz {min} nospēlētām spēlēm. Tas nodrošina godīgu ranžēšanu — viena veiksmīga uzvara nevar apsteigt pieredzējušus spēlētājus.",
+    "Spēlētāji topā parādās pēc vismaz {min} nospēlētām spēlēm. Reitingā tiek ieskaitītas TIKAI multiplayer spēles, kurās visas četras vietas aizņem reģistrēti, ielogojušies spēlētāji — viena spēlētāja spēles un spēles ar botiem netiek skaitītas. Tas nodrošina godīgu ranžēšanu — viena veiksmīga uzvara nevar apsteigt pieredzējušus spēlētājus.",
   ace: "Dūzis",
   allSounds: "Visas skaņas",
   backgroundMusic: "Fona mūzika",

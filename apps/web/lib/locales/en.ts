@@ -134,7 +134,7 @@ export const en = {
   leaderboardAnonymous: "Log in to see your position on the leaderboard.",
   leaderboardInfoLabel: "About the leaderboard",
   leaderboardMinGamesInfo:
-    "Players appear on the leaderboard after at least {min} games. This keeps the ranking fair — a single lucky win can't outrank experienced players.",
+    "Players appear on the leaderboard after at least {min} games. Only multiplayer games where all four seats are registered, logged-in players count toward your rating — single-player and games with bots are not counted. This keeps the ranking fair — a single lucky win can't outrank experienced players.",
   ace: "Ace",
   allSounds: "All Sounds",
   backgroundMusic: "Background music",

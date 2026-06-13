@@ -107,6 +107,7 @@
       "apps/web/public/sw.js",
       "apps/web/components/AppShell.tsx",
       "apps/web/components/LobbyScreen.tsx",
+      "apps/web/components/LeaderboardDialog.tsx",
       "apps/web/components/DominoPokerGame.tsx",
       "apps/web/components/MultiplayerLobby.tsx",
       "apps/web/components/Dialog.tsx",
