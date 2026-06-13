@@ -15,6 +15,7 @@ import type {
 } from "../../lib/auth/authApi";
 import { avatarUrl } from "../../lib/auth/avatarUrl";
 import { prepareAvatar } from "../../lib/auth/avatarUpload";
+import { IconButton } from "../ui/IconButton";
 import type { AuthStatus } from "../../lib/auth/useAuthUser";
 import type { AppStrings } from "../../lib/i18n";
 import { readLocalStorage, removeLocalStorage, writeLocalStorage } from "../../lib/safeStorage";
@@ -134,14 +135,13 @@ export function AuthDialog(props: AuthDialogProps) {
             </>
           )}
         </div>
-        <button
-          className="iconButton settingsCloseButton"
-          type="button"
-          aria-label={t.close}
+        <IconButton
+          className="settingsCloseButton"
+          label={t.close}
           onClick={onClose}
         >
           <CloseIcon />
-        </button>
+        </IconButton>
       </div>
 
       <h2 id="auth-dialog-title" className="srOnly">

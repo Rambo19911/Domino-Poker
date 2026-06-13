@@ -9,6 +9,7 @@ import { Dialog } from "./Dialog";
 import { InstallPrompt } from "./InstallPrompt";
 import { CompactLobbyPanel, LobbyWheel } from "./LobbyWheel";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
+import { IconButton } from "./ui/IconButton";
 
 import type { UseAuthUser } from "../lib/auth/useAuthUser";
 import {
@@ -72,20 +73,18 @@ export function LobbyScreen({
     <main className="lobbyShell">
       <header className="lobbyTopBar">
         {auth.status !== "authenticated" ? (
-          <button
-            className="iconButton lobbyLoginButton"
-            type="button"
-            aria-label={t.logIn}
+          <IconButton
+            className="lobbyLoginButton"
+            label={t.logIn}
             title={t.logIn}
             onClick={openAuth}
           >
             <LoginIcon />
-          </button>
+          </IconButton>
         ) : null}
-        <button
-          className="iconButton lobbyHelpButton"
-          type="button"
-          aria-label={t.rules}
+        <IconButton
+          className="lobbyHelpButton"
+          label={t.rules}
           title={t.rules}
           onClick={() => {
             audio.play("uiClick");
@@ -93,18 +92,17 @@ export function LobbyScreen({
           }}
         >
           <HelpIcon />
-        </button>
-        <button
-          className="iconButton lobbySettingsButton"
-          type="button"
-          aria-label={t.settings}
+        </IconButton>
+        <IconButton
+          className="lobbySettingsButton"
+          label={t.settings}
           onClick={() => {
             audio.play("uiClick");
             setSettingsOpen(true);
           }}
         >
           <SettingsIcon />
-        </button>
+        </IconButton>
       </header>
 
       <section className="lobbyContent" aria-labelledby="lobby-title">
@@ -237,14 +235,13 @@ function SettingsDialog({
               {t.about}
             </button>
           </div>
-          <button
-            className="iconButton settingsCloseButton"
-            type="button"
-            aria-label={t.close}
+          <IconButton
+            className="settingsCloseButton"
+            label={t.close}
             onClick={handleClose}
           >
             <CloseIcon />
-          </button>
+          </IconButton>
         </div>
 
         {tab === "settings" ? (

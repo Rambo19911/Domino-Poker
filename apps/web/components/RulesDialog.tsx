@@ -1,6 +1,7 @@
 "use client";
 
 import { Dialog } from "./Dialog";
+import { IconButton } from "./ui/IconButton";
 import type { AppStrings } from "../lib/i18n";
 import type { AudioSettings } from "../lib/useAudioSettings";
 
@@ -76,14 +77,13 @@ export function RulesDialog({
             <h2 id="rules-title"><HelpIcon /> {labels.rules}</h2>
             <p>{labels.rulesDescription}</p>
           </div>
-          <button
-            className="iconButton settingsCloseButton"
-            type="button"
-            aria-label={labels.close}
+          <IconButton
+            className="settingsCloseButton"
+            label={labels.close}
             onClick={handleClose}
           >
             <CloseIcon />
-          </button>
+          </IconButton>
         </div>
 
         <div className="rulesContent">

@@ -8,6 +8,7 @@ import type { AppStrings } from "../../lib/i18n";
 import type { ConnectionStatus } from "../../lib/mp/clientView";
 import { VolumeIcon, VolumeOffIcon } from "../AudioControls";
 import { HelpIcon } from "../RulesDialog";
+import { IconButton } from "../ui/IconButton";
 import { ConnectionBanner } from "./ConnectionBanner";
 
 const CHAT_MAX_LENGTH = 200;
@@ -17,7 +18,7 @@ type SectionKey = "public" | "private";
 /**
  * Portrēta (telefonu) izkārtojums MP LOBBY istabu sarakstam — PARASTS responsīvs
  * CSS ekrāns (NE mērogota dizaina skatuve; skatuve der tikai imersīvajam galdam).
- * Atkārtoti lieto lietotnes pogu/ikonu klases (iconButton/mpHeaderIconButton/
+ * Atkārtoti lieto `IconButton` primitīvu un lietotnes pogu klases (mpHeaderIconButton/
  * mpPrimaryButton/mpRoomButton), lai izmēri sakrīt ar pārējiem ekrāniem.
  * NEAPTVER waiting-room ekrānu (atsevišķs darbs). PSD (MP-lobby-layout.json) ir
  * tikai proporciju atsauce.
@@ -98,34 +99,31 @@ export function MpMobileLobby({
       <header className="mplHeader">
         <ConnectionBanner status={connection} labels={t} />
         <div className="mplHeaderButtons">
-          <button
-            className="iconButton mpHeaderIconButton mpHelpButton"
-            type="button"
-            aria-label={t.rules}
+          <IconButton
+            className="mpHeaderIconButton mpHelpButton"
+            label={t.rules}
             title={t.rules}
             onClick={onOpenRules}
           >
             <HelpIcon />
-          </button>
-          <button
-            className="iconButton mpHeaderIconButton mpSoundButton"
-            type="button"
-            aria-label={isMuted ? t.mutedSoundSettings : t.soundSettings}
+          </IconButton>
+          <IconButton
+            className="mpHeaderIconButton mpSoundButton"
+            label={isMuted ? t.mutedSoundSettings : t.soundSettings}
             aria-pressed={isMuted}
             title={isMuted ? t.mutedSoundSettings : t.soundSettings}
             onClick={onToggleMute}
           >
             {isMuted ? <VolumeOffIcon /> : <VolumeIcon />}
-          </button>
-          <button
-            className="iconButton mpHeaderIconButton mpExitButton"
-            type="button"
-            aria-label={t.exit}
+          </IconButton>
+          <IconButton
+            className="mpHeaderIconButton mpExitButton"
+            label={t.exit}
             title={t.exit}
             onClick={onExit}
           >
             <ReturnIcon />
-          </button>
+          </IconButton>
         </div>
       </header>
 

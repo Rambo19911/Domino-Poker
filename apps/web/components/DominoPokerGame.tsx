@@ -31,6 +31,7 @@ import { InfoPanel } from "./InfoPanel";
 import { PlayerSeat } from "./PlayerSeat";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
 import { SpMobileTable } from "./SpMobileTable";
+import { IconButton } from "./ui/IconButton";
 import type { AppStrings } from "../lib/i18n";
 import { useIsPhonePortrait } from "../lib/mobileStage";
 import type { AudioSettings } from "../lib/useAudioSettings";
@@ -376,10 +377,9 @@ export function DominoPokerGame({
       {!isPhonePortrait ? (
       <div className="safeControls">
         <SoundMenu audio={audio} labels={labels} />
-        <button
-          className="iconButton gameHelpButton"
-          type="button"
-          aria-label={labels.rules}
+        <IconButton
+          className="gameHelpButton"
+          label={labels.rules}
           title={labels.rules}
           onClick={() => {
             audio.play("uiClick");
@@ -387,18 +387,17 @@ export function DominoPokerGame({
           }}
         >
           <HelpIcon />
-        </button>
-        <button
-          className="iconButton exitButton"
-          type="button"
-          aria-label={labels.exit}
+        </IconButton>
+        <IconButton
+          className="exitButton"
+          label={labels.exit}
           onClick={() => {
             audio.play("uiClick");
             setShowExitDialog(true);
           }}
         >
           <ExitIcon />
-        </button>
+        </IconButton>
       </div>
       ) : null}
 
@@ -568,17 +567,16 @@ function SoundMenu({
   const [open, setOpen] = useState(false);
   return (
     <div className="soundMenu">
-      <button
-        className="iconButton soundButton"
-        type="button"
-        aria-label={audio.isMuted ? labels.mutedSoundSettings : labels.soundSettings}
+      <IconButton
+        className="soundButton"
+        label={audio.isMuted ? labels.mutedSoundSettings : labels.soundSettings}
         onClick={() => {
           audio.play("uiClick");
           setOpen((value) => !value);
         }}
       >
         {audio.isMuted ? <VolumeOffIcon /> : <VolumeIcon />}
-      </button>
+      </IconButton>
       {open ? (
         <div className="soundPanel">
           <AudioControls audio={audio} labels={labels} />

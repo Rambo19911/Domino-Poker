@@ -1,7 +1,7 @@
 /* ============================================================
    MP LOBBY portrēta (telefonu) izkārtojums — MpMobileLobby.
    PARASTS responsīvs CSS (NE mērogota skatuve). Reāli px/viewport
-   mērvienības; atkārtoti lieto iconButton/mpHeaderIconButton/
+   mērvienības; atkārtoti lieto IconButton primitīvu + mpHeaderIconButton/
    mpPrimaryButton/mpRoomButton, lai izmēri sakrīt ar pārējiem ekrāniem.
    ============================================================ */
 .mplShell {

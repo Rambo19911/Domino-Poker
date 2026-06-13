@@ -15,6 +15,7 @@ import { AudioControls, VolumeIcon, VolumeOffIcon } from "../AudioControls";
 import { DominoTileView, HiddenTile } from "../DominoTileView";
 import { ExitIcon } from "../GameDialogs";
 import { HelpIcon } from "../RulesDialog";
+import { IconButton } from "../ui/IconButton";
 import { formatTemplate, seatLabel } from "../../lib/mp/seatLabel";
 
 const HAND_SIZE = 7;
@@ -143,23 +144,17 @@ export function MpDesktopTable({
 
       <div className="safeControls">
         <MpSoundMenu audio={audio} labels={t} />
-        <button
-          className="iconButton gameHelpButton"
-          type="button"
-          aria-label={t.rules}
+        <IconButton
+          className="gameHelpButton"
+          label={t.rules}
           title={t.rules}
           onClick={onShowRules}
         >
           <HelpIcon />
-        </button>
-        <button
-          className="iconButton exitButton"
-          type="button"
-          aria-label={t.exit}
-          onClick={onShowExit}
-        >
+        </IconButton>
+        <IconButton className="exitButton" label={t.exit} onClick={onShowExit}>
           <ExitIcon />
-        </button>
+        </IconButton>
       </div>
     </>
   );
@@ -390,17 +385,16 @@ function MpSoundMenu({ audio, labels: t }: { readonly audio: AudioSettings; read
   const [open, setOpen] = useState(false);
   return (
     <div className="soundMenu">
-      <button
-        className="iconButton soundButton"
-        type="button"
-        aria-label={audio.isMuted ? t.mutedSoundSettings : t.soundSettings}
+      <IconButton
+        className="soundButton"
+        label={audio.isMuted ? t.mutedSoundSettings : t.soundSettings}
         onClick={() => {
           audio.play("uiClick");
           setOpen((value) => !value);
         }}
       >
         {audio.isMuted ? <VolumeOffIcon /> : <VolumeIcon />}
-      </button>
+      </IconButton>
       {open ? (
         <div className="soundPanel">
           <AudioControls audio={audio} labels={t} />

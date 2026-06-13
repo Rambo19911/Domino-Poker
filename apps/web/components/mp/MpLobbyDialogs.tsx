@@ -14,6 +14,7 @@ import { getMpRulesDoc } from "../../lib/mpRulesContent";
 import type { AudioSettings } from "../../lib/useAudioSettings";
 import { Dialog } from "../Dialog";
 import { HelpIcon } from "../RulesDialog";
+import { IconButton } from "../ui/IconButton";
 
 const ROOM_CODE_MAX_LENGTH = 12;
 
@@ -266,14 +267,13 @@ function MultiplayerRulesDialog({
         <div>
           <h2 id="mp-rules-title"><HelpIcon /> {t.rules}</h2>
         </div>
-        <button
-          className="iconButton settingsCloseButton"
-          type="button"
-          aria-label={t.close}
+        <IconButton
+          className="settingsCloseButton"
+          label={t.close}
           onClick={close}
         >
           <CloseIcon />
-        </button>
+        </IconButton>
       </div>
 
       <div className="rulesContent">
