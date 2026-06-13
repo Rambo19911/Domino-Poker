@@ -19,6 +19,18 @@ export function writeLocalStorage(key: string, value: string): boolean {
   }
 }
 
+/** Dzēš atslēgu (drošs, ja localStorage nav pieejams). Lieto "atpakaļ uz noklusējumu". */
+export function removeLocalStorage(key: string): boolean {
+  if (typeof window === "undefined") return false;
+
+  try {
+    window.localStorage.removeItem(key);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Sesijas glabātuve (`sessionStorage`): pārdzīvo tās pašas cilnes refresh, BET
  * NE jaunu cilni / pārlūka aizvēršanu. Piemērota īslaicīgam UI stāvoklim, kas

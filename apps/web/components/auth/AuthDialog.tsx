@@ -17,9 +17,18 @@ import { avatarUrl } from "../../lib/auth/avatarUrl";
 import { prepareAvatar } from "../../lib/auth/avatarUpload";
 import type { AuthStatus } from "../../lib/auth/useAuthUser";
 import type { AppStrings } from "../../lib/i18n";
+import { readLocalStorage, removeLocalStorage, writeLocalStorage } from "../../lib/safeStorage";
+import {
+  applyTheme,
+  DEFAULT_THEME,
+  isThemeId,
+  THEME_STORAGE_KEY,
+  THEMES,
+  type ThemeId
+} from "../../lib/theme";
 import { Dialog } from "../Dialog";
 
-type Tab = "login" | "register" | "profile" | "forgot";
+type Tab = "login" | "register" | "profile" | "personalization" | "forgot";
 
 export interface AuthDialogProps {
   readonly labels: AppStrings;
@@ -82,15 +91,26 @@ export function AuthDialog(props: AuthDialogProps) {
       <div className="settingsHeader">
         <div className="settingsTabs" role="tablist" aria-label={t.account}>
           {authenticated ? (
-            <button
-              className="settingsTab"
-              type="button"
-              role="tab"
-              aria-selected={tab === "profile"}
-              onClick={() => selectTab("profile")}
-            >
-              {t.profile}
-            </button>
+            <>
+              <button
+                className="settingsTab"
+                type="button"
+                role="tab"
+                aria-selected={tab === "profile"}
+                onClick={() => selectTab("profile")}
+              >
+                {t.profile}
+              </button>
+              <button
+                className="settingsTab"
+                type="button"
+                role="tab"
+                aria-selected={tab === "personalization"}
+                onClick={() => selectTab("personalization")}
+              >
+                {t.personalization}
+              </button>
+            </>
           ) : (
             <>
               <button
@@ -125,7 +145,7 @@ export function AuthDialog(props: AuthDialogProps) {
       </div>
 
       <h2 id="auth-dialog-title" className="srOnly">
-        {authenticated ? t.profile : t.account}
+        {t.account}
       </h2>
 
       {error !== null ? (
@@ -226,7 +246,64 @@ export function AuthDialog(props: AuthDialogProps) {
           }}
         />
       ) : null}
+
+      {tab === "personalization" && authenticated ? (
+        <PersonalizationPanel labels={t} playClick={playClick} />
+      ) : null}
     </Dialog>
+  );
+}
+
+/**
+ * Vizuālās personalizācijas panelis: krāsu tēmas izvēle. Pašpietiekams — lasa/
+ * raksta `localStorage` un pielieto `<html data-theme>` (sk. `lib/theme`); React
+ * nekas cits uz to nereaģē. Pagaidām saraksts satur tikai noklusējuma tēmu.
+ */
+function PersonalizationPanel({
+  labels: t,
+  playClick
+}: {
+  readonly labels: AppStrings;
+  readonly playClick?: (() => void) | undefined;
+}) {
+  const [theme, setTheme] = useState<ThemeId>(() => {
+    const stored = readLocalStorage(THEME_STORAGE_KEY);
+    return isThemeId(stored) ? stored : DEFAULT_THEME;
+  });
+
+  const selectTheme = (next: ThemeId) => {
+    if (next === theme) return;
+    playClick?.();
+    // Noklusējumam atslēgu DZĒŠAM (nav atslēgas = noklusējums; tīrāk nekā glabāt "").
+    if (next === DEFAULT_THEME) {
+      removeLocalStorage(THEME_STORAGE_KEY);
+    } else {
+      writeLocalStorage(THEME_STORAGE_KEY, next);
+    }
+    applyTheme(next);
+    setTheme(next);
+  };
+
+  return (
+    <div className="personalizationPanel">
+      <p className="settingsTabDescription">{t.personalizationDescription}</p>
+      <fieldset className="themeOptions">
+        <legend className="srOnly">{t.themeLabel}</legend>
+        {THEMES.map((option) => (
+          <label className={`themeOption ${theme === option.id ? "selected" : ""}`} key={option.id}>
+            <input
+              type="radio"
+              name="theme"
+              value={option.id}
+              checked={theme === option.id}
+              onChange={() => selectTheme(option.id)}
+            />
+            <span className={`themeSwatch theme-${option.id}`} aria-hidden="true" />
+            <span className="themeOptionName">{t[option.labelKey]}</span>
+          </label>
+        ))}
+      </fieldset>
+    </div>
   );
 }
 

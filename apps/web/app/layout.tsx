@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { appStrings, defaultLocale } from "../lib/i18n";
+import { getThemeBootstrapScript } from "../lib/theme";
 import { PwaRegister } from "../components/PwaRegister";
 
 export const metadata: Metadata = {
@@ -32,8 +33,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang={appStrings[defaultLocale].localeCode}>
+    // suppressHydrationWarning: tēmas bootstrap (zemāk) drīkst mainīt `<html
+    // data-theme>` PIRMS hidratācijas; tas ir gaidīts vienlīmeņa neatbilstības
+    // izņēmums (escape hatch), neslēpj bērnu mezglu neatbilstības.
+    <html lang={appStrings[defaultLocale].localeCode} suppressHydrationWarning>
       <body>
+        {/* Tēmas pielietošana PIRMS krāsošanas (FOUC): uzstāda `data-theme` no
+            saglabātās izvēles, pirms React hidratē. Ģenerēts no `lib/theme`
+            konstantēm. `beforeInteractive` to pacels pirms pārējā JS. */}
+        <Script id="theme-bootstrap" strategy="beforeInteractive">
+          {getThemeBootstrapScript()}
+        </Script>
         {/* Agrīna `beforeinstallprompt` notveršana: Chromium to izšauj nedeterministiskā
             brīdī (parasti pie ielādes, PIRMS React hidratācijas), tāpēc React `useEffect`
             klausītājs to var nokavēt. `beforeInteractive` skripts notver eventu uz

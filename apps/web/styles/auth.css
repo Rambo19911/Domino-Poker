@@ -139,3 +139,61 @@
 .authProfileActions {
   justify-content: space-between;
 }
+
+/* ---- Personalizācija (krāsu tēmas) ---- */
+.personalizationPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+.themeOptions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+/* Karte = klikšķināms label; natīvais radio paslēpts, bet fokusējams (tastatūra). */
+.themeOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--dialog-surface);
+  cursor: pointer;
+}
+.themeOption.selected {
+  border-color: var(--primary);
+  background: rgb(var(--primary-rgb) / 0.12);
+}
+.themeOption:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.themeOption input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.themeOptionName {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+/* Tēmas krāsu priekšskatījums (mazs aplis). Katrai tēmai sava `.theme-<id>`. */
+.themeSwatch {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgb(var(--text-primary-rgb) / 0.25);
+}
+.themeSwatch.theme-default {
+  background: linear-gradient(135deg, var(--background) 55%, var(--primary) 55%);
+}
