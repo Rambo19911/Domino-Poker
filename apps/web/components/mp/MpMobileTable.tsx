@@ -262,7 +262,18 @@ function MpmSummaryTable({
           >
             <span className="mpmSummaryName">
               {seat.isHost ? <span className="mpHostMark" aria-label={t.mpHost}>★</span> : null}
-              {seatLabel(seat.displayId, seat.isAI, seat.gameSeatIndex, t)}
+              {seat.isDealer ? <span className="mpmDealerMark" role="img" aria-label={t.dealer}>D</span> : null}
+              <span className="mpmSummaryNameText">
+                {seatLabel(seat.displayId, seat.isAI, seat.gameSeatIndex, t)}
+              </span>
+            </span>
+            {/* Pieteiktie/paņemtie stiķi (bid/won) — dublēts no sēdvietas, jo stiķa
+                dialogs pārklāj sānu profilus; formāts saskan ar `.mpmBidWon` badge. */}
+            <span
+              className="mpmSummaryBid"
+              aria-label={`${t.tricksBid}/${t.tricksWon}: ${seat.bid >= 0 ? seat.bid : "?"}/${seat.tricksWon}`}
+            >
+              {seat.bid >= 0 ? seat.bid : "?"}/{seat.tricksWon}
             </span>
             <span className="mpmSummaryScore">{seat.totalScore}</span>
           </div>

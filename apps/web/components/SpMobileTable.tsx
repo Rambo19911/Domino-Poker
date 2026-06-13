@@ -67,7 +67,12 @@ export function SpMobileTable({
           <ExitIcon />
         </button>
 
-        <SpmSummaryTable labels={t} players={gameState.players} activeIndex={gameState.currentPlayerIndex} />
+        <SpmSummaryTable
+          labels={t}
+          players={gameState.players}
+          activeIndex={gameState.currentPlayerIndex}
+          dealerIndex={gameState.dealerIndex}
+        />
 
         <MobileRoundCount labels={t} currentRound={gameState.currentRound} totalRounds={gameState.totalRounds} />
 
@@ -215,11 +220,13 @@ function SpmSeat({
 function SpmSummaryTable({
   labels: t,
   players,
-  activeIndex
+  activeIndex,
+  dealerIndex
 }: {
   readonly labels: AppStrings;
   readonly players: GameState["players"];
   readonly activeIndex: number;
+  readonly dealerIndex: number;
 }) {
   return (
     <div
@@ -234,7 +241,20 @@ function SpmSummaryTable({
     >
       {players.map((player, index) => (
         <div className={`mpmSummaryRow ${index === activeIndex ? "active" : ""}`} key={player.id}>
-          <span className="mpmSummaryName">{player.name}</span>
+          <span className="mpmSummaryName">
+            {index === dealerIndex ? (
+              <span className="mpmDealerMark" role="img" aria-label={t.dealer}>D</span>
+            ) : null}
+            <span className="mpmSummaryNameText">{player.name}</span>
+          </span>
+          {/* Pieteiktie/paņemtie stiķi (bid/won) — dublēts no sēdvietas, jo stiķa
+              dialogs pārklāj sānu profilus; formāts saskan ar `.mpmBidWon` badge. */}
+          <span
+            className="mpmSummaryBid"
+            aria-label={`${t.tricksBid}/${t.tricksWon}: ${player.bid >= 0 ? player.bid : "?"}/${player.tricksWon}`}
+          >
+            {player.bid >= 0 ? player.bid : "?"}/{player.tricksWon}
+          </span>
           <span className="mpmSummaryScore">{player.totalScore}</span>
         </div>
       ))}

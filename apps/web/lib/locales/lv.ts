@@ -87,7 +87,6 @@ export const lv = {
   versionLabel: "Versija",
   authorLabel: "Autors",
   licenseLabel: "Licence",
-  openOnGithub: "Atvērt projektu GitHub",
   rules: "Spēles noteikumi",
   rulesDescription: "Ātra Domino pokera noteikumu atsauce vienam spēlētājam.",
   rulesObjectiveTitle: "Mērķis",

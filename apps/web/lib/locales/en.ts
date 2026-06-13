@@ -83,7 +83,6 @@ export const en = {
   versionLabel: "Version",
   authorLabel: "Author",
   licenseLabel: "License",
-  openOnGithub: "Open the project on GitHub",
   rules: "Game rules",
   rulesDescription: "A quick reference for Domino Poker single-player rules.",
   rulesObjectiveTitle: "Goal",

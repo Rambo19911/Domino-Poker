@@ -290,35 +290,7 @@ function AboutPanel({ labels: t }: { readonly labels: AppStrings }) {
           <dd>Apache License 2.0</dd>
         </div>
       </dl>
-
-      <a
-        className="aboutGithubLink"
-        href="https://github.com/Rambo19911/Domino-Poker"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label={t.openOnGithub}
-        title={t.openOnGithub}
-      >
-        <GithubIcon />
-      </a>
     </div>
-  );
-}
-
-function GithubIcon() {
-  return (
-    <span className="githubAssetIcon" aria-hidden="true">
-      <img
-        className="githubAssetIconFrame static"
-        src="/assets/icons/square-github.svg"
-        alt=""
-      />
-      <img
-        className="githubAssetIconFrame animated"
-        src="/assets/icons/square-github_brands_beat.svg"
-        alt=""
-      />
-    </span>
   );
 }
 
