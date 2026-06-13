@@ -4,13 +4,20 @@
    skatuve, 50% apļi, kauliņu proporcijas).
 
    TĒMU PAPLAŠINĀŠANA (sk. project_context/ai_rules.md): `:root` ir noklusējuma
-   ("Classic") tēma. Jaunu tēmu pievieno kā token-pārrakstu bloku zem
-   `[data-theme="<id>"]` (sk. veidni faila apakšā) un pārslēdz, uzstādot
-   `<html data-theme="<id>">`. RGB-kanāla tokeni (`--*-rgb`) eksistē, lai
-   caurspīdīgās krāsas (`rgb(var(--primary-rgb) / .16)`) arī sekotu tēmai —
-   citādi `rgba(201,162,62,.16)` literāļi paliktu vecajā krāsā. Tikai bāzes/zīmola
-   krāsu tokeniem, kam vajag caurspīdīgus variantus, ir `--*-rgb` pāris; kur pāris
-   ir, kanāla un HEX vērtība jātur sinhroni (citādi krāsu avoti aizplūst). */
+   ("Default", `lib/theme.ts` DEFAULT_THEME) tēma. Jaunu tēmu pievieno kā
+   token-pārrakstu bloku zem `[data-theme="<id>"]` (sk. veidni faila apakšā) un
+   pārslēdz, uzstādot `<html data-theme="<id>">`. RGB-kanāla tokeni (`--*-rgb`)
+   eksistē, lai caurspīdīgās krāsas (`rgb(var(--primary-rgb) / .16)`) arī sekotu
+   tēmai — citādi `rgba(201,162,62,.16)` literāļi paliktu vecajā krāsā. Tikai
+   bāzes/zīmola krāsu tokeniem, kam vajag caurspīdīgus variantus, ir `--*-rgb`
+   pāris; kur pāris ir, kanāla un HEX vērtība jātur sinhroni (citādi krāsu avoti
+   aizplūst).
+
+   KONVENCIJA (premium-UI / visam jaunajam dizainam): NEIEVIEST tematiskus krāsu
+   literāļus stilu failos — Default vērtības liec šeit `:root` tokenā un lieto ar
+   `var()`; nākotnes tēmas pārraksta TIKAI krāsu tokenus caur `[data-theme]`.
+   Ģeometrija (radius, blur px, z-index, atstatumi, ēnu nobīdes) paliek kopīga, ja
+   nav pierādītas tēmas-specifiskas vajadzības. */
 :root {
   /* Krāsas. Bāzes/zīmola tokeniem, kam vajag caurspīdīgus variantus, ir
      RGB-kanāla pāris (`--*-rgb`) — tā paša krāsa bez alfas; lieto ar
@@ -135,6 +142,8 @@
   --glass-border: rgb(var(--text-primary-rgb) / 0.22);
   --glass-border-strong: rgb(var(--text-primary-rgb) / 0.28);
   --glass-highlight-rgb: 255 255 255;
+  --glass-shadow-color: rgb(0 0 0 / 0.48);
+  --glass-inset-shadow-color: rgb(0 0 0 / 0.34);
   --glass-blur: 22px;
   --glass-saturate: 1.35;
   --modal-scrim: rgb(0 0 0 / 0.30);
@@ -150,7 +159,7 @@
      --background: #11151b;  --background-rgb: 17 21 27;
      --surface:    #182230;  --surface-rgb:    24 34 48;
      --primary:    #5aa0ff;  --primary-rgb:    90 160 255;
-     ... (pārraksta tikai tos, kas atšķiras no Classic)
+     ... (pārraksta tikai tos, kas atšķiras no Default)
    }
    ──────────────────────────────────────────────────────────────────────────── */
 

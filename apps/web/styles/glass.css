@@ -11,9 +11,9 @@
   background: var(--glass-bg-fallback);
   border: 1px solid var(--glass-border);
   box-shadow:
-    0 22px 60px rgb(0 0 0 / 0.48),
+    0 22px 60px var(--glass-shadow-color),
     inset 0 1px 0 rgb(var(--glass-highlight-rgb) / 0.22),
-    inset 0 -1px 0 rgb(0 0 0 / 0.34);
+    inset 0 -1px 0 var(--glass-inset-shadow-color);
 }
 
 .glass-strong {

@@ -32,7 +32,7 @@ export function isThemeId(value: string | null | undefined): value is ThemeId {
 
 /**
  * Pielieto tēmu uz `<html data-theme>`. Noklusējumam atribūtu NOŅEM (tad spēkā ir
- * `:root` = Classic) — tīrāk nekā glabāt `data-theme="default"` bez atbilstoša bloka.
+ * `:root` = Default) — tīrāk nekā glabāt `data-theme="default"` bez atbilstoša bloka.
  */
 export function applyTheme(id: ThemeId): void {
   const root = document.documentElement;
