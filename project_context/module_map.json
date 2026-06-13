@@ -76,7 +76,8 @@
       "packages/shared/src/roomTypes.ts",
       "packages/shared/src/errors.ts",
       "packages/shared/src/avatarCatalog.ts",
-      "packages/shared/src/titles.ts"
+      "packages/shared/src/titles.ts",
+      "packages/shared/src/leaderboard.ts"
     ],
     "depends_on": [
       "Core Multiplayer"
@@ -191,7 +192,8 @@
       "apps/server/src/net/ServerEventBus.ts",
       "apps/server/src/net/gameUpdateDelivery.ts",
       "apps/server/src/identity/DisplayIdRegistry.ts",
-      "apps/server/src/sessions/DurableSessionStore.ts"
+      "apps/server/src/sessions/DurableSessionStore.ts",
+      "apps/server/src/leaderboard/LeaderboardService.ts"
     ],
     "depends_on": [
       "Core Multiplayer",

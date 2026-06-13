@@ -491,10 +491,11 @@
   {
     "path": "apps/server/src/http/authRoutes.ts",
     "type": "route",
-    "purpose": "Optional `/auth/*` HTTP routes with validation, rate limits, bearer auth, CORS allowlist, password reset, and avatar upload/serve.",
+    "purpose": "Optional `/auth/*` HTTP routes with validation, rate limits, bearer auth, CORS allowlist, password reset, avatar upload/serve, the global `GET /auth/leaderboard`, and `PATCH /auth/me/language`.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/auth/AuthService.ts",
+      "apps/server/src/leaderboard/LeaderboardService.ts",
       "apps/server/src/http/readJsonBody.ts"
     ],
     "confidence": "high"
@@ -502,11 +503,23 @@
   {
     "path": "apps/server/src/auth/AuthService.ts",
     "type": "service",
-    "purpose": "Optional account service for register/login/me/logout/profile/stats, password reset, and public auth resolution for multiplayer seats.",
+    "purpose": "Optional account service for register/login/me/logout/profile/stats, account language preference, password reset, and public auth resolution for multiplayer seats.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/auth/AuthStore.ts",
       "apps/server/src/auth/passwords.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/leaderboard/LeaderboardService.ts",
+    "type": "service",
+    "purpose": "Global leaderboard service: cached rank snapshot (generation-invalidated, TTL-refreshed) over account stats; builds the top-N + discriminated self response and resolves per-user seat rank badges synchronously.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/auth/AuthStore.ts",
+      "apps/server/src/http/authRoutes.ts",
+      "packages/shared/src/leaderboard.ts"
     ],
     "confidence": "high"
   },
@@ -647,7 +660,7 @@
   {
     "path": "apps/server/src/storage/schema.ts",
     "type": "database",
-    "purpose": "Single DDL source for SQLite/PostgreSQL migration rendering, including auth, stats, password reset, custom avatars, and PG-only multi-instance tables.",
+    "purpose": "Single DDL source for SQLite/PostgreSQL migration rendering, including auth, stats, password reset, custom avatars, user_preferences (account language), and PG-only multi-instance tables.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/storage/migrations.ts",
@@ -931,11 +944,24 @@
   {
     "path": "packages/shared/src/roomTypes.ts",
     "type": "model",
-    "purpose": "Shared room status/visibility/seat DTOs and round-count limits.",
+    "purpose": "Shared room status/visibility/seat DTOs (incl. optional seat rankBadge) and round-count limits.",
     "importance": "high",
     "related_files": [
       "apps/server/src/rooms/LobbyManager.ts",
-      "apps/web/components/MultiplayerLobby.tsx"
+      "apps/web/components/MultiplayerLobby.tsx",
+      "packages/shared/src/leaderboard.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/src/leaderboard.ts",
+    "type": "model",
+    "purpose": "Global leaderboard protocol + domain: authoritative rank->badge mapping (rankToBadge / RankBadgeId asset ids), GameLanguage list, and the LeaderboardEntry / LeaderboardSelf / LeaderboardResponse DTOs (no internal userId — privacy).",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/leaderboard/LeaderboardService.ts",
+      "apps/server/src/http/authRoutes.ts",
+      "apps/server/src/auth/AuthStore.ts"
     ],
     "confidence": "high"
   },
