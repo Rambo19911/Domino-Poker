@@ -30,7 +30,7 @@ class FakeStore implements LeaderboardDataSource {
   leaderboardCalls = 0;
   snapshotCalls = 0;
   /** Test hook: izsaukts katra `getLeaderboard` SĀKUMĀ (race scenāriju injekcijai). */
-  onGetLeaderboard?: () => Promise<void> | void;
+  onGetLeaderboard: (() => Promise<void> | void) | undefined = undefined;
 
   async getLeaderboard(limit: number, _minGames: number): Promise<readonly LeaderboardEntryRecord[]> {
     this.leaderboardCalls += 1;

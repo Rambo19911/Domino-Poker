@@ -3,6 +3,7 @@ import type {
   MultiplayerCommand,
   PlayerSnapshot
 } from "@domino-poker/core/multiplayer";
+import type { RankBadgeId } from "@domino-poker/shared";
 import type { SeatProfile } from "../sessions/SessionManager.js";
 
 import { DisplayIdRegistry } from "../identity/DisplayIdRegistry.js";
@@ -128,6 +129,12 @@ export class RoomManager {
   private resolveUserId: ((clientId: string) => string | undefined) | undefined;
   /** Atrisina `clientId` → publiskais profils (username/avatar/tituls) seat skatam (Fāze 4). */
   private resolveSeatProfile: ((clientId: string) => SeatProfile | undefined) | undefined;
+  /**
+   * Atrisina `clientId` → globālā ranga badge (Leaderboard fāze). ATSEVIŠĶS no
+   * profila: rangs ir GLOBĀLS un mainīgs (citu spēles to maina), tāpēc to aprēķina
+   * SVAIGI katrā `getRoomView` (nevis kešo HELLO brīdī kā stabilo username/avatar/tituls).
+   */
+  private resolveRankBadge: ((clientId: string) => RankBadgeId | undefined) | undefined;
   private readonly clock: Clock;
   private readonly createTurnScheduler: () => TurnTimerScheduler;
   private readonly createSeed: () => string;
@@ -401,7 +408,16 @@ export class RoomManager {
         const clientId = internal.seats[seat.index]?.playerId;
         const profile = clientId !== undefined ? this.resolveSeatProfile?.(clientId) : undefined;
         if (profile === undefined) return seat;
-        return { ...seat, displayId: profile.username, avatar: profile.avatar, title: profile.title };
+        // Rangu badge aprēķina svaigi (mainīgs); iekļauj TIKAI ja definēts, lai
+        // nepievienotu `rankBadge: undefined` (drošs pret strict-equality testiem).
+        const rankBadge = clientId !== undefined ? this.resolveRankBadge?.(clientId) : undefined;
+        return {
+          ...seat,
+          displayId: profile.username,
+          avatar: profile.avatar,
+          title: profile.title,
+          ...(rankBadge !== undefined ? { rankBadge } : {})
+        };
       })
     };
   }
@@ -519,6 +535,11 @@ export class RoomManager {
   /** Pieslēdz `clientId` → publiskā profila atrisinātāju (avatars/tituls/username) seat skatam. */
   setSeatProfileResolver(resolver: (clientId: string) => SeatProfile | undefined): void {
     this.resolveSeatProfile = resolver;
+  }
+
+  /** Pieslēdz `clientId` → globālā ranga badge atrisinātāju (Leaderboard) seat skatam. */
+  setRankBadgeResolver(resolver: (clientId: string) => RankBadgeId | undefined): void {
+    this.resolveRankBadge = resolver;
   }
 
   /** Izņem dalību un (ja tā tiešām pastāvēja) paziņo dalības-zaudēšanas novērotājam. */

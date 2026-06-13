@@ -57,6 +57,30 @@ describe("OutcomeRecorder", () => {
     });
   });
 
+  it("fires onStatsChanged once per NEW outcome, never on an idempotent re-record", async () => {
+    const store = new FakeOutcomeStore();
+    let notifications = 0;
+    const recorder = new OutcomeRecorder({
+      storage: store,
+      clock: () => 2000,
+      onError: () => {},
+      onStatsChanged: () => {
+        notifications += 1;
+      }
+    });
+    recorder.matchStarted(match(fourHumans));
+    recorder.gameOver("m1", ["2", "1", "4", "3"]); // 4 new outcomes
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(notifications).toBe(4);
+
+    // Replaying the same finished match re-records the same (matchId, userId) pairs,
+    // which the store reports as already-recorded → no further cache invalidations.
+    recorder.matchStarted(match(fourHumans));
+    recorder.gameOver("m1", ["2", "1", "4", "3"]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(notifications).toBe(4);
+  });
+
   it("records nothing when a bot occupies a seat (not 4 humans)", async () => {
     const { recorder, store } = makeRecorder();
     recorder.matchStarted(match([seat(0), seat(1), seat(2), seat(3, { kind: "bot", userId: undefined, clientId: undefined })]));

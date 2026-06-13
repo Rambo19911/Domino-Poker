@@ -30,12 +30,19 @@ export interface OutcomeRecorderOptions {
   readonly storage: Pick<StoragePort, "recordUserMatchOutcome">;
   readonly clock: Clock;
   readonly onError?: (context: string, error: unknown) => void;
+  /**
+   * Izsaukts PĒC katra veiksmīga (JAUNA) iznākuma ieraksta (Leaderboard fāze).
+   * Lieto, lai paziņotu `LeaderboardService` par stats izmaiņu (rangu keša pārbūve).
+   * NEizsaukts pie idempotenta re-ieraksta (jau bija) — kešs nav jāinvalidē veltīgi.
+   */
+  readonly onStatsChanged?: () => void;
 }
 
 export class OutcomeRecorder {
   private readonly storage: Pick<StoragePort, "recordUserMatchOutcome">;
   private readonly clock: Clock;
   private readonly onError: (context: string, error: unknown) => void;
+  private readonly onStatsChanged: () => void;
   private readonly matches = new Map<string, MatchOutcomeState>();
 
   constructor(options: OutcomeRecorderOptions) {
@@ -46,6 +53,7 @@ export class OutcomeRecorder {
       ((context, error) => {
         console.error(`[outcomes] ${context}:`, error);
       });
+    this.onStatsChanged = options.onStatsChanged ?? (() => {});
   }
 
   /** Partija sākta: kešo START roster un aprēķina, vai spēle ir skaitāma. */
@@ -126,6 +134,17 @@ export class OutcomeRecorder {
     try {
       this.storage
         .recordUserMatchOutcome(matchId, userId, outcome, this.clock())
+        .then((recorded) => {
+          // Tikai JAUNS iznākums maina stats → paziņo leaderboard kešam (ne idempotents re-ieraksts).
+          if (recorded) {
+            // Atsevišķs konteksts: onStatsChanged kļūda nedrīkst maskēties kā DB raksta kļūda.
+            try {
+              this.onStatsChanged();
+            } catch (error) {
+              this.onError("onStatsChanged", error);
+            }
+          }
+        })
         .catch((error: unknown) => this.onError("recordUserMatchOutcome", error));
     } catch (error) {
       this.onError("recordUserMatchOutcome", error);

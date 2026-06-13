@@ -28,8 +28,26 @@ const clock: () => number = () => Date.now();
 // Koordinators ir fire-and-forget — DB kļūda nedrīkst aizkavēt vai salauzt spēles plūsmu.
 const storage = await openStorage(config.databaseUrl, config.pg);
 const persistence = new MatchPersistence({ storage, clock });
+// Globālā Leaderboard serviss (kešots rangu momentuzņēmums; lēmums B). Pieejams
+// tikai ar auth-spējīgu glabātuvi (abas to ir). Konstruēts PIRMS OutcomeRecorder,
+// lai game-over → `notifyStatsChanged` (F4) varētu uz to atsaukties. Kešu atsvaidzina
+// TTL (`leaderboardRefreshMs`) + stats izmaiņa (game-over/forfeit/abandon).
+const leaderboard = isAuthStore(storage)
+  ? new LeaderboardService({
+      store: storage,
+      clock,
+      size: config.leaderboardSize,
+      minGames: config.leaderboardMinGames,
+      refreshMs: config.leaderboardRefreshMs
+    })
+  : undefined;
 // Fāze 3: kontu MP iznākumu reģistrētājs (atsevišķs no player_stats; server-authoritative).
-const outcomes = new OutcomeRecorder({ storage, clock });
+// Fāze 4: pēc katra jauna iznākuma ieraksta paziņo leaderboard kešam (rangu pārbūve).
+const outcomes = new OutcomeRecorder({
+  storage,
+  clock,
+  ...(leaderboard ? { onStatsChanged: () => leaderboard.notifyStatsChanged() } : {})
+});
 // Opcionālā autentifikācija: gan SqliteStorage, gan PostgresStorage implementē
 // AuthStore, tāpēc abos režīmos pieejama. Anonīmā spēle to neizmanto.
 // Fāze 5: paroles atjaunošanas e-pasta senderis (Resend prod / console dev; prod
@@ -41,18 +59,6 @@ const emailSender = createEmailSender({
 });
 const authService = isAuthStore(storage)
   ? new AuthService({ store: storage, clock, emailSender, appBaseUrl: config.email.appBaseUrl })
-  : undefined;
-// Globālā Leaderboard serviss (kešots rangu momentuzņēmums; lēmums B). Pieejams
-// tikai ar auth-spējīgu glabātuvi (abas to ir). F3: kešu atsvaidzina TTL
-// (`leaderboardRefreshMs`); game-over `notifyStatsChanged` pieslēgšana → F4.
-const leaderboard = isAuthStore(storage)
-  ? new LeaderboardService({
-      store: storage,
-      clock,
-      size: config.leaderboardSize,
-      minGames: config.leaderboardMinGames,
-      refreshMs: config.leaderboardRefreshMs
-    })
   : undefined;
 const instanceId = randomUUID();
 const roomOwnership = isRoomLeaseStore(storage)
@@ -159,6 +165,14 @@ rooms.setGameUpdateSink((roomId, events) =>
 rooms.setUserIdResolver((clientId) => gateway.getUserId(clientId));
 // Fāze 4: seat avatars/tituls/username citiem spēlētājiem (waiting room + galds).
 rooms.setSeatProfileResolver((clientId) => gateway.getSeatProfile(clientId));
+// Leaderboard fāze: seat globālā ranga badge (svaigi no keša katrā getRoomView).
+// Tikai reģistrētiem (clientId → userId); anonīmiem/botiem → undefined (nav badge).
+if (leaderboard) {
+  rooms.setRankBadgeResolver((clientId) => {
+    const userId = gateway.getUserId(clientId);
+    return userId ? (leaderboard.getRankBadge(userId) ?? undefined) : undefined;
+  });
+}
 // M3: kad spēlētājs zaudē istabas dalību (pamet / forfeit / istabu iznīcina) un
 // nav tiešsaistē, atbrīvojam viņa durable sesiju (token + displayId), lai
 // `tokens`/displayId neaugtu neierobežoti.

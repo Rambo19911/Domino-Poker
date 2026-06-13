@@ -245,3 +245,33 @@ describe("RoomManager destroyExpiredRooms (TTL sweep)", () => {
     expect(manager.destroyExpiredRooms(2_000)).toEqual([]);
   });
 });
+
+describe("RoomManager seat rank badge (getRoomView)", () => {
+  it("enriches a human seat with the resolved badge, computed fresh per view", () => {
+    const { manager } = createManager();
+    const room = manager.createRoom("host"); // host = human seat 0
+    manager.setSeatProfileResolver(() => ({ username: "Host", avatar: "avatar-03", title: "mushroom" }));
+
+    let badge: "Trophy-11" | undefined = "Trophy-11";
+    manager.setRankBadgeResolver((clientId) => (clientId === "host" ? badge : undefined));
+
+    expect(manager.getRoomView(room.id).seats[0]).toMatchObject({
+      displayId: "Host",
+      avatar: "avatar-03",
+      title: "mushroom",
+      rankBadge: "Trophy-11"
+    });
+
+    // Volatile rank: a later view reflects the CURRENT badge (not a HELLO-time snapshot).
+    badge = undefined;
+    expect(manager.getRoomView(room.id).seats[0]).not.toHaveProperty("rankBadge");
+  });
+
+  it("omits rankBadge when no resolver is set (additive, no undefined property)", () => {
+    const { manager } = createManager();
+    const room = manager.createRoom("host");
+    manager.setSeatProfileResolver(() => ({ username: "Host", avatar: "avatar-03", title: "mushroom" }));
+    // No rank badge resolver wired.
+    expect(manager.getRoomView(room.id).seats[0]).not.toHaveProperty("rankBadge");
+  });
+});
