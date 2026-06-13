@@ -279,7 +279,7 @@
    "Open room" pogas). Redzama tikai hostam, kad istaba ir pilna un gaida. */
 .mpRoomStart {
   background: var(--primary);
-  color: #0e0e0e;
+  color: var(--overlay);
   border-color: var(--primary);
 }
 

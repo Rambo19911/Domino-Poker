@@ -199,7 +199,7 @@
 
 .mpConn-connecting .mpConnDot,
 .mpConn-reconnecting .mpConnDot {
-  background: #c9a23e;
+  background: var(--primary);
   animation: mpConnPulse 1.1s ease-in-out infinite;
 }
 
@@ -249,7 +249,7 @@
   font-size: 64px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  color: #c9a23e;
+  color: var(--primary);
 }
 
 .mpWaitingActions {

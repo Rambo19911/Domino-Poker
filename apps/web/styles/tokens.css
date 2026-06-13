@@ -1,22 +1,41 @@
 /* Dizaina tokeni — VIENĪGĀ vieta, kur definē krāsas, rādiusus un z-index
    slāņus. Jauna vērtība vispirms pieder šeit; literāļus stilu failos lieto
    tikai komponent-specifiskai ģeometrijai (piem., fiksētā 1080×2340 mobilā
-   skatuve, 50% apļi, kauliņu proporcijas). */
+   skatuve, 50% apļi, kauliņu proporcijas).
+
+   TĒMU PAPLAŠINĀŠANA (sk. project_context/ai_rules.md): `:root` ir noklusējuma
+   ("Classic") tēma. Jaunu tēmu pievieno kā token-pārrakstu bloku zem
+   `[data-theme="<id>"]` (sk. veidni faila apakšā) un pārslēdz, uzstādot
+   `<html data-theme="<id>">`. RGB-kanāla tokeni (`--*-rgb`) eksistē, lai
+   caurspīdīgās krāsas (`rgb(var(--primary-rgb) / .16)`) arī sekotu tēmai —
+   citādi `rgba(201,162,62,.16)` literāļi paliktu vecajā krāsā. Tikai bāzes/zīmola
+   krāsu tokeniem, kam vajag caurspīdīgus variantus, ir `--*-rgb` pāris; kur pāris
+   ir, kanāla un HEX vērtība jātur sinhroni (citādi krāsu avoti aizplūst). */
 :root {
-  /* Krāsas */
+  /* Krāsas. Bāzes/zīmola tokeniem, kam vajag caurspīdīgus variantus, ir
+     RGB-kanāla pāris (`--*-rgb`) — tā paša krāsa bez alfas; lieto ar
+     caurspīdīgumu: `rgb(var(--primary-rgb) / 0.16)`. */
   --background: #184f3d;
+  --background-rgb: 24 79 61;
   --surface: #1a5a45;
+  --surface-rgb: 26 90 69;
   --overlay: #0e0e0e;
+  --overlay-rgb: 14 14 14;
   --primary: #c9a23e;
+  --primary-rgb: 201 162 62;
   --error: #e1233f;
+  --error-rgb: 225 35 63;
   --success: #2e7d32;
+  --success-rgb: 46 125 50;
   --text-primary: #ecedee;
+  --text-primary-rgb: 236 237 238;
   --text-secondary: #aeaeae;
   --domino-surface: #ecedee;
   --domino-border: #c9a23e;
   --domino-pips: #111111;
   --domino-pips-alt: #222222;
   --border: #404040;
+  --border-rgb: 64 64 64;
   --dialog-background: #1a1a1a;
   --dialog-surface: #252525;
   --slider-active: #4caf50;
@@ -44,4 +63,18 @@
   --z-sheet: 40;
   --z-toast: 50;
 }
+
+/* ── TĒMU VEIDNE ──────────────────────────────────────────────────────────────
+   Jaunu krāsu tēmu pievieno, atkomentējot šādu bloku un pārrakstot vajadzīgos
+   tokenus (gan HEX, gan to `--*-rgb` pārus). Pārslēdz ar `<html data-theme="...">`.
+   Tikai krāsas mainās; radius/z-index/ģeometrija paliek kopīga. NEAKTIVIZĒTS, līdz
+   tēma ir vizuāli pārbaudīta (esošais dizains pieņem tumšu kontrastu/ēnas).
+
+   [data-theme="midnight"] {
+     --background: #11151b;  --background-rgb: 17 21 27;
+     --surface:    #182230;  --surface-rgb:    24 34 48;
+     --primary:    #5aa0ff;  --primary-rgb:    90 160 255;
+     ... (pārraksta tikai tos, kas atšķiras no Classic)
+   }
+   ──────────────────────────────────────────────────────────────────────────── */
 
