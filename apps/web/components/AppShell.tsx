@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ResetPasswordScreen } from "./auth/ResetPasswordScreen";
 import { DominoPokerGame } from "./DominoPokerGame";
 import { LobbyScreen } from "./LobbyScreen";
 import { MultiplayerLobby } from "./MultiplayerLobby";
 import { titleForWins } from "@domino-poker/shared";
 
+import type { RegisterInput } from "../lib/auth/authApi";
 import { avatarUrl } from "../lib/auth/avatarUrl";
 import { titleLabel } from "../lib/auth/titleLabel";
 import { useAuthUser } from "../lib/auth/useAuthUser";
@@ -50,6 +51,13 @@ export function AppShell() {
   const auth = useAuthUser();
   const refreshAuth = auth.refresh;
   const t = getAppStrings(locale);
+  // localeRef vienmēr satur jaunāko locale (valodas-sync efekts to lasa bez `locale`
+  // deps, lai changeLocale nestartētu lieku cikla atkārtojumu).
+  const localeRef = useRef(locale);
+
+  useEffect(() => {
+    localeRef.current = locale;
+  }, [locale]);
 
   useEffect(() => {
     document.documentElement.lang = t.localeCode;
@@ -61,6 +69,19 @@ export function AppShell() {
       setLocale(storedLocale);
     }
   }, []);
+
+  // Leaderboard fāze (F7): ielogota konta serverī saglabāto valodu pielieto UI
+  // locale-am sesijas iegūšanas brīžos (mount/login → `auth.language` ielādējas).
+  // NE pie `changeLocale` (tas pats raksta localStorage + PATCH) un NE pie `refresh`
+  // (applyLanguage:false), tāpēc bez cikla. `localeRef` lasa pašreizējo bez deps.
+  useEffect(() => {
+    if (auth.status !== "authenticated" || auth.language === null) return;
+    if (!isLocale(auth.language)) return;
+    if (localeRef.current !== auth.language) {
+      setLocale(auth.language);
+      writeLocalStorage(localeStorageKey, auth.language);
+    }
+  }, [auth.status, auth.language]);
 
   // Pēc refresh atgriežamies MP lobby, ja lietotājs tur bija — tad MultiplayerLobby
   // mountējas, MP klients pārsavienojas, un serveris atjauno istabu/spēli (9.2).
@@ -95,7 +116,28 @@ export function AppShell() {
   const changeLocale = (nextLocale: Locale) => {
     setLocale(nextLocale);
     writeLocalStorage(localeStorageKey, nextLocale);
+    // Ielogotam: persistē izvēli serverī (anonīmam `setLanguage` ir no-op).
+    if (auth.status === "authenticated") {
+      auth.setLanguage(nextLocale);
+    }
   };
+
+  // Jaunam kontam reģistrācijas brīdī persistē PAŠREIZĒJO locale serverī — citādi
+  // serveris noklusē "en", un vēlāka login/atgriešanās pārslēgtu lietotāja izvēlēto
+  // valodu (F7). `AuthDialog` paliek "dumjš" — politika dzīvo šeit.
+  // Stabili auth metožu refi (useAuthUser tos memoizē) — destrukturēti, lai
+  // exhaustive-deps ir apmierināts bez visa `auth` objekta deps.
+  const { register: registerAccount, setLanguage: persistLanguage } = auth;
+  const registerWithCurrentLocale = useCallback(
+    async (input: RegisterInput) => {
+      const result = await registerAccount(input);
+      if (result.ok) {
+        persistLanguage(localeRef.current);
+      }
+      return result;
+    },
+    [registerAccount, persistLanguage]
+  );
 
   const startSinglePlayer = () => {
     audio.play("uiClick");
@@ -158,12 +200,14 @@ export function AppShell() {
     );
   }
 
+  // Dekorē `register`, lai jauns konts saglabā pašreizējo valodu (skat. augstāk).
+  const authForLobby = { ...auth, register: registerWithCurrentLocale };
   return (
     <LobbyScreen
       audio={audio}
       labels={t}
       locale={locale}
-      auth={auth}
+      auth={authForLobby}
       selectedRoundCount={selectedRoundCount}
       onRoundCountChange={setSelectedRoundCount}
       onStartSinglePlayer={startSinglePlayer}

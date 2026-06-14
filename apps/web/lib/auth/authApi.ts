@@ -128,6 +128,14 @@ export async function apiLogout(token: string): Promise<void> {
   await requestJson("/auth/logout", jsonInit("POST", {}, token));
 }
 
+/** Saglabā konta spēles valodu serverī (Leaderboard fāze; PATCH /auth/me/language). */
+export function apiSetLanguage(
+  token: string,
+  language: GameLanguage
+): Promise<AuthResult<{ ok: true }>> {
+  return requestJson<{ ok: true }>("/auth/me/language", jsonInit("PATCH", { language }, token));
+}
+
 /**
  * Globālais tops (Leaderboard fāze). Tokens ir OPCIONĀLS: ja dots un derīgs,
  * atbildes `me` atspoguļo izsaucēja vietu; citādi `me = anonymous`. Nederīgs/

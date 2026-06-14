@@ -454,7 +454,7 @@
   {
     "path": "apps/web/lib/auth/authApi.ts",
     "type": "service",
-    "purpose": "Client HTTP API wrapper for optional account auth, profile, password reset, and avatar upload.",
+    "purpose": "Client HTTP API wrapper for optional account auth, profile, password reset, avatar upload, and account language (apiSetLanguage -> PATCH /auth/me/language).",
     "importance": "high",
     "related_files": [
       "apps/server/src/http/authRoutes.ts",
@@ -465,7 +465,7 @@
   {
     "path": "apps/web/lib/auth/useAuthUser.ts",
     "type": "service",
-    "purpose": "Client auth-token state, profile loading, logout, refresh, and avatar upload integration.",
+    "purpose": "Client auth-token state, profile loading, logout, refresh, avatar upload, and account language state/persistence (language applied on session acquisition only; setLanguage persists via apiSetLanguage).",
     "importance": "high",
     "related_files": [
       "apps/web/lib/safeStorage.ts",

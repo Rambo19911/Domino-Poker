@@ -1,4 +1,4 @@
-import type { RankBadgeId } from "@domino-poker/shared";
+import type { GameLanguage, RankBadgeId } from "@domino-poker/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { readLocalStorage, writeLocalStorage } from "../safeStorage";
@@ -7,6 +7,7 @@ import {
   apiLogout,
   apiMe,
   apiRegister,
+  apiSetLanguage,
   apiUpdateProfile,
   apiUploadAvatar,
   type AuthResult,
@@ -30,6 +31,12 @@ export interface UseAuthUser {
   readonly stats: UserStats | null;
   /** Globālā ranga badge (Leaderboard fāze) main-lobby profilam; `null`, ja ārpus top-rangiem. */
   readonly rankBadge: RankBadgeId | null;
+  /**
+   * Konta serverī saglabātā spēles valoda; `null`, ja anonīms vai vēl neielādēta.
+   * Atjaunojas TIKAI sesijas iegūšanas brīžos (mount-ar-tokenu, login) un caur
+   * `setLanguage` — NE parastā `refresh()`, lai atgriešanās lobby nepārslēgtu UI valodu.
+   */
+  readonly language: GameLanguage | null;
   /** Pašreizējais tokens (reconnect atkarībai); `null`, ja anonīms. */
   readonly token: string | null;
   register(input: RegisterInput): Promise<AuthResult<TokenUser>>;
@@ -40,6 +47,8 @@ export interface UseAuthUser {
   uploadAvatar(blob: Blob): Promise<AuthResult<{ user: AuthUser; avatarVersion: number }>>;
   /** Pārlādē profilu + statistiku no `/auth/me` (piem. atgriežoties lobby pēc spēles). */
   refresh(): void;
+  /** Saglabā spēles valodu serverī (tikai autentificēts; anonīmam no-op). Optimistisks. */
+  setLanguage(next: GameLanguage): void;
   /** Stabils tokena lasītājs WS HELLO vajadzībām (lasa pašreizējo vērtību). */
   getToken(): string | undefined;
 }
@@ -56,19 +65,62 @@ export function useAuthUser(): UseAuthUser {
   // getToken lasa ref, lai WS slānis vienmēr redz jaunāko tokenu bez re-render.
   const [stats, setStats] = useState<UserStats | null>(null);
   const [rankBadge, setRankBadge] = useState<RankBadgeId | null>(null);
+  const [language, setLanguageState] = useState<GameLanguage | null>(null);
   const tokenRef = useRef<string | null>(null);
+  // Palielinās ar katru lietotāja valodas maiņu; novecojusi `/auth/me` atbilde
+  // (kas startēja PIRMS maiņas) NEPĀRRAKSTA jaunāku user intent (race aizsardzība).
+  const languageWriteSeq = useRef(0);
 
   const applyToken = useCallback((next: string | null): void => {
     tokenRef.current = next;
     setToken(next);
-    if (next === null) {
-      writeLocalStorage(AUTH_TOKEN_STORAGE_KEY, "");
-    } else {
-      writeLocalStorage(AUTH_TOKEN_STORAGE_KEY, next);
-    }
+    writeLocalStorage(AUTH_TOKEN_STORAGE_KEY, next ?? "");
   }, []);
 
-  // Mount: hidratē no glabātā tokena.
+  // Atiestata uz anonīmu (logout / nederīgs tokens). Nesauc `apiLogout` — to dara `logout`.
+  const clearAuth = useCallback((): void => {
+    applyToken(null);
+    setUser(null);
+    setStats(null);
+    setRankBadge(null);
+    setLanguageState(null);
+    setStatus("anonymous");
+  }, [applyToken]);
+
+  // Privāts: ielādē profilu/statistiku/rangu no `/auth/me`.
+  //  - `applyLanguage`: vai pielietot servera valodu (true: mount/login = sesijas
+  //    iegūšana; false: lobby refresh).
+  //  - `clearOnFailure`: vai JEBKURA kļūme (ne tikai 401) atiestata uz anonīmu. Mount
+  //    ar nevalidētu glabāto tokenu to prasa, lai sākotnējais "loading" vienmēr
+  //    atrisinātos pat pie network/500 kļūmes (kā pirms F7); login/refresh = tikai 401.
+  const loadMe = useCallback(
+    async (
+      currentToken: string,
+      options: { applyLanguage: boolean; clearOnFailure: boolean }
+    ): Promise<void> => {
+      const seqAtStart = languageWriteSeq.current;
+      const result = await apiMe(currentToken);
+      // Novecojusi atbilde pēc logout/login maiņas — ignorē.
+      if (tokenRef.current !== currentToken) return;
+      if (result.ok) {
+        setUser(result.data.user);
+        setStats(result.data.stats);
+        setRankBadge(result.data.rankBadge ?? null);
+        // Valodu pielieto TIKAI ja prasīts UN lietotājs to nav mainījis šī izsaukuma laikā.
+        if (options.applyLanguage && result.data.language && seqAtStart === languageWriteSeq.current) {
+          setLanguageState(result.data.language);
+        }
+        setStatus("authenticated");
+      } else if (result.status === 401 || options.clearOnFailure) {
+        // 401 = nederīgs tokens (vienmēr anonīms); clearOnFailure = mount, kur jebkura
+        // kļūme jāatrisina uz anonīmu (citādi paliktu uz "loading").
+        clearAuth();
+      }
+    },
+    [clearAuth]
+  );
+
+  // Mount: hidratē no glabātā tokena (sesijas iegūšana → pielieto servera valodu).
   useEffect(() => {
     const stored = readLocalStorage(AUTH_TOKEN_STORAGE_KEY);
     if (stored === null || stored.trim() === "") {
@@ -77,46 +129,17 @@ export function useAuthUser(): UseAuthUser {
     }
     tokenRef.current = stored;
     setToken(stored);
-    let cancelled = false;
-    void apiMe(stored).then((result) => {
-      if (cancelled) return;
-      if (result.ok) {
-        setUser(result.data.user);
-        setStats(result.data.stats);
-        setRankBadge(result.data.rankBadge ?? null);
-        setStatus("authenticated");
-      } else {
-        // Beidzies/nederīgs tokens → graciozi anonīms.
-        applyToken(null);
-        setUser(null);
-        setStats(null);
-        setRankBadge(null);
-        setStatus("anonymous");
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [applyToken]);
+    // Mount: jebkura kļūme atrisina "loading" → anonīms (kā pirms F7).
+    void loadMe(stored, { applyLanguage: true, clearOnFailure: true });
+  }, [loadMe]);
 
-  // Pārlādē profilu + statistiku no /auth/me (status jau autentificēts).
+  // Publisks: pārlādē profilu + statistiku (NEMaina UI valodu — applyLanguage:false;
+  // pārejošu kļūmi NEizlogo — tikai 401, kā agrāk).
   const refresh = useCallback((): void => {
     const current = tokenRef.current;
     if (current === null) return;
-    void apiMe(current).then((result) => {
-      if (result.ok) {
-        setUser(result.data.user);
-        setStats(result.data.stats);
-        setRankBadge(result.data.rankBadge ?? null);
-      } else if (result.status === 401) {
-        applyToken(null);
-        setUser(null);
-        setStats(null);
-        setRankBadge(null);
-        setStatus("anonymous");
-      }
-    });
-  }, [applyToken]);
+    void loadMe(current, { applyLanguage: false, clearOnFailure: false });
+  }, [loadMe]);
 
   const register = useCallback(
     async (input: RegisterInput): Promise<AuthResult<TokenUser>> => {
@@ -126,6 +149,7 @@ export function useAuthUser(): UseAuthUser {
         setUser(result.data.user);
         setStats(null); // jauns konts — vēl bez statistikas
         setRankBadge(null); // jauns konts — vēl bez ranga
+        setLanguageState(null); // valodu serverī iestata izsaucējs (AppShell) ar pašreizējo locale
         setStatus("authenticated");
       }
       return result;
@@ -140,24 +164,22 @@ export function useAuthUser(): UseAuthUser {
         applyToken(result.data.token);
         setUser(result.data.user);
         setStatus("authenticated");
-        refresh(); // ielādē esošā konta statistiku
+        // Ielādē statistiku + saglabāto valodu (sesijas iegūšana → applyLanguage).
+        // Login jau iestatīja "authenticated"; pārejošu /auth/me kļūmi NEizlogo (tikai 401).
+        void loadMe(result.data.token, { applyLanguage: true, clearOnFailure: false });
       }
       return result;
     },
-    [applyToken, refresh]
+    [applyToken, loadMe]
   );
 
   const logout = useCallback(async (): Promise<void> => {
     const current = tokenRef.current;
-    applyToken(null);
-    setUser(null);
-    setStats(null);
-    setRankBadge(null);
-    setStatus("anonymous");
+    clearAuth();
     if (current) {
       await apiLogout(current);
     }
-  }, [applyToken]);
+  }, [clearAuth]);
 
   const updateProfile = useCallback(
     async (input: ProfileInput): Promise<AuthResult<{ user: AuthUser }>> => {
@@ -189,7 +211,41 @@ export function useAuthUser(): UseAuthUser {
     []
   );
 
+  // Saglabā valodu serverī. Optimistisks (lokālais state uzreiz); 401 → graciozs logout.
+  // Anonīmam no-op (locale paliek tikai localStorage — to dara AppShell.changeLocale).
+  const setLanguage = useCallback(
+    (next: GameLanguage): void => {
+      const current = tokenRef.current;
+      if (current === null) return;
+      languageWriteSeq.current += 1;
+      setLanguageState(next);
+      void apiSetLanguage(current, next).then((result) => {
+        // Stale-token guard: novecojusi 401 (no JAU nomainīta tokena) NEDRĪKST izlogot
+        // pa to laiku ielogotu CITU sesiju.
+        if (!result.ok && result.status === 401 && tokenRef.current === current) {
+          clearAuth();
+        }
+      });
+    },
+    [clearAuth]
+  );
+
   const getToken = useCallback((): string | undefined => tokenRef.current ?? undefined, []);
 
-  return { status, user, stats, rankBadge, token, register, login, logout, updateProfile, uploadAvatar, refresh, getToken };
+  return {
+    status,
+    user,
+    stats,
+    rankBadge,
+    language,
+    token,
+    register,
+    login,
+    logout,
+    updateProfile,
+    uploadAvatar,
+    refresh,
+    setLanguage,
+    getToken
+  };
 }
