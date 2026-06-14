@@ -12,6 +12,7 @@ import { CompactLobbyPanel, LobbyWheel } from "./LobbyWheel";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
 import { IconButton } from "./ui/IconButton";
 
+import type { BotDifficulty } from "../lib/bot/difficulty";
 import type { UseAuthUser } from "../lib/auth/useAuthUser";
 import {
   getAppStrings,
@@ -57,6 +58,8 @@ export function LobbyScreen({
   auth,
   selectedRoundCount,
   onRoundCountChange,
+  difficulty,
+  onDifficultyChange,
   onStartSinglePlayer,
   onStartMultiplayer,
   onLocaleChange
@@ -67,6 +70,8 @@ export function LobbyScreen({
   readonly auth: LobbyAuth;
   readonly selectedRoundCount: number;
   readonly onRoundCountChange: (count: number) => void;
+  readonly difficulty: BotDifficulty;
+  readonly onDifficultyChange: (difficulty: BotDifficulty) => void;
   readonly onStartSinglePlayer: () => void;
   readonly onStartMultiplayer: () => void;
   readonly onLocaleChange: (locale: Locale) => void;
@@ -166,6 +171,8 @@ export function LobbyScreen({
           audio={audio}
           labels={t}
           locale={locale}
+          difficulty={difficulty}
+          onDifficultyChange={onDifficultyChange}
           onClose={() => setSettingsOpen(false)}
           onLocaleChange={onLocaleChange}
         />
@@ -218,12 +225,16 @@ function SettingsDialog({
   audio,
   labels,
   locale,
+  difficulty,
+  onDifficultyChange,
   onClose,
   onLocaleChange
 }: {
   readonly audio: AudioSettings;
   readonly labels: AppStrings;
   readonly locale: Locale;
+  readonly difficulty: BotDifficulty;
+  readonly onDifficultyChange: (difficulty: BotDifficulty) => void;
   readonly onClose: () => void;
   readonly onLocaleChange: (locale: Locale) => void;
 }) {
@@ -282,6 +293,14 @@ function SettingsDialog({
         {tab === "settings" ? (
           <>
             <p className="settingsTabDescription">{t.settingsDescription}</p>
+
+            <div className="settingsSectionTitle">{t.difficultySection}</div>
+            <DifficultySelector
+              audio={audio}
+              labels={t}
+              difficulty={difficulty}
+              onDifficultyChange={onDifficultyChange}
+            />
 
             <div className="settingsSectionTitle">{t.audioSection}</div>
             <AudioControls audio={audio} labels={labels} />
@@ -355,6 +374,54 @@ function LanguageSelector({
           </option>
         ))}
       </select>
+    </div>
+  );
+}
+
+const DIFFICULTY_ORDER: readonly BotDifficulty[] = ["medium", "hard", "epic"];
+
+const DIFFICULTY_META: Record<
+  BotDifficulty,
+  { readonly labelKey: keyof AppStrings; readonly commentKey: keyof AppStrings }
+> = {
+  medium: { labelKey: "difficultyMedium", commentKey: "difficultyMediumComment" },
+  hard: { labelKey: "difficultyHard", commentKey: "difficultyHardComment" },
+  epic: { labelKey: "difficultyEpic", commentKey: "difficultyEpicComment" }
+};
+
+function DifficultySelector({
+  audio,
+  labels: t,
+  difficulty,
+  onDifficultyChange
+}: {
+  readonly audio: AudioSettings;
+  readonly labels: AppStrings;
+  readonly difficulty: BotDifficulty;
+  readonly onDifficultyChange: (difficulty: BotDifficulty) => void;
+}) {
+  const select = (next: BotDifficulty) => {
+    if (next === difficulty) return;
+    audio.play("uiClick");
+    onDifficultyChange(next);
+  };
+
+  return (
+    <div className="difficultySelector">
+      <div className="difficultyOptions" role="group" aria-label={t.difficultySection}>
+        {DIFFICULTY_ORDER.map((level) => (
+          <button
+            key={level}
+            className="difficultyOption"
+            type="button"
+            aria-pressed={difficulty === level}
+            onClick={() => select(level)}
+          >
+            {t[DIFFICULTY_META[level].labelKey]}
+          </button>
+        ))}
+      </div>
+      <p className="difficultyComment">{t[DIFFICULTY_META[difficulty].commentKey]}</p>
     </div>
   );
 }

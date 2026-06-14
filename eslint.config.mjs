@@ -15,6 +15,9 @@ export default tseslint.config(
       "**/dist/**",
       "**/.next/**",
       "**/node_modules/**",
+      // Atsevišķi (citā projektā) apmācīts un uzturēts bots ar savu tooling/lint
+      // gaidām — to konsumējam kā prebūvētu pakotni, nepakļaujam šī repo lint vārtam.
+      "packages/ai_bot/**",
       "**/coverage/**",
       "**/*.tsbuildinfo",
       "apps/web/public/**",

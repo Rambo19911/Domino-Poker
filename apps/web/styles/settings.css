@@ -64,9 +64,9 @@
   width: min(560px, 100%);
   /* Stabils augstums: Settings tabs (garākais saturs) nosaka loga izmēru, About
      aizpilda to pašu augstumu ar brīvu vietu — pārslēdzot tabus, logs nemainās.
-     Vērtība = Settings tab faktiskais border-box augstums (EN un LV abi 447px).
+     Vērtība = Settings tab faktiskais border-box augstums (ar grūtības sadaļu ~580px).
      Ja Settings saturs mainās, atjaunini šo skaitli. */
-  min-height: 447px;
+  min-height: 580px;
   max-height: min(820px, calc(100vh - 40px));
   overflow: auto;
 }
@@ -262,6 +262,52 @@
   border: 1px solid rgba(64, 64, 64, 0.8);
   border-radius: var(--radius-lg);
   background: var(--dialog-surface);
+}
+
+/* SP botu grūtības izvēle (Medium/Hard/Epic): segmenta pārslēdzējs + izvēlētā līmeņa
+   komentārs. Stils seko `.settingsTab` konvencijai (neitrāls fons, `--primary` aktīvajam). */
+.difficultySelector {
+  display: grid;
+  gap: 10px;
+}
+
+.difficultyOptions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.difficultyOption {
+  min-height: 42px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: rgba(120, 120, 120, 0.2);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: color 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+
+.difficultyOption:hover {
+  color: var(--text-primary);
+}
+
+.difficultyOption[aria-pressed="true"] {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: transparent;
+}
+
+/* Fiksēts augstums, lai komentāra garuma maiņa (Medium/Hard/Epic) nelec izkārtojumu. */
+.difficultyComment {
+  margin: 0;
+  min-height: 2.9em;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-style: italic;
+  line-height: 1.45;
 }
 
 .languageSelector {

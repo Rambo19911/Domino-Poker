@@ -545,30 +545,54 @@
     "confidence": "high"
   },
   {
-    "name": "AI Bot (standalone)",
+    "name": "AI Bot (trained ISMCTS)",
     "folder": "packages/ai_bot",
-    "purpose": "Self-contained strong Domino Poker bot (hidden-hand, ISMCTS max^n). Independent pnpm workspace with three sub-packages: engine (pure rules/scoring/state/rng), ai (ISMCTS search, determinization, Monte Carlo bidding, inference, profiling), and bot-adapter (AiClient worker-pool integration API). Intended to LATER replace the current AI bots; not yet wired into the live game.",
+    "purpose": "Self-contained strong Domino Poker bot (hidden-hand, ISMCTS max^n). Three sub-packages: engine (pure rules/scoring/state/rng), ai (ISMCTS search, determinization, Monte Carlo bidding, inference, profiling), and bot-adapter (Node worker_threads AiClient). WIRED IN: engine + ai are now ROOT npm workspaces consumed by the browser single-player game; bot-adapter is NOT (Node-only, bypassed in the browser).",
     "main_files": [
       "packages/ai_bot/README.md",
       "packages/ai_bot/INTEGRATION.md",
       "packages/ai_bot/CONNECTION-README.md",
-      "packages/ai_bot/package.json",
-      "packages/ai_bot/pnpm-workspace.yaml",
       "packages/ai_bot/packages/engine/src/index.ts",
       "packages/ai_bot/packages/ai/src/index.ts",
       "packages/ai_bot/packages/ai/src/ismcts.ts",
-      "packages/ai_bot/packages/bot-adapter/src/AiClient.ts",
-      "packages/ai_bot/packages/bot-adapter/src/protocol.ts"
+      "packages/ai_bot/packages/bot-adapter/src/AiClient.ts"
     ],
     "depends_on": [],
-    "used_by": [],
+    "used_by": [
+      "Web App (single-player: apps/web/lib/bot/botBridge.ts)"
+    ],
     "risks": [
-      "Standalone and NOT yet connected: nothing in apps/* or packages/* imports it yet. The current AI bots remain core/aiService via LobbyManager.fillSeatsWithBots.",
-      "Separate pnpm workspace (own pnpm-workspace.yaml/pnpm-lock.yaml); it is deliberately NOT a root npm workspace member, so root npm install/build/CI ignore it. Do not add packages/ai_bot to root workspaces or its install will break.",
-      "Has its own engine that duplicates Domino rules independently of packages/core; when integrating, reconcile rule/scoring parity (one source of truth at the boundary) and tile/PlayerView encoding.",
-      "AiClient uses Node worker_threads (loads compiled dist ai.worker.js); browser/Next client integration needs a Web Worker swap reusing the same protocol.ts.",
-      "node_modules/dist are gitignored inside the package; build with pnpm (pnpm install && pnpm build) before use.",
-      "Decisions are seedable (mulberry32); keep no Math.random/Date.now if integrated into deterministic MP paths."
+      "engine + ai are root npm workspaces (added to root package.json workspaces); ai/package.json depends on engine via exact '1.0.0' (NOT pnpm 'workspace:*', which npm rejects). bot-adapter is intentionally NOT a workspace (Node worker_threads).",
+      "dist/ is gitignored AND deploy.sh tar-excludes 'dist' at any depth, so the VPS only receives src; apps/web prebuild/predev builds @domino-poker/engine then @domino-poker/ai (tsc -b) before the web build, and CI builds them before typecheck. Build engine before ai (ai/tsconfig references engine).",
+      "Do NOT keep a local pnpm node_modules under packages/ai_bot: its broken tsc bin shadows root typescript for the npm-workspace build. VPS never has it (tar excludes node_modules), so root tsc is used there.",
+      "Has its own engine duplicating Domino rules independently of packages/core; the browser bridge (botBridge.ts) maps core {side1,side2} tiles <-> bot bitmask indices and reconstructs PlayerView. Trump/ace ordering and bid=-1 sentinel are verified-identical between the two engines.",
+      "eslint ignores packages/ai_bot/** (vendored sub-project, fails this repo's no-unused-vars).",
+      "Decisions are seedable (mulberry32); no Math.random/Date.now. Not yet wired into multiplayer (server still uses core/aiService bots)."
+    ],
+    "confidence": "high"
+  },
+  {
+    "name": "Web SP Bot Bridge",
+    "folder": "apps/web/lib/bot",
+    "purpose": "Browser-side glue that makes the trained ISMCTS bot drive all 3 single-player CPU seats, replacing the old core/aiService heuristic AI in SP. botBridge.ts converts core GameState <-> bot PlayerView (main thread, cheap) and delegates the heavy decideBid (Monte Carlo) / decideMove (ISMCTS) to a Web Worker (botWorker.ts) so the UI never blocks. difficulty.ts holds the lightweight Medium/Hard/Epic budgets (so the lobby can import it without pulling the heavy bot). liveness.ts guarantees the AI turn never stalls if the bot returns an illegal move.",
+    "main_files": [
+      "apps/web/lib/bot/botBridge.ts",
+      "apps/web/lib/bot/botWorker.ts",
+      "apps/web/lib/bot/difficulty.ts",
+      "apps/web/lib/bot/liveness.ts"
+    ],
+    "depends_on": [
+      "AI Bot (trained ISMCTS)",
+      "Core Rules"
+    ],
+    "used_by": [
+      "Web App (DominoPokerGame, AppShell, LobbyScreen)"
+    ],
+    "risks": [
+      "Only botWorker.ts imports @domino-poker/ai (heavy ISMCTS); Turbopack bundles it as a separate Web Worker asset, so it is OFF the main thread AND out of the main page bundle. botBridge.ts (main thread) imports only @domino-poker/engine helpers + the worker URL. DominoPokerGame is also code-split via next/dynamic(ssr:false) to keep the game UI out of the lobby bundle.",
+      "Keep DEFAULT_DIFFICULTY/BOT_DIFFICULTIES in difficulty.ts (no heavy imports) so AppShell/LobbyScreen don't drag the bot back into the lobby chunk. Difficulty (Medium 8000/1000, Hard 30000/3000, Epic 50000/5000) is chosen in the Settings dialog (lobby) and threaded AppShell -> DominoPokerGame -> botBridge; read via a ref so it doesn't churn the AI effect.",
+      "The AI turn effect is async with turnKey + cancelled guards; decideBid/decideMove are async (await the worker). The worker has a 20s per-request timeout backstop and onerror handling so a worker crash/hang rejects the call and the liveness net engages (it never permanently stalls the turn).",
+      "Old heuristic bots (core/aiService makeAIBid/selectAITile/selectNumber) are NO LONGER used in SP, but they are NOT dead: multiplayer still uses them via core/multiplayer autoBid/autoMove -> server GameDirector. Do not delete them."
     ],
     "confidence": "high"
   }

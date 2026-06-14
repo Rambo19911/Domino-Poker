@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ResetPasswordScreen } from "./auth/ResetPasswordScreen";
-import { DominoPokerGame } from "./DominoPokerGame";
-import { LobbyScreen } from "./LobbyScreen";
-import { MultiplayerLobby } from "./MultiplayerLobby";
+import dynamic from "next/dynamic";
 import { titleForWins } from "@domino-poker/shared";
 
+import { ResetPasswordScreen } from "./auth/ResetPasswordScreen";
+import { LobbyScreen } from "./LobbyScreen";
+import { MultiplayerLobby } from "./MultiplayerLobby";
+import { DEFAULT_DIFFICULTY, isBotDifficulty, type BotDifficulty } from "../lib/bot/difficulty";
 import type { RegisterInput } from "../lib/auth/authApi";
 import { avatarUrl } from "../lib/auth/avatarUrl";
 import { titleLabel } from "../lib/auth/titleLabel";
@@ -26,10 +27,20 @@ import {
 } from "../lib/safeStorage";
 import { useAudioSettings } from "../lib/useAudioSettings";
 
+// SP spēles UI (DominoPokerGame + tā atkarības) code-split ar next/dynamic, lai tas nav
+// sākotnējā lobby bundle — lobby paliek viegls/ātri hidratējams. (Smagais ISMCTS bots pats
+// jau dzīvo atsevišķā Web Worker bundle-ā, sk. apps/web/lib/bot/botWorker.ts.)
+const DominoPokerGame = dynamic(
+  () => import("./DominoPokerGame").then((module) => module.DominoPokerGame),
+  { ssr: false }
+);
+
 type AppScreen = "lobby" | "game" | "mp-lobby";
 
 const defaultRoundCount = 7;
 const localeStorageKey = "domino-poker-locale";
+/** SP botu grūtība saglabāta `localStorage` (kā locale), lai izvēle pārdzīvo lapas pārlādes. */
+const difficultyStorageKey = "domino-poker-difficulty";
 /** Saglabā, vai lietotājs bija MP lobby/spēlē, lai pēc refresh atgrieztos turp
  *  (tad MP klients pārsavienojas un serveris atjauno istabu/spēli — Fāze 9.2).
  *  Lieto `sessionStorage` (NE local): tas pārdzīvo tās pašas cilnes refresh, bet
@@ -47,6 +58,7 @@ export function AppShell() {
   const [screen, setScreen] = useState<AppScreen>("lobby");
   const [locale, setLocale] = useState<Locale>(defaultLocale);
   const [selectedRoundCount, setSelectedRoundCount] = useState(defaultRoundCount);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<BotDifficulty>(DEFAULT_DIFFICULTY);
   const [resetToken, setResetToken] = useState<string | null>(null);
   const audio = useAudioSettings();
   const auth = useAuthUser();
@@ -68,6 +80,13 @@ export function AppShell() {
     const storedLocale = readLocalStorage(localeStorageKey);
     if (storedLocale && isLocale(storedLocale)) {
       setLocale(storedLocale);
+    }
+  }, []);
+
+  useEffect(() => {
+    const storedDifficulty = readLocalStorage(difficultyStorageKey);
+    if (storedDifficulty && isBotDifficulty(storedDifficulty)) {
+      setSelectedDifficulty(storedDifficulty);
     }
   }, []);
 
@@ -128,6 +147,11 @@ export function AppShell() {
     if (auth.status === "authenticated") {
       auth.setLanguage(nextLocale);
     }
+  };
+
+  const changeDifficulty = (nextDifficulty: BotDifficulty) => {
+    setSelectedDifficulty(nextDifficulty);
+    writeLocalStorage(difficultyStorageKey, nextDifficulty);
   };
 
   // Jaunam kontam reģistrācijas brīdī persistē PAŠREIZĒJO locale serverī — citādi
@@ -198,6 +222,7 @@ export function AppShell() {
     return (
       <DominoPokerGame
         audio={audio}
+        difficulty={selectedDifficulty}
         humanProfile={humanProfile}
         labels={t}
         numberOfRounds={selectedRoundCount}
@@ -218,6 +243,8 @@ export function AppShell() {
       auth={authForLobby}
       selectedRoundCount={selectedRoundCount}
       onRoundCountChange={setSelectedRoundCount}
+      difficulty={selectedDifficulty}
+      onDifficultyChange={changeDifficulty}
       onStartSinglePlayer={startSinglePlayer}
       onStartMultiplayer={openMultiplayerLobby}
       onLocaleChange={changeLocale}

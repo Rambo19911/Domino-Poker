@@ -6,6 +6,8 @@
   "workspaces": [
     "packages/core",
     "packages/shared",
+    "packages/ai_bot/packages/engine",
+    "packages/ai_bot/packages/ai",
     "apps/server",
     "apps/web",
     "tools/simulators",

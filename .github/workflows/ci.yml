@@ -40,8 +40,9 @@ jobs:
       - run: npm ci
 
       # Servera/shared vitest testi importē @domino-poker/shared (un core) no dist,
-      # tāpēc tos jābūvē pirms testiem (sk. ai_rules.md).
-      - run: npm run build --workspace packages/core --workspace packages/shared --workspace apps/server
+      # tāpēc tos jābūvē pirms testiem (sk. ai_rules.md). Apmācītā bota engine+ai dist
+      # (no packages/ai_bot/src) ir vajadzīga web typecheck/build — būvē engine pirms ai.
+      - run: npm run build --workspace packages/ai_bot/packages/engine --workspace packages/ai_bot/packages/ai --workspace packages/core --workspace packages/shared --workspace apps/server
 
       - run: npm run typecheck
 

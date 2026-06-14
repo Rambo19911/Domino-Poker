@@ -4,16 +4,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "npm run build -w @domino-poker/shared",
+    "predev": "npm run build -w @domino-poker/engine -w @domino-poker/ai -w @domino-poker/shared",
     "dev": "next dev",
-    "prebuild": "npm run build -w @domino-poker/shared",
+    "prebuild": "npm run build -w @domino-poker/engine -w @domino-poker/ai -w @domino-poker/shared",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
+    "@domino-poker/ai": "1.0.0",
     "@domino-poker/core": "1.0.0",
+    "@domino-poker/engine": "1.0.0",
     "@domino-poker/shared": "1.0.0",
     "next": "16.2.6",
     "react": "19.2.6",

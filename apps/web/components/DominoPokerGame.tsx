@@ -8,15 +8,15 @@ import {
   getValidTiles,
   highestTrumpPriorityInTrick,
   isTrump,
-  makeAIBid,
   makeBid,
   playTile,
-  selectAITile,
-  selectNumber,
   startNextRound,
   tileKey
 } from "@domino-poker/core";
 import type { DominoTile, GameState, InvalidMoveReason } from "@domino-poker/core";
+import { decideBid as botDecideBid, decideMove as botDecideMove } from "../lib/bot/botBridge";
+import type { BotDifficulty } from "../lib/bot/difficulty";
+import { resolveAiMove, tryAdvance, type SimpleMove } from "../lib/bot/liveness";
 import { AudioControls, VolumeIcon, VolumeOffIcon } from "./AudioControls";
 import { DominoTileView } from "./DominoTileView";
 import {
@@ -47,12 +47,15 @@ type StageContainLayout = {
 
 export function DominoPokerGame({
   audio,
+  difficulty,
   humanProfile,
   labels,
   numberOfRounds,
   onExitToLobby
 }: {
   readonly audio: AudioSettings;
+  /** Botu grūtība (Medium/Hard/Epic) — vada ISMCTS iterāciju/solījumu budžetu. */
+  readonly difficulty: BotDifficulty;
   readonly humanProfile: {
     readonly avatarUrl: string | null;
     readonly displayName: string;
@@ -84,11 +87,18 @@ export function DominoPokerGame({
   const gameStateRef = useRef(gameState);
   const didInitializeGameRef = useRef(false);
   const lastTileSoundSignatureRef = useRef("");
+  // Grūtību lasām async AI efektā caur ref, lai (a) tā nav efekta atkarība un (b) iespējama
+  // izmaiņa nesatricina jau-darbā esošu bota lēmumu. UI to maina tikai lobby, ne spēles laikā.
+  const difficultyRef = useRef(difficulty);
   const stageLayout = useStageContainLayout();
 
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+
+  useEffect(() => {
+    difficultyRef.current = difficulty;
+  }, [difficulty]);
 
   useEffect(() => {
     if (!didInitializeGameRef.current) {
@@ -222,34 +232,84 @@ export function DominoPokerGame({
 
   useEffect(() => {
     if (!currentPlayer?.isAI || isProcessingTrick) return;
+    if (gameState.phase !== "bidding" && gameState.phase !== "playing") return;
+
+    // Apmācītais bots ir async + CPU-smags (anytime ISMCTS), tāpēc AI kārtu rēķinām ārpus
+    // sinhronā setGameState ceļa un pielietojam pēc tam. `cancelled` sargā pret stale
+    // rezultātu, kas pienāktu pēc šī efekta noārdīšanas (stāvoklis aizgājis tālāk / unmount).
+    let cancelled = false;
+
+    // Precīzs lēmuma punkta identifikators. Async rezultātu pielieto TIKAI, ja dzīvais
+    // stāvoklis joprojām ir tieši šajā punktā — sargā pret jebkuru stale-pielietojumu, pat
+    // ja tā pati sēdvieta/fāze atkārtojas citā pozīcijā.
+    const turnKey = (s: GameState): string =>
+      `${s.phase}|${s.currentRound}|${s.currentPlayerIndex}|${s.completedTricks.length}|${s.currentTrick.length}`;
+
+    const runAiTurn = async () => {
+      const snapshot = gameStateRef.current;
+      const seat = snapshot.currentPlayerIndex;
+      const actor = snapshot.players[seat];
+      if (!actor?.isAI) return;
+      const key = turnKey(snapshot);
+      const level = difficultyRef.current;
+
+      if (snapshot.phase === "bidding") {
+        let bid: number;
+        try {
+          bid = await botDecideBid(snapshot, seat, level);
+        } catch (error) {
+          console.error("Bot bid failed; using safe default (0).", error);
+          bid = 0;
+        }
+        // makeBid met kļūdu, ja bid nav vesels 0..7. Bota izejas klampēšana (legāls bid 0)
+        // pasargā no izņēmuma setGameState updater'ī un nodrošina, ka solīšana virzās.
+        if (!Number.isInteger(bid) || bid < 0 || bid > 7) {
+          console.error(`Bot bid out of range 0..7 (${bid}); using 0.`);
+          bid = 0;
+        }
+        if (cancelled) return;
+        setGameState((latest) => {
+          if (turnKey(latest) !== key) return latest;
+          return makeBid(latest, bid);
+        });
+        return;
+      }
+
+      // playing
+      let chosen: SimpleMove | null;
+      try {
+        chosen = await botDecideMove(snapshot, seat, level);
+      } catch (error) {
+        console.error("Bot move failed; using liveness safety move.", error);
+        chosen = null; // resolveAiMove izvēlēsies drošības gājienu
+      }
+      if (cancelled) return;
+
+      // Loud log arī klusi-nelegālam bota gājienam (core to noraidītu, atgriežot nemainītu stāvokli;
+      // resolveAiMove citādi to klusi aizstātu ar drošības gājienu).
+      if (chosen && !tryAdvance(snapshot, chosen)) {
+        console.error("Bot move was illegal/rejected; using liveness safety move.");
+      }
+
+      const botMove = chosen;
+      setGameState((latest) => {
+        if (turnKey(latest) !== key) return latest;
+        // resolveAiMove garantē progresu: bota gājiens, ja virza spēli; citādi liveness drošības
+        // gājiens — kārta nekad neiestrēgst.
+        return resolveAiMove(latest, botMove);
+      });
+    };
 
     const delay = gameState.phase === "bidding" ? 800 : 1000;
     const timer = window.setTimeout(() => {
-      setGameState((latest) => {
-        const latestPlayer = latest.players[latest.currentPlayerIndex];
-        if (!latestPlayer?.isAI) return latest;
-
-        if (latest.phase === "bidding") {
-          const bid = makeAIBid(latestPlayer);
-          return makeBid(latest, bid);
-        }
-
-        if (latest.phase === "playing" && !isProcessingTrick) {
-          const tile = selectAITile(latestPlayer, latest);
-          const declaredNumber =
-            latest.currentTrick.length === 0 && !isTrump(tile)
-              ? selectNumber(tile, latestPlayer)
-              : undefined;
-          const result = playTile(latest, tile, declaredNumber);
-          return result.state;
-        }
-
-        return latest;
-      });
+      void runAiTurn();
     }, delay);
 
-    return () => window.clearTimeout(timer);
-  }, [currentPlayer, gameState.phase, isProcessingTrick]);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [currentPlayer, gameState.phase, gameState.currentPlayerIndex, isProcessingTrick]);
 
   const makeHumanBid = (bid: number) => {
     audio.play("bidClick");
