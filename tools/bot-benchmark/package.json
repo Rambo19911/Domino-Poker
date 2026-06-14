@@ -1,0 +1,19 @@
+{
+  "name": "@domino-poker/bot-benchmark",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "bench": "node dist/runBenchmark.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@domino-poker/ai": "1.0.0",
+    "@domino-poker/engine": "1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.1",
+    "typescript": "6.0.3"
+  }
+}

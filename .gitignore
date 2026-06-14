@@ -44,6 +44,7 @@ logs/
 /tools/*
 !/tools/simulators/
 !/tools/load-test/
+!/tools/bot-benchmark/
 
 # docs/ — publiski tikai 4 spēles noteikumu/stratēģijas faili; pārējais
 # (deploy, scaling, DB migrācija, TODO, mockups, u.c.) paliek lokāls.

@@ -199,25 +199,23 @@ Care points:
 - Layout has multiple contracts: desktop fixed stage, phone portrait game stage, and responsive MP lobby. Meaningful layout changes need browser/e2e verification.
 - PWA/service-worker changes can be affected by stale caches; verify manually when changing `manifest.ts`, `sw.js`, icons, or public assets.
 
-### AI Bot Package (standalone, not yet wired in)
+### AI Bot Package (wired into single-player)
 
-Read these before touching or integrating the new bot under `packages/ai_bot`:
+Read these before touching the trained bot under `packages/ai_bot` or its browser bridge:
 
-- `packages/ai_bot/README.md` (architecture, search/inference/bidding math, performance, `AiClient` API)
-- `packages/ai_bot/INTEGRATION.md` and `packages/ai_bot/CONNECTION-README.md` (hookup guidance)
-- `packages/ai_bot/packages/bot-adapter/src/AiClient.ts` (the ONLY intended integration surface)
-- `packages/ai_bot/packages/bot-adapter/src/protocol.ts` (worker message contract)
-- `packages/ai_bot/packages/engine/src/index.ts` and `packages/ai_bot/packages/ai/src/index.ts` (public APIs)
+- `packages/ai_bot/README.md` (architecture, search/inference/bidding math, performance)
+- `packages/ai_bot/INTEGRATION.md` and `packages/ai_bot/CONNECTION-README.md` (the original hookup write-up)
+- `packages/ai_bot/packages/engine/src/index.ts` and `packages/ai_bot/packages/ai/src/index.ts` (public APIs the browser uses)
+- `apps/web/lib/bot/botBridge.ts` (GameState <-> PlayerView + Web Worker transport), `botWorker.ts` (off-thread search), `difficulty.ts` (level budgets), `liveness.ts` (never-stall net)
 
 Care points:
 
-- It is a SEPARATE pnpm workspace (`packages/ai_bot/pnpm-workspace.yaml`, `pnpm-lock.yaml`), deliberately NOT a member of the root npm workspaces. Do not add it to root `workspaces`; root `npm install`/`npm run build`/CI intentionally ignore it. Build it with `pnpm install && pnpm build` inside `packages/ai_bot`.
-- It is NOT connected yet: nothing in `apps/*` or other `packages/*` imports it. The live AI bots are still core `aiService` driven via `LobbyManager.fillSeatsWithBots`. Replacing them is future work.
-- The integration boundary is `@domino-poker/bot-adapter` → `AiClient` only. Do not deep-import `ai`/`engine` internals from the main app.
-- The bot ships its OWN `engine` (rules/scoring/tiles/state) independent of `packages/core`. When wiring it in, reconcile rule/scoring/tile-encoding parity at the boundary; do not assume the two engines are identical.
-- `AiClient` uses Node `worker_threads` (loads compiled `dist` worker). For the Next.js browser client, swap the transport to a Web Worker reusing the same `protocol.ts`; `engine`/`ai` are already portable.
-- Randomness is seedable (`mulberry32`); keep no `Math.random`/`Date.now` in decisions if integrated into deterministic MP paths.
-- `node_modules/`, `dist/`, `*.tsbuildinfo` are gitignored inside the package (its own `.gitignore`); keep build artifacts out of commits.
+- `engine` + `ai` ARE root npm workspaces; the browser imports them by name (resolved to built `dist`). `ai`'s dep on `engine` is exact `1.0.0` (NOT pnpm `workspace:*`). `bot-adapter` (Node `worker_threads` `AiClient`) is intentionally NOT a workspace and is NOT used by the browser — the SP bridge talks to `engine`/`ai` directly via a bespoke browser Web Worker.
+- The bot drives single-player only. Multiplayer bots are still core `aiService` via `core/multiplayer` `autoBid`/`autoMove` -> server `GameDirector` — that heuristic is NOT dead code; do not delete it.
+- `dist/` is gitignored AND `deploy.sh` tar-excludes `dist`/`node_modules` at any depth, so the VPS gets only `src`. `apps/web` `prebuild`/`predev` and CI build `engine` then `ai` (`tsc -b`, engine first) before the web build. Do NOT keep a local pnpm `node_modules` under `packages/ai_bot` — its `tsc` bin shadows root typescript for the npm build (the VPS never has it).
+- The bot ships its OWN `engine` (rules/scoring/tiles/state) independent of `packages/core`; the bridge maps core `{side1,side2}` tiles <-> bot bitmask `PlayerView`. Trump/ace ordering and the `bid=-1` sentinel are verified-identical between the two engines.
+- The heavy ISMCTS runs CLIENT-SIDE in `botWorker.ts` (browser Web Worker), never on the VPS. Single-player adds NO server game CPU; measure its client cost with `tools/bot-benchmark` (`npm run bench:bot`). `eslint` ignores `packages/ai_bot/**` (vendored sub-project).
+- Randomness is seedable (`mulberry32`); keep no `Math.random`/`Date.now` in decisions.
 
 ## Commands
 

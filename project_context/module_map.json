@@ -363,6 +363,27 @@
     "confidence": "high"
   },
   {
+    "name": "SP Bot Benchmark",
+    "folder": "tools/bot-benchmark",
+    "purpose": "Headless single-threaded benchmark of the trained ISMCTS bot's CLIENT-side cost: plays full self-play games with the exact calls the browser Web Worker makes (chooseInclusionBid, IsmctsSearcher iterated in MOVE_CHUNK=64 blocks) and reports per-decision ms per difficulty (Medium/Hard/Epic). The bot runs client-side in single-player, so this characterizes device cost, NOT server scaling.",
+    "main_files": [
+      "tools/bot-benchmark/package.json",
+      "tools/bot-benchmark/src/runBenchmark.ts"
+    ],
+    "depends_on": [
+      "AI Bot (trained ISMCTS)"
+    ],
+    "used_by": [
+      "npm run bench:bot"
+    ],
+    "risks": [
+      "Mirror botWorker.ts exactly (MOVE_CHUNK=64, inclusion reward, mulberry32) or the timings stop reflecting the real bot.",
+      "Node desktop/VPS numbers are an optimistic baseline; a low-end phone is ~3-6x slower (the high end). They do not represent server load (single-player is client-side).",
+      "Its deal/shuffle is benchmark-internal feed only — NOT the game's shuffle (packages/core), which stays untouched."
+    ],
+    "confidence": "high"
+  },
+  {
     "name": "E2E Tests",
     "folder": "tests/e2e",
     "purpose": "Playwright browser coverage for single-player flow, multiplayer smoke, layout regression, dialog accessibility, and storage resilience.",

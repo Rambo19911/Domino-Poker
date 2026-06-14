@@ -11,7 +11,8 @@
     "apps/server",
     "apps/web",
     "tools/simulators",
-    "tools/load-test"
+    "tools/load-test",
+    "tools/bot-benchmark"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
@@ -23,7 +24,8 @@
     "dev": "npm run dev --workspace apps/web",
     "dev:server": "npm run build --workspace packages/core && npm run build --workspace packages/shared && npm run build --workspace apps/server && node apps/server/dist/index.js",
     "simulate": "npm run build --workspace packages/core && npm run build --workspace tools/simulators && npm run simulate --workspace tools/simulators",
-    "load:local": "npm run build --workspace packages/shared && npm run build --workspace tools/load-test && npm run load --workspace tools/load-test --"
+    "load:local": "npm run build --workspace packages/shared && npm run build --workspace tools/load-test && npm run load --workspace tools/load-test --",
+    "bench:bot": "npm run build -w @domino-poker/engine -w @domino-poker/ai -w @domino-poker/bot-benchmark && npm run bench -w @domino-poker/bot-benchmark --"
   },
   "devDependencies": {
     "@eslint/js": "9.39.4",
