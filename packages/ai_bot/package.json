@@ -1,0 +1,15 @@
+{
+  "name": "domino-poker-bot",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.2.2",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b packages/engine packages/ai packages/bot-adapter",
+    "typecheck": "tsc -b packages/engine packages/ai packages/bot-adapter"
+  },
+  "devDependencies": {
+    "@types/node": "25.0.1",
+    "typescript": "6.0.3"
+  }
+}
