@@ -39,6 +39,7 @@ export function MultiplayerLobby({
   const [isJoinCodeOpen, setIsJoinCodeOpen] = useState(false);
   const [isRoomScreenHidden, setIsRoomScreenHidden] = useState(false);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
+  const [isDeleteRoomOpen, setIsDeleteRoomOpen] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   const clickThenExit = () => {
@@ -61,6 +62,7 @@ export function MultiplayerLobby({
   useEffect(() => {
     if (!activeRoom) {
       setIsRoomScreenHidden(false);
+      setIsDeleteRoomOpen(false);
     }
   }, [activeRoom]);
 
@@ -213,6 +215,10 @@ export function MultiplayerLobby({
             audio.play("uiClick");
             actions.startGame();
           }}
+          onRequestDeleteRoom={() => {
+            audio.play("uiClick");
+            setIsDeleteRoomOpen(true);
+          }}
         />
       )}
 
@@ -220,6 +226,7 @@ export function MultiplayerLobby({
         isCreateOpen={isCreateOpen}
         isJoinCodeOpen={isJoinCodeOpen}
         isRulesOpen={isRulesOpen}
+        isDeleteRoomOpen={isDeleteRoomOpen}
         isConnected={view.connection === "connected"}
         audio={audio}
         labels={t}
@@ -236,6 +243,12 @@ export function MultiplayerLobby({
         }}
         onCancelJoin={() => setIsJoinCodeOpen(false)}
         onCloseRules={() => setIsRulesOpen(false)}
+        onConfirmDeleteRoom={() => {
+          audio.play("uiClick");
+          actions.deleteRoom();
+          setIsDeleteRoomOpen(false);
+        }}
+        onCancelDeleteRoom={() => setIsDeleteRoomOpen(false)}
       />
     </main>
   );

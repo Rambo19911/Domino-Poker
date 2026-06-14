@@ -166,6 +166,11 @@ export class MultiplayerClient {
     this.send({ type: "LEAVE_ROOM" });
   }
 
+  /** Host dzēš savu GAIDOŠO istabu (serveris atgriež visus dalībniekus lobby). */
+  deleteRoom(): void {
+    this.send({ type: "DELETE_ROOM" });
+  }
+
   fillSeatsWithBots(): void {
     this.send({ type: "FILL_SEATS_WITH_BOTS" });
   }

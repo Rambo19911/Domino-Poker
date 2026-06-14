@@ -76,6 +76,14 @@ export const joinRoomSchema = z.object({
 
 export const leaveRoomSchema = z.object({ type: z.literal("LEAVE_ROOM") });
 
+/**
+ * Host dzēš savu istabu, kamēr tā vēl GAIDA (WAITING). Bez payload (kā LEAVE_ROOM):
+ * serveris atrod istabu pēc sūtītāja dalības (`requireCurrentRoom`) un neļauj
+ * norādīt svešu `roomId`. Atšķiras no LEAVE_ROOM ar to, ka iznīcina visu istabu un
+ * atbrīvo arī pievienotos spēlētājus. Serveris paliek autoritatīvs (host + WAITING).
+ */
+export const deleteRoomSchema = z.object({ type: z.literal("DELETE_ROOM") });
+
 export const fillSeatsWithBotsSchema = z.object({ type: z.literal("FILL_SEATS_WITH_BOTS") });
 
 export const startGameSchema = z.object({ type: z.literal("START_GAME") });
@@ -129,6 +137,7 @@ export const clientMessageSchema = z.union([
   viewRoomSchema,
   joinRoomSchema,
   leaveRoomSchema,
+  deleteRoomSchema,
   fillSeatsWithBotsSchema,
   startGameSchema,
   submitBidSchema,

@@ -17,6 +17,7 @@ export interface MultiplayerActions {
   readonly viewRoomByCode: (code: string) => void;
   readonly joinRoomSeat: (roomId: string, seatIndex: number, code?: string) => void;
   readonly leaveRoom: () => void;
+  readonly deleteRoom: () => void;
   readonly fillSeatsWithBots: () => void;
   readonly startGame: () => void;
   readonly sendChat: (text: string) => void;
@@ -81,6 +82,7 @@ export function useMultiplayer(options: UseMultiplayerOptions = {}): Multiplayer
       viewRoomByCode: (code) => clientRef.current?.viewRoom(undefined, code),
       joinRoomSeat: (roomId, seatIndex, code) => clientRef.current?.joinRoom(roomId, code, seatIndex),
       leaveRoom: () => clientRef.current?.leaveRoom(),
+      deleteRoom: () => clientRef.current?.deleteRoom(),
       fillSeatsWithBots: () => clientRef.current?.fillSeatsWithBots(),
       startGame: () => clientRef.current?.startGame(),
       sendChat: (text) => clientRef.current?.sendChat(text),

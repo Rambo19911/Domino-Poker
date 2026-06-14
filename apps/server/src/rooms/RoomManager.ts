@@ -235,6 +235,41 @@ export class RoomManager {
   }
 
   /**
+   * Host apzināti dzēš savu istabu, kamēr tā vēl GAIDA (WAITING). Atšķirībā no
+   * `leaveRoom` (kas migrē host citam cilvēkam un istabu patur), šī iznīcina VISU
+   * istabu un atbrīvo visus pievienotos cilvēkus atpakaļ lobby. Tikai host; tikai
+   * WAITING fāzē (IN_GAME izmanto `forfeitInGame`). Apzināti NEIZSAUC
+   * `onRoomAbandoned` — partija nav sākta, tāpēc nav reģistrējamu `lose` (mid-game
+   * pamešanas ceļš paliek `destroyRoom`/`forfeitInGame`). Atgriež iznīcināto
+   * `roomId` un atbrīvoto cilvēku `clientId` (net slānis tiem sūta `ROOM_LEFT`, lai
+   * klienti atgriežas lobby — `LOBBY_STATE` vien `view.room` nenotīra).
+   */
+  deleteWaitingRoomByHost(hostClientId: string): {
+    readonly roomId: string;
+    readonly departedClientIds: readonly string[];
+  } {
+    const roomId = this.requireRoomOf(hostClientId);
+    const room = this.lobby.getRoom(roomId);
+    if (room.hostPlayerId !== hostClientId) {
+      throw new LobbyError("NOT_HOST", `Player ${hostClientId} is not the host of room ${roomId}.`);
+    }
+    if (room.status !== "WAITING") {
+      throw new LobbyError("GAME_ALREADY_STARTED", `Room ${roomId} is not in WAITING.`);
+    }
+    const departedClientIds = room.seats
+      .filter((seat): seat is typeof seat & { playerId: string } =>
+        seat.kind === "human" && seat.playerId !== undefined
+      )
+      .map((seat) => seat.playerId);
+    for (const clientId of departedClientIds) {
+      this.departMember(clientId);
+    }
+    this.lobby.destroyRoom(roomId);
+    this.disposeRoom(roomId);
+    return { roomId, departedClientIds };
+  }
+
+  /**
    * Spēlētājs apzināti pamet spēli (IN_GAME) caur "Exit". Viņa core sēdvieta kļūst
    * par botu (`PLAYER_FORFEIT` → auto-spēlē uzreiz), lobby sēdvieta arī (vai istabu
    * iznīcina, ja nepaliek cilvēku), un dalība tiek notīrīta — spēlētājs vairs

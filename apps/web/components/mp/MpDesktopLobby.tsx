@@ -59,7 +59,8 @@ export function MpDesktopLobby({
   onChooseSeat,
   onFillBots,
   onLeave,
-  onStart
+  onStart,
+  onRequestDeleteRoom
 }: {
   readonly labels: AppStrings;
   readonly connection: ConnectionStatus;
@@ -93,6 +94,7 @@ export function MpDesktopLobby({
   readonly onFillBots: () => void;
   readonly onLeave: () => void;
   readonly onStart: () => void;
+  readonly onRequestDeleteRoom: () => void;
 }) {
   return (
     <>
@@ -142,6 +144,7 @@ export function MpDesktopLobby({
           onFillBots={onFillBots}
           onLeave={onLeave}
           onStart={onStart}
+          onRequestDeleteRoom={onRequestDeleteRoom}
         />
       ) : (
         <>
@@ -277,7 +280,8 @@ function WaitingRoom({
   onChooseSeat,
   onFillBots,
   onLeave,
-  onStart
+  onStart,
+  onRequestDeleteRoom
 }: {
   readonly isConnected: boolean;
   readonly labels: AppStrings;
@@ -288,6 +292,7 @@ function WaitingRoom({
   readonly onFillBots: () => void;
   readonly onLeave: () => void;
   readonly onStart: () => void;
+  readonly onRequestDeleteRoom: () => void;
 }) {
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
   const copyTimerRef = useRef<number | undefined>(undefined);
@@ -295,6 +300,9 @@ function WaitingRoom({
   const isSeated = room.seats.some((seat) => seat.kind === "human" && seat.displayId === selfDisplayId);
   const emptySeats = room.seats.filter((seat) => seat.kind === "empty").length;
   const canManageWaitingRoom = isConnected && isHost && room.status === "WAITING";
+  // Hosts drīkst dzēst savu istabu, kamēr tā vēl gaida (arī ar pievienotiem cilvēkiem —
+  // serveris tos atgriež lobby). Neatkarīgs no sēdvietu skaita (atšķiras no canStart).
+  const canDeleteRoom = canManageWaitingRoom;
   const canFillBots = canManageWaitingRoom && emptySeats > 0;
   // Serveris prasa visas 4 sēdvietas aizpildītas (ar ≥1 cilvēku); citādi NOT_ENOUGH_PLAYERS.
   const canStart = canManageWaitingRoom && emptySeats === 0;
@@ -368,6 +376,11 @@ function WaitingRoom({
         <Button variant="secondary" onClick={onBackToLobby}>
           {t.mpBackToLobby}
         </Button>
+        {isHost ? (
+          <Button variant="danger" onClick={onRequestDeleteRoom} disabled={!canDeleteRoom}>
+            {t.mpDeleteRoom}
+          </Button>
+        ) : null}
         {!isHost && isSeated ? (
           <Button variant="secondary" onClick={exitRoom}>
             {exitLabel}

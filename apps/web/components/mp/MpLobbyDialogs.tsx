@@ -27,6 +27,7 @@ export function MpLobbyDialogs({
   isCreateOpen,
   isJoinCodeOpen,
   isRulesOpen,
+  isDeleteRoomOpen,
   isConnected,
   audio,
   labels: t,
@@ -34,11 +35,14 @@ export function MpLobbyDialogs({
   onCancelCreate,
   onJoin,
   onCancelJoin,
-  onCloseRules
+  onCloseRules,
+  onConfirmDeleteRoom,
+  onCancelDeleteRoom
 }: {
   readonly isCreateOpen: boolean;
   readonly isJoinCodeOpen: boolean;
   readonly isRulesOpen: boolean;
+  readonly isDeleteRoomOpen: boolean;
   readonly isConnected: boolean;
   readonly audio: AudioSettings;
   readonly labels: AppStrings;
@@ -51,9 +55,20 @@ export function MpLobbyDialogs({
   readonly onJoin: (code: string) => void;
   readonly onCancelJoin: () => void;
   readonly onCloseRules: () => void;
+  readonly onConfirmDeleteRoom: () => void;
+  readonly onCancelDeleteRoom: () => void;
 }) {
   return (
     <>
+      {isDeleteRoomOpen ? (
+        <DeleteRoomDialog
+          isConnected={isConnected}
+          labels={t}
+          onCancel={onCancelDeleteRoom}
+          onConfirm={onConfirmDeleteRoom}
+        />
+      ) : null}
+
       {isCreateOpen ? (
         <CreateRoomDialog
           isConnected={isConnected}
@@ -76,6 +91,38 @@ export function MpLobbyDialogs({
         <MultiplayerRulesDialog audio={audio} labels={t} onClose={onCloseRules} />
       ) : null}
     </>
+  );
+}
+
+function DeleteRoomDialog({
+  isConnected,
+  labels: t,
+  onCancel,
+  onConfirm
+}: {
+  readonly isConnected: boolean;
+  readonly labels: AppStrings;
+  readonly onCancel: () => void;
+  readonly onConfirm: () => void;
+}) {
+  return (
+    <Dialog
+      ariaLabelledBy="mp-delete-room-title"
+      className="alertDialog mpDeleteRoomDialog"
+      onEscape={onCancel}
+    >
+      <h2 id="mp-delete-room-title">{t.mpDeleteRoomTitle}</h2>
+      <p className="mpDialogWarning">{t.mpDeleteRoomWarning}</p>
+
+      <div className="dialogActions">
+        <button className="textButton" type="button" onClick={onCancel}>
+          {t.cancel}
+        </button>
+        <button className="dangerButton" type="button" disabled={!isConnected} onClick={onConfirm}>
+          {t.mpDeleteRoomConfirm}
+        </button>
+      </div>
+    </Dialog>
   );
 }
 

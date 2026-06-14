@@ -133,6 +133,8 @@ export class CoreMessageRouter implements MessageRouter {
         return this.handleJoinRoom(ctx, message);
       case "LEAVE_ROOM":
         return this.handleLeaveRoom(ctx);
+      case "DELETE_ROOM":
+        return this.handleDeleteRoom(ctx);
       case "FILL_SEATS_WITH_BOTS":
         return this.handleFillSeats(ctx);
       case "START_GAME":
@@ -245,6 +247,27 @@ export class CoreMessageRouter implements MessageRouter {
           this.pushRoomView(ctx.hub, room.id);
         } else {
           this.releaseRoomLease(room.id);
+        }
+        this.pushLobbyState(ctx.hub);
+      });
+    });
+  }
+
+  /**
+   * Host dzēš savu GAIDOŠO istabu: atšķirībā no LEAVE_ROOM (kas migrē host un
+   * istabu patur), šī iznīcina visu istabu un atgriež VISUS pievienotos cilvēkus
+   * lobby. Katrs atbrīvotais saņem `ROOM_LEFT` (klienta reducers notīra `view.room`),
+   * tad lease atbrīvo un pārraida jauno LOBBY_STATE. Tikai host; tikai WAITING fāze
+   * (citādi `RoomManager.deleteWaitingRoomByHost` met NOT_HOST/GAME_ALREADY_STARTED).
+   */
+  private handleDeleteRoom(ctx: RouteContext): MaybePromise<void> {
+    return this.guard(ctx, () => {
+      const roomId = this.requireCurrentRoom(ctx);
+      return this.withOwnedRoom(ctx, roomId, () => {
+        const { departedClientIds } = this.rooms.deleteWaitingRoomByHost(ctx.identity.playerId);
+        this.releaseRoomLease(roomId);
+        for (const clientId of departedClientIds) {
+          ctx.hub.sendToPlayer(clientId, { type: "ROOM_LEFT", roomId });
         }
         this.pushLobbyState(ctx.hub);
       });

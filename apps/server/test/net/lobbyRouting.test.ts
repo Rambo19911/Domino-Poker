@@ -249,6 +249,76 @@ describe("Lobby message routing (6.5)", () => {
   });
 });
 
+describe("DELETE_ROOM (host deletes a waiting room)", () => {
+  it("destroys the room, returns every joined player to the lobby, and frees them to create again", () => {
+    const { gateway } = buildHarness();
+    const host = connect(gateway, "c1", "host");
+    send(gateway, host, { type: "CREATE_ROOM" });
+    const guest = connect(gateway, "c2", "guest");
+    send(gateway, guest, { type: "JOIN_ROOM", roomId: "room-1", seatIndex: 1 });
+    host.sent.length = 0;
+    guest.sent.length = 0;
+
+    send(gateway, host, { type: "DELETE_ROOM" });
+
+    // Gan host, gan pievienotais cilvēks saņem ROOM_LEFT ar istabas id.
+    expect(host.lastTyped("ROOM_LEFT")?.roomId).toBe("room-1");
+    expect(guest.lastTyped("ROOM_LEFT")?.roomId).toBe("room-1");
+    // Istaba pazūd no saraksta.
+    expect(host.lastTyped("LOBBY_STATE")?.rooms).toHaveLength(0);
+
+    // Abi atkal drīkst izveidot istabu — pierāda, ka clientRoom dalība ir notīrīta,
+    // ne tikai UI ekrāns aizvērts.
+    host.sent.length = 0;
+    guest.sent.length = 0;
+    send(gateway, host, { type: "CREATE_ROOM" });
+    send(gateway, guest, { type: "CREATE_ROOM" });
+    expect(host.lastTyped("ROOM_CREATED")).toBeDefined();
+    expect(host.typed("ERROR")).toHaveLength(0);
+    expect(guest.lastTyped("ROOM_CREATED")).toBeDefined();
+    expect(guest.typed("ERROR")).toHaveLength(0);
+  });
+
+  it("rejects a non-host with NOT_HOST and keeps the room", () => {
+    const { gateway } = buildHarness();
+    const host = connect(gateway, "c1", "host");
+    send(gateway, host, { type: "CREATE_ROOM" });
+    const guest = connect(gateway, "c2", "guest");
+    send(gateway, guest, { type: "JOIN_ROOM", roomId: "room-1", seatIndex: 1 });
+    guest.sent.length = 0;
+
+    send(gateway, guest, { type: "DELETE_ROOM" });
+
+    expect(guest.lastTyped("ERROR")).toMatchObject({ code: "NOT_HOST" });
+    expect(guest.typed("ROOM_LEFT")).toHaveLength(0);
+    // Istaba joprojām eksistē saraksta.
+    send(gateway, guest, { type: "LIST_ROOMS" });
+    expect(guest.lastTyped("ROOM_LIST")?.rooms).toHaveLength(1);
+  });
+
+  it("rejects DELETE_ROOM once the game has started", () => {
+    const { gateway } = buildHarness();
+    const host = connect(gateway, "c1", "host");
+    send(gateway, host, { type: "CREATE_ROOM", fillWithBots: true });
+    send(gateway, host, { type: "START_GAME" });
+    host.sent.length = 0;
+
+    send(gateway, host, { type: "DELETE_ROOM" });
+
+    expect(host.lastTyped("ERROR")).toMatchObject({ code: "GAME_ALREADY_STARTED" });
+  });
+
+  it("replies with a forbidden error when the sender is not in any room", () => {
+    const { gateway } = buildHarness();
+    const stray = connect(gateway, "c1", "stray");
+
+    send(gateway, stray, { type: "DELETE_ROOM" });
+
+    // requireCurrentRoom → PLAYER_NOT_IN_ROOM, kas publiski tiek kartēts uz FORBIDDEN.
+    expect(stray.lastTyped("ERROR")).toMatchObject({ code: "FORBIDDEN" });
+  });
+});
+
 describe("Room TTL sweep broadcasts LOBBY_STATE", () => {
   it("removes an expired empty room from the list and pushes the update to watchers", () => {
     const timer = new ManualTimerController(1000);
