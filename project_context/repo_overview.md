@@ -1,6 +1,6 @@
 # Repository Overview
 
-Last refreshed: 2026-06-13.
+Last refreshed: 2026-06-14.
 
 ## Purpose
 
@@ -31,6 +31,7 @@ Node is pinned/restricted through `.nvmrc`, `.node-version`, `package.json` engi
 - `apps/server`: authoritative multiplayer server, HTTP `/health` and `/metrics`, optional `/auth/*`, WebSocket `/ws`, gateway/hub/fanout, room/lobby lifecycle, game timers/directors, chat, auth, sessions/identity, storage adapters, PostgreSQL event bus, and server tests.
 - `packages/core`: framework-free Domino Poker rules, tile/shuffle logic, legal-play validation, scoring, single-player game state, AI heuristics, plus the separate `packages/core/src/multiplayer` command/event state machine.
 - `packages/shared`: public protocol package. It owns Zod client-message validation, protocol versioning, room DTOs, error payloads, avatar/title helpers, and server-event schemas. Important coupling: `serverEvents.ts` imports core multiplayer event/snapshot types from `@domino-poker/core/multiplayer`.
+- `packages/ai_bot`: standalone strong Domino Poker bot (hidden-hand, ISMCTS max^n) as its own pnpm workspace (sub-packages `engine`, `ai`, `bot-adapter`). Intended to LATER replace the current AI bots; not yet wired into the live game. It is NOT a root npm workspace member (root install/build/CI ignore it) and uses pnpm. Integration surface: `@domino-poker/bot-adapter` → `AiClient`.
 - `tools/simulators`: headless full-game simulator for multiplayer core determinism/invariants.
 - `tools/load-test`: local WebSocket load generator that speaks the real shared protocol against a running server.
 - `tests/e2e`: Playwright tests for single-player flow, multiplayer smoke, layout, dialog accessibility, and storage resilience.
@@ -66,6 +67,7 @@ Node is pinned/restricted through `.nvmrc`, `.node-version`, `package.json` engi
 - Inside `apps/server`, keep request flow directional: gateway/hub -> router -> room manager/engine -> core. Storage, auth, sessions, event bus, and HTTP are infrastructure boundaries around that flow.
 - `apps/web` is presentation and client application state. It may use core for single-player and UI hints, and shared for protocol types, but it must not become authoritative for multiplayer decisions.
 - `tools/*` are verification/load utilities and must not become production dependencies.
+- `packages/ai_bot` is a standalone, not-yet-connected bot in its own pnpm workspace. Nothing currently imports it, and it must not be added to the root npm workspaces. When integrating, the only intended entrypoint is `@domino-poker/bot-adapter` (`AiClient`); reconcile its independent `engine` rules/scoring with `packages/core` at the boundary rather than deep-importing internals.
 
 ## Key Workflows
 

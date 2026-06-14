@@ -1,6 +1,6 @@
 # AI Working Rules
 
-Last refreshed: 2026-06-13.
+Last refreshed: 2026-06-14.
 
 ## Before Major Edits
 
@@ -198,6 +198,26 @@ Care points:
 - Multiplayer UI sends intents only. Do not add authoritative move acceptance/rejection to the browser.
 - Layout has multiple contracts: desktop fixed stage, phone portrait game stage, and responsive MP lobby. Meaningful layout changes need browser/e2e verification.
 - PWA/service-worker changes can be affected by stale caches; verify manually when changing `manifest.ts`, `sw.js`, icons, or public assets.
+
+### AI Bot Package (standalone, not yet wired in)
+
+Read these before touching or integrating the new bot under `packages/ai_bot`:
+
+- `packages/ai_bot/README.md` (architecture, search/inference/bidding math, performance, `AiClient` API)
+- `packages/ai_bot/INTEGRATION.md` and `packages/ai_bot/CONNECTION-README.md` (hookup guidance)
+- `packages/ai_bot/packages/bot-adapter/src/AiClient.ts` (the ONLY intended integration surface)
+- `packages/ai_bot/packages/bot-adapter/src/protocol.ts` (worker message contract)
+- `packages/ai_bot/packages/engine/src/index.ts` and `packages/ai_bot/packages/ai/src/index.ts` (public APIs)
+
+Care points:
+
+- It is a SEPARATE pnpm workspace (`packages/ai_bot/pnpm-workspace.yaml`, `pnpm-lock.yaml`), deliberately NOT a member of the root npm workspaces. Do not add it to root `workspaces`; root `npm install`/`npm run build`/CI intentionally ignore it. Build it with `pnpm install && pnpm build` inside `packages/ai_bot`.
+- It is NOT connected yet: nothing in `apps/*` or other `packages/*` imports it. The live AI bots are still core `aiService` driven via `LobbyManager.fillSeatsWithBots`. Replacing them is future work.
+- The integration boundary is `@domino-poker/bot-adapter` → `AiClient` only. Do not deep-import `ai`/`engine` internals from the main app.
+- The bot ships its OWN `engine` (rules/scoring/tiles/state) independent of `packages/core`. When wiring it in, reconcile rule/scoring/tile-encoding parity at the boundary; do not assume the two engines are identical.
+- `AiClient` uses Node `worker_threads` (loads compiled `dist` worker). For the Next.js browser client, swap the transport to a Web Worker reusing the same `protocol.ts`; `engine`/`ai` are already portable.
+- Randomness is seedable (`mulberry32`); keep no `Math.random`/`Date.now` in decisions if integrated into deterministic MP paths.
+- `node_modules/`, `dist/`, `*.tsbuildinfo` are gitignored inside the package (its own `.gitignore`); keep build artifacts out of commits.
 
 ## Commands
 

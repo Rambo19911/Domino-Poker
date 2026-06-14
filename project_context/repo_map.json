@@ -1904,5 +1904,122 @@
       "apps/web/components/ui/Button.tsx"
     ],
     "confidence": "high"
+  },
+  {
+    "path": "packages/ai_bot/README.md",
+    "type": "docs",
+    "purpose": "Standalone strong Domino Poker bot (hidden-hand, ISMCTS max^n). Explains architecture, the search/inference/bidding math, measured performance, and the AiClient integration surface. NOT yet wired into the live game.",
+    "importance": "high",
+    "related_files": [
+      "packages/ai_bot/INTEGRATION.md",
+      "packages/ai_bot/CONNECTION-README.md",
+      "packages/ai_bot/packages/bot-adapter/src/AiClient.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/ai_bot/INTEGRATION.md",
+    "type": "docs",
+    "purpose": "Detailed integration guide for connecting the bot to the existing browser/server game.",
+    "importance": "medium",
+    "related_files": [
+      "packages/ai_bot/README.md",
+      "packages/ai_bot/packages/bot-adapter/src/AiClient.ts"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "path": "packages/ai_bot/CONNECTION-README.md",
+    "type": "docs",
+    "purpose": "Connection notes / hookup checklist for replacing the current AI bots with this package.",
+    "importance": "medium",
+    "related_files": [
+      "packages/ai_bot/INTEGRATION.md"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "path": "packages/ai_bot/package.json",
+    "type": "config",
+    "purpose": "Root manifest of the ai_bot pnpm workspace (independent of the root npm workspaces; uses pnpm, not npm).",
+    "importance": "medium",
+    "related_files": [
+      "packages/ai_bot/pnpm-workspace.yaml",
+      "packages/ai_bot/pnpm-lock.yaml",
+      "packages/ai_bot/tsconfig.base.json"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/ai_bot/pnpm-workspace.yaml",
+    "type": "config",
+    "purpose": "Declares the nested pnpm sub-packages (engine, ai, bot-adapter). This is a separate workspace tree; do not add it to the root npm workspaces.",
+    "importance": "medium",
+    "related_files": [
+      "packages/ai_bot/package.json"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/ai_bot/packages/engine/src/index.ts",
+    "type": "service",
+    "purpose": "Bot domain engine public API: tiles encoding, rules/legalMoves/trickWinner, scoring, GameState/PlayerView, seedable RNG. Pure and framework-free (mirrors but is independent of packages/core).",
+    "importance": "high",
+    "related_files": [
+      "packages/ai_bot/packages/engine/src/rules.ts",
+      "packages/ai_bot/packages/engine/src/state.ts",
+      "packages/ai_bot/packages/engine/src/scoring.ts",
+      "packages/ai_bot/packages/engine/src/tiles.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/ai_bot/packages/ai/src/index.ts",
+    "type": "service",
+    "purpose": "Bot intelligence public API: ISMCTS search, determinization/dealer, Monte Carlo bidding, inference (ConstraintTracker), rollout policy, opponent profiling. Imports only the bot engine; no I/O.",
+    "importance": "high",
+    "related_files": [
+      "packages/ai_bot/packages/ai/src/ismcts.ts",
+      "packages/ai_bot/packages/ai/src/bidding.ts",
+      "packages/ai_bot/packages/ai/src/inference.ts",
+      "packages/ai_bot/packages/ai/src/dealer.ts",
+      "packages/ai_bot/packages/ai/src/rollout.ts",
+      "packages/ai_bot/packages/ai/src/profiling.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/ai_bot/packages/ai/src/ismcts.ts",
+    "type": "service",
+    "purpose": "Information-Set Monte Carlo Tree Search (max^n) play engine: anytime budget, tree reuse, pondering, configurable reward (inclusion/points).",
+    "importance": "high",
+    "related_files": [
+      "packages/ai_bot/packages/ai/src/rollout.ts",
+      "packages/ai_bot/packages/ai/src/dealer.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/ai_bot/packages/bot-adapter/src/AiClient.ts",
+    "type": "service",
+    "purpose": "MAIN integration surface. AiClient = worker pool + postMessage<->Promise API (sync/requestBid/requestMove/ponder/dispose). The external game talks ONLY to this; it never imports ai/engine internals. Uses Node worker_threads; browser use needs a Web Worker swap (same protocol).",
+    "importance": "high",
+    "related_files": [
+      "packages/ai_bot/packages/bot-adapter/src/protocol.ts",
+      "packages/ai_bot/packages/bot-adapter/src/ai.worker.ts",
+      "packages/ai_bot/README.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/ai_bot/packages/bot-adapter/src/protocol.ts",
+    "type": "service",
+    "purpose": "Zod-validated worker message protocol shared by AiClient and the worker; stable contract for Node worker_threads or a browser Web Worker.",
+    "importance": "medium",
+    "related_files": [
+      "packages/ai_bot/packages/bot-adapter/src/AiClient.ts",
+      "packages/ai_bot/packages/bot-adapter/src/ai.worker.ts"
+    ],
+    "confidence": "high"
   }
 ]

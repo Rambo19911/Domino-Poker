@@ -543,5 +543,33 @@
       "PostgreSQL fanout is for multi-instance broadcast coordination; it is not active room-state failover."
     ],
     "confidence": "high"
+  },
+  {
+    "name": "AI Bot (standalone)",
+    "folder": "packages/ai_bot",
+    "purpose": "Self-contained strong Domino Poker bot (hidden-hand, ISMCTS max^n). Independent pnpm workspace with three sub-packages: engine (pure rules/scoring/state/rng), ai (ISMCTS search, determinization, Monte Carlo bidding, inference, profiling), and bot-adapter (AiClient worker-pool integration API). Intended to LATER replace the current AI bots; not yet wired into the live game.",
+    "main_files": [
+      "packages/ai_bot/README.md",
+      "packages/ai_bot/INTEGRATION.md",
+      "packages/ai_bot/CONNECTION-README.md",
+      "packages/ai_bot/package.json",
+      "packages/ai_bot/pnpm-workspace.yaml",
+      "packages/ai_bot/packages/engine/src/index.ts",
+      "packages/ai_bot/packages/ai/src/index.ts",
+      "packages/ai_bot/packages/ai/src/ismcts.ts",
+      "packages/ai_bot/packages/bot-adapter/src/AiClient.ts",
+      "packages/ai_bot/packages/bot-adapter/src/protocol.ts"
+    ],
+    "depends_on": [],
+    "used_by": [],
+    "risks": [
+      "Standalone and NOT yet connected: nothing in apps/* or packages/* imports it yet. The current AI bots remain core/aiService via LobbyManager.fillSeatsWithBots.",
+      "Separate pnpm workspace (own pnpm-workspace.yaml/pnpm-lock.yaml); it is deliberately NOT a root npm workspace member, so root npm install/build/CI ignore it. Do not add packages/ai_bot to root workspaces or its install will break.",
+      "Has its own engine that duplicates Domino rules independently of packages/core; when integrating, reconcile rule/scoring parity (one source of truth at the boundary) and tile/PlayerView encoding.",
+      "AiClient uses Node worker_threads (loads compiled dist ai.worker.js); browser/Next client integration needs a Web Worker swap reusing the same protocol.ts.",
+      "node_modules/dist are gitignored inside the package; build with pnpm (pnpm install && pnpm build) before use.",
+      "Decisions are seedable (mulberry32); keep no Math.random/Date.now if integrated into deterministic MP paths."
+    ],
+    "confidence": "high"
   }
 ]
