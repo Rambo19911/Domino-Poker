@@ -85,6 +85,7 @@ export const lv = {
   about: "Par spēli",
   aboutDescription: "Pārlūkā spēlējams Domino Poker — stiķu domino spēle ar viena spēlētāja treniņu pret botiem un reāllaika četru spēlētāju režīmu.",
   versionLabel: "Versija",
+  pwaUpdateReady: "Pieejama jauna versija — pieskaries, lai atjauninātu",
   authorLabel: "Autors",
   licenseLabel: "Licence",
   rules: "Spēles noteikumi",

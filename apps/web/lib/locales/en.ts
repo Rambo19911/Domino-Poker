@@ -81,6 +81,7 @@ export const en = {
   about: "About",
   aboutDescription: "Browser-based Domino Poker — a trick-taking domino game with single-player practice against bots and real-time four-player multiplayer.",
   versionLabel: "Version",
+  pwaUpdateReady: "New version available — tap to update",
   authorLabel: "Author",
   licenseLabel: "License",
   rules: "Game rules",

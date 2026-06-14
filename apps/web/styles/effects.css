@@ -28,3 +28,23 @@
   font-weight: 700;
 }
 
+/* PWA "pieejama jauna versija" soft-prompts: fiksēts (PwaRegister dzīvo layout
+   saknē, ne spēles skatuvē), pieskarams, virs spēles satura. Token-driven. */
+.pwaUpdateBanner {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  transform: translateX(-50%);
+  z-index: var(--z-overlay);
+  max-width: calc(100vw - 32px);
+  padding: 12px 20px;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--primary);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+}
+

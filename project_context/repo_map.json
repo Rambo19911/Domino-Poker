@@ -1393,11 +1393,24 @@
   {
     "path": "apps/web/components/PwaRegister.tsx",
     "type": "ui",
-    "purpose": "Client-side service-worker registration component.",
+    "purpose": "Client-side service-worker registration plus new-version update flow: registers with updateViaCache:'none', calls registration.update() on mount and tab focus, and on controllerchange either silently reloads (when reload-safe via reloadGate) or shows a localized soft-update prompt.",
     "importance": "medium",
     "related_files": [
       "apps/web/public/sw.js",
-      "apps/web/app/layout.tsx"
+      "apps/web/app/layout.tsx",
+      "apps/web/lib/pwa/reloadGate.ts",
+      "apps/web/components/AppShell.tsx"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/pwa/reloadGate.ts",
+    "type": "utility",
+    "purpose": "Module-level reload-safety signal (set by AppShell from the current screen) plus the pure decideReloadAction() that maps {hadController, reloadSafe} to ignore/reload/prompt for the PWA update flow. Default is unsafe (prompt) until AppShell sets it.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/PwaRegister.tsx",
+      "apps/web/components/AppShell.tsx"
     ],
     "confidence": "high"
   },

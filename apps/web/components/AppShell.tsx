@@ -17,6 +17,7 @@ import {
   isLocale,
   type Locale
 } from "../lib/i18n";
+import { setReloadSafe } from "../lib/pwa/reloadGate";
 import {
   readLocalStorage,
   readSessionStorage,
@@ -112,6 +113,13 @@ export function AppShell() {
       refreshAuth();
     }
   }, [screen, refreshAuth]);
+
+  // PWA atjaunināšana: klusa auto-pārlāde uz jaunu versiju ir droša TIKAI galvenajā
+  // lobby (SP/MP partijas + paroles atjaunošanas forma dzīvo atmiņā). Citur jaunais
+  // SW tikai parāda soft-promptu (sk. PwaRegister / reloadGate).
+  useEffect(() => {
+    setReloadSafe(resetToken === null && screen === "lobby");
+  }, [resetToken, screen]);
 
   const changeLocale = (nextLocale: Locale) => {
     setLocale(nextLocale);
