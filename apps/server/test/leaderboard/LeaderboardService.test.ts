@@ -133,6 +133,25 @@ describe("LeaderboardService", () => {
     expect(store.leaderboardCalls).toBe(2);
   });
 
+  it("reflects an account language change immediately after invalidate() (not stale until TTL)", async () => {
+    // Warm the cache: account 'a' (rank 1) currently uses "en".
+    const initial = await svc.getResponse(null, 3);
+    expect(initial.entries[0]).toMatchObject({ username: "user-a", language: "en" });
+
+    // Account 'a' switches language to "lv" (storage now reports "lv").
+    store.records = store.records.map((r) => (r.userId === "a" ? { ...r, language: "lv" } : r));
+
+    // Within the TTL WITHOUT invalidate → still the cached "en" (this is the lag bug).
+    const stale = await svc.getResponse(null, 3);
+    expect(stale.entries[0]).toMatchObject({ language: "en" });
+
+    // invalidate() (called by PATCH /auth/me/language) bumps the generation → next
+    // read rebuilds → the language column reflects "lv" immediately, before the TTL.
+    svc.invalidate();
+    const fresh = await svc.getResponse(null, 3);
+    expect(fresh.entries[0]).toMatchObject({ username: "user-a", language: "lv" });
+  });
+
   it("rebuilds once (deduped) after notifyStatsChanged", async () => {
     await svc.getResponse(null, 3);
     expect(store.leaderboardCalls).toBe(1);

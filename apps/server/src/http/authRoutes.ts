@@ -130,7 +130,14 @@ export function createAuthHandler(options: AuthRoutesOptions): AuthHandler {
       } else if (request.method === "GET" && path === "/auth/me") {
         await handleMe(request, response, options.auth, options.leaderboard);
       } else if (request.method === "PATCH" && path === "/auth/me/language") {
-        await handleSetLanguage(request, response, options.auth, languageLimiter, options.trustProxy);
+        await handleSetLanguage(
+          request,
+          response,
+          options.auth,
+          options.leaderboard,
+          languageLimiter,
+          options.trustProxy
+        );
       } else if (request.method === "PATCH" && path === "/auth/me") {
         await handleUpdateProfile(request, response, options.auth);
       } else if (request.method === "GET" && path === "/auth/leaderboard") {
@@ -294,6 +301,7 @@ async function handleSetLanguage(
   request: IncomingMessage,
   response: ServerResponse,
   auth: AuthService,
+  leaderboard: LeaderboardService | undefined,
   limiter: RateLimiter,
   trustProxy: boolean
 ): Promise<void> {
@@ -318,6 +326,9 @@ async function handleSetLanguage(
     return;
   }
   await auth.setLanguage(user.id, parsed.data.language);
+  // Invalidē leaderboard kešu, lai valodas kolonna atspoguļojas uzreiz (nākamajā
+  // GET /auth/leaderboard), nevis atpaliek līdz TTL (`refreshMs`). Opcionāls.
+  leaderboard?.invalidate();
   writeJson(response, 200, { ok: true });
 }
 

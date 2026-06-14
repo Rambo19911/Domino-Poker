@@ -95,18 +95,26 @@ export class LeaderboardService {
   }
 
   /**
-   * Atzīmē, ka stats mainījušies (game-over). Palielina paaudzi (nākamā lasīšana
-   * pārbūvēs) UN palaiž fona pārbūvi, lai seat badge (sinhronais kešs) atsvaidzinās
-   * pēc spēles. **Pieslēgšana game-over plūsmai notiek F4** (kopā ar seat patēriņu);
-   * F3 HTTP svaigumu nodrošina TTL (`refreshMs`).
+   * Invalidē kešu: palielina paaudzi (nākamā lasīšana pārbūvēs) UN palaiž fona
+   * pārbūvi (pre-warm). Lieto, kad mainās JEBKAS, kas atspoguļojas leaderboard rindās
+   * vai seat badge kešā — stats pēc game-over (`notifyStatsChanged`) UN konta valoda
+   * pēc `PATCH /auth/me/language` (citādi valodas kolonna atpaliek līdz TTL).
    */
-  notifyStatsChanged(): void {
+  invalidate(): void {
     this.generation += 1;
     void this.ensureFresh().catch((error) => {
       // Fona pārbūves kļūda nedrīkst lauzt izsaucēju; paaudze paliek nesakritīga,
       // tāpēc nākamā lasīšana mēģinās vēlreiz. Logojam diagnostikai.
       console.error("[leaderboard] background rebuild failed:", error);
     });
+  }
+
+  /**
+   * Atzīmē, ka stats mainījušies (game-over) → invalidē kešu (sk. `invalidate`).
+   * **Pieslēgts game-over plūsmai F4** (kopā ar seat patēriņu).
+   */
+  notifyStatsChanged(): void {
+    this.invalidate();
   }
 
   /** Leaderboard atbilde: top `limit` (clamp uz `size`) + izsaucēja paša stāvoklis. */
