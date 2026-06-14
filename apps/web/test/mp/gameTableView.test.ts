@@ -133,6 +133,28 @@ describe("toGameTableView", () => {
     expect(view?.seats.map((s) => s.visualSeat)).toEqual([0, 1, 2, 3]);
   });
 
+  it("threads the seat rankBadge from RoomView to human seats; bots get undefined", () => {
+    const view = toGameTableView(
+      snapshot({
+        // players 0 + 1 human (so the room rankBadge is applied); 2 + 3 bots.
+        players: [player(0), player(1), player(2, { isAI: true }), player(3, { isAI: true })],
+        currentPlayerIndex: 0
+      }),
+      room([
+        seat(0, { rankBadge: "Trophy-11" }),
+        seat(1, { kind: "human", isAI: false, displayId: "#00002", rankBadge: "badge-level-2" }),
+        seat(2), // bot
+        seat(3) // bot
+      ]),
+      "t1"
+    );
+    const bySeat = new Map(view?.seats.map((s) => [s.gameSeatIndex, s.rankBadge]));
+    expect(bySeat.get(0)).toBe("Trophy-11");
+    expect(bySeat.get(1)).toBe("badge-level-2");
+    expect(bySeat.get(2)).toBeUndefined(); // AI never carries a badge
+    expect(bySeat.get(3)).toBeUndefined();
+  });
+
   it("marks the viewer's turn and bid action during bidding", () => {
     const view = toGameTableView(
       snapshot({ phase: "bidding", currentPlayerIndex: 0 }),

@@ -307,6 +307,24 @@ describe("auth HTTP routes (integration)", () => {
     expect(after.language).toBe("lv");
   });
 
+  it("returns the caller's rankBadge via /auth/me when top-ranked", async () => {
+    const champ = await registerUser("Champ");
+    // 1 eligible game -> ranked #1 (test config minGames = 1) -> Trophy-11.
+    await storage.recordUserMatchOutcome("m1", champ.id, "win", 5000);
+    const me = (await (await fetch(`${base}/auth/me`, {
+      headers: { authorization: `Bearer ${champ.token}` }
+    })).json()) as { rankBadge: string | null };
+    expect(me.rankBadge).toBe("Trophy-11");
+  });
+
+  it("returns a null rankBadge via /auth/me for an unranked caller", async () => {
+    const fresh = await registerUser("Freshie");
+    const me = (await (await fetch(`${base}/auth/me`, {
+      headers: { authorization: `Bearer ${fresh.token}` }
+    })).json()) as { rankBadge: string | null };
+    expect(me.rankBadge).toBeNull();
+  });
+
   it("rejects language changes without a token (401) and invalid values (400)", async () => {
     expect((await patch("/auth/me/language", { language: "lv" })).status).toBe(401);
 

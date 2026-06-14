@@ -85,6 +85,16 @@ export class LeaderboardService {
   }
 
   /**
+   * Async badge atrisinātājs (NODROŠINA kešu svaigu pirms lasīšanas) — `/auth/me`
+   * main-lobby badge vajadzībām, kur var atļauties async + jāuzsilda kešs, ja vēl
+   * nav būvēts. Seat-join karstajā ceļā lieto SINHRONO `getRankBadge`.
+   */
+  async getRankBadgeFor(userId: string): Promise<RankBadgeId | null> {
+    await this.ensureFresh();
+    return this.getRankBadge(userId);
+  }
+
+  /**
    * Atzīmē, ka stats mainījušies (game-over). Palielina paaudzi (nākamā lasīšana
    * pārbūvēs) UN palaiž fona pārbūvi, lai seat badge (sinhronais kešs) atsvaidzinās
    * pēc spēles. **Pieslēgšana game-over plūsmai notiek F4** (kopā ar seat patēriņu);

@@ -112,6 +112,9 @@ describe("WebSocketGateway optional auth handshake", () => {
       avatar: "avatar-03",
       isRegistered: true
     });
+    // HELLO must persist the userId to the session so getUserId resolves it — this
+    // drives match-start stats attribution AND seat rank badges (Leaderboard).
+    expect(gateway.getUserId("client-A")).toBe("user-1");
   });
 
   it("falls back to anonymous identity for an invalid token (never blocks play)", async () => {

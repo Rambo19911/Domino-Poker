@@ -13,6 +13,7 @@ import { avatarUrl } from "../../lib/auth/avatarUrl";
 import type { AppStrings } from "../../lib/i18n";
 import type { ConnectionStatus } from "../../lib/mp/clientView";
 import { VolumeIcon, VolumeOffIcon } from "../AudioControls";
+import { AvatarRankBadge } from "../AvatarRankBadge";
 import { HelpIcon } from "../RulesDialog";
 import { Button } from "../ui/Button";
 import { IconButton } from "../ui/IconButton";
@@ -395,15 +396,18 @@ function SeatCard({
   return (
     <article className={`mpSeatCard ${seat.kind === "empty" ? "isEmpty" : "isFilled"}`}>
       <span className="mpSeatIndex">{seat.index + 1}</span>
-      <div className="mpSeatAvatar" aria-hidden="true">
-        {seat.kind === "empty" ? (
-          "·"
-        ) : seat.avatar !== undefined ? (
-          <img src={avatarUrl(seat.avatar)} alt="" />
-        ) : (
-          displayName.slice(0, 1)
-        )}
-      </div>
+      <span className="avatarBadgeWrap">
+        <div className="mpSeatAvatar" aria-hidden="true">
+          {seat.kind === "empty" ? (
+            "·"
+          ) : seat.avatar !== undefined ? (
+            <img src={avatarUrl(seat.avatar)} alt="" />
+          ) : (
+            displayName.slice(0, 1)
+          )}
+        </div>
+        <AvatarRankBadge badge={seat.rankBadge} />
+      </span>
       <div className="mpSeatInfo">
         <strong>{displayName}</strong>
         <span>

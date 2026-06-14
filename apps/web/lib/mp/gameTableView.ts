@@ -1,6 +1,6 @@
 import { canPlayTile, isTrump, tileKey, trumpPriority } from "@domino-poker/core";
 import type { DominoTile, Player } from "@domino-poker/core";
-import type { RoomView, TitleId } from "@domino-poker/shared";
+import type { RankBadgeId, RoomView, TitleId } from "@domino-poker/shared";
 
 import type { GameSnapshot } from "./clientView";
 
@@ -37,6 +37,8 @@ export interface MpTableSeat {
   /** Reģistrēta spēlētāja avatara id un MP tituls (Fāze 4); citādi `undefined`. */
   readonly avatar: string | undefined;
   readonly title: TitleId | undefined;
+  /** Globālā ranga badge (Leaderboard fāze); `undefined`, ja nav top-rangā/botiem. */
+  readonly rankBadge: RankBadgeId | undefined;
   readonly isViewer: boolean;
   readonly isAI: boolean;
   readonly isHost: boolean;
@@ -124,11 +126,13 @@ export function toGameTableView(
   const displayIdBySeat = new Map<number, string | undefined>();
   const avatarBySeat = new Map<number, string | undefined>();
   const titleBySeat = new Map<number, TitleId | undefined>();
+  const rankBadgeBySeat = new Map<number, RankBadgeId | undefined>();
   const hostSeats = new Set<number>();
   for (const seat of room?.seats ?? []) {
     displayIdBySeat.set(seat.index, seat.displayId);
     avatarBySeat.set(seat.index, seat.avatar);
     titleBySeat.set(seat.index, seat.title);
+    rankBadgeBySeat.set(seat.index, seat.rankBadge);
     if (seat.isHost) hostSeats.add(seat.index);
   }
 
@@ -139,6 +143,7 @@ export function toGameTableView(
       displayId: player.isAI ? undefined : displayIdBySeat.get(player.seatIndex),
       avatar: player.isAI ? undefined : avatarBySeat.get(player.seatIndex),
       title: player.isAI ? undefined : titleBySeat.get(player.seatIndex),
+      rankBadge: player.isAI ? undefined : rankBadgeBySeat.get(player.seatIndex),
       isViewer: player.playerId === snapshot.viewerPlayerId,
       isAI: player.isAI,
       isHost: hostSeats.has(player.seatIndex),

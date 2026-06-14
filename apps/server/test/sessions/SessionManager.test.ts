@@ -65,6 +65,23 @@ describe("SessionManager (9.1)", () => {
     expect(sessions.onlineCount()).toBe(1);
   });
 
+  it("attaches an authenticated userId so getUserId resolves it (stats + rank badge)", () => {
+    const sessions = buildManager();
+    const result = sessions.register("conn-1", "client-A");
+    expect(result.ok).toBe(true);
+    // Identity is bound PRE-auth, so getUserId is undefined until HELLO attaches it.
+    expect(sessions.getUserId("client-A")).toBeUndefined();
+    sessions.attachUserId("conn-1", "user-1");
+    expect(sessions.getUserId("client-A")).toBe("user-1");
+  });
+
+  it("attachUserId on an unknown connection is a no-op (no stale write)", () => {
+    const sessions = buildManager();
+    sessions.register("conn-1", "client-A");
+    sessions.attachUserId("conn-unknown", "user-X");
+    expect(sessions.getUserId("client-A")).toBeUndefined();
+  });
+
   it("treats a reconnect with the matching token as the same session (stable token + displayId)", () => {
     const sessions = buildManager();
     const first = sessions.register("conn-1", "client-A");

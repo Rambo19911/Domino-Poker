@@ -16,6 +16,7 @@ import {
 } from "../../lib/mp/mobileLayout";
 import { formatTemplate, seatLabel } from "../../lib/mp/seatLabel";
 import { useMobileStageLayout } from "../../lib/mobileStage";
+import { AvatarRankBadge } from "../AvatarRankBadge";
 import { DominoTileView } from "../DominoTileView";
 import { ExitIcon } from "../GameDialogs";
 import { MobileRoundCount } from "../MobileRoundCount";
@@ -176,14 +177,19 @@ function MpmSeat({
   return (
     <>
       {/* Aplis: reģistrēta spēlētāja avatars + tituls (overlay apakšā); citādi tukšs.
-          Identitāte (vārds + kopsumma) ir arī augšējā tabulā. */}
+          Ietinējs nes pozīciju un ir NEAPGRIEZTS, lai ranga badge pārplūst pāri malai. */}
       <div
-        className={`mpmProfile ${avatarSrc ? "hasAvatar" : ""} ${isActive ? "active" : ""} ${seat.isDealer ? "dealer" : ""} ${isDisconnected ? "disconnected" : ""}`}
+        className={`mpmProfileWrap ${seat.visualSeat === 1 || seat.visualSeat === 3 ? "mpmSideSeat" : ""}`}
         style={centerBox(pos.profile, MP_MOBILE_SIZE.profilePx, 1)}
-        aria-label={label}
       >
-        {avatarSrc ? <img className="mpmProfileAvatar" src={avatarSrc} alt="" aria-hidden="true" /> : null}
-        {seat.title ? <span className="mpmProfileTitle">{titleLabel(t, seat.title)}</span> : null}
+        <div
+          className={`mpmProfile ${avatarSrc ? "hasAvatar" : ""} ${isActive ? "active" : ""} ${seat.isDealer ? "dealer" : ""} ${isDisconnected ? "disconnected" : ""}`}
+          aria-label={label}
+        >
+          {avatarSrc ? <img className="mpmProfileAvatar" src={avatarSrc} alt="" aria-hidden="true" /> : null}
+          {seat.title ? <span className="mpmProfileTitle">{titleLabel(t, seat.title)}</span> : null}
+        </div>
+        <AvatarRankBadge badge={seat.rankBadge} />
       </div>
 
       {/* Pieteiktie/paņemtie stiķi (bid/won). Aplis neitrāls; cipari maina krāsu. */}

@@ -1,4 +1,4 @@
-import type { LeaderboardResponse } from "@domino-poker/shared";
+import type { GameLanguage, LeaderboardResponse, RankBadgeId } from "@domino-poker/shared";
 
 import { resolveServerUrl } from "../mp/serverUrl";
 
@@ -105,13 +105,16 @@ export function apiLogin(input: LoginInput): Promise<AuthResult<TokenUser>> {
   return requestJson<TokenUser>("/auth/login", jsonInit("POST", input));
 }
 
-export function apiMe(
-  token: string
-): Promise<AuthResult<{ user: AuthUser; stats: UserStats | null }>> {
-  return requestJson<{ user: AuthUser; stats: UserStats | null }>(
-    "/auth/me",
-    jsonInit("GET", undefined, token)
-  );
+/** `/auth/me` atbilde: profils + statistika + valoda + globālā ranga badge (vai `null`). */
+export interface MeResponse {
+  readonly user: AuthUser;
+  readonly stats: UserStats | null;
+  readonly language?: GameLanguage;
+  readonly rankBadge?: RankBadgeId | null;
+}
+
+export function apiMe(token: string): Promise<AuthResult<MeResponse>> {
+  return requestJson<MeResponse>("/auth/me", jsonInit("GET", undefined, token));
 }
 
 export function apiUpdateProfile(

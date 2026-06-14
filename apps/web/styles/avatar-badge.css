@@ -1,0 +1,25 @@
+/* Globālā ranga badge emblēma uz profila bildes (Leaderboard fāze). DEKORATĪVA:
+   absolūti pozicionēta avatara augšējā labajā stūrī (~1–2 pulksten), PĀRPLŪST pāri
+   apļa malai (overlay) — NEAIZKLĀJ profila bildi. Tāpēc badge ir SIBLING neapgrieztā
+   `position`-ietinējā, NEVIS bērns apgrieztajā aplī (overflow:hidden citādi to
+   apgrieztu). Izmērs PROPORCIONĀLS (% no ietinēja = avatara), `pointer-events:none`.
+   Token-only. */
+
+/* Lobby/waiting: ietinējs sašaurinās ap avataru (inline-flex), badge pārplūst stūrī. */
+.avatarBadgeWrap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+.avatarRankBadge {
+  position: absolute;
+  top: -6%;
+  right: -6%;
+  width: 38%;
+  height: 38%;
+  object-fit: contain;
+  pointer-events: none;
+  z-index: 3;
+  filter: drop-shadow(0 1px 3px rgb(var(--overlay-rgb) / 0.7));
+}

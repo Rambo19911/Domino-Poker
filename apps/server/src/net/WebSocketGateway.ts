@@ -436,6 +436,10 @@ export class WebSocketGateway implements GatewayHub {
     // Fāze 4: kešo publisko profilu (username/avatar/tituls) seat attēlošanai citiem;
     // pārdzīvo atvienojumu līdz `release` (atvienota spēlētāja sēdvieta saglabā profilu).
     if (auth) {
+      // Piesaista userId sesijas identitātei (`byConnection`), lai `getUserId` strādā —
+      // to lasa statistikas attiecināšana (match-start) UN seat ranga badge (Leaderboard).
+      // Citādi userId paliktu tikai uz `ctx.identity`, un `getUserId` atgrieztu undefined.
+      this.sessions.attachUserId(identity.connectionId, auth.userId);
       this.sessions.setPublicProfile(identity.playerId, {
         username: auth.username,
         avatar: auth.avatar,

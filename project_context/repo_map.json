@@ -273,6 +273,32 @@
     "confidence": "high"
   },
   {
+    "path": "apps/web/components/AvatarRankBadge.tsx",
+    "type": "ui",
+    "purpose": "Reusable decorative rank-badge overlay (RankBadgeId -> /assets/Badges/<id>.svg) absolutely positioned over an avatar's top-right corner; renders null when no badge. Shared by the lobby profile, MP waiting-room seat, and both MP game tables.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/styles/avatar-badge.css",
+      "apps/web/lib/leaderboard/badgeAsset.ts",
+      "apps/web/components/auth/LobbyProfile.tsx",
+      "apps/web/components/mp/MpDesktopTable.tsx",
+      "apps/web/components/mp/MpMobileTable.tsx",
+      "apps/web/components/mp/MpDesktopLobby.tsx"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/styles/avatar-badge.css",
+    "type": "ui",
+    "purpose": "Token-only styles for the AvatarRankBadge overlay (.avatarRankBadge) and the non-clipping .avatarBadgeWrap wrapper; the badge overflows the avatar circle's top-right corner and sits above the clipped circle.",
+    "importance": "low",
+    "related_files": [
+      "apps/web/components/AvatarRankBadge.tsx",
+      "apps/web/app/globals.css"
+    ],
+    "confidence": "high"
+  },
+  {
     "path": "apps/web/styles/leaderboard.css",
     "type": "ui",
     "purpose": "Token-only styles for the leaderboard dialog: shared fixed-column grid template (head/rows/self), nickname ellipsis, vertical scroll with sticky header, and mobile column tightening.",

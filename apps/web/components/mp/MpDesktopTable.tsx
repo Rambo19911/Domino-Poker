@@ -12,6 +12,7 @@ import type { MpGameTableView, MpTableSeat, MpTrickPlay, VisualSeat } from "../.
 import type { StageContainLayout } from "../../lib/mp/desktopStage";
 import type { AudioSettings } from "../../lib/useAudioSettings";
 import { AudioControls, VolumeIcon, VolumeOffIcon } from "../AudioControls";
+import { AvatarRankBadge } from "../AvatarRankBadge";
 import { DominoTileView, HiddenTile } from "../DominoTileView";
 import { ExitIcon } from "../GameDialogs";
 import { HelpIcon } from "../RulesDialog";
@@ -291,22 +292,29 @@ function MpPlayerProfile({
   // sēdvietās (paliek tikai main-lobby profilā).
   const avatarSrc = seat.avatar ? avatarUrl(seat.avatar) : null;
   return (
+    // Ietinējs nes sēdvietas pozīciju+izmēru un ir NEAPGRIEZTS, lai ranga badge pārplūst
+    // pāri apļa malai (top-right, kā lobby/waiting). Aplis paliek overflow:hidden avataram.
     <div
-      className={`playerProfile ${avatarSrc ? "hasAvatar" : ""} ${isActive ? "active" : ""} ${seat.isDealer ? "dealer" : ""}`}
+      className="playerProfileWrap"
       style={{ ...getProfileStyle(seat.visualSeat), width: profileSize, height: profileSize }}
     >
-      {avatarSrc ? (
-        <img className="profileAvatarImage" src={avatarSrc} alt="" aria-hidden="true" />
-      ) : null}
-      <div className="profileBottom">
-        <div className={`profileName ${isActive ? "activeName" : ""}`}>
-          {seat.isHost ? <span className="mpHostMark" aria-label={t.mpHost}>★</span> : null}
-          {seatLabel(seat.displayId, seat.isAI, seat.gameSeatIndex, t)}
+      <div
+        className={`playerProfile ${avatarSrc ? "hasAvatar" : ""} ${isActive ? "active" : ""} ${seat.isDealer ? "dealer" : ""}`}
+      >
+        {avatarSrc ? (
+          <img className="profileAvatarImage" src={avatarSrc} alt="" aria-hidden="true" />
+        ) : null}
+        <div className="profileBottom">
+          <div className={`profileName ${isActive ? "activeName" : ""}`}>
+            {seat.isHost ? <span className="mpHostMark" aria-label={t.mpHost}>★</span> : null}
+            {seatLabel(seat.displayId, seat.isAI, seat.gameSeatIndex, t)}
+          </div>
+          {seat.title ? <div className="profileTitle">{titleLabel(t, seat.title)}</div> : null}
+          {seat.isDealer ? <div className="dealerBadge">{t.dealer}</div> : null}
+          {isDisconnected ? <div className="mpSeatStatus">{t.mpDisconnected}</div> : null}
         </div>
-        {seat.title ? <div className="profileTitle">{titleLabel(t, seat.title)}</div> : null}
-        {seat.isDealer ? <div className="dealerBadge">{t.dealer}</div> : null}
-        {isDisconnected ? <div className="mpSeatStatus">{t.mpDisconnected}</div> : null}
       </div>
+      <AvatarRankBadge badge={seat.rankBadge} />
     </div>
   );
 }

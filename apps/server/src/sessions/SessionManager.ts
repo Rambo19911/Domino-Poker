@@ -259,6 +259,20 @@ export class SessionManager {
     return this.byConnection.get(connectionId)?.userId;
   }
 
+  /**
+   * Piesaista autentificēto `userId` KONKRĒTAM savienojuma identitātei (HELLO laikā,
+   * pēc auth atrisināšanas). Bez tā `getUserId` atgrieztu `undefined`, jo `bind*`
+   * izveido identitāti PIRMS auth (statistikas attiecināšana + seat ranga badge to lasa).
+   * Validē pēc `connectionId` (NE tikai `playerId`), lai async/supersede sacensībā
+   * neierakstītu novecojuša HELLO userId citā aktīvā savienojumā.
+   */
+  attachUserId(connectionId: string, userId: string): void {
+    const identity = this.byConnection.get(connectionId);
+    if (identity !== undefined) {
+      this.byConnection.set(connectionId, { ...identity, userId });
+    }
+  }
+
   /** Saglabā publisko profilu (HELLO laikā); pārdzīvo atvienojumu līdz `release`. */
   setPublicProfile(playerId: string, profile: SeatProfile): void {
     this.publicProfiles.set(playerId.trim(), profile);

@@ -134,6 +134,29 @@
   text-align: center;
 }
 
+/* Ietinējs (Leaderboard fāze): nes pozīciju+izmēru+z-index, NEAPGRIEZTS, lai ranga badge
+   pārplūst pāri apļa malai. Iekšējā apļa z-index → auto, lai badge (z:3) būtu VIRS apļa. */
+.mpmProfileWrap {
+  position: absolute;
+  z-index: 4;
+}
+
+.mpmProfileWrap > .mpmProfile {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  z-index: auto;
+}
+
+/* Sānu sēdvietas (kreisā/labā) avatari sēž pie skatuves malas, tāpēc to ranga badge
+   (top-right pārplūde) izietu pāri ekrāna malai. Pavelkam to dažus px uz profila
+   centru (mazāka horizontālā pārplūde) un mazliet uz leju — augšējā/apakšējā
+   sēdvieta paliek nemainīta. */
+.mpmSideSeat > .avatarRankBadge {
+  right: 2%;
+  top: 0%;
+}
+
 .mpmProfile {
   position: absolute;
   display: grid;

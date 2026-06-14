@@ -1,3 +1,4 @@
+import type { RankBadgeId } from "@domino-poker/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { readLocalStorage, writeLocalStorage } from "../safeStorage";
@@ -27,6 +28,8 @@ export interface UseAuthUser {
   readonly user: AuthUser | null;
   /** Konta MP statistika (Fāze 3); `null`, ja anonīms vai vēl nav ieskaitītu spēļu. */
   readonly stats: UserStats | null;
+  /** Globālā ranga badge (Leaderboard fāze) main-lobby profilam; `null`, ja ārpus top-rangiem. */
+  readonly rankBadge: RankBadgeId | null;
   /** Pašreizējais tokens (reconnect atkarībai); `null`, ja anonīms. */
   readonly token: string | null;
   register(input: RegisterInput): Promise<AuthResult<TokenUser>>;
@@ -52,6 +55,7 @@ export function useAuthUser(): UseAuthUser {
   const [token, setToken] = useState<string | null>(null);
   // getToken lasa ref, lai WS slānis vienmēr redz jaunāko tokenu bez re-render.
   const [stats, setStats] = useState<UserStats | null>(null);
+  const [rankBadge, setRankBadge] = useState<RankBadgeId | null>(null);
   const tokenRef = useRef<string | null>(null);
 
   const applyToken = useCallback((next: string | null): void => {
@@ -79,12 +83,14 @@ export function useAuthUser(): UseAuthUser {
       if (result.ok) {
         setUser(result.data.user);
         setStats(result.data.stats);
+        setRankBadge(result.data.rankBadge ?? null);
         setStatus("authenticated");
       } else {
         // Beidzies/nederīgs tokens → graciozi anonīms.
         applyToken(null);
         setUser(null);
         setStats(null);
+        setRankBadge(null);
         setStatus("anonymous");
       }
     });
@@ -101,10 +107,12 @@ export function useAuthUser(): UseAuthUser {
       if (result.ok) {
         setUser(result.data.user);
         setStats(result.data.stats);
+        setRankBadge(result.data.rankBadge ?? null);
       } else if (result.status === 401) {
         applyToken(null);
         setUser(null);
         setStats(null);
+        setRankBadge(null);
         setStatus("anonymous");
       }
     });
@@ -117,6 +125,7 @@ export function useAuthUser(): UseAuthUser {
         applyToken(result.data.token);
         setUser(result.data.user);
         setStats(null); // jauns konts — vēl bez statistikas
+        setRankBadge(null); // jauns konts — vēl bez ranga
         setStatus("authenticated");
       }
       return result;
@@ -143,6 +152,7 @@ export function useAuthUser(): UseAuthUser {
     applyToken(null);
     setUser(null);
     setStats(null);
+    setRankBadge(null);
     setStatus("anonymous");
     if (current) {
       await apiLogout(current);
@@ -181,5 +191,5 @@ export function useAuthUser(): UseAuthUser {
 
   const getToken = useCallback((): string | undefined => tokenRef.current ?? undefined, []);
 
-  return { status, user, stats, token, register, login, logout, updateProfile, uploadAvatar, refresh, getToken };
+  return { status, user, stats, rankBadge, token, register, login, logout, updateProfile, uploadAvatar, refresh, getToken };
 }

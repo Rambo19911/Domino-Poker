@@ -1,9 +1,10 @@
 "use client";
 
-import { isLoser, titleForWins } from "@domino-poker/shared";
+import { isLoser, titleForWins, type RankBadgeId } from "@domino-poker/shared";
 
 import { avatarUrl } from "../../lib/auth/avatarUrl";
 
+import { AvatarRankBadge } from "../AvatarRankBadge";
 import type { AuthUser } from "../../lib/auth/authApi";
 import { titleLabel } from "../../lib/auth/titleLabel";
 import type { AuthStatus } from "../../lib/auth/useAuthUser";
@@ -27,12 +28,14 @@ export function LobbyProfile({
   status,
   user,
   stats,
+  rankBadge,
   onOpen
 }: {
   readonly labels: AppStrings;
   readonly status: AuthStatus;
   readonly user: AuthUser | null;
   readonly stats?: ProfileStats;
+  readonly rankBadge?: RankBadgeId | null;
   readonly onOpen: () => void;
 }) {
   // Anonīmam / ielādes laikā NEKĀDA profila apzīmējuma (sk. lietotāja prasību).
@@ -59,8 +62,11 @@ export function LobbyProfile({
         <ProfileStat label={t.statsWinRate} value={`${winRate}%`} />
       </span>
       <span className="lobbyProfileAvatarBlock">
-        <span className="lobbyProfileAvatar">
-          <img src={avatarUrl(user.avatar, user.id, user.avatarVersion)} alt="" />
+        <span className="avatarBadgeWrap">
+          <span className="lobbyProfileAvatar">
+            <img src={avatarUrl(user.avatar, user.id, user.avatarVersion)} alt="" />
+          </span>
+          <AvatarRankBadge badge={rankBadge} />
         </span>
         <span className="lobbyProfileName">{user.username}</span>
         <span className="lobbyProfileTitle">{title}</span>

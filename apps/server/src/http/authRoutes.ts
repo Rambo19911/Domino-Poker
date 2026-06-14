@@ -128,7 +128,7 @@ export function createAuthHandler(options: AuthRoutesOptions): AuthHandler {
           options.trustProxy
         );
       } else if (request.method === "GET" && path === "/auth/me") {
-        await handleMe(request, response, options.auth);
+        await handleMe(request, response, options.auth, options.leaderboard);
       } else if (request.method === "PATCH" && path === "/auth/me/language") {
         await handleSetLanguage(request, response, options.auth, languageLimiter, options.trustProxy);
       } else if (request.method === "PATCH" && path === "/auth/me") {
@@ -238,7 +238,8 @@ async function handleLogin(
 async function handleMe(
   request: IncomingMessage,
   response: ServerResponse,
-  auth: AuthService
+  auth: AuthService,
+  leaderboard: LeaderboardService | undefined
 ): Promise<void> {
   const token = bearerToken(request);
   const user = token ? await auth.resolveToken(token) : undefined;
@@ -246,8 +247,14 @@ async function handleMe(
     writeJson(response, 401, { error: "unauthorized" });
     return;
   }
-  const [stats, language] = await Promise.all([auth.getStats(user.id), auth.getLanguage(user.id)]);
-  writeJson(response, 200, { user, stats: stats ?? null, language });
+  // rankBadge (Leaderboard fāze): globālā ranga emblēma main-lobby profilam; `null`,
+  // ja ārpus badge-rangiem (71+) vai leaderboard nav konfigurēts.
+  const [stats, language, rankBadge] = await Promise.all([
+    auth.getStats(user.id),
+    auth.getLanguage(user.id),
+    leaderboard ? leaderboard.getRankBadgeFor(user.id) : Promise.resolve(null)
+  ]);
+  writeJson(response, 200, { user, stats: stats ?? null, language, rankBadge });
 }
 
 /**
