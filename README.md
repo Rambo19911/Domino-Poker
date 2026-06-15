@@ -203,6 +203,31 @@ Screenshots      Public README screenshots
 npm install
 ```
 
+### Quick start on Windows (one click)
+
+On Windows you can launch the whole game with the bundled batch script instead of running npm
+commands by hand — just double-click it (or run it from the repo root):
+
+```bat
+start-domino-poker.bat
+```
+
+It will:
+
+- check that **Node.js** and **npm** are installed,
+- run `npm install` automatically on the first run,
+- free ports `3000` (web) and `4000` (server) if they are busy,
+- start the **multiplayer server** and the **web client** in separate windows, and
+- open the game at `http://127.0.0.1:3000` once both are ready (so single-player **and**
+  multiplayer work).
+
+Optional environment overrides: `DOMINO_PORT` (web, default `3000`), `DOMINO_SERVER_PORT`
+(server, default `4000`), `DOMINO_HOST`, `DOMINO_SERVER_HOST`, `DOMINO_WAIT_SECONDS` (startup
+timeout, default `90`), and `DOMINO_NO_OPEN=1` to skip auto-opening the browser. Close the two
+spawned windows to stop the game.
+
+On macOS/Linux (or if you prefer running things manually), use the steps below.
+
 ### Run single-player (browser only)
 
 ```bash
