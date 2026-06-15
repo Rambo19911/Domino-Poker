@@ -61,6 +61,7 @@ deploy.sh
 # Lokālās darba instrukcijas (netiek publicētas)
 AGENTS.md
 CLAUDE.md
+GEMINI.md
 
 # Local audit and planning notes
 CLAUDE_AUDIT_REPORT.md
