@@ -2,18 +2,19 @@
 
 Browser-playable **Domino Poker** built with Next.js, React, and TypeScript. The game
 started as a local single-player table (one human vs. three bots on a double-six set) and
-now also includes a complete **authoritative real-time multiplayer server** that lets up to
-four players share a room and play the same game over WebSocket.
+has grown into a full product: a **strong trained AI opponent** for offline play, an
+**authoritative real-time multiplayer server** for up to four players over WebSocket, and
+**player accounts, profiles, and a global leaderboard**. It is installable as a PWA and
+fully responsive on desktop and mobile.
 
 **▶ Play it live: [domino-poker.com](https://domino-poker.com/)**
 
 ![Domino Poker lobby](Screenshots/Lobby-screen.png)
 
-> **Branch note.** This is the **`multiplayer`** branch — a large work-in-progress update that
-> adds the multiplayer server, lobby, and persistence on top of the
-> single-player game. It runs and is playable with 4 humans (or humans + bots) and is now
-> **live at [domino-poker.com](https://domino-poker.com/)**, still being tested and refined. Contributions
-> are welcome (see [Contributing](#contributing)).
+> **Status.** This is the live `main` codebase behind
+> [domino-poker.com](https://domino-poker.com/). It is a complete, playable game (single-player
+> vs. AI, and 2–4 human multiplayer with optional bot-fill) and is still being refined.
+> Contributions are welcome (see [Contributing](#contributing)).
 
 ## Overview
 
@@ -22,11 +23,19 @@ compete across seven tricks. The goal is to score the most points by predicting 
 tricks you will win and playing your tiles according to the trump, ace, and follow-number
 rules.
 
-This repository now contains two ways to play, sharing one rules engine:
+This repository contains two ways to play, sharing one rules engine:
 
-- **Single-player** (offline, in the browser): one human vs. three bots. No server needed.
-- **Multiplayer** (local server): 2–4 humans in a room (the host can fill empty seats with
-  bots), playing in real time against an authoritative Node.js server.
+- **Single-player** (offline, in the browser): one human vs. three CPU players driven by a
+  **trained ISMCTS bot** (`packages/ai_bot`, published standalone as
+  [Domino_Poker_MAX_BOT](https://github.com/Rambo19911/Domino_Poker_MAX_BOT)) with three
+  difficulty levels — **Medium / Hard / Epic** — that you switch in **Settings**. No server
+  needed; the bot runs off-thread in a Web Worker.
+- **Multiplayer** (Node server): 2–4 humans in a room (the host can fill empty seats with
+  bots), playing in real time against an authoritative server. Optional **accounts** add a
+  persistent profile, win/loss stats, and a global leaderboard.
+
+> **Bot difficulty** is configurable: open **Settings** and pick **Medium**, **Hard**, or
+> **Epic** to set how strong the single-player CPU opponents play.
 
 ## What's in this update (multiplayer)
 
@@ -57,13 +66,47 @@ single-player rules. Highlights:
   server is hardened against broadcast-fanout overload (debounce + backpressure + single-pass
   serialization).
 
-The single-player game is unchanged and still works fully offline.
+The single-player game still works fully offline; its CPU seats are now powered by the trained
+bot rather than the original heuristics.
+
+## Accounts, profiles & leaderboard
+
+Play is anonymous by default — single-player and multiplayer both work with no account. On top
+of that, an **optional account layer** adds:
+
+- **Register / log in** with a username and password, plus **email-based password reset**.
+- A **player profile**: avatar, title (e.g. *Champion*), and lifetime stats — wins, losses,
+  games played, and win rate.
+- A **global leaderboard** ranking the top players by win rate.
+
+Accounts are additive: the server stays authoritative, and anonymous play keeps working
+exactly as before.
 
 ## Screenshots
 
-| Game room | Settings | Game rules |
+**Main menu — desktop & mobile**
+
+| Desktop | Mobile |
+| --- | --- |
+| <img src="Screenshots/menu-desktop.png" alt="Domino Poker desktop main menu" width="100%"> | <img src="Screenshots/menu-mobile.png" alt="Domino Poker mobile main menu" width="55%"> |
+
+**Accounts & leaderboard**
+
+| Log in / register | Leaderboard | Player profile |
 | --- | --- | --- |
-| <img src="Screenshots/playing-room-screen.png" alt="Domino Poker game room" width="100%"> | <img src="Screenshots/settings-screen.png" alt="Domino Poker settings" width="100%"> | <img src="Screenshots/gamerules-screen.png" alt="Domino Poker rules dialog" width="100%"> |
+| <img src="Screenshots/auth-login.png" alt="Log in and register dialog" width="100%"> | <img src="Screenshots/leaderboard-desktop.png" alt="Leaderboard ranked by win rate" width="100%"> | <img src="Screenshots/profile-card.png" alt="Player profile with stats" width="100%"> |
+
+**Multiplayer lobby & rooms**
+
+| Lobby (desktop) | Create room | Lobby (mobile) |
+| --- | --- | --- |
+| <img src="Screenshots/lobby-desktop.png" alt="Multiplayer lobby" width="100%"> | <img src="Screenshots/create-room.png" alt="Create room dialog" width="100%"> | <img src="Screenshots/lobby-mobile.png" alt="Multiplayer lobby on mobile" width="60%"> |
+
+**Single-player table**
+
+| Game in progress (mobile) | Settings | Game rules |
+| --- | --- | --- |
+| <img src="Screenshots/singleplayer-table-mobile.png" alt="Single-player table with AI opponents" width="60%"> | <img src="Screenshots/settings-screen.png" alt="Domino Poker settings" width="100%"> | <img src="Screenshots/gamerules-screen.png" alt="Domino Poker rules dialog" width="100%"> |
 
 ## How multiplayer works (architecture)
 
@@ -121,10 +164,11 @@ is deterministic and reproducible from the match seed — the shuffle "feel" is 
 
 ## Tech stack
 
-- **Next.js App Router** + **React** for the web client.
+- **Next.js App Router 16** + **React 19** for the web client, served as an installable **PWA**.
 - **Node.js** authoritative server using the **`ws`** library, built-in **`node:sqlite`**, and
   optional **PostgreSQL** via `pg`.
-- **TypeScript** across the web app, server, rules engine, and tools.
+- **TypeScript** across the web app, server, rules engine, AI bot, and tools.
+- **Web Worker** to run the single-player ISMCTS bot off the main thread.
 - **npm workspaces** for the monorepo.
 - **Vitest** for core, server, shared, and tool tests; **Playwright** for web e2e.
 - **Zod** for protocol message validation.
@@ -132,12 +176,15 @@ is deterministic and reproducible from the match seed — the shuffle "feel" is 
 ## Repository structure
 
 ```text
-apps/web         Next.js web app: single-player game + multiplayer lobby/table UI
-apps/server      Authoritative multiplayer server (gateway, rooms, timers, storage, chat)
+apps/web         Next.js web app: single-player game, multiplayer lobby/table UI, auth/profile, PWA
+apps/server      Authoritative multiplayer server (gateway, rooms, timers, storage, chat, auth)
 packages/core    Pure TypeScript rules, scoring, state, AI — incl. the `multiplayer/` zone
 packages/shared  Protocol contracts (client/server messages, room DTOs) — single source
+packages/ai_bot  Trained single-player bot (ISMCTS); `engine` + `ai` consumed by apps/web
+                 (standalone repo: github.com/Rambo19911/Domino_Poker_MAX_BOT)
 tools/simulators Headless full-game simulator (determinism + invariant stress tests)
 tools/load-test  Local WebSocket load generator (npm run load:local)
+deploy           Deployment examples (Dockerfile, systemd, nginx, Caddy, backups)
 docs             Rules, scoring examples, and design notes
 Screenshots      Public README screenshots
 ```
@@ -169,7 +216,7 @@ Open the local URL printed by Next.js. Choose **Play** for the single-player tab
 Open two terminals from the repo root:
 
 ```bash
-# Terminal 1 — authoritative server (builds core + server, then runs on port 4000)
+# Terminal 1 — authoritative server (builds core → shared → server, then runs on port 4000)
 npm run dev:server
 
 # Terminal 2 — web client
@@ -189,7 +236,7 @@ one normal window + one incognito per browser, so each gets its own identity), g
 
 ```bash
 npm run dev          # Web app (single-player + multiplayer UI) in dev mode
-npm run dev:server   # Build core + server and run the authoritative MP server
+npm run dev:server   # Build core → shared → server and run the authoritative MP server
 npm run build        # Build all workspaces
 npm run test         # Run unit tests across workspaces (core, server, shared, tools)
 npm run typecheck    # TypeScript checks for all workspaces
@@ -249,12 +296,14 @@ a fresh lockfile-based state.
 
 ## Project status
 
-**Working locally:** single-player; multiplayer lobby, rooms, bot-fill, real-time play, server
-turn timers + timeout auto-play, reconnect, chat, SQLite/PostgreSQL persistence, and a basic load test.
+**Working:** single-player vs. trained AI (3 difficulties); multiplayer lobby, rooms, bot-fill,
+real-time play, server turn timers + timeout auto-play, reconnect, lobby chat,
+SQLite/PostgreSQL persistence, a basic load test; optional accounts with profiles, stats, and a
+global leaderboard; email-based password reset; installable PWA and responsive desktop/mobile UI.
 
-**Not done yet / intentionally deferred (post-MVP):** real-money or ranked play; tournaments;
-spectator mode; full horizontal scaling with active room failover; persistent cross-session
-player identity / accounts; in-room chat; moderation.
+**Not done yet / intentionally deferred (post-MVP):** real-money play; ranked matchmaking;
+tournaments; spectator mode; full horizontal scaling with active room failover; in-room (table)
+chat; moderation; AI bots in multiplayer (the server still uses the lightweight heuristic bot).
 
 ## Contributing
 

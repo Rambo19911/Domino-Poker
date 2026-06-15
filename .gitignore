@@ -37,6 +37,7 @@ logs/
 
 # Agent / tooling working dirs (not for publishing)
 .claude/
+.agent/
 .playwright-mcp/
 
 # tools/ — lokāli vienreizēji darbarīki netiek publicēti;
