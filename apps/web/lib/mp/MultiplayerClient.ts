@@ -166,6 +166,22 @@ export class MultiplayerClient {
     this.send({ type: "LEAVE_ROOM" });
   }
 
+  /**
+   * Lokāla atgriešanās lobby pēc partijas beigām (GAME_OVER). Serveris pie GAME_OVER
+   * jau iznīcina istabu un izņem spēlētāju (`RoomManager.destroyFinishedRoom`), tāpēc
+   * `LEAVE_ROOM` sūtīšana atbildētu ar "is not in a room". Notīram istabas/spēles
+   * skatu lokāli, lai UI atgriežas lobby. Mid-game iziešana (forfeit) paliek `leaveRoom`.
+   */
+  returnToLobby(): void {
+    this.view = {
+      ...this.view,
+      room: undefined,
+      game: initialClientView.game,
+      lastError: undefined
+    };
+    this.options.onView(this.view);
+  }
+
   /** Host dzēš savu GAIDOŠO istabu (serveris atgriež visus dalībniekus lobby). */
   deleteRoom(): void {
     this.send({ type: "DELETE_ROOM" });

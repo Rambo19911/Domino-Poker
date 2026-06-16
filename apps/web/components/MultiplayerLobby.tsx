@@ -94,6 +94,10 @@ export function MultiplayerLobby({
           audio.play("uiClick");
           actions.leaveRoom();
         }}
+        onLeaveFinishedGame={() => {
+          audio.play("uiClick");
+          actions.returnToLobby();
+        }}
       />
     );
   }

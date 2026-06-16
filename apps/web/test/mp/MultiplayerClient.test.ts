@@ -362,6 +362,25 @@ describe("MultiplayerClient server-event validation (boundary)", () => {
   });
 });
 
+describe("MultiplayerClient game-over return to lobby", () => {
+  it("returnToLobby clears the room locally without sending LEAVE_ROOM", () => {
+    // Pie GAME_OVER serveris jau iznīcina istabu un izņem spēlētāju
+    // (RoomManager.destroyFinishedRoom). Tāpēc spēles-beigu "OK" NEDRĪKST sūtīt
+    // LEAVE_ROOM (serveris atbildētu "is not in a room") — atgriežamies lobby lokāli.
+    const { client, sockets } = buildHarness();
+    client.connect();
+    sockets[0]!.open();
+    welcomeEmit(sockets[0]!);
+    sockets[0]!.emit({ type: "ROOM_JOINED", room: roomView("room-1") });
+    expect(client.getView().room?.id).toBe("room-1");
+
+    client.returnToLobby();
+
+    expect(sockets[0]!.sentTypes()).not.toContain("LEAVE_ROOM");
+    expect(client.getView().room).toBeUndefined();
+  });
+});
+
 // ---- helperi ----
 
 function welcomeEmit(socket: FakeSocket): void {

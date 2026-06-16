@@ -28,7 +28,8 @@ export function MpGameTable({
   view,
   onSubmitBid,
   onSubmitMove,
-  onExitToLobby
+  onExitToLobby,
+  onLeaveFinishedGame
 }: {
   readonly audio: AudioSettings;
   readonly labels: AppStrings;
@@ -36,7 +37,10 @@ export function MpGameTable({
   readonly view: ClientView;
   readonly onSubmitBid: (bid: number) => void;
   readonly onSubmitMove: (move: MoveIntent) => void;
+  /** Mid-game iziešana (forfeit) — sūta LEAVE_ROOM serverim. */
   readonly onExitToLobby: () => void;
+  /** Spēles-beigu "OK" — lokāla atgriešanās lobby (istaba serverī jau iznīcināta). */
+  readonly onLeaveFinishedGame: () => void;
 }) {
   // Desktop skatuves ģeometriju rēķina BEZNOSACĪJUMA (tāpat kā iepriekš), lai resize
   // klausītāju dzīves cikls nemainās, kad pārslēdzas mobile/desktop ceļš.
@@ -175,7 +179,7 @@ export function MpGameTable({
       ) : null}
 
       {table.phase === "gameEnd" ? (
-        <MpGameEndDialog audio={audio} labels={t} table={table} onClose={onExitToLobby} />
+        <MpGameEndDialog audio={audio} labels={t} table={table} onClose={onLeaveFinishedGame} />
       ) : null}
 
       {showRulesDialog ? (
