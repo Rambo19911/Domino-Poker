@@ -12,16 +12,21 @@ tavs-domens.lv {
 
     # Opcionālā autentifikācija + paroles atjaunošana: /auth/* -> MP serveris.
     # (Klients atvasina HTTP bāzi no WS URL, tāpēc /auth iet uz to pašu domēnu.)
-    # SVARĪGI: lai auth rate-limit redzētu īsto klienta IP (nevis 127.0.0.1), serverim
-    # jāuzstāda TRUST_PROXY=true — tikai tad X-Forwarded-For tiek uzticēts. Caddy XFF
-    # uzstāda automātiski.
-    reverse_proxy /auth/* 127.0.0.1:4000
+    # SVARĪGI: serveris rate-limito pēc IP un ar TRUST_PROXY=true uzticas
+    # X-Forwarded-For. `header_up` PĀRRAKSTA XFF ar īsto klienta IP, lai klients
+    # nevar to viltot (Caddy pēc noklusējuma PIEVIENO, tāpēc bez šī kreisā vērtība
+    # būtu klienta kontrolēta un per-IP limits — apejams).
+    reverse_proxy /auth/* 127.0.0.1:4000 {
+        header_up X-Forwarded-For {http.request.remote.host}
+    }
 
     # MP lobby čata tulkošana: /chat/* -> MP serveris (Google Cloud Translation).
     # Klients sūta POST /chat/translate; Google credentials paliek TIKAI serverī.
     # Maršruts vajadzīgs tikai tad, ja TRANSLATE_ENABLED=true (citādi serveris šo
-    # ceļu nereģistrē un atbild 404 — nekaitīgi).
-    reverse_proxy /chat/* 127.0.0.1:4000
+    # ceļu nereģistrē un atbild 404 — nekaitīgi). Tāda pati XFF pārrakstīšana kā /auth.
+    reverse_proxy /chat/* 127.0.0.1:4000 {
+        header_up X-Forwarded-For {http.request.remote.host}
+    }
 
     # (pēc izvēles) metrikas tikai lokāli:
     # @metrics path /metrics
