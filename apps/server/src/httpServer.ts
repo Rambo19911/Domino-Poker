@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import process from "node:process";
 
+import type { ChatTranslateHandler } from "./chat/chatTranslateRoutes.js";
 import type { AuthHandler } from "./http/authRoutes.js";
 
 interface PoolCounts {
@@ -36,6 +37,8 @@ export interface HealthHttpServerOptions {
    * `createAuthHandler`. Atgriež `true`, ja apstrādāja ceļu, citādi `false` → 404.
    */
   readonly authHandler?: AuthHandler;
+  /** Optional MP lobby chat translation HTTP route (`/chat/translate`). */
+  readonly chatTranslateHandler?: ChatTranslateHandler;
 }
 
 /**
@@ -67,6 +70,31 @@ function handleRequest(
     return;
   }
 
+  if (options.chatTranslateHandler !== undefined) {
+    void options
+      .chatTranslateHandler(request, response)
+      .then((handled) => {
+        if (!handled) {
+          routeAuthOr404(request, response, options);
+        }
+      })
+      .catch((error: unknown) => {
+        console.error("[chat-translate] handler failed:", error);
+        if (!response.headersSent) {
+          writeJson(response, 500, { error: "internal_error" });
+        }
+      });
+    return;
+  }
+
+  routeAuthOr404(request, response, options);
+}
+
+function routeAuthOr404(
+  request: IncomingMessage,
+  response: ServerResponse,
+  options: HealthHttpServerOptions
+): void {
   if (options.authHandler !== undefined) {
     void options
       .authHandler(request, response)

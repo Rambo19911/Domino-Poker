@@ -25,6 +25,11 @@ const DEFAULT_TRICK_PAUSE_MS = 1700;
 const DEFAULT_ABANDON_GRACE_MS = 60_000;
 const DEFAULT_LOBBY_STATE_DEBOUNCE_MS = 200;
 const DEFAULT_CHAT_HISTORY_LIMIT = 50;
+const FREE_TRANSLATE_MONTHLY_CHARS = 500_000;
+const FREE_TRANSLATE_DAILY_CHARS = 16_000;
+const DEFAULT_TRANSLATE_LOCATION = "global";
+const DEFAULT_TRANSLATE_CACHE_MAX_ENTRIES = 1_000;
+const DEFAULT_TRANSLATE_RATE_LIMIT_PER_MINUTE = 30;
 // Leaderboard (globālā statistika): cik kontu topā, min spēles ranžēšanai, keša TTL.
 const DEFAULT_LEADERBOARD_SIZE = 100;
 const DEFAULT_LEADERBOARD_MIN_GAMES = 10;
@@ -79,6 +84,8 @@ export interface ServerConfig {
   lobbyStateDebounceMs: number;
   /** Cik čata ziņas paturēt atmiņā / ielādēt startā (`CHAT_HISTORY_LIMIT`; noklusējums 50; ≥1). */
   chatHistoryLimit: number;
+  /** MP lobby chat translation config (Google Cloud Translation, server-side). */
+  translation: TranslationConfig;
   /** Cik kontu rādīt globālajā topā (`LEADERBOARD_SIZE`; noklusējums 100; ≥1). */
   leaderboardSize: number;
   /** Min nospēlēto spēļu skaits, lai parādītos topā/saņemtu badge (`LEADERBOARD_MIN_GAMES`; noklusējums 10; ≥1). */
@@ -100,6 +107,17 @@ export interface ServerConfig {
   trustProxy: boolean;
   /** Paroles atjaunošanas e-pasta konfigurācija (Fāze 5). */
   email: EmailConfig;
+}
+
+export interface TranslationConfig {
+  readonly enabled: boolean;
+  readonly projectId: string | undefined;
+  readonly credentialsFile: string | undefined;
+  readonly location: string;
+  readonly dailyCharLimit: number;
+  readonly monthlyCharLimit: number;
+  readonly cacheMaxEntries: number;
+  readonly rateLimitPerMinute: number;
 }
 
 /** Paroles atjaunošanas e-pasta konfigurācija (Fāze 5). */
@@ -162,6 +180,7 @@ export function loadServerConfig(
       env.CHAT_HISTORY_LIMIT ?? fileEnv.CHAT_HISTORY_LIMIT,
       DEFAULT_CHAT_HISTORY_LIMIT
     ),
+    translation: readTranslationConfig(env, fileEnv),
     leaderboardSize: readPositiveInt(
       "LEADERBOARD_SIZE",
       env.LEADERBOARD_SIZE ?? fileEnv.LEADERBOARD_SIZE,
@@ -205,6 +224,56 @@ export function loadServerConfig(
 }
 
 /** Būla karogs no env: `true`/`1` (case-insensitive) → `true`; viss cits → `false`. */
+function readTranslationConfig(env: EnvValues, fileEnv: Record<string, string>): TranslationConfig {
+  const enabled = readBool(env.TRANSLATE_ENABLED ?? fileEnv.TRANSLATE_ENABLED);
+  const projectId = readOptional(
+    env.GOOGLE_CLOUD_PROJECT ??
+      env.TRANSLATE_PROJECT_ID ??
+      fileEnv.GOOGLE_CLOUD_PROJECT ??
+      fileEnv.TRANSLATE_PROJECT_ID
+  );
+  const credentialsFile = readOptional(
+    env.GOOGLE_APPLICATION_CREDENTIALS ??
+      env.TRANSLATE_GOOGLE_CREDENTIALS_FILE ??
+      fileEnv.GOOGLE_APPLICATION_CREDENTIALS ??
+      fileEnv.TRANSLATE_GOOGLE_CREDENTIALS_FILE
+  );
+
+  if (enabled && projectId === undefined) {
+    throw new Error("TRANSLATE_ENABLED requires GOOGLE_CLOUD_PROJECT or TRANSLATE_PROJECT_ID.");
+  }
+
+  return {
+    enabled,
+    projectId,
+    credentialsFile,
+    location: readNonEmpty(
+      env.TRANSLATE_LOCATION ?? fileEnv.TRANSLATE_LOCATION,
+      DEFAULT_TRANSLATE_LOCATION
+    ),
+    dailyCharLimit: readNonNegativeInt(
+      "TRANSLATE_DAILY_CHAR_LIMIT",
+      env.TRANSLATE_DAILY_CHAR_LIMIT ?? fileEnv.TRANSLATE_DAILY_CHAR_LIMIT,
+      FREE_TRANSLATE_DAILY_CHARS
+    ),
+    monthlyCharLimit: readNonNegativeInt(
+      "TRANSLATE_MONTHLY_CHAR_LIMIT",
+      env.TRANSLATE_MONTHLY_CHAR_LIMIT ?? fileEnv.TRANSLATE_MONTHLY_CHAR_LIMIT,
+      FREE_TRANSLATE_MONTHLY_CHARS
+    ),
+    cacheMaxEntries: readPositiveInt(
+      "TRANSLATE_CACHE_MAX_ENTRIES",
+      env.TRANSLATE_CACHE_MAX_ENTRIES ?? fileEnv.TRANSLATE_CACHE_MAX_ENTRIES,
+      DEFAULT_TRANSLATE_CACHE_MAX_ENTRIES
+    ),
+    rateLimitPerMinute: readPositiveInt(
+      "TRANSLATE_RATE_LIMIT_PER_MINUTE",
+      env.TRANSLATE_RATE_LIMIT_PER_MINUTE ?? fileEnv.TRANSLATE_RATE_LIMIT_PER_MINUTE,
+      DEFAULT_TRANSLATE_RATE_LIMIT_PER_MINUTE
+    )
+  };
+}
+
 function readBool(value: string | undefined): boolean {
   if (value === undefined) {
     return false;

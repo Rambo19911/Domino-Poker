@@ -30,6 +30,8 @@ export const en = {
   mpChatPlaceholder: "Write a message…",
   mpEmojiPicker: "Choose emoji",
   mpEmojiInsert: "Insert {emoji}",
+  mpTranslateMessage: "Translate message",
+  mpTranslationFailed: "Could not translate this message.",
   mpChatLimitHint: "Chat limit: up to 5 messages in a row, then ~1 every 2 s.",
   mpChatRateLimited: "Too fast — wait a moment before sending again.",
   mpChatInvalid: "Message not sent (empty or too long).",

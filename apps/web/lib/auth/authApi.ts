@@ -1,6 +1,6 @@
 import type { GameLanguage, LeaderboardResponse, RankBadgeId } from "@domino-poker/shared";
 
-import { resolveServerUrl } from "../mp/serverUrl";
+import { serverHttpBase } from "../mp/serverHttpBase";
 
 /**
  * Klienta puses auth HTTP API (pret servera `/auth/*` maršrutiem). HTTP bāzi
@@ -54,10 +54,7 @@ export interface ProfileInput {
 }
 
 export function httpBase(): string {
-  const ws = resolveServerUrl({ envUrl: process.env.NEXT_PUBLIC_MP_WS_URL });
-  // ws→http, wss→https; noņemam `/ws` ceļu. (URL protokola maiņa starp special
-  // shēmām var būt liegta, tāpēc darbojamies ar virkni.)
-  return ws.replace(/^ws/u, "http").replace(/\/ws$/u, "");
+  return serverHttpBase();
 }
 
 async function requestJson<T>(

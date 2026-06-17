@@ -1,6 +1,6 @@
 # AI Working Rules
 
-Last refreshed: 2026-06-14.
+Last refreshed: 2026-06-17.
 
 ## Before Major Edits
 
@@ -103,6 +103,9 @@ Read these before changing server lifecycle, routing, rooms, timers, reconnect, 
 - `apps/server/src/rooms/GameDirector.ts`
 - `apps/server/src/rooms/RoomOwnershipGuard.ts`
 - `apps/server/src/chat/LobbyChat.ts`
+- `apps/server/src/chat/ChatTranslationService.ts`
+- `apps/server/src/chat/GoogleCloudTranslator.ts`
+- `apps/server/src/chat/chatTranslateRoutes.ts`
 - `apps/server/src/sessions/SessionManager.ts`
 - relevant tests under `apps/server/test/net`, `apps/server/test/rooms`, `apps/server/test/timers`, and `apps/server/test/chat`
 
@@ -111,6 +114,7 @@ Care points:
 - `RoomEngine` is the single-writer room mutation path.
 - `messageRouter.ts` is routing/application workflow; keep domain rules out of it.
 - The server overrides/owns authoritative time and state.
+- MP chat translation is an optional HTTP side route (`/chat/translate`) using server-side Google Cloud Translation credentials. Keep credentials in env/secret files only, validate bounded text/language input, and keep rate/character limits conservative.
 - Room lifecycle invariants are high-risk: game-over teardown, disconnect/resume, durable session release, room TTL, abandoned-room cleanup, forfeit, and rate limits.
 - PostgreSQL multi-instance support includes leases, durable sessions, and event fanout; it is not full active room-state failover.
 - If adding active room failover later, server-initiated mutations also need ownership/failover handling.
@@ -257,7 +261,8 @@ Important ordering:
 - CI PostgreSQL integration uses `postgres:17-alpine`; normal local `npm run test` skips DB integration without `TEST_POSTGRES_DATABASE_URL`.
 - `.env` and `.env.*` are ignored except `.env.example`.
 - `WEB_ORIGIN`, `RESEND_API_KEY`, `EMAIL_FROM`, and `APP_BASE_URL` are read by `apps/server/src/config.ts`; verify `.env.example` when changing auth CORS or password-reset email behavior because those examples can drift.
-- Reverse proxies must route `/ws` and `/auth/*` to the server port. Enable `TRUST_PROXY=true` only behind a trusted proxy that controls `X-Forwarded-For`.
+- `TRANSLATE_ENABLED`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_APPLICATION_CREDENTIALS`, and `TRANSLATE_*` limits are read by `apps/server/src/config.ts` for optional MP chat translation. Service account JSON files must stay outside source control.
+- Reverse proxies must route `/ws`, `/auth/*`, and `/chat/translate` to the server port. Enable `TRUST_PROXY=true` only behind a trusted proxy that controls `X-Forwarded-For`.
 - `TRICK_PAUSE_MS` must remain aligned with the web client's completed-trick freeze (`apps/web/lib/mp/useTrickFreeze.ts`); config rejects values below 1500 ms.
 - `data/*.sqlite`, `data/*.sqlite-wal`, and `data/*.sqlite-shm` are ignored runtime files.
 - `logs/` is ignored. MP action logging is opt-in through `MP_ACTION_LOG=1`.

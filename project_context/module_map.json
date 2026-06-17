@@ -98,7 +98,7 @@
   {
     "name": "Web App",
     "folder": "apps/web",
-    "purpose": "Next.js browser app for single-player, multiplayer lobby/table, optional account UI, localization, audio, responsive desktop/mobile layouts, UI primitives, PWA registration/install prompt, version display, and token-driven styling.",
+    "purpose": "Next.js browser app for single-player, multiplayer lobby/table, MP lobby chat emoji and translation UI, optional account UI, localization, audio, responsive desktop/mobile layouts, UI primitives, PWA registration/install prompt, version display, and token-driven styling.",
     "main_files": [
       "apps/web/app/page.tsx",
       "apps/web/app/layout.tsx",
@@ -117,7 +117,10 @@
       "apps/web/components/mp/MpDesktopLobby.tsx",
       "apps/web/components/mp/MpMobileLobby.tsx",
       "apps/web/components/mp/MpEmojiPicker.tsx",
+      "apps/web/components/mp/MpChatTranslation.tsx",
       "apps/web/lib/mp/MultiplayerClient.ts",
+      "apps/web/lib/mp/chatTranslation.ts",
+      "apps/web/lib/mp/serverHttpBase.ts",
       "apps/web/lib/mp/useMultiplayer.ts",
       "apps/web/lib/mp/clientView.ts",
       "apps/web/lib/mp/gameTableView.ts",
@@ -162,6 +165,7 @@
       "CSS entry globals.css is import-only; feature CSS belongs under apps/web/styles.",
       "PWA/service-worker cache can hide asset/UI changes during manual checks.",
       "UI text should flow through localization files and passed labels.",
+      "MP chat translation targets `labels.localeCode`, so future locales should not require changing the translation API contract.",
       "gameTableView.ts may derive playable-tile hints from core, but multiplayer acceptance/rejection remains server-authoritative.",
       "Theme/PWA/version changes cross `VERSION`, `next.config.ts`, `tokens.css`, `sw.js`, and deploy behavior.",
       "Desktop/mobile multiplayer table split requires checking both MpDesktopTable and MpMobileTable before layout changes."
@@ -171,7 +175,7 @@
   {
     "name": "Multiplayer Server",
     "folder": "apps/server/src",
-    "purpose": "Authoritative Node multiplayer application layer: HTTP/WS composition, gateway/hub/fanout, routing, room lifecycle, timers, reconnect/session identity, chat, auth integration, persistence hooks, metrics, and cleanup.",
+    "purpose": "Authoritative Node multiplayer application layer: HTTP/WS composition, gateway/hub/fanout, routing, room lifecycle, timers, reconnect/session identity, chat, optional chat translation, auth integration, persistence hooks, metrics, and cleanup.",
     "main_files": [
       "apps/server/src/index.ts",
       "apps/server/src/config.ts",
@@ -187,6 +191,9 @@
       "apps/server/src/rooms/GameDirector.ts",
       "apps/server/src/rooms/RoomOwnershipGuard.ts",
       "apps/server/src/chat/LobbyChat.ts",
+      "apps/server/src/chat/ChatTranslationService.ts",
+      "apps/server/src/chat/GoogleCloudTranslator.ts",
+      "apps/server/src/chat/chatTranslateRoutes.ts",
       "apps/server/src/sessions/SessionManager.ts",
       "apps/server/src/timers/SystemTurnTimerScheduler.ts",
       "apps/server/src/net/GatewayConnection.ts",
@@ -217,7 +224,8 @@
       "Resource lifecycle invariants around game-over teardown, sessions, room TTL, and rate limits are high-risk.",
       "Gateway changes can affect heartbeat, backpressure, superseded sockets, reconnect, and cross-instance fanout.",
       "Session/identity changes can break reconnect tokens, display ids, durable session cleanup, and public seat profile mapping.",
-      "Server internal flow should remain gateway -> router -> room manager/engine -> core, with storage/auth/session as infrastructure boundaries."
+      "Server internal flow should remain gateway -> router -> room manager/engine -> core, with storage/auth/session as infrastructure boundaries.",
+      "Chat translation is an optional HTTP side route; keep Google credentials server-only, validate bounded text/language input, cache repeated translations, and preserve rate/character limits."
     ],
     "confidence": "high"
   },

@@ -300,8 +300,9 @@
 }
 
 .mpChatMessage {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
   gap: 8px;
   font-size: 13px;
 }
@@ -309,6 +310,66 @@
 .mpChatId {
   padding: 2px 8px;
   color: var(--primary);
+}
+
+.mpChatBodyText {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.mpChatText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mpChatTranslateButton {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(201, 162, 62, 0.35);
+  border-radius: var(--radius-sm);
+  background: rgba(14, 14, 14, 0.36);
+  color: var(--text-secondary);
+}
+
+.mpChatTranslateButton:hover:not(:disabled),
+.mpChatTranslateButton:focus-visible {
+  border-color: rgba(201, 162, 62, 0.7);
+  color: var(--primary);
+}
+
+.mpChatTranslateButton:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.mpChatTranslateButton .iconSvg {
+  width: 16px;
+  height: 16px;
+}
+
+.mpChatTranslation {
+  margin: 0;
+  padding: 7px 10px 7px 12px;
+  border-left: 3px solid rgba(201, 162, 62, 0.72);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: rgba(14, 14, 14, 0.26);
+  color: rgba(236, 237, 238, 0.86);
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.35;
+}
+
+.mpChatTranslationError {
+  margin: 0;
+  padding: 0;
+  border-left: 0;
+  background: transparent;
+  color: var(--error);
+  font-style: normal;
 }
 
 .mpChatFoot {

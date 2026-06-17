@@ -34,6 +34,8 @@ export const lv = {
   mpChatPlaceholder: "Raksti ziņu…",
   mpEmojiPicker: "Izvēlēties emocijzīmi",
   mpEmojiInsert: "Ievietot {emoji}",
+  mpTranslateMessage: "Tulkot ziņu",
+  mpTranslationFailed: "Neizdevās iztulkot šo ziņu.",
   mpChatLimitHint: "Čata limits: līdz 5 ziņām pēc kārtas, tad ~1 ik 2 s.",
   mpChatRateLimited: "Pārāk ātri — mirkli uzgaidi pirms nākamās ziņas.",
   mpChatInvalid: "Ziņa nav nosūtīta (tukša vai pārāk gara).",

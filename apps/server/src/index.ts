@@ -3,7 +3,10 @@ import { randomUUID } from "node:crypto";
 import { AuthService } from "./auth/AuthService.js";
 import { isAuthStore } from "./auth/AuthStore.js";
 import { createEmailSender } from "./auth/EmailSender.js";
+import { ChatTranslationService } from "./chat/ChatTranslationService.js";
+import { GoogleCloudTranslator } from "./chat/GoogleCloudTranslator.js";
 import { LobbyChat } from "./chat/LobbyChat.js";
+import { createChatTranslateHandler } from "./chat/chatTranslateRoutes.js";
 import { loadServerConfig } from "./config.js";
 import { createAuthHandler } from "./http/authRoutes.js";
 import { createHealthHttpServer } from "./httpServer.js";
@@ -119,6 +122,20 @@ const chat = new LobbyChat({
   // Fāze 10.3: pieņemtā ziņa → DB (fire-and-forget).
   onMessage: (message) => persistence.chatMessage(message)
 });
+const chatTranslation =
+  config.translation.enabled && config.translation.projectId !== undefined
+    ? new ChatTranslationService({
+        translator: new GoogleCloudTranslator({
+          projectId: config.translation.projectId,
+          location: config.translation.location,
+          credentialsFile: config.translation.credentialsFile
+        }),
+        clock,
+        dailyCharLimit: config.translation.dailyCharLimit,
+        monthlyCharLimit: config.translation.monthlyCharLimit,
+        cacheMaxEntries: config.translation.cacheMaxEntries
+      })
+    : undefined;
 // Hidratācija startā: ielādējam pēdējās ziņas no DB, lai CHAT_HISTORY jaunam
 // dalībniekam iekļautu pirms-restarta ziņas. Top-level await (ESM modulis).
 try {
@@ -189,6 +206,18 @@ rooms.setMemberDepartedHandler((clientId) => {
 // PG režīmā pievieno DB veselību (SELECT 1 latency + pool piesātinājums).
 const server = createHealthHttpServer({
   connectionCount: () => gateway.onlineCount(),
+  ...(chatTranslation
+    ? {
+        chatTranslateHandler: createChatTranslateHandler({
+          translation: chatTranslation,
+          webOrigins: config.webOrigins,
+          clock,
+          dev: config.nodeEnv !== "production",
+          trustProxy: config.trustProxy,
+          rateLimitPerMinute: config.translation.rateLimitPerMinute
+        })
+      }
+    : {}),
   ...(authService
     ? {
         authHandler: createAuthHandler({

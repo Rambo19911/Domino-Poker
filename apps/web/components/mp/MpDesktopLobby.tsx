@@ -17,6 +17,11 @@ import { AvatarRankBadge } from "../AvatarRankBadge";
 import { HelpIcon } from "../RulesDialog";
 import { Button } from "../ui/Button";
 import { IconButton } from "../ui/IconButton";
+import {
+  type ChatTranslationState,
+  MpChatTranslationButton,
+  MpChatTranslationText
+} from "./MpChatTranslation";
 import { ConnectionBanner } from "./ConnectionBanner";
 import { MpEmojiPicker } from "./MpEmojiPicker";
 
@@ -467,6 +472,7 @@ function ChatFeed({
 }) {
   const feedRef = useRef<HTMLUListElement>(null);
   const lastMessageId = messages.at(-1)?.id;
+  const [translations, setTranslations] = useState<Record<string, ChatTranslationState>>({});
 
   useLayoutEffect(() => {
     const feed = feedRef.current;
@@ -491,7 +497,18 @@ function ChatFeed({
         <li key={message.id} className="mpChatMessage">
           <span className="mpChip mpChatId">{message.authorDisplayId}</span>
           {/* Renderē kā TEKSTU — React droši escapē; nekad dangerouslySetInnerHTML. */}
-          <span className="mpChatText">{message.text}</span>
+          <span className="mpChatBodyText">
+            <span className="mpChatText">{message.text}</span>
+            <MpChatTranslationText labels={t} state={translations[message.id]} />
+          </span>
+          <MpChatTranslationButton
+            labels={t}
+            message={message}
+            state={translations[message.id]}
+            onStateChange={(nextState) =>
+              setTranslations((current) => ({ ...current, [message.id]: nextState }))
+            }
+          />
         </li>
       ))}
     </ul>

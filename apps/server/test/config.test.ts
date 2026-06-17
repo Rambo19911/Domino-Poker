@@ -18,6 +18,17 @@ const opsDefaults = {
   leaderboardRefreshMs: 30_000
 };
 
+const translationDefaults = {
+  enabled: false,
+  projectId: undefined,
+  credentialsFile: undefined,
+  location: "global",
+  dailyCharLimit: 16_000,
+  monthlyCharLimit: 500_000,
+  cacheMaxEntries: 1_000,
+  rateLimitPerMinute: 30
+};
+
 describe("loadServerConfig", () => {
   it("uses defaults when env values are missing", () => {
     expect(loadServerConfig({}, missingEnvPath)).toEqual({
@@ -27,6 +38,7 @@ describe("loadServerConfig", () => {
       nodeEnv: "development",
       turnDurationMs: 10_000,
       ...opsDefaults,
+      translation: translationDefaults,
       pg: { max: 10, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 0 },
       webOrigins: ["http://localhost:3000"],
       trustProxy: false,
@@ -52,6 +64,7 @@ describe("loadServerConfig", () => {
       nodeEnv: "production",
       turnDurationMs: 5000,
       ...opsDefaults,
+      translation: translationDefaults,
       pg: { max: 10, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 0 },
       webOrigins: ["http://localhost:3000"],
       trustProxy: false,
@@ -90,6 +103,34 @@ describe("loadServerConfig", () => {
   it("rejects a non-positive CHAT_HISTORY_LIMIT", () => {
     expect(() => loadServerConfig({ CHAT_HISTORY_LIMIT: "0" }, missingEnvPath)).toThrow(
       "CHAT_HISTORY_LIMIT must be a positive integer."
+    );
+  });
+
+  it("reads chat translation config and protects the free monthly character tier by default", () => {
+    expect(
+      loadServerConfig(
+        {
+          TRANSLATE_ENABLED: "true",
+          GOOGLE_CLOUD_PROJECT: "gen-lang-client-0332314312",
+          GOOGLE_APPLICATION_CREDENTIALS: "C:/secure/google-translate.json"
+        },
+        missingEnvPath
+      ).translation
+    ).toEqual({
+      enabled: true,
+      projectId: "gen-lang-client-0332314312",
+      credentialsFile: "C:/secure/google-translate.json",
+      location: "global",
+      dailyCharLimit: 16_000,
+      monthlyCharLimit: 500_000,
+      cacheMaxEntries: 1_000,
+      rateLimitPerMinute: 30
+    });
+  });
+
+  it("rejects enabled chat translation without a Google Cloud project id", () => {
+    expect(() => loadServerConfig({ TRANSLATE_ENABLED: "true" }, missingEnvPath)).toThrow(
+      "TRANSLATE_ENABLED requires GOOGLE_CLOUD_PROJECT or TRANSLATE_PROJECT_ID."
     );
   });
 

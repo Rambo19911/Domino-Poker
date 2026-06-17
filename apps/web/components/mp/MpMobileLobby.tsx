@@ -9,6 +9,11 @@ import type { ConnectionStatus } from "../../lib/mp/clientView";
 import { VolumeIcon, VolumeOffIcon } from "../AudioControls";
 import { HelpIcon } from "../RulesDialog";
 import { IconButton } from "../ui/IconButton";
+import {
+  type ChatTranslationState,
+  MpChatTranslationButton,
+  MpChatTranslationText
+} from "./MpChatTranslation";
 import { ConnectionBanner } from "./ConnectionBanner";
 import { MpEmojiPicker } from "./MpEmojiPicker";
 
@@ -377,6 +382,7 @@ function ChatOverlay({
   const feedRef = useRef<HTMLUListElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const lastMessageId = messages.at(-1)?.id;
+  const [translations, setTranslations] = useState<Record<string, ChatTranslationState>>({});
 
   useEffect(() => {
     const feed = feedRef.current;
@@ -406,7 +412,18 @@ function ChatOverlay({
           {messages.map((message) => (
             <li key={message.id} className="mplChatMessage">
               <span className="mplChatAuthor">{message.authorDisplayId}</span>
-              <span className="mplChatText">{message.text}</span>
+              <span className="mpChatBodyText">
+                <span className="mplChatText">{message.text}</span>
+                <MpChatTranslationText labels={t} state={translations[message.id]} />
+              </span>
+              <MpChatTranslationButton
+                labels={t}
+                message={message}
+                state={translations[message.id]}
+                onStateChange={(nextState) =>
+                  setTranslations((current) => ({ ...current, [message.id]: nextState }))
+                }
+              />
             </li>
           ))}
         </ul>

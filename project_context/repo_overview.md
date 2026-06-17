@@ -1,6 +1,6 @@
 # Repository Overview
 
-Last refreshed: 2026-06-14.
+Last refreshed: 2026-06-17.
 
 ## Purpose
 
@@ -18,7 +18,7 @@ The core rule engine is shared. The browser may derive UI hints from shared logi
 - npm workspaces.
 - TypeScript 6.x across core, shared protocol, server, web, and tools.
 - Next.js App Router 16.x and React 19.x for `apps/web`.
-- Node.js server in `apps/server`, using `ws`, `zod`, built-in `node:sqlite`, and optional `pg`.
+- Node.js server in `apps/server`, using `ws`, `zod`, built-in `node:sqlite`, optional `pg`, and optional Google Cloud Translation for MP lobby chat translation.
 - Vitest for workspace tests.
 - Playwright for browser e2e/smoke tests.
 - ESLint 9 flat config with TypeScript and React Hooks rules.
@@ -27,8 +27,8 @@ Node is pinned/restricted through `.nvmrc`, `.node-version`, `package.json` engi
 
 ## Workspace Layout
 
-- `apps/web`: Next.js app, main route, PWA shell, local single-player UI, multiplayer lobby/table UI, auth/profile UI, localization, shared UI primitives, theme tokens, CSS partials, public assets, and web-focused Vitest tests.
-- `apps/server`: authoritative multiplayer server, HTTP `/health` and `/metrics`, optional `/auth/*`, WebSocket `/ws`, gateway/hub/fanout, room/lobby lifecycle, game timers/directors, chat, auth, sessions/identity, storage adapters, PostgreSQL event bus, and server tests.
+- `apps/web`: Next.js app, main route, PWA shell, local single-player UI, multiplayer lobby/table UI, MP chat emoji/translation UI, auth/profile UI, localization, shared UI primitives, theme tokens, CSS partials, public assets, and web-focused Vitest tests.
+- `apps/server`: authoritative multiplayer server, HTTP `/health`, `/metrics`, optional `/auth/*`, optional `/chat/translate`, WebSocket `/ws`, gateway/hub/fanout, room/lobby lifecycle, game timers/directors, chat, auth, sessions/identity, storage adapters, PostgreSQL event bus, and server tests.
 - `packages/core`: framework-free Domino Poker rules, tile/shuffle logic, legal-play validation, scoring, single-player game state, AI heuristics, plus the separate `packages/core/src/multiplayer` command/event state machine.
 - `packages/shared`: public protocol package. It owns Zod client-message validation, protocol versioning, room DTOs, error payloads, avatar/title helpers, and server-event schemas. Important coupling: `serverEvents.ts` imports core multiplayer event/snapshot types from `@domino-poker/core/multiplayer`.
 - `packages/ai_bot`: strong Domino Poker bot (hidden-hand, ISMCTS max^n), sub-packages `engine`, `ai`, `bot-adapter`. WIRED INTO single-player: `engine` + `ai` are now root npm workspaces consumed by the browser game (`bot-adapter` stays Node-only and is bypassed). The trained bot drives all 3 SP CPU seats via `apps/web/lib/bot/botBridge.ts` with 3 difficulty levels (Medium/Hard/Epic) chosen in Settings. Its `dist` is gitignored and deploy-excluded, so `apps/web` prebuild/predev and CI build `engine` then `ai` from `src` before the web build. Not yet wired into multiplayer (server still uses `core/aiService`).
@@ -50,7 +50,7 @@ Node is pinned/restricted through `.nvmrc`, `.node-version`, `package.json` engi
 - Web UI/theme primitives: `apps/web/components/ui/*`, `apps/web/styles/tokens.css`, `apps/web/styles/glass.css`, `apps/web/lib/theme.ts`.
 - Server process: `apps/server/src/index.ts`.
 - Server config: `apps/server/src/config.ts`.
-- Server routing/gateway: `apps/server/src/net/WebSocketGateway.ts`, `GatewayHub.ts`, `GatewayConnection.ts`, `ServerEventBus.ts`, `PostgresEventBus.ts`, `messageRouter.ts`, `apps/server/src/httpServer.ts`.
+- Server routing/gateway: `apps/server/src/net/WebSocketGateway.ts`, `GatewayHub.ts`, `GatewayConnection.ts`, `ServerEventBus.ts`, `PostgresEventBus.ts`, `messageRouter.ts`, `apps/server/src/httpServer.ts`, optional `apps/server/src/chat/chatTranslateRoutes.ts`.
 - Room workflow: `apps/server/src/rooms/RoomManager.ts`, `RoomEngine.ts`, `GameDirector.ts`, `LobbyManager.ts`.
 - Session/identity workflow: `apps/server/src/sessions/SessionManager.ts`, `DurableSessionStore.ts`, `apps/server/src/identity/DisplayIdRegistry.ts`.
 - Storage boundary: `apps/server/src/storage/StoragePort.ts`, `index.ts`, `SqliteStorage.ts`, `PostgresStorage.ts`, `schema.ts`.
@@ -94,6 +94,7 @@ CI (`.github/workflows/ci.yml`) runs install, core/shared/server build, typechec
 - `packages/core/src/multiplayer/*`: deterministic seed-driven multiplayer state machine. Do not introduce `Math.random` or `Date.now` into decisions.
 - `packages/shared/src/clientMessages.ts`: external input boundary. Keep Zod limits on client-controlled ids, room identifiers, chat text, bids, moves, and pips.
 - `packages/shared/src/serverEvents.ts`: protocol event/snapshot schemas are coupled to core MP types; changing snapshots/events requires checking core, server, web client, and tests.
+- `apps/server/src/chat/*Translation*` and `apps/server/src/chat/chatTranslateRoutes.ts`: optional MP lobby chat translation. Google credentials must stay in env/secret files, client calls only the server route, and rate/character limits should remain bounded to avoid cost surprises.
 - `apps/server/src/net/messageRouter.ts`: large routing/lifecycle file. It enforces membership, ownership, lifecycle finalization, reconnect, and command routing; avoid adding rule logic here.
 - `apps/server/src/net/WebSocketGateway.ts`, `GatewayHub.ts`, `GatewayConnection.ts`, and `ServerEventBus.ts`: handshake, heartbeat, reconnect, supersede, slow-client backpressure, and cross-instance fanout are tightly coupled.
 - `apps/server/src/sessions/SessionManager.ts`, `DurableSessionStore.ts`, and `apps/server/src/identity/DisplayIdRegistry.ts`: reconnect tokens, display ids, public profiles, and durable cleanup must stay privacy-safe and anonymous-play compatible.

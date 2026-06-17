@@ -220,9 +220,16 @@
 }
 .mplChatFeed::-webkit-scrollbar { display: none; }
 .mplChatEmpty { flex: 1 1 auto; display: grid; place-items: center; color: var(--text-secondary); font-size: 14px; }
-.mplChatMessage { font-size: 15px; line-height: 1.35; word-break: break-word; }
+.mplChatMessage { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 6px; font-size: 15px; line-height: 1.35; word-break: break-word; }
 .mplChatAuthor { color: var(--primary); font-weight: 700; margin-right: 6px; }
 .mplChatText { color: var(--text-primary); }
+.mplChatMessage .mpChatTranslateButton {
+  width: 32px;
+  height: 32px;
+}
+.mplChatMessage .mpChatTranslation {
+  font-size: 13px;
+}
 .mplChatError { margin: 8px 0 0; color: var(--error); font-size: 13px; }
 .mplChatFoot { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex: 0 0 auto; }
 .mplChatInput {

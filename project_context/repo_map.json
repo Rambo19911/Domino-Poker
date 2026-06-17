@@ -77,7 +77,7 @@
   {
     "path": ".env.example",
     "type": "config",
-    "purpose": "Environment template for server host/port, DATABASE_URL, PG pools, turn/pacing settings, NODE_ENV, TRUST_PROXY, and MP action logging.",
+    "purpose": "Environment template for server host/port, DATABASE_URL, PG pools, turn/pacing settings, NODE_ENV, TRUST_PROXY, optional Google Cloud chat translation, and MP action logging.",
     "importance": "high",
     "related_files": [
       "apps/server/src/config.ts"
@@ -389,7 +389,7 @@
   {
     "path": "apps/web/components/mp/MpDesktopLobby.tsx",
     "type": "ui",
-    "purpose": "Desktop multiplayer lobby/room/chat surface.",
+    "purpose": "Desktop multiplayer lobby/room/chat surface, including MP lobby chat emoji input and per-message translation affordance.",
     "importance": "high",
     "related_files": [
       "apps/web/components/MultiplayerLobby.tsx",
@@ -400,11 +400,12 @@
   {
     "path": "apps/web/components/mp/MpMobileLobby.tsx",
     "type": "ui",
-    "purpose": "Phone-portrait multiplayer lobby surface with responsive room list/chat behavior.",
+    "purpose": "Phone-portrait multiplayer lobby surface with responsive room list/chat behavior, including MP lobby chat emoji input and per-message translation affordance.",
     "importance": "high",
     "related_files": [
       "apps/web/components/MultiplayerLobby.tsx",
       "apps/web/components/mp/MpEmojiPicker.tsx",
+      "apps/web/components/mp/MpChatTranslation.tsx",
       "apps/web/styles/mp-mobile-lobby.css"
     ],
     "confidence": "high"
@@ -419,6 +420,42 @@
       "apps/web/components/mp/MpMobileLobby.tsx",
       "apps/web/styles/mp-lobby.css",
       "apps/web/test/mp/MpEmojiPicker.test.tsx"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/mp/MpChatTranslation.tsx",
+    "type": "ui",
+    "purpose": "Reusable MP lobby chat translation button and translated/error text rendering. Calls the server-side `/chat/translate` API with the current UI locale code as target language.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/lib/mp/chatTranslation.ts",
+      "apps/web/components/mp/MpDesktopLobby.tsx",
+      "apps/web/components/mp/MpMobileLobby.tsx",
+      "apps/web/styles/mp-lobby.css"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/mp/chatTranslation.ts",
+    "type": "service",
+    "purpose": "Client HTTP wrapper for MP lobby chat translation requests to `/chat/translate`.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/mp/MpChatTranslation.tsx",
+      "apps/web/lib/mp/serverHttpBase.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/mp/serverHttpBase.ts",
+    "type": "utility",
+    "purpose": "Derives the HTTP server base URL from the configured MP WebSocket URL; shared by auth and chat translation clients.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/lib/mp/serverUrl.ts",
+      "apps/web/lib/auth/authApi.ts",
+      "apps/web/lib/mp/chatTranslation.ts"
     ],
     "confidence": "high"
   },
@@ -546,7 +583,7 @@
   {
     "path": "apps/server/src/config.ts",
     "type": "config",
-    "purpose": "Server env/.env loader and validator for ports, DB URL, timing, PG pools, CORS origins, proxy trust, and email reset settings.",
+    "purpose": "Server env/.env loader and validator for ports, DB URL, timing, PG pools, CORS origins, proxy trust, email reset settings, and optional chat translation settings.",
     "importance": "critical",
     "related_files": [
       ".env.example"
@@ -556,10 +593,11 @@
   {
     "path": "apps/server/src/httpServer.ts",
     "type": "route",
-    "purpose": "Raw HTTP server for `/health`, `/metrics`, optional auth routes, and JSON error responses.",
+    "purpose": "Raw HTTP server for `/health`, `/metrics`, optional chat translation routes, optional auth routes, and JSON error responses.",
     "importance": "high",
     "related_files": [
       "apps/server/src/http/authRoutes.ts",
+      "apps/server/src/chat/chatTranslateRoutes.ts",
       "apps/server/src/index.ts"
     ],
     "confidence": "high"
@@ -618,6 +656,41 @@
     "related_files": [
       "apps/server/src/net/messageRouter.ts",
       "apps/server/test/chat/LobbyChat.test.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/chat/ChatTranslationService.ts",
+    "type": "service",
+    "purpose": "MP lobby chat translation use-case: cache repeated translations and enforce in-memory daily/monthly character budgets before calling a translator provider.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/chat/GoogleCloudTranslator.ts",
+      "apps/server/src/chat/chatTranslateRoutes.ts",
+      "apps/server/test/chat/ChatTranslationService.test.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/chat/GoogleCloudTranslator.ts",
+    "type": "service",
+    "purpose": "Infrastructure adapter for Google Cloud Translation Advanced v3 using server-only service account credentials.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/chat/ChatTranslationService.ts",
+      "apps/server/src/config.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/chat/chatTranslateRoutes.ts",
+    "type": "route",
+    "purpose": "HTTP `/chat/translate` route with bounded JSON input, language-tag validation, CORS, IP rate limit, quota error mapping, and Google-provider failure handling.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/httpServer.ts",
+      "apps/server/src/chat/ChatTranslationService.ts",
+      "apps/server/test/chat/chatTranslateRoutes.test.ts"
     ],
     "confidence": "high"
   },

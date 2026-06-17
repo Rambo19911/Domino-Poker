@@ -17,6 +17,12 @@ tavs-domens.lv {
     # uzstāda automātiski.
     reverse_proxy /auth/* 127.0.0.1:4000
 
+    # MP lobby čata tulkošana: /chat/* -> MP serveris (Google Cloud Translation).
+    # Klients sūta POST /chat/translate; Google credentials paliek TIKAI serverī.
+    # Maršruts vajadzīgs tikai tad, ja TRANSLATE_ENABLED=true (citādi serveris šo
+    # ceļu nereģistrē un atbild 404 — nekaitīgi).
+    reverse_proxy /chat/* 127.0.0.1:4000
+
     # (pēc izvēles) metrikas tikai lokāli:
     # @metrics path /metrics
     # respond @metrics 403
