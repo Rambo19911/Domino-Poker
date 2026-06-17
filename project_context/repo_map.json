@@ -404,7 +404,21 @@
     "importance": "high",
     "related_files": [
       "apps/web/components/MultiplayerLobby.tsx",
+      "apps/web/components/mp/MpEmojiPicker.tsx",
       "apps/web/styles/mp-mobile-lobby.css"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/mp/MpEmojiPicker.tsx",
+    "type": "ui",
+    "purpose": "Emoji picker button for the MP lobby chat input (desktop + mobile). Inserts an emoji at the caret without exceeding CHAT_MAX_LENGTH; no protocol/server changes (sends via existing sendChat flow).",
+    "importance": "low",
+    "related_files": [
+      "apps/web/components/mp/MpDesktopLobby.tsx",
+      "apps/web/components/mp/MpMobileLobby.tsx",
+      "apps/web/styles/mp-lobby.css",
+      "apps/web/test/mp/MpEmojiPicker.test.tsx"
     ],
     "confidence": "high"
   },

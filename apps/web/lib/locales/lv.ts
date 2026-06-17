@@ -32,6 +32,8 @@ export const lv = {
   mpPublicRoomsHint: "Ritināms saraksts · ⏱ TTL atskaite · “Spēlē” istabas ir slēgtas",
   mpPrivateRoomsHint: "🔒 Redzamas sarakstā · pievienošanās ar kodu",
   mpChatPlaceholder: "Raksti ziņu…",
+  mpEmojiPicker: "Izvēlēties emocijzīmi",
+  mpEmojiInsert: "Ievietot {emoji}",
   mpChatLimitHint: "Čata limits: līdz 5 ziņām pēc kārtas, tad ~1 ik 2 s.",
   mpChatRateLimited: "Pārāk ātri — mirkli uzgaidi pirms nākamās ziņas.",
   mpChatInvalid: "Ziņa nav nosūtīta (tukša vai pārāk gara).",

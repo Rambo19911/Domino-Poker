@@ -28,6 +28,8 @@ export const en = {
   mpPublicRoomsHint: "Scrollable list · ⏱ TTL countdown · \"Playing\" rooms are locked",
   mpPrivateRoomsHint: "🔒 Visible in the list · join with a code",
   mpChatPlaceholder: "Write a message…",
+  mpEmojiPicker: "Choose emoji",
+  mpEmojiInsert: "Insert {emoji}",
   mpChatLimitHint: "Chat limit: up to 5 messages in a row, then ~1 every 2 s.",
   mpChatRateLimited: "Too fast — wait a moment before sending again.",
   mpChatInvalid: "Message not sent (empty or too long).",

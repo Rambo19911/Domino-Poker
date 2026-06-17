@@ -313,7 +313,9 @@
 
 .mpChatFoot {
   display: flex;
+  position: relative;
   flex: none;
+  align-items: center;
   gap: 8px;
   margin-top: 0;
   padding-top: 12px;
@@ -341,6 +343,65 @@
 
 .mpChatInput::placeholder {
   color: var(--text-secondary);
+}
+
+.mpEmojiPicker {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.mpEmojiToggle {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1.5px solid rgba(201, 162, 62, 0.42);
+  border-radius: 9px;
+  background: rgba(14, 14, 14, 0.5);
+  color: var(--primary);
+}
+
+.mpEmojiToggle:hover,
+.mpEmojiToggle[aria-expanded="true"] {
+  background: rgba(201, 162, 62, 0.18);
+}
+
+.mpEmojiToggle .iconSvg {
+  width: 21px;
+  height: 21px;
+}
+
+.mpEmojiPanel {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  display: grid;
+  grid-template-columns: repeat(6, 30px);
+  gap: 4px;
+  padding: 8px;
+  border: 1.5px solid rgba(201, 162, 62, 0.42);
+  border-radius: var(--radius-md);
+  background: rgb(var(--surface-floating-rgb) / 0.96);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-floating);
+}
+
+.mpEmojiOption {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(236, 237, 238, 0.12);
+  border-radius: var(--radius-sm);
+  background: rgba(14, 14, 14, 0.42);
+  font-size: 17px;
+  line-height: 1;
+}
+
+.mpEmojiOption:hover,
+.mpEmojiOption:focus-visible {
+  border-color: rgba(201, 162, 62, 0.7);
+  background: rgba(201, 162, 62, 0.18);
 }
 
 .mpChatSend {
@@ -480,4 +541,3 @@
   margin: 0;
   color: var(--primary);
 }
-

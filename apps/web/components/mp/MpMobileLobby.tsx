@@ -10,6 +10,7 @@ import { VolumeIcon, VolumeOffIcon } from "../AudioControls";
 import { HelpIcon } from "../RulesDialog";
 import { IconButton } from "../ui/IconButton";
 import { ConnectionBanner } from "./ConnectionBanner";
+import { MpEmojiPicker } from "./MpEmojiPicker";
 
 const CHAT_MAX_LENGTH = 200;
 
@@ -374,6 +375,7 @@ function ChatOverlay({
 }) {
   const viewportHeight = useVisualViewportHeight();
   const feedRef = useRef<HTMLUListElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const lastMessageId = messages.at(-1)?.id;
 
   useEffect(() => {
@@ -411,7 +413,16 @@ function ChatOverlay({
       )}
       {chatError ? <p className="mplChatError" role="alert">{chatError}</p> : null}
       <form className="mplChatFoot" onSubmit={onSubmit}>
+        <MpEmojiPicker
+          inputRef={inputRef}
+          value={chatDraft}
+          maxLength={CHAT_MAX_LENGTH}
+          label={t.mpEmojiPicker}
+          insertLabel={t.mpEmojiInsert}
+          onChange={onDraftChange}
+        />
         <input
+          ref={inputRef}
           className="mplChatInput"
           type="text"
           maxLength={CHAT_MAX_LENGTH}

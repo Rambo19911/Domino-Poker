@@ -18,6 +18,7 @@ import { HelpIcon } from "../RulesDialog";
 import { Button } from "../ui/Button";
 import { IconButton } from "../ui/IconButton";
 import { ConnectionBanner } from "./ConnectionBanner";
+import { MpEmojiPicker } from "./MpEmojiPicker";
 
 const CHAT_MAX_LENGTH = 200;
 
@@ -96,6 +97,8 @@ export function MpDesktopLobby({
   readonly onStart: () => void;
   readonly onRequestDeleteRoom: () => void;
 }) {
+  const chatInputRef = useRef<HTMLInputElement>(null);
+
   return (
     <>
       <header className="mpLobbyHeader">
@@ -248,7 +251,16 @@ export function MpDesktopLobby({
                   </p>
                 ) : null}
                 <form className="mpChatFoot" onSubmit={onSubmitChat}>
+                  <MpEmojiPicker
+                    inputRef={chatInputRef}
+                    value={chatDraft}
+                    maxLength={CHAT_MAX_LENGTH}
+                    label={t.mpEmojiPicker}
+                    insertLabel={t.mpEmojiInsert}
+                    onChange={onChatDraftChange}
+                  />
                   <input
+                    ref={chatInputRef}
                     className="mpChatInput"
                     type="text"
                     maxLength={CHAT_MAX_LENGTH}

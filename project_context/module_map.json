@@ -116,6 +116,7 @@
       "apps/web/components/mp/MpGameTable.tsx",
       "apps/web/components/mp/MpDesktopLobby.tsx",
       "apps/web/components/mp/MpMobileLobby.tsx",
+      "apps/web/components/mp/MpEmojiPicker.tsx",
       "apps/web/lib/mp/MultiplayerClient.ts",
       "apps/web/lib/mp/useMultiplayer.ts",
       "apps/web/lib/mp/clientView.ts",

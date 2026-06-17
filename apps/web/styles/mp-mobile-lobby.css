@@ -224,7 +224,7 @@
 .mplChatAuthor { color: var(--primary); font-weight: 700; margin-right: 6px; }
 .mplChatText { color: var(--text-primary); }
 .mplChatError { margin: 8px 0 0; color: var(--error); font-size: 13px; }
-.mplChatFoot { display: flex; gap: 8px; margin-top: 10px; flex: 0 0 auto; }
+.mplChatFoot { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex: 0 0 auto; }
 .mplChatInput {
   flex: 1 1 auto;
   min-width: 0;
@@ -237,6 +237,7 @@
 }
 .mplChatSend {
   flex: 0 0 auto;
+  height: 46px;
   padding: 0 18px;
   border: 0;
   border-radius: var(--radius-lg);
@@ -267,4 +268,3 @@
   85% { transform: translate(-50%, 0); opacity: 1; }
   100% { transform: translate(-50%, 0); opacity: 0; }
 }
-
