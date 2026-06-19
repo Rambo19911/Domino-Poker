@@ -30,8 +30,8 @@
   border-radius: 50%;
   background: radial-gradient(circle, var(--background), var(--overlay));
   box-shadow:
-    0 15px 30px rgba(14, 14, 14, 0.7),
-    0 0 50px -20px rgba(201, 162, 62, 0.2);
+    0 15px 30px rgb(var(--overlay-rgb) / 0.7),
+    0 0 50px -20px rgb(var(--primary-rgb) / 0.2);
 }
 
 .tableLogo {
@@ -75,7 +75,7 @@
 .declaredNumber {
   padding: 4px 8px;
   border-radius: var(--radius-sm);
-  background: rgba(14, 14, 14, 0.7);
+  background: rgb(var(--overlay-rgb) / 0.7);
   color: var(--text-primary);
   font-size: 11px;
   font-weight: 700;
@@ -84,7 +84,7 @@
 .declaredNumber {
   padding: 2px 6px;
   border-radius: 6px;
-  background: rgba(201, 162, 62, 0.9);
+  background: rgb(var(--primary-rgb) / 0.9);
   color: var(--overlay);
   font-size: 12px;
 }
@@ -95,7 +95,7 @@
   padding: 8px 16px;
   border: 2px solid var(--text-primary);
   border-radius: 20px;
-  background: rgba(14, 14, 14, 0.7);
+  background: rgb(var(--overlay-rgb) / 0.7);
   color: var(--text-primary);
   font-size: 16px;
   font-weight: 700;
@@ -141,8 +141,8 @@
 .playerProfile {
   overflow: hidden;
   border-radius: 50%;
-  background: rgba(14, 14, 14, 0.7);
-  border: 2px solid rgba(64, 64, 64, 0.7);
+  background: rgb(var(--overlay-rgb) / 0.7);
+  border: 2px solid rgb(var(--border-rgb) / 0.7);
   transition:
     border-color 300ms,
     box-shadow 300ms,
@@ -150,7 +150,7 @@
 }
 
 .playerProfile.hasAvatar {
-  background: rgba(14, 14, 14, 0.9);
+  background: rgb(var(--overlay-rgb) / 0.9);
 }
 
 .playerProfile.hasAvatar::after {
@@ -159,9 +159,9 @@
   content: "";
   background:
     /* Apakšējo ~30% papildu aptumšojums (~50%) — lai vārds + tituls labi pamanāmi. */
-    linear-gradient(to top, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.5) 8%, transparent 30%),
-    radial-gradient(circle at 50% 28%, transparent 34%, rgba(8, 10, 9, 0.22) 62%, rgba(8, 10, 9, 0.72) 100%),
-    linear-gradient(to bottom, transparent 42%, rgba(8, 10, 9, 0.82) 100%);
+    linear-gradient(to top, rgb(var(--shadow-rgb) / 0.55) 0%, rgb(var(--shadow-rgb) / 0.5) 8%, transparent 30%),
+    radial-gradient(circle at 50% 28%, transparent 34%, rgb(var(--overlay-rgb) / 0.22) 62%, rgb(var(--overlay-rgb) / 0.72) 100%),
+    linear-gradient(to bottom, transparent 42%, rgb(var(--overlay-rgb) / 0.82) 100%);
   pointer-events: none;
 }
 
@@ -174,7 +174,7 @@
 }
 
 .playerProfile.active {
-  background: rgba(24, 79, 61, 0.4);
+  background: rgb(var(--background-rgb) / 0.4);
   border-color: var(--background);
   border-width: 4px;
 }
@@ -182,7 +182,7 @@
 .playerProfile.dealer {
   border-color: var(--primary);
   border-width: 4px;
-  box-shadow: 0 0 15px 3px rgba(201, 162, 62, 0.6);
+  box-shadow: 0 0 15px 3px rgb(var(--primary-rgb) / 0.6);
 }
 
 .playerProfile.active.dealer {
@@ -190,7 +190,7 @@
 }
 
 .playerProfile.winnerGlow {
-  box-shadow: 0 0 30px 10px rgba(201, 162, 62, 0.8);
+  box-shadow: 0 0 30px 10px rgb(var(--primary-rgb) / 0.8);
 }
 
 .profileBottom {
@@ -260,10 +260,10 @@
   align-items: center;
   gap: 8px;
   padding: 8px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgb(var(--glass-highlight-rgb) / 0.3);
   border-radius: 20px;
-  background: rgba(46, 125, 50, 0.9);
-  color: #ffffff;
+  background: rgb(var(--success-rgb) / 0.9);
+  color: var(--white);
   font-size: 16px;
   font-weight: 700;
 }

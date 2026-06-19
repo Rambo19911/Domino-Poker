@@ -21,7 +21,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#184f3d",
+  // Sinhronizēts ar --background (tokens.css); PWA prasa literālu HEX.
+  themeColor: "#1b6048",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover"

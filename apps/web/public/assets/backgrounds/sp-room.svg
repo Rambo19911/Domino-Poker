@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <!-- SP-room (vienspēlētāja galda) fons. Pašlaik: smalks vertikāls gradients, atbilst
+       esošajam .gameShell izskatam. Nākotnē: aizvietot ar domino/pokera tekstūru. -->
+  <defs>
+    <linearGradient id="sproom" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e2c26"/>
+      <stop offset="100%" stop-color="#1e2622"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#sproom)"/>
+</svg>

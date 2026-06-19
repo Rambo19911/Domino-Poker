@@ -76,9 +76,9 @@
   width: min(420px, 92vw);
   margin: auto;
   padding: 28px 26px;
-  border: 1.5px solid rgba(201, 162, 62, 0.4);
+  border: 1.5px solid rgb(var(--primary-rgb) / 0.4);
   border-radius: 18px;
-  background: rgba(14, 14, 14, 0.85);
+  background: rgb(var(--overlay-rgb) / 0.85);
 }
 .authResetTitle {
   margin: 0;
@@ -112,7 +112,7 @@
   padding: 2px;
   border: 2px solid transparent;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgb(var(--shadow-rgb) / 0.2);
   cursor: pointer;
   aspect-ratio: 1;
 }

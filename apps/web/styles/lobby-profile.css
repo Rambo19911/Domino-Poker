@@ -46,10 +46,10 @@
   border-radius: 50%;
   overflow: hidden;
   border: 2px solid var(--primary);
-  background: rgba(0, 0, 0, 0.3);
+  background: rgb(var(--shadow-rgb) / 0.3);
   box-shadow:
-    0 0 0 5px rgba(14, 14, 14, 0.82),
-    0 16px 36px rgba(0, 0, 0, 0.5);
+    0 0 0 5px rgb(var(--overlay-rgb) / 0.82),
+    0 16px 36px rgb(var(--shadow-rgb) / 0.5);
 }
 .lobbyProfileAvatar img {
   width: 100%;
@@ -90,20 +90,20 @@
   align-content: center;
   min-width: calc(var(--lobby-avatar) / 2);
   padding: 14px 10px;
-  background: rgba(26, 90, 69, 0.72);
-  border-top: 1px solid rgba(201, 162, 62, 0.35);
-  border-bottom: 1px solid rgba(201, 162, 62, 0.35);
+  background: rgb(var(--surface-rgb) / 0.72);
+  border-top: 1px solid rgb(var(--primary-rgb) / 0.35);
+  border-bottom: 1px solid rgb(var(--primary-rgb) / 0.35);
 }
 .lobbyProfileStatsLeft {
-  border-left: 1px solid rgba(201, 162, 62, 0.35);
+  border-left: 1px solid rgb(var(--primary-rgb) / 0.35);
   border-radius: 14px 0 0 14px;
 }
 .lobbyProfileStatsRight {
-  border-right: 1px solid rgba(201, 162, 62, 0.35);
+  border-right: 1px solid rgb(var(--primary-rgb) / 0.35);
   border-radius: 0 14px 14px 0;
 }
 .lobbyProfile:hover .lobbyProfileStats {
-  border-color: rgba(201, 162, 62, 0.65);
+  border-color: rgb(var(--primary-rgb) / 0.65);
 }
 .lobbyProfileStat {
   display: grid;

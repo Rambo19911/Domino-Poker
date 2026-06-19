@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <!-- MP-lobby fons. Pašlaik: vektora radials (zaļš augšā-centrā -> tumša mala), atbilst
+       esošajam .mpLobby gradientam. Nākotnē: aizvietot ar domino/pokera tekstūru. -->
+  <defs>
+    <radialGradient id="mplobby" cx="50%" cy="0%" r="85%">
+      <stop offset="0%" stop-color="#1c4637"/>
+      <stop offset="60%" stop-color="#1e2622"/>
+      <stop offset="100%" stop-color="#1e2622"/>
+    </radialGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#mplobby)"/>
+</svg>

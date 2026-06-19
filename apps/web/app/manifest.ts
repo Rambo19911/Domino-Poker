@@ -17,8 +17,10 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     scope: "/",
     display: "standalone",
-    background_color: "#0e0e0e",
-    theme_color: "#184f3d",
+    // Sinhronizēts ar --overlay / --background (tokens.css). PWA manifests prasa
+    // literālu HEX (nevar lietot CSS mainīgos) — atjaunot kopā ar tēmas tokeniem.
+    background_color: "#1e2622",
+    theme_color: "#1b6048",
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
       { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },

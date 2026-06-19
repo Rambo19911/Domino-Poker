@@ -4,9 +4,23 @@
   overflow: hidden;
   background: linear-gradient(
     to bottom,
-    rgba(24, 79, 61, 0.1),
-    rgba(14, 14, 14, 0.8)
+    rgb(var(--background-rgb) / 0.1),
+    rgb(var(--overlay-rgb) / 0.8)
   );
+}
+
+/* SP / MP galda istabu swappable SVG fons (modifikators uz attiecīgā <main>).
+   `.gameShell` bāzes gradients paliek fallback, ja modifikatora nav. */
+.gameShell.spRoomBg {
+  background:
+    var(--bg-sp-room) center / cover no-repeat,
+    var(--overlay);
+}
+
+.gameShell.mpRoomBg {
+  background:
+    var(--bg-mp-room) center / cover no-repeat,
+    var(--overlay);
 }
 
 .lobbyShell {
@@ -16,9 +30,11 @@
   place-items: center;
   overflow: hidden;
   padding: 96px 24px 48px;
+  /* Swappable SVG fons (sk. --bg-lobby tokenu). `cover` aizpilda ekrānu; `--overlay`
+     ir bāzes krāsa zem SVG. Nākotnē SVG aizvieto ar domino tekstūru. */
   background:
-    radial-gradient(circle at 50% 36%, rgba(24, 79, 61, 0.75), rgba(14, 14, 14, 0.94) 58%),
-    linear-gradient(to bottom, rgba(24, 79, 61, 0.28), var(--overlay));
+    var(--bg-lobby) center / cover no-repeat,
+    var(--overlay);
 }
 
 .lobbyTopBar {
@@ -171,8 +187,8 @@
   inset: 1.8%;
   border-radius: 50%;
   box-shadow:
-    0 22px 52px rgba(0, 0, 0, 0.58),
-    0 0 54px rgba(201, 162, 62, 0.12);
+    0 22px 52px rgb(var(--shadow-rgb) / 0.58),
+    0 0 54px rgb(var(--primary-rgb) / 0.12);
   pointer-events: none;
 }
 
@@ -182,40 +198,40 @@
   width: 100%;
   height: 100%;
   overflow: visible;
-  filter: drop-shadow(0 16px 34px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 16px 34px rgb(var(--shadow-rgb) / 0.45));
   pointer-events: none;
 }
 
 .modeWheelArc {
-  stroke: rgba(201, 162, 62, 0.8);
+  stroke: rgb(var(--primary-rgb) / 0.8);
   stroke-width: 4;
   stroke-linejoin: round;
 }
 
 .modeWheelArc.top {
-  fill: rgba(28, 96, 73, 0.96);
+  fill: rgb(var(--wheel-arc-top-rgb) / 0.96);
 }
 
 .modeWheelArc.bottom {
-  fill: rgba(18, 62, 50, 0.96);
+  fill: rgb(var(--wheel-arc-bottom-rgb) / 0.96);
 }
 
 .modeWheelText {
-  fill: rgba(236, 237, 238, 0.94);
+  fill: rgb(var(--text-primary-rgb) / 0.94);
   font-family: Inter, ui-sans-serif, system-ui, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif;
   font-size: 34px;
   font-weight: 300;
   letter-spacing: 0;
   text-anchor: middle;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.56);
+  text-shadow: 0 2px 12px rgb(var(--shadow-rgb) / 0.56);
 }
 
 .modeWheelText.top {
-  fill: rgba(201, 162, 62, 0.92);
+  fill: rgb(var(--primary-rgb) / 0.92);
 }
 
 .modeWheelText.bottom {
-  fill: rgba(201, 162, 62, 0.92);
+  fill: rgb(var(--primary-rgb) / 0.92);
   font-size: 32px;
 }
 
@@ -230,8 +246,8 @@
   aspect-ratio: 1;
   border-radius: 50%;
   box-shadow:
-    0 0 0 5px rgba(14, 14, 14, 0.82),
-    0 16px 36px rgba(0, 0, 0, 0.5);
+    0 0 0 5px rgb(var(--overlay-rgb) / 0.82),
+    0 16px 36px rgb(var(--shadow-rgb) / 0.5);
   transform: translate(-50%, -50%);
   pointer-events: none;
   overflow: hidden;
@@ -276,7 +292,7 @@
 .roundArcLabel {
   position: absolute;
   z-index: 2;
-  color: rgba(201, 162, 62, 0.92);
+  color: rgb(var(--primary-rgb) / 0.92);
   font-size: 10px;
   line-height: 1;
   letter-spacing: 0.04em;
@@ -313,7 +329,7 @@
 }
 
 .roundArcSvg:focus-visible .roundArcTrack {
-  stroke: rgba(236, 237, 238, 0.42);
+  stroke: rgb(var(--text-primary-rgb) / 0.42);
 }
 
 .roundArcTrack,
@@ -325,7 +341,7 @@
 }
 
 .roundArcTrack {
-  stroke: rgba(236, 237, 238, 0.28);
+  stroke: rgb(var(--text-primary-rgb) / 0.28);
 }
 
 .roundArcActive {
@@ -333,16 +349,16 @@
 }
 
 .roundArcThumbHalo {
-  fill: rgba(14, 14, 14, 0.42);
+  fill: rgb(var(--overlay-rgb) / 0.42);
   pointer-events: all;
-  stroke: rgba(201, 162, 62, 0.36);
+  stroke: rgb(var(--primary-rgb) / 0.36);
   stroke-width: 2;
 }
 
 .roundArcThumb {
   fill: var(--primary);
   pointer-events: all;
-  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.42));
+  filter: drop-shadow(0 3px 8px rgb(var(--shadow-rgb) / 0.42));
 }
 
 .roundArcStep {
@@ -352,13 +368,13 @@
   place-items: center;
   width: 26px;
   height: 26px;
-  border: 2px solid rgba(201, 162, 62, 0.5);
-  background: rgba(14, 14, 14, 0.32);
+  border: 2px solid rgb(var(--primary-rgb) / 0.5);
+  background: rgb(var(--overlay-rgb) / 0.32);
   color: var(--primary);
   border-radius: 50%;
   font-size: 15px;
   font-weight: 900;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 3px 10px rgb(var(--shadow-rgb) / 0.28);
   pointer-events: auto;
   transform: translate(-50%, -50%);
 }
@@ -371,9 +387,9 @@
   width: 50px;
   height: 50px;
   min-height: 0;
-  border-color: rgba(201, 162, 62, 0.62);
+  border-color: rgb(var(--primary-rgb) / 0.62);
   border-radius: 50%;
-  background: rgba(14, 14, 14, 0.68);
+  background: rgb(var(--overlay-rgb) / 0.68);
   font-size: 11px;
   pointer-events: auto;
   line-height: 1;
@@ -382,8 +398,8 @@
 
 .singleModeControls .playButton:hover {
   box-shadow:
-    0 8px 18px rgba(0, 0, 0, 0.28),
-    0 0 14px rgba(201, 162, 62, 0.16);
+    0 8px 18px rgb(var(--shadow-rgb) / 0.28),
+    0 0 14px rgb(var(--primary-rgb) / 0.16);
   transform: translate(-50%, -50%);
 }
 
@@ -407,9 +423,9 @@
   width: 50px;
   height: 50px;
   min-height: 0;
-  border-color: rgba(201, 162, 62, 0.62);
+  border-color: rgb(var(--primary-rgb) / 0.62);
   border-radius: 50%;
-  background: rgba(14, 14, 14, 0.68);
+  background: rgb(var(--overlay-rgb) / 0.68);
   font-size: 11px;
   pointer-events: auto;
   line-height: 1;
@@ -418,8 +434,8 @@
 
 .multiModeControls .playButton:hover {
   box-shadow:
-    0 8px 18px rgba(0, 0, 0, 0.28),
-    0 0 14px rgba(201, 162, 62, 0.16);
+    0 8px 18px rgb(var(--shadow-rgb) / 0.28),
+    0 0 14px rgb(var(--primary-rgb) / 0.16);
   transform: translate(-50%, -50%);
 }
 
@@ -429,13 +445,13 @@
 
 .playButton {
   min-height: 36px;
-  border: 2px solid rgba(14, 14, 14, 0.2);
+  border: 2px solid rgb(var(--overlay-rgb) / 0.2);
   border-radius: var(--radius-lg);
   background: var(--overlay);
   color: var(--primary);
   font-size: 14px;
   font-weight: 900;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 8px 18px rgb(var(--shadow-rgb) / 0.28);
   transition:
     transform 180ms ease,
     box-shadow 180ms ease;
@@ -443,8 +459,8 @@
 
 .playButton:hover {
   box-shadow:
-    0 10px 24px rgba(0, 0, 0, 0.36),
-    0 0 18px rgba(255, 255, 255, 0.16);
+    0 10px 24px rgb(var(--shadow-rgb) / 0.36),
+    0 0 18px rgb(var(--glass-highlight-rgb) / 0.16);
   transform: translateY(-2px);
 }
 

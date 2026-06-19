@@ -16,7 +16,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--dialog-surface);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 6px 24px rgb(var(--shadow-rgb) / 0.45);
 }
 .installBannerText {
   margin: 0;

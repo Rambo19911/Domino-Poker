@@ -36,13 +36,13 @@
   0%,
   100% {
     box-shadow:
-      0 2px 4px rgba(0, 0, 0, 0.3),
-      0 0 12px 0 rgba(24, 79, 61, 0);
+      0 2px 4px rgb(var(--shadow-rgb) / 0.3),
+      0 0 12px 0 rgb(var(--background-rgb) / 0);
   }
   50% {
     box-shadow:
-      0 2px 4px rgba(0, 0, 0, 0.3),
-      0 0 20px 3px rgba(24, 79, 61, 0.3);
+      0 2px 4px rgb(var(--shadow-rgb) / 0.3),
+      0 0 20px 3px rgb(var(--background-rgb) / 0.3);
   }
 }
 

@@ -22,14 +22,14 @@
   /* Krāsas. Bāzes/zīmola tokeniem, kam vajag caurspīdīgus variantus, ir
      RGB-kanāla pāris (`--*-rgb`) — tā paša krāsa bez alfas; lieto ar
      caurspīdīgumu: `rgb(var(--primary-rgb) / 0.16)`. */
-  --background: #184f3d;
-  --background-rgb: 24 79 61;
-  --surface: #1a5a45;
-  --surface-rgb: 26 90 69;
-  --overlay: #0e0e0e;
-  --overlay-rgb: 14 14 14;
-  --primary: #c9a23e;
-  --primary-rgb: 201 162 62;
+  --background: #1b6048;
+  --background-rgb: 27 96 72;
+  --surface: #1d6b50;
+  --surface-rgb: 29 107 80;
+  --overlay: #1e2622;
+  --overlay-rgb: 30 38 34;
+  --primary: #d6ad47;
+  --primary-rgb: 214 173 71;
   --error: #e1233f;
   --error-rgb: 225 35 63;
   --success: #2e7d32;
@@ -43,11 +43,14 @@
   --domino-pips-alt: #222222;
   --border: #404040;
   --border-rgb: 64 64 64;
-  --dialog-background: #1a1a1a;
-  --dialog-surface: #252525;
+  --dialog-background: #232a27;
+  --dialog-surface: #2c332f;
   --slider-active: #4caf50;
   --slider-inactive: #616161;
   --card-shadow: #000000;
+  /* Tīrs melns dziļumam/ēnām/scrim (≠ --overlay #0e0e0e). Lieto ar caurspīdīgumu:
+     `rgb(var(--shadow-rgb) / 0.30)`. Centralizē ad-hoc `rgba(0,0,0,…)` literāļus. */
+  --shadow-rgb: 0 0 0;
 
   /* Semantiskie statusa/virsmas tokeni (Fāze 1 — MP paletes remonts). RGB-kanāla
      pāris tikai tur, kur vajag caurspīdīgu variantu; HEX un kanāls sinhroni.
@@ -58,8 +61,8 @@
        neapvienojam.
      (--warning izlaists: neviens CSS literālis vai aizvietošana to nereferencē;
        pievienot, kad reāli parādās warning stāvoklis.) */
-  --surface-floating: #1a5a45;
-  --surface-floating-rgb: 26 90 69;
+  --surface-floating: #1d6b50;
+  --surface-floating-rgb: 29 107 80;
   --danger: #c0392b;
   --danger-rgb: 192 57 43;
   --online: #46c46a;
@@ -68,6 +71,26 @@
   --positive-rgb: 76 175 80;
   --neutral: #8a8f94;
   --on-primary: #1a1207;
+
+  /* Centralizēti vienreizējie toņi (krāsu centralizācija — bija literāļi stilos).
+     RGB-kanāla forma, lieto ar caurspīdīgumu: `rgb(var(--token) / α)`. */
+  --wheel-arc-top-rgb: 28 96 73;     /* lobby mode-wheel augšējā loka zaļais (tumšs, lai zelta teksts ≥3:1) */
+  --wheel-arc-bottom-rgb: 18 62 50;  /* lobby mode-wheel apakšējā loka (tumšāks) */
+  --accent-green-rgb: 46 158 79;     /* spilgts zaļš glow (MP gājiena indikators) */
+  --danger-soft-rgb: 214 78 78;      /* mīksts sarkans (MP danger zona) */
+  --muted-rgb: 120 120 120;          /* neitrāls pelēks (settings track/disabled) */
+  --white: #ffffff;                  /* tīrs balts (augsta kontrasta teksts uz krāsas) */
+  --accent-green: #2e9e4f;           /* spilgts zaļš (= --accent-green-rgb, solid forma) */
+  --danger-text: #f0b4b4;            /* gaišs sarkans teksts (MP atvienots/noraidīts) */
+  --danger-text-coral: #e8736a;      /* korala sarkans teksts (MP mobilais) */
+
+  /* Ekrānu fona attēli (SVG — swappable asset). Pašlaik vektora gradienti, kas atbilst
+     esošajam izskatam; nākotnē aizvietot ar domino/pokera tekstūrām (bez koda izmaiņām).
+     Krāsas iesaiņotas SVG (NE token-recolored); `var(--overlay)` paliek bāzes fallback. */
+  --bg-lobby: url("/assets/backgrounds/lobby.svg");
+  --bg-mp-lobby: url("/assets/backgrounds/mp-lobby.svg");
+  --bg-sp-room: url("/assets/backgrounds/sp-room.svg");
+  --bg-mp-room: url("/assets/backgrounds/mp-room.svg");
 
   /* Rādiusu skala (no esošo vērtību audita; 50% un kombinētās vērtības
      paliek literāļos kā ģeometrija) */

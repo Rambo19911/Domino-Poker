@@ -113,7 +113,7 @@ export function MpGameTable({
   };
 
   return (
-    <main className="gameShell">
+    <main className="gameShell mpRoomBg">
       {isPhonePortrait ? (
         <MpMobileTable
           labels={t}

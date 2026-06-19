@@ -24,7 +24,7 @@
   right: 0;
   width: 330px;
   padding: 10px 0;
-  border: 1px solid rgba(64, 64, 64, 0.7);
+  border: 1px solid rgb(var(--border-rgb) / 0.7);
   border-radius: var(--radius-lg);
   background: var(--overlay);
   color: var(--text-primary);
@@ -96,7 +96,7 @@
   display: grid;
   gap: 8px;
   padding-top: 14px;
-  border-top: 1px solid rgba(201, 162, 62, 0.18);
+  border-top: 1px solid rgb(var(--primary-rgb) / 0.18);
 }
 
 .rulesSection:first-child {
@@ -114,7 +114,7 @@
 
 .rulesSection p {
   margin: 0;
-  color: rgba(236, 237, 238, 0.86);
+  color: rgb(var(--text-primary-rgb) / 0.86);
   font-size: 14px;
   line-height: 1.5;
 }
@@ -124,7 +124,7 @@
   padding-left: 20px;
   display: grid;
   gap: 6px;
-  color: rgba(236, 237, 238, 0.86);
+  color: rgb(var(--text-primary-rgb) / 0.86);
   font-size: 14px;
   line-height: 1.5;
 }
@@ -190,7 +190,7 @@
 }
 
 .settingsTab[aria-pressed="false"] {
-  background: rgba(120, 120, 120, 0.2);
+  background: rgb(var(--muted-rgb) / 0.2);
 }
 
 .settingsTab[aria-pressed="true"] {
@@ -229,7 +229,7 @@
   gap: 10px;
   margin: 0;
   padding: 12px 14px;
-  border: 1px solid rgba(64, 64, 64, 0.8);
+  border: 1px solid rgb(var(--border-rgb) / 0.8);
   border-radius: var(--radius-lg);
   background: var(--dialog-surface);
 }
@@ -259,7 +259,7 @@
 
 .settingsDialog .audioControls {
   padding: 8px 0;
-  border: 1px solid rgba(64, 64, 64, 0.8);
+  border: 1px solid rgb(var(--border-rgb) / 0.8);
   border-radius: var(--radius-lg);
   background: var(--dialog-surface);
 }
@@ -281,7 +281,7 @@
   min-height: 42px;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
-  background: rgba(120, 120, 120, 0.2);
+  background: rgb(var(--muted-rgb) / 0.2);
   color: var(--text-secondary);
   font: inherit;
   font-size: 15px;
@@ -318,7 +318,7 @@
   width: 100%;
   min-height: 42px;
   padding: 0 42px 0 14px;
-  border: 1px solid rgba(64, 64, 64, 0.8);
+  border: 1px solid rgb(var(--border-rgb) / 0.8);
   border-radius: var(--radius-lg);
   background:
     linear-gradient(45deg, transparent 50%, var(--primary) 50%) right 18px center / 7px 7px no-repeat,

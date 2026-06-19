@@ -39,10 +39,10 @@
   align-content: center;
   justify-items: end;
   gap: 7px;
-  border: 1.5px solid rgba(201, 162, 62, 0.32);
+  border: 1.5px solid rgb(var(--primary-rgb) / 0.32);
   border-radius: var(--radius-sm);
   padding: 12px 14px;
-  background: rgba(14, 14, 14, 0.34);
+  background: rgb(var(--overlay-rgb) / 0.34);
 }
 
 .mpRoomCodeLabel {
@@ -72,14 +72,14 @@
   align-items: center;
   min-height: 112px;
   gap: 14px;
-  border: 1.5px solid rgba(236, 237, 238, 0.16);
+  border: 1.5px solid rgb(var(--text-primary-rgb) / 0.16);
   border-radius: var(--radius-sm);
   padding: 14px;
-  background: rgba(14, 14, 14, 0.34);
+  background: rgb(var(--overlay-rgb) / 0.34);
 }
 
 .mpSeatCard.isFilled {
-  border-color: rgba(201, 162, 62, 0.36);
+  border-color: rgb(var(--primary-rgb) / 0.36);
 }
 
 .mpSeatCard.isEmpty {
@@ -90,7 +90,7 @@
   position: absolute;
   top: 8px;
   right: 10px;
-  color: rgba(236, 237, 238, 0.36);
+  color: rgb(var(--text-primary-rgb) / 0.36);
   font-size: 12px;
   font-weight: 800;
 }
@@ -100,9 +100,9 @@
   place-items: center;
   width: 54px;
   height: 54px;
-  border: 1.5px solid rgba(201, 162, 62, 0.42);
+  border: 1.5px solid rgb(var(--primary-rgb) / 0.42);
   border-radius: 50%;
-  background: rgba(26, 90, 69, 0.54);
+  background: rgb(var(--surface-rgb) / 0.54);
   color: var(--text-primary);
   font-size: 22px;
   font-weight: 900;
@@ -157,7 +157,7 @@
   padding: 2px 10px;
   border-radius: var(--radius-lg);
   background: rgb(var(--success-rgb) / 0.95);
-  color: #ffffff;
+  color: var(--white);
   font-size: 18px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
@@ -167,7 +167,7 @@
   margin-top: 2px;
   font-size: 12px;
   font-weight: 600;
-  color: #f0b4b4;
+  color: var(--danger-text);
 }
 
 .mpGameConnection {
@@ -193,8 +193,8 @@
 }
 
 .mpConn-connected .mpConnDot {
-  background: #2e9e4f;
-  box-shadow: 0 0 7px rgba(46, 158, 79, 0.75);
+  background: var(--accent-green);
+  box-shadow: 0 0 7px rgb(var(--accent-green-rgb) / 0.75);
 }
 
 .mpConn-connecting .mpConnDot,
@@ -222,7 +222,7 @@
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgba(8, 12, 10, 0.55);
+  background: rgb(var(--overlay-rgb) / 0.55);
   z-index: var(--z-overlay);
 }
 
@@ -232,11 +232,11 @@
   align-items: center;
   gap: 12px;
   padding: 36px 56px;
-  border: 1px solid rgba(201, 162, 62, 0.6);
+  border: 1px solid rgb(var(--primary-rgb) / 0.6);
   border-radius: 18px;
-  background: rgba(24, 79, 61, 0.92);
-  color: #ffffff;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.4);
+  background: rgb(var(--background-rgb) / 0.92);
+  color: var(--white);
+  box-shadow: 0 18px 48px rgb(var(--shadow-rgb) / 0.4);
 }
 
 .mpPreGameLabel {

@@ -365,7 +365,7 @@ export function DominoPokerGame({
   };
 
   return (
-    <main className="gameShell">
+    <main className="gameShell spRoomBg">
       {isPhonePortrait ? (
         <SpMobileTable
           labels={labels}
