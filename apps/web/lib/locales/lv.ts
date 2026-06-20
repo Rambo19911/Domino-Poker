@@ -171,6 +171,7 @@ export const lv = {
   exitGameLoseWarning: "Pašreizējais spēles progress tiks zaudēts.",
   fallbackPlayerName: "Spēlētājs",
   gameOver: "Spēle beigusies",
+  coinsEarned: "Nopelnītās monētas",
   gameStatus: "Spēles statuss",
   gameTableLabel: "Domino Poker spēles galds",
   gameModes: "Spēles režīmi",

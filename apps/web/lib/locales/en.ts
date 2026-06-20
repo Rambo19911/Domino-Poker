@@ -167,6 +167,7 @@ export const en = {
   exitGameLoseWarning: "Current game progress will be lost.",
   fallbackPlayerName: "Player",
   gameOver: "Game Over",
+  coinsEarned: "Coins earned",
   gameStatus: "Game status",
   gameTableLabel: "Domino Poker game table",
   gameModes: "Game modes",

@@ -5,6 +5,7 @@ import { calculateRoundScore, getWinner } from "@domino-poker/core";
 import type { DominoTile, GameState } from "@domino-poker/core";
 import type { AppStrings } from "../lib/i18n";
 import type { AudioSettings } from "../lib/useAudioSettings";
+import { CoinIcon } from "./CoinIcon";
 import { Dialog } from "./Dialog";
 
 export function BidDialog({
@@ -149,11 +150,14 @@ export function GameEndDialog({
   gameState,
   audio,
   labels,
+  spAward,
   onClose
 }: {
   readonly gameState: GameState;
   readonly audio: AudioSettings;
   readonly labels: AppStrings;
+  /** Fāze 2: SP balvā nopelnītās monētas (vai `null`); rāda "+N", ja > 0. */
+  readonly spAward?: number | null;
   readonly onClose: () => void;
 }) {
   const winner = getWinner(gameState);
@@ -170,6 +174,12 @@ export function GameEndDialog({
     >
       <h2 id="game-end-title"><TrophyIcon /> {labels.gameOver}</h2>
       <div className="winnerBanner">{labels.winner}: {winner?.name ?? ""}</div>
+      {typeof spAward === "number" && spAward > 0 ? (
+        <div className="gameEndReward" aria-label={`${labels.coinsEarned}: ${spAward}`}>
+          <CoinIcon className="gameEndRewardIcon" />
+          <span className="gameEndRewardValue">+{spAward.toLocaleString()}</span>
+        </div>
+      ) : null}
       <dl className="finalScores">
         {gameState.players.map((player) => (
           <div className={player.id === winner?.id ? "winnerRow" : ""} key={player.id}>

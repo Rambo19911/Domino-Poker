@@ -574,6 +574,16 @@ export class SqliteStorage implements StoragePort, AuthStore, CoinStore {
     }
   }
 
+  async sumLedgerSince(userId: string, reason: string, sinceMs: number): Promise<number> {
+    const row = this.db
+      .prepare(
+        `SELECT COALESCE(SUM(delta), 0) AS total
+           FROM coin_ledger WHERE user_id = ? AND reason = ? AND created_at >= ?`
+      )
+      .get(userId, reason, sinceMs) as { total: number | bigint } | undefined;
+    return row ? Number(row.total) : 0;
+  }
+
   async getUserStats(userId: string): Promise<UserStatsRecord | undefined> {
     const row = this.db
       .prepare(

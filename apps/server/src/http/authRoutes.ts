@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { AuthService } from "../auth/AuthService.js";
 import type { LeaderboardService } from "../leaderboard/LeaderboardService.js";
 import type { WalletService } from "../wallet/WalletService.js";
+import { applyCors, bearerToken, clientIp, writeJson } from "./httpUtils.js";
 import { MAX_AVATAR_BYTES, readBinaryBody, readJsonBody } from "./readJsonBody.js";
 import { RateLimiter } from "./rateLimiter.js";
 
@@ -546,60 +547,4 @@ async function handleAvatarFetch(
     "content-length": String(avatar.bytes.length)
   });
   response.end(Buffer.from(avatar.bytes));
-}
-
-/** Dev: jebkura localhost/127.0.0.1 izcelsme (jebkurš ports); prod: tikai allowlist. */
-const LOCALHOST_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/u;
-
-function isAllowedOrigin(origin: string, origins: readonly string[], dev: boolean): boolean {
-  return origins.includes(origin) || (dev && LOCALHOST_ORIGIN.test(origin));
-}
-
-function applyCors(
-  request: IncomingMessage,
-  response: ServerResponse,
-  origins: readonly string[],
-  dev: boolean
-): void {
-  const origin = request.headers.origin;
-  if (typeof origin === "string" && isAllowedOrigin(origin, origins, dev)) {
-    response.setHeader("Access-Control-Allow-Origin", origin);
-    response.setHeader("Vary", "Origin");
-    response.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS");
-    response.setHeader("Access-Control-Allow-Headers", "content-type, authorization");
-    response.setHeader("Access-Control-Max-Age", "86400");
-  }
-}
-
-function bearerToken(request: IncomingMessage): string | undefined {
-  const header = request.headers.authorization;
-  if (typeof header === "string" && header.startsWith("Bearer ")) {
-    const token = header.slice("Bearer ".length).trim();
-    return token.length > 0 ? token : undefined;
-  }
-  return undefined;
-}
-
-/**
- * Klienta IP rate-limit atslēgai. `X-Forwarded-For` pirmais hops tiek lietots TIKAI
- * tad, ja `trustProxy` ir ieslēgts (serveris aiz uzticama reverse proxy, piem. Caddy/
- * Nginx); citādi headeris ir falsificējams un rate-limit būtu apejams, tāpēc lietojam
- * `socket.remoteAddress` (tiešā savienojuma adrese).
- */
-function clientIp(request: IncomingMessage, trustProxy: boolean): string {
-  if (trustProxy) {
-    const forwarded = request.headers["x-forwarded-for"];
-    if (typeof forwarded === "string" && forwarded.length > 0) {
-      return forwarded.split(",")[0]!.trim();
-    }
-  }
-  return request.socket.remoteAddress ?? "unknown";
-}
-
-function writeJson(response: ServerResponse, status: number, body: unknown): void {
-  response.writeHead(status, {
-    "content-type": "application/json; charset=utf-8",
-    "cache-control": "no-store"
-  });
-  response.end(JSON.stringify(body));
 }

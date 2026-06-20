@@ -69,6 +69,22 @@
   }
 }
 
+/* Monētu ieguves pulss (Fāze 2): SP balva / MP izmaksa; modelēts pēc `bidGlow`. */
+@keyframes coinGainPulse {
+  0% {
+    transform: scale(0.92);
+    box-shadow: 0 0 0 0 rgb(var(--coin-rgb) / 0.5);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 16px 4px rgb(var(--coin-rgb) / 0.45);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgb(var(--coin-rgb) / 0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

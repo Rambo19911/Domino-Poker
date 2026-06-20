@@ -27,11 +27,34 @@ export class WalletService {
   private readonly coins: CoinStore;
   private readonly clock: Clock;
   private readonly createId: () => string;
+  /** Per-lietotāja secības ķēde (serializē griestu-pārbaudi + kreditēšanu; pašattīrās). */
+  private readonly userChains = new Map<string, Promise<void>>();
 
   constructor(options: WalletServiceOptions) {
     this.coins = options.coins;
     this.clock = options.clock;
     this.createId = options.createId ?? (() => randomUUID());
+  }
+
+  /**
+   * Serializē darbības uz vienu lietotāju (in-process; vienas instances, kā
+   * `RateLimiter`). Novērš sacensību starp "summē-līdz-griestiem" lasījumu un
+   * kreditēšanu, kad viens lietotājs vienlaikus pabeidz divas SP spēles.
+   */
+  private withUserLock<T>(userId: string, fn: () => Promise<T>): Promise<T> {
+    const prev = this.userChains.get(userId) ?? Promise.resolve();
+    const run = prev.then(fn, fn); // gaida iepriekšējo (arī ja tas neizdevās), tad palaiž fn
+    const tail = run.then(
+      () => undefined,
+      () => undefined
+    );
+    this.userChains.set(userId, tail);
+    void tail.then(() => {
+      if (this.userChains.get(userId) === tail) {
+        this.userChains.delete(userId);
+      }
+    });
+    return run;
   }
 
   /**
@@ -57,5 +80,51 @@ export class WalletService {
    */
   async getBalance(userId: string): Promise<number> {
     return this.grantSignupBonus(userId);
+  }
+
+  /**
+   * Ieskaita SP balvu (Fāze 2). Idempotents pēc `gameToken` (ref) — atkārtots
+   * pieprasījums ar to pašu tokenu neieskaita divreiz (papildu DB-līmeņa sargs virs
+   * vienreizējā in-memory tokena). Atgriež bilanci pēc kreditēšanas.
+   */
+  async creditSpReward(userId: string, gameToken: string, amount: number): Promise<number> {
+    const result = await this.coins.applyLedger({
+      id: this.createId(),
+      userId,
+      delta: amount,
+      reason: "sp_reward",
+      ref: gameToken,
+      now: this.clock()
+    });
+    return result.ok ? result.balance : this.coins.getBalance(userId);
+  }
+
+  /** Kopā SP balvās nopelnītās monētas pēdējās 24h (dienas griestu pārbaudei). */
+  async spRewardLast24h(userId: string, now: number): Promise<number> {
+    return this.coins.sumLedgerSince(userId, "sp_reward", now - 24 * 60 * 60 * 1000);
+  }
+
+  /**
+   * Ieskaita SP balvu ar dienas griestu HARD ierobežojumu, atomiski uz lietotāju
+   * (per-user lock). Apgriež (`clamp`) balvu līdz atlikušajam griestu apjomam, lai
+   * 24h kopsumma NEKAD nepārsniedz `dailyCap` (arī pie vienlaicīgām spēlēm). Atgriež
+   * faktiski piešķirto (var būt daļējs vai 0) + bilanci.
+   */
+  async creditSpRewardCapped(
+    userId: string,
+    gameToken: string,
+    amount: number,
+    dailyCap: number,
+    now: number
+  ): Promise<{ awarded: number; balance: number }> {
+    return this.withUserLock(userId, async () => {
+      const earned = await this.spRewardLast24h(userId, now);
+      const grantable = Math.max(0, Math.min(amount, dailyCap - earned));
+      if (grantable <= 0) {
+        return { awarded: 0, balance: await this.getBalance(userId) };
+      }
+      const balance = await this.creditSpReward(userId, gameToken, grantable);
+      return { awarded: grantable, balance };
+    });
   }
 }

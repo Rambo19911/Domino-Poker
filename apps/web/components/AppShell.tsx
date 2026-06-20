@@ -11,7 +11,9 @@ import { DEFAULT_DIFFICULTY, isBotDifficulty, type BotDifficulty } from "../lib/
 import type { RegisterInput } from "../lib/auth/authApi";
 import { avatarUrl } from "../lib/auth/avatarUrl";
 import { titleLabel } from "../lib/auth/titleLabel";
+import type { AuthResult } from "../lib/auth/authApi";
 import { useAuthUser } from "../lib/auth/useAuthUser";
+import { apiSpReward, apiSpStart, type SpStartResponse } from "../lib/sp/spReward";
 import {
   defaultLocale,
   getAppStrings,
@@ -60,9 +62,15 @@ export function AppShell() {
   const [selectedRoundCount, setSelectedRoundCount] = useState(defaultRoundCount);
   const [selectedDifficulty, setSelectedDifficulty] = useState<BotDifficulty>(DEFAULT_DIFFICULTY);
   const [resetToken, setResetToken] = useState<string | null>(null);
+  // Fāze 2: SP balva. `spStartRef` tur /sp/start PIEPRASĪJUMU (promise), lai to var
+  // sagaidīt pie spēles beigām, pat ja tas vēl nav atrisinājies (īsa spēle). `spAward`
+  // ir piešķirtās monētas, ko GameEndDialog rāda kā "+N".
+  const spStartRef = useRef<Promise<AuthResult<SpStartResponse>> | null>(null);
+  const [spAward, setSpAward] = useState<number | null>(null);
   const audio = useAudioSettings();
   const auth = useAuthUser();
   const refreshAuth = auth.refresh;
+  const getAuthToken = auth.getToken;
   const t = getAppStrings(locale);
   // localeRef vienmēr satur jaunāko locale (valodas-sync efekts to lasa bez `locale`
   // deps, lai changeLocale nestartētu lieku cikla atkārtojumu).
@@ -173,8 +181,39 @@ export function AppShell() {
 
   const startSinglePlayer = () => {
     audio.play("uiClick");
+    // Fāze 2: ielogotam pieprasām vienreizēju balvas tokenu (grūtība momentuzņemta
+    // serverī). Glabājam PAŠU pieprasījumu, lai to var sagaidīt pie spēles beigām, pat
+    // ja īsa spēle beidzas pirms atbildes. Anonīmam izlaižam — spēlē, bet nesaņem neko.
+    setSpAward(null);
+    const token = getAuthToken();
+    spStartRef.current = token ? apiSpStart(token, selectedDifficulty) : null;
     setScreen("game");
   };
+
+  // Fāze 2: SP spēle beigusies. Ja cilvēks ir 1.–2. vietā, sagaidām /sp/start atbildi
+  // un pieprasām balvu pret tās tokenu (vienreizējs; serveris piespiež grūtību+griestus).
+  // Bilance lobby atjaunojas pati caur `screen === "lobby"` refresh efektu.
+  const handleSpGameEnd = useCallback(
+    (humanPlacement: number): void => {
+      const startRequest = spStartRef.current;
+      const token = getAuthToken();
+      spStartRef.current = null; // viena izsaukuma sargs
+      if (!startRequest || !token || humanPlacement < 1 || humanPlacement > 2) {
+        return;
+      }
+      const placement = humanPlacement as 1 | 2;
+      void startRequest
+        .then((startRes) =>
+          startRes.ok ? apiSpReward(token, { gameToken: startRes.data.gameToken, placement }) : null
+        )
+        .then((rewardRes) => {
+          if (rewardRes && rewardRes.ok && rewardRes.data.awarded > 0) {
+            setSpAward(rewardRes.data.awarded);
+          }
+        });
+    },
+    [getAuthToken]
+  );
 
   const openMultiplayerLobby = () => {
     audio.play("uiClick");
@@ -226,6 +265,8 @@ export function AppShell() {
         humanProfile={humanProfile}
         labels={t}
         numberOfRounds={selectedRoundCount}
+        spAward={spAward}
+        onGameEnd={handleSpGameEnd}
         onExitToLobby={() => {
           setScreen("lobby");
         }}

@@ -741,6 +741,16 @@ export class PostgresStorage
     }
   }
 
+  async sumLedgerSince(userId: string, reason: string, sinceMs: number): Promise<number> {
+    const result = await this.pool.query<{ total: string | number }>(
+      `SELECT COALESCE(SUM(delta), 0) AS total
+         FROM coin_ledger WHERE user_id = $1 AND reason = $2 AND created_at >= $3`,
+      [userId, reason, sinceMs]
+    );
+    const row = result.rows[0];
+    return row ? Number(row.total) : 0;
+  }
+
   async getUserStats(userId: string): Promise<UserStatsRecord | undefined> {
     const result = await this.pool.query<UserStatsRow>(
       `SELECT user_id, games_played, wins, losses, updated_at

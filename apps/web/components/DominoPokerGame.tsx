@@ -5,6 +5,7 @@ import {
   completeTrick,
   createNewGame,
   getInvalidMoveReason as getCoreInvalidMoveReason,
+  getStandings,
   getValidTiles,
   highestTrumpPriorityInTrick,
   isTrump,
@@ -51,6 +52,8 @@ export function DominoPokerGame({
   humanProfile,
   labels,
   numberOfRounds,
+  spAward,
+  onGameEnd,
   onExitToLobby
 }: {
   readonly audio: AudioSettings;
@@ -64,6 +67,10 @@ export function DominoPokerGame({
   };
   readonly labels: AppStrings;
   readonly numberOfRounds: number;
+  /** Fāze 2: SP balvā piešķirtās monētas (vai `null`); GameEndDialog rāda "+N". */
+  readonly spAward?: number | null;
+  /** Fāze 2: izsaukts VIENREIZ pie spēles beigām ar cilvēka vietu (1..4). */
+  readonly onGameEnd?: (humanPlacement: number) => void;
   readonly onExitToLobby: () => void;
 }) {
   const humanPlayerName = humanProfile.displayName.trim() || labels.you;
@@ -84,6 +91,8 @@ export function DominoPokerGame({
   const glowTimerRef = useRef<number | null>(null);
   const burstTimerRef = useRef<number | null>(null);
   const phaseDialogTimerRef = useRef<number | null>(null);
+  // Fāze 2: nodrošina, ka `onGameEnd` izsaukts TIKAI VIENREIZ uz spēli (instance-līmenī).
+  const gameEndFiredRef = useRef(false);
   const gameStateRef = useRef(gameState);
   const didInitializeGameRef = useRef(false);
   const lastTileSoundSignatureRef = useRef("");
@@ -226,9 +235,18 @@ export function DominoPokerGame({
     }
 
     if (gameState.phase === "gameEnd") {
+      // Fāze 2: vienreiz paziņojam cilvēka vietu (1..4) balvas aprēķinam (AppShell).
+      // Lasām no `gameStateRef` (sinhronizēts iepriekšējā efektā) — gala stāvoklis.
+      if (!gameEndFiredRef.current) {
+        gameEndFiredRef.current = true;
+        const finalState = gameStateRef.current;
+        const humanId = finalState.players.find((player) => !player.isAI)?.id;
+        const placement = humanId ? getStandings(finalState).indexOf(humanId) + 1 : 0;
+        onGameEnd?.(placement);
+      }
       phaseDialogTimerRef.current = window.setTimeout(() => setShowGameEnd(true), 1000);
     }
-  }, [audio, gameState.phase, gameState.currentRound]);
+  }, [audio, gameState.phase, gameState.currentRound, onGameEnd]);
 
   useEffect(() => {
     if (!currentPlayer?.isAI || isProcessingTrick) return;
@@ -500,7 +518,13 @@ export function DominoPokerGame({
       ) : null}
 
       {showGameEnd && gameState.phase === "gameEnd" ? (
-        <GameEndDialog gameState={gameState} audio={audio} labels={labels} onClose={returnToLobby} />
+        <GameEndDialog
+          gameState={gameState}
+          audio={audio}
+          labels={labels}
+          spAward={spAward ?? null}
+          onClose={returnToLobby}
+        />
       ) : null}
 
       {showExitDialog ? (

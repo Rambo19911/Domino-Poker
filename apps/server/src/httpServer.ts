@@ -3,6 +3,7 @@ import process from "node:process";
 
 import type { ChatTranslateHandler } from "./chat/chatTranslateRoutes.js";
 import type { AuthHandler } from "./http/authRoutes.js";
+import type { SpRewardHandler } from "./http/spRewardRoutes.js";
 
 interface PoolCounts {
   readonly total: number;
@@ -37,6 +38,11 @@ export interface HealthHttpServerOptions {
    * `createAuthHandler`. Atgriež `true`, ja apstrādāja ceļu, citādi `false` → 404.
    */
   readonly authHandler?: AuthHandler;
+  /**
+   * Opcionāls SP balvas maršrutu apstrādātājs (`/sp/*`, Fāze 2). Injicē `index.ts` no
+   * `createSpRewardHandler`. Mēģināts PIRMS `authHandler`; atgriež `true`, ja apstrādāja.
+   */
+  readonly spRewardHandler?: SpRewardHandler;
   /** Optional MP lobby chat translation HTTP route (`/chat/translate`). */
   readonly chatTranslateHandler?: ChatTranslateHandler;
 }
@@ -95,24 +101,29 @@ function routeAuthOr404(
   response: ServerResponse,
   options: HealthHttpServerOptions
 ): void {
-  if (options.authHandler !== undefined) {
-    void options
-      .authHandler(request, response)
-      .then((handled) => {
-        if (!handled) {
-          writeJson(response, 404, { error: "Not found" });
-        }
-      })
-      .catch((error: unknown) => {
-        console.error("[auth] handler failed:", error);
-        if (!response.headersSent) {
-          writeJson(response, 500, { error: "internal_error" });
-        }
-      });
-    return;
-  }
+  void routeApiHandlers(request, response, options);
+}
 
-  writeJson(response, 404, { error: "Not found" });
+/** Mēģina API apstrādātājus secīgi (sp → auth); pirmais, kas atgriež `true`, beidz. */
+async function routeApiHandlers(
+  request: IncomingMessage,
+  response: ServerResponse,
+  options: HealthHttpServerOptions
+): Promise<void> {
+  try {
+    if (options.spRewardHandler !== undefined && (await options.spRewardHandler(request, response))) {
+      return;
+    }
+    if (options.authHandler !== undefined && (await options.authHandler(request, response))) {
+      return;
+    }
+    writeJson(response, 404, { error: "Not found" });
+  } catch (error: unknown) {
+    console.error("[http] api handler failed:", error);
+    if (!response.headersSent) {
+      writeJson(response, 500, { error: "internal_error" });
+    }
+  }
 }
 
 /**

@@ -21,3 +21,28 @@
   /* tabular-nums: skaitļa platums nemainās count-up laikā (nelec). */
   font-variant-numeric: tabular-nums;
 }
+
+/* SP balvas banneris GameEndDialog (Fāze 2): "+N" ar monētu ikonu + pulsu. */
+.gameEndReward {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  margin: 4px auto 8px;
+  padding: 6px 18px;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--coin);
+  background: rgb(var(--coin-rgb) / 0.14);
+  border: 1px solid rgb(var(--coin-rgb) / 0.4);
+  border-radius: var(--radius-pill);
+  animation: coinGainPulse 700ms var(--ease-standard) both;
+}
+.gameEndRewardIcon {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+.gameEndRewardValue {
+  font-variant-numeric: tabular-nums;
+}

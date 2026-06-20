@@ -301,6 +301,20 @@ export function runStoragePortContract(label: string, setup: ContractSetup): voi
         expect(debit2).toEqual({ ok: true, applied: true, balance: 4000 });
       });
 
+      it("sums ledger deltas by (user, reason) since a timestamp (daily-cap support)", async () => {
+        await storage.applyLedger({ id: "s1", userId: "user-1", delta: 100, reason: "sp_reward", ref: "g1", now: 1000 });
+        await storage.applyLedger({ id: "s2", userId: "user-1", delta: 300, reason: "sp_reward", ref: "g2", now: 2000 });
+        await storage.applyLedger({ id: "s3", userId: "user-1", delta: 5000, reason: "signup", ref: "user-1", now: 1500 });
+        // Visi sp_reward kopš laika 0.
+        expect(await storage.sumLedgerSince("user-1", "sp_reward", 0)).toBe(400);
+        // Tikai kopš 1500 → izslēdz g1 (now=1000).
+        expect(await storage.sumLedgerSince("user-1", "sp_reward", 1500)).toBe(300);
+        // Cits reason netiek jaukts.
+        expect(await storage.sumLedgerSince("user-1", "signup", 0)).toBe(5000);
+        // Nav rindu → 0.
+        expect(await storage.sumLedgerSince("user-1", "mp_payout", 0)).toBe(0);
+      });
+
       it("rejects a debit that would breach the minBalance guard and leaves balance + ledger untouched", async () => {
         await storage.applyLedger({ id: "c1", userId: "user-1", delta: 100, reason: "signup", ref: "user-1", now: 100 });
         const tooBig = await storage.applyLedger({

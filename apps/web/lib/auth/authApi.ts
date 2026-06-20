@@ -57,7 +57,7 @@ export function httpBase(): string {
   return serverHttpBase();
 }
 
-async function requestJson<T>(
+export async function requestJson<T>(
   path: string,
   init: RequestInit
 ): Promise<AuthResult<T>> {
@@ -83,7 +83,7 @@ async function requestJson<T>(
   return { ok: true, data: body as T };
 }
 
-function jsonInit(method: string, body?: unknown, token?: string): RequestInit {
+export function jsonInit(method: string, body?: unknown, token?: string): RequestInit {
   return {
     method,
     headers: {

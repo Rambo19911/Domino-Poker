@@ -9,6 +9,7 @@ import { LobbyChat } from "./chat/LobbyChat.js";
 import { createChatTranslateHandler } from "./chat/chatTranslateRoutes.js";
 import { loadServerConfig } from "./config.js";
 import { createAuthHandler } from "./http/authRoutes.js";
+import { createSpRewardHandler } from "./http/spRewardRoutes.js";
 import { createHealthHttpServer } from "./httpServer.js";
 import { DisplayIdRegistry } from "./identity/DisplayIdRegistry.js";
 import { LeaderboardService } from "./leaderboard/LeaderboardService.js";
@@ -20,6 +21,7 @@ import { RoomManager } from "./rooms/RoomManager.js";
 import { isRoomLeaseStore, LeaseBackedRoomOwnershipGuard } from "./rooms/RoomOwnershipGuard.js";
 import { MatchPersistence } from "./storage/MatchPersistence.js";
 import { OutcomeRecorder } from "./storage/OutcomeRecorder.js";
+import { SpRewardTokens } from "./sp/SpRewardTokens.js";
 import { isCoinStore } from "./storage/CoinStore.js";
 import { PostgresStorage } from "./storage/PostgresStorage.js";
 import { openStorage } from "./storage/index.js";
@@ -68,6 +70,16 @@ const authService = isAuthStore(storage)
 // Fāze 0: zelta monētu maks (virtuālā valūta). Gan SqliteStorage, gan PostgresStorage
 // implementē CoinStore. Anonīmā spēle to neizmanto. Starta bonuss + bilance.
 const wallet = isCoinStore(storage) ? new WalletService({ coins: storage, clock }) : undefined;
+// Fāze 2: SP balvas vienreizējie spēles tokeni (in-memory, vienas instances anti-cheat).
+const spRewardTokens =
+  authService && wallet
+    ? new SpRewardTokens({
+        clock,
+        ttlMs: 30 * 60 * 1000,
+        maxPerUser: 3,
+        createId: () => randomUUID()
+      })
+    : undefined;
 const instanceId = randomUUID();
 const roomOwnership = isRoomLeaseStore(storage)
   ? new LeaseBackedRoomOwnershipGuard({
@@ -245,6 +257,18 @@ const server = createHealthHttpServer({
           clock,
           dev: config.nodeEnv !== "production",
           trustProxy: config.trustProxy
+        })
+      }
+    : {}),
+  ...(authService && wallet && spRewardTokens
+    ? {
+        spRewardHandler: createSpRewardHandler({
+          auth: authService,
+          wallet,
+          tokens: spRewardTokens,
+          webOrigins: config.webOrigins,
+          clock,
+          dev: config.nodeEnv !== "production"
         })
       }
     : {}),

@@ -52,6 +52,12 @@ export interface CoinStore {
    * atkārtots izsaukums ar to pašu atslēgu neatkārto delta.
    */
   applyLedger(entry: LedgerEntryInput): Promise<ApplyLedgerResult>;
+
+  /**
+   * Summē ledger `delta` dotam `(userId, reason)`, kur `created_at >= sinceMs`.
+   * Lieto anti-cheat griestiem (piem. SP balvu dienas limits). 0, ja nav rindu.
+   */
+  sumLedgerSince(userId: string, reason: LedgerReason, sinceMs: number): Promise<number>;
 }
 
 /** Runtime pārbaude, vai glabātuve atbalsta maku (abas to dara; sargs index.ts). */
@@ -60,6 +66,7 @@ export function isCoinStore(value: unknown): value is CoinStore {
     typeof value === "object" &&
     value !== null &&
     typeof (value as CoinStore).getBalance === "function" &&
-    typeof (value as CoinStore).applyLedger === "function"
+    typeof (value as CoinStore).applyLedger === "function" &&
+    typeof (value as CoinStore).sumLedgerSince === "function"
   );
 }
