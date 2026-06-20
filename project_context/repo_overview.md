@@ -1,6 +1,6 @@
 # Repository Overview
 
-Last refreshed: 2026-06-20 (gold-coin Phase 4 — MP paid-room UI: fee input, room badges, table pot, live balance).
+Last refreshed: 2026-06-20 (gold-coin Phase 5 — gold-coin rules in main + MP rules dialogs, en/lv; reduced-motion audit).
 
 ## Purpose
 
@@ -13,7 +13,7 @@ It has two game modes:
 
 The core rule engine is shared. The browser may derive UI hints from shared logic, but authoritative multiplayer decisions belong to the server.
 
-A virtual gold-coin economy is being added on top of the optional account system (server-authoritative). Each registered account holds a coin balance persisted in the DB; single-player wins award coins via a server-issued one-time game token (Phase 2, shipped), and multiplayer paid rooms (host-set entry fee, prize pot split 70/30 to the top-2 registered humans) are shipped server-side (Phase 3) with the paid-room web UI in Phase 4 (fee input gated to logged-in hosts, coin badges in room lists, pot at the table, live `WALLET_UPDATED` balance). Anonymous play is unaffected — anonymous users have no wallet, cannot join paid rooms, and earn nothing. Economy phases are tracked in `docs/TODO/gold-coins-plan.md` (local/ignored); Phase 5 (rules/i18n polish) and Phase 6 (test/docs sweep) remain.
+A virtual gold-coin economy is being added on top of the optional account system (server-authoritative). Each registered account holds a coin balance persisted in the DB; single-player wins award coins via a server-issued one-time game token (Phase 2, shipped), and multiplayer paid rooms (host-set entry fee, prize pot split 70/30 to the top-2 registered humans) are shipped server-side (Phase 3) with the paid-room web UI in Phase 4 (fee input gated to logged-in hosts, coin badges in room lists, pot at the table, live `WALLET_UPDATED` balance). Anonymous play is unaffected — anonymous users have no wallet, cannot join paid rooms, and earn nothing. The rules dialogs explain the economy: the main lobby `RulesDialog` has a gold-coin section (welcome bonus + SP rewards), and the MP rules (`lib/mpRulesContent.ts`) have a paid-room section (entry fee, refund-before-start, 70/30 pot) in both en and lv — i18n parity is TS-enforced. Economy phases are tracked in `docs/TODO/gold-coins-plan.md` (local/ignored); Phase 6 (test/docs sweep) remains.
 
 ## Main Technologies
 

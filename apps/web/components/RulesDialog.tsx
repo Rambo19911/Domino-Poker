@@ -60,6 +60,10 @@ export function RulesDialog({
       body: [labels.rulesWinBody]
     },
     {
+      title: labels.rulesCoinsTitle,
+      body: [labels.rulesCoinsIntro, labels.rulesCoinsSpBody, labels.rulesCoinsMpBody]
+    },
+    {
       title: labels.rulesStatsTitle,
       body: [labels.rulesStatsBody]
     }

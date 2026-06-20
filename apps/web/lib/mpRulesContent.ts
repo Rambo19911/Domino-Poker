@@ -41,6 +41,19 @@ const en: MpRulesDoc = {
       ]
     },
     {
+      title: "Gold Coins and Paid Rooms",
+      blocks: [
+        "Rooms can be free or paid. When creating a room, a logged-in host may set a gold entry fee — any amount up to their own balance (0 means a free room, which behaves exactly as before).",
+        "Only registered, logged-in players can take a seat in a paid room: they have a gold balance. Anonymous players have no wallet, so they cannot join paid rooms, but they can still join free rooms.",
+        "Every player pays the entry fee at the moment they take a seat, including the host. A seat can only be taken if the balance covers the fee. The collected fees form the room's prize pot.",
+        "Before the game starts, money is fully refundable. If you leave your seat while the room is still waiting, the host deletes the waiting room, or the room expires before starting, your entry fee is returned to your balance.",
+        "Once the game starts, the entry fee is no longer refundable. Leaving, forfeiting, or disconnecting during the match does not return your fee — it stays in the pot for the winners.",
+        "When the match ends, the pot is split between the top two registered human players by total score: 70% to first place and 30% to second. Bots never receive a share, and players who forfeited are excluded. If only one registered human remains, that player takes the whole pot.",
+        "If every human leaves and the match is abandoned without finishing, there is no winner, so the pot is not paid out.",
+        "The balance you see updates live as you pay, get refunded, or win the pot. The server is always the authority on every coin movement."
+      ]
+    },
+    {
       title: "One Room at a Time",
       blocks: [
         "A player can only be in one room at a time. If a player has already created or joined a room, the server will reject attempts to create another room or join a different one until that player leaves the current room, forfeits an active game, or the game ends and the room is cleaned up.",
@@ -175,6 +188,19 @@ const lv: MpRulesDoc = {
         "Saimnieks var aizpildīt brīvās vietas ar botiem. Tas ļauj sākt spēli pat tad, ja pieejami mazāk par četriem cilvēkiem. Saimnieks ir arī vienīgais spēlētājs, kurš var sākt spēli.",
         "Spēli nevar sākt, ja kāda vieta vēl ir brīva. Ja saimnieks mēģina sākt par agru, serveris sākšanu noraida. Praktiskais noteikums ir vienkāršs: nepieciešamas četras aizņemtas vietas — cilvēki vai boti.",
         "Ja saimnieks aiziet, kamēr istaba vēl gaida, saimnieka tiesības pāriet citam atlikušajam cilvēkam. Ja gaidošā istabā nepaliek neviena cilvēka, istaba tiek likvidēta."
+      ]
+    },
+    {
+      title: "Zelta monētas un maksas istabas",
+      blocks: [
+        "Istabas var būt bezmaksas vai maksas. Veidojot istabu, ielogots saimnieks var noteikt zelta dalības maksu — jebkuru summu līdz savai bilancei (0 nozīmē bezmaksas istabu, kas darbojas tieši tāpat kā līdz šim).",
+        "Maksas istabā vietu var ieņemt tikai reģistrēti, ielogoti spēlētāji: viņiem ir zelta bilance. Anonīmiem spēlētājiem nav maka, tāpēc viņi nevar pievienoties maksas istabām, bet joprojām var pievienoties bezmaksas istabām.",
+        "Katrs spēlētājs samaksā dalības maksu brīdī, kad ieņem vietu, ieskaitot saimnieku. Vietu var ieņemt tikai tad, ja bilance sedz maksu. Savāktās maksas veido istabas balvas podu.",
+        "Pirms spēles sākuma nauda ir pilnībā atmaksājama. Ja pamet savu vietu, kamēr istaba vēl gaida, saimnieks dzēš gaidošo istabu vai istabai beidzas laiks pirms sākuma, dalības maksa tiek atgriezta tavā bilancē.",
+        "Tiklīdz spēle sākusies, dalības maksa vairs netiek atmaksāta. Aiziešana, atteikšanās vai atvienošanās spēles laikā maksu neatgriež — tā paliek podā uzvarētājiem.",
+        "Kad spēle beidzas, pods tiek sadalīts starp diviem augstāk novērtētajiem reģistrētajiem cilvēkiem pēc kopējiem punktiem: 70% pirmajai vietai un 30% otrajai. Boti nekad nesaņem daļu, un forfeitējušie spēlētāji tiek izslēgti. Ja paliek tikai viens reģistrēts cilvēks, viņš saņem visu podu.",
+        "Ja visi cilvēki aiziet un spēle tiek pamesta, to nepabeidzot, uzvarētāja nav, tāpēc pods netiek izmaksāts.",
+        "Redzamā bilance atjaunojas dzīvajā, kad maksā, saņem atmaksu vai laimē podu. Serveris vienmēr ir autoritāte par katru monētu kustību."
       ]
     },
     {

@@ -640,7 +640,7 @@
   {
     "name": "Coin Economy (Gold)",
     "folder": ".",
-    "purpose": "Cross-cutting virtual gold-coin currency on top of the optional account system. Server-authoritative: per-account balance + append-only ledger in the DB, a wallet application layer, single-player win rewards gated by a server-issued one-time token, balance surfaced to the web, multiplayer paid rooms (host-set entry fee, prize pot split 70/30 to the top-2 registered humans) shipped server-side (Phase 3), and the paid-room web UI (Phase 4: fee input gated to logged-in hosts, coin badges in room lists, table pot, live WALLET_UPDATED balance). Anonymous play has no wallet, cannot join paid rooms, and earns nothing. Phase 5 (rules/i18n polish) and Phase 6 (test/docs sweep) remain.",
+    "purpose": "Cross-cutting virtual gold-coin currency on top of the optional account system. Server-authoritative: per-account balance + append-only ledger in the DB, a wallet application layer, single-player win rewards gated by a server-issued one-time token, balance surfaced to the web, multiplayer paid rooms (host-set entry fee, prize pot split 70/30 to the top-2 registered humans) shipped server-side (Phase 3), the paid-room web UI (Phase 4: fee input gated to logged-in hosts, coin badges in room lists, table pot, live WALLET_UPDATED balance), and the rules/i18n (Phase 5: gold-coin section in the main RulesDialog + a paid-room section in the MP rules, both en/lv, TS-enforced parity; reduced-motion audited). Anonymous play has no wallet, cannot join paid rooms, and earns nothing. Phase 6 (test/docs sweep) remains.",
     "main_files": [
       "packages/shared/src/economy.ts",
       "apps/server/src/storage/CoinStore.ts",
@@ -660,6 +660,10 @@
       "apps/web/components/MobilePot.tsx",
       "apps/web/components/CoinBalance.tsx",
       "apps/web/components/CoinIcon.tsx",
+      "apps/web/components/RulesDialog.tsx",
+      "apps/web/lib/mpRulesContent.ts",
+      "apps/web/lib/locales/en.ts",
+      "apps/web/lib/locales/lv.ts",
       "apps/web/styles/coin.css"
     ],
     "depends_on": [
