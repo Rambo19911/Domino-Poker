@@ -227,7 +227,7 @@
   {
     "path": "apps/web/components/AppShell.tsx",
     "type": "ui",
-    "purpose": "Client shell for screen routing, locale, audio, selected round count, auth/profile state, stats refresh, session restore, and password-reset hash flow.",
+    "purpose": "Client shell for screen routing, locale, audio, selected round count, auth/profile state, stats/balance refresh, the SP coin-reward flow (request token on game start, redeem on game end), session restore, and password-reset hash flow.",
     "importance": "critical",
     "related_files": [
       "apps/web/components/LobbyScreen.tsx",
@@ -323,7 +323,7 @@
   {
     "path": "apps/web/components/DominoPokerGame.tsx",
     "type": "ui",
-    "purpose": "Single-player game workflow around core state: bidding, AI timers, tile play, trick completion, round end, and exit flow.",
+    "purpose": "Single-player game workflow around core state: bidding, AI timers, tile play, trick completion, round end, exit flow, and a once-per-game onGameEnd callback (human placement) that drives the SP coin reward.",
     "importance": "critical",
     "related_files": [
       "packages/core/src/gameState.ts",
@@ -334,7 +334,7 @@
   {
     "path": "apps/web/components/GameDialogs.tsx",
     "type": "ui",
-    "purpose": "Single-player bid, number selection, round summary, game end, and exit dialogs.",
+    "purpose": "Single-player bid, number selection, round summary, game end, and exit dialogs. GameEndDialog also shows a '+N' gold-coin reward banner (coinGainPulse) when an SP award was granted.",
     "importance": "high",
     "related_files": [
       "apps/web/components/DominoPokerGame.tsx",
@@ -505,7 +505,7 @@
   {
     "path": "apps/web/lib/auth/authApi.ts",
     "type": "service",
-    "purpose": "Client HTTP API wrapper for optional account auth, profile, password reset, avatar upload, and account language (apiSetLanguage -> PATCH /auth/me/language).",
+    "purpose": "Client HTTP API wrapper for optional account auth, profile, password reset, avatar upload, account language, and `balance` in the /auth/me response. Exports requestJson/jsonInit reused by the SP reward client.",
     "importance": "high",
     "related_files": [
       "apps/server/src/http/authRoutes.ts",
@@ -516,7 +516,7 @@
   {
     "path": "apps/web/lib/auth/useAuthUser.ts",
     "type": "service",
-    "purpose": "Client auth-token state, profile loading, logout, refresh, avatar upload, and account language state/persistence (language applied on session acquisition only; setLanguage persists via apiSetLanguage).",
+    "purpose": "Client auth-token state, profile loading, logout, refresh, avatar upload, account language, and gold-coin balance state (from /auth/me; optimistic STARTING_COINS on register).",
     "importance": "high",
     "related_files": [
       "apps/web/lib/safeStorage.ts",
@@ -571,7 +571,7 @@
   {
     "path": "apps/server/src/index.ts",
     "type": "entrypoint",
-    "purpose": "Server composition root: config, storage, auth, room manager, chat, router, gateway, event bus, HTTP server, WS upgrade, cleanup, shutdown.",
+    "purpose": "Server composition root: config, storage, auth, gold-coin wallet + SP reward tokens, room manager, chat, router, gateway, event bus, HTTP server (auth/sp/chat handlers), WS upgrade, cleanup, shutdown.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/config.ts",
@@ -593,7 +593,7 @@
   {
     "path": "apps/server/src/httpServer.ts",
     "type": "route",
-    "purpose": "Raw HTTP server for `/health`, `/metrics`, optional chat translation routes, optional auth routes, and JSON error responses.",
+    "purpose": "Raw HTTP server for `/health`, `/metrics`, optional chat translation routes, optional SP coin-reward routes (`/sp/*`, tried before auth), optional auth routes, and JSON error responses.",
     "importance": "high",
     "related_files": [
       "apps/server/src/http/authRoutes.ts",
@@ -605,7 +605,7 @@
   {
     "path": "apps/server/src/http/authRoutes.ts",
     "type": "route",
-    "purpose": "Optional `/auth/*` HTTP routes with validation, rate limits, bearer auth, CORS allowlist, password reset, avatar upload/serve, the global `GET /auth/leaderboard`, and `PATCH /auth/me/language`.",
+    "purpose": "Optional `/auth/*` HTTP routes with validation, rate limits, bearer auth, CORS allowlist, password reset, avatar upload/serve, the global `GET /auth/leaderboard`, `PATCH /auth/me/language`, the gold-coin signup bonus on register, and `balance` in `GET /auth/me`. Shares raw-HTTP helpers via http/httpUtils.ts.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/auth/AuthService.ts",
@@ -697,7 +697,7 @@
   {
     "path": "apps/server/src/net/WebSocketGateway.ts",
     "type": "service",
-    "purpose": "WebSocket connection gateway: handshake, protocol parsing, sessions, auth resolution, hub/fanout integration, supersede handling, backpressure, event delivery, and reconnect behavior.",
+    "purpose": "WebSocket connection gateway: handshake, protocol parsing, sessions, auth resolution (WELCOME also carries goldBalance when a wallet is configured), hub/fanout integration, supersede handling, backpressure, event delivery, and reconnect behavior.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/net/GatewayHub.ts",
@@ -809,7 +809,7 @@
   {
     "path": "apps/server/src/storage/schema.ts",
     "type": "database",
-    "purpose": "Single DDL source for SQLite/PostgreSQL migration rendering, including auth, stats, password reset, custom avatars, user_preferences (account language), and PG-only multi-instance tables.",
+    "purpose": "Single DDL source for SQLite/PostgreSQL migration rendering, including auth, stats, password reset, custom avatars, user_preferences (account language), the gold-coin wallet (0007_coin_wallet: coin_balances + append-only coin_ledger with a UNIQUE(user_id,reason,ref) idempotency index and CHECK constraints), and PG-only multi-instance tables.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/storage/migrations.ts",
@@ -831,7 +831,7 @@
   {
     "path": "apps/server/src/storage/SqliteStorage.ts",
     "type": "database",
-    "purpose": "SQLite StoragePort/AuthStore implementation using node:sqlite and schema migrations.",
+    "purpose": "SQLite StoragePort/AuthStore/CoinStore implementation using node:sqlite and schema migrations; coin applyLedger uses a synchronous transaction.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/storage/StoragePort.ts",
@@ -842,7 +842,7 @@
   {
     "path": "apps/server/src/storage/PostgresStorage.ts",
     "type": "database",
-    "purpose": "PostgreSQL StoragePort/AuthStore implementation with pool config, migrations, health checks, durable sessions, room leases, and fanout support.",
+    "purpose": "PostgreSQL StoragePort/AuthStore/CoinStore implementation with pool config, migrations, health checks, durable sessions, room leases, fanout, and an ensure-row + FOR UPDATE transaction for atomic per-user coin ledger writes.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/storage/StoragePort.ts",
@@ -1082,7 +1082,7 @@
   {
     "path": "packages/shared/src/serverEvents.ts",
     "type": "model",
-    "purpose": "Zod validation and TypeScript types for server-to-client events and fanout messages; imports core MP event/snapshot types.",
+    "purpose": "Zod validation and TypeScript types for server-to-client events and fanout messages; imports core MP event/snapshot types. WelcomeEvent carries an optional `goldBalance` for logged-in users (gold-coin economy, additive).",
     "importance": "critical",
     "related_files": [
       "packages/core/src/multiplayer/events.ts",
@@ -1366,7 +1366,7 @@
   {
     "path": "apps/web/styles/tokens.css",
     "type": "ui",
-    "purpose": "Design-token source for default colors, RGB channel pairs, spacing, radius, shadows, and future theme overrides.",
+    "purpose": "Design-token source for default colors, RGB channel pairs (incl. the --coin / --coin-rgb gold alias of --primary), spacing, radius, shadows, motion, and theme overrides.",
     "importance": "high",
     "related_files": [
       "apps/web/app/globals.css",
@@ -1458,7 +1458,7 @@
   {
     "path": "apps/web/components/auth/LobbyProfile.tsx",
     "type": "ui",
-    "purpose": "Lobby profile/account surface for authenticated users, stats, avatar, and title display.",
+    "purpose": "Lobby profile/account surface for authenticated users: avatar, name, title, gold-coin balance (CoinBalance, under the title), and stats. Renders nothing for anonymous/loading.",
     "importance": "medium",
     "related_files": [
       "apps/web/lib/auth/useAuthUser.ts",
@@ -2106,6 +2106,126 @@
     "related_files": [
       "packages/ai_bot/packages/bot-adapter/src/AiClient.ts",
       "packages/ai_bot/packages/bot-adapter/src/ai.worker.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/src/economy.ts",
+    "type": "model",
+    "purpose": "Single authoritative source for gold-coin economy constants (STARTING_COINS, SP_REWARDS medium/hard/epic, POT_SPLIT, MIN_ENTRY_FEE) and the splitPot helper. Imported by both server (enforces) and web (displays).",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/wallet/WalletService.ts",
+      "apps/server/src/http/spRewardRoutes.ts",
+      "apps/web/lib/sp/spReward.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/storage/CoinStore.ts",
+    "type": "service",
+    "purpose": "Gold-coin wallet storage interface (getBalance, atomic+idempotent applyLedger, sumLedgerSince) + isCoinStore guard. Implemented by both SqliteStorage and PostgresStorage.",
+    "importance": "critical",
+    "related_files": [
+      "apps/server/src/storage/SqliteStorage.ts",
+      "apps/server/src/storage/PostgresStorage.ts",
+      "apps/server/src/wallet/WalletService.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/wallet/WalletService.ts",
+    "type": "service",
+    "purpose": "Gold-coin money application layer over CoinStore: signup bonus (repair-on-read), getBalance, SP reward credit, and creditSpRewardCapped (per-user lock + daily-cap clamp). The one place all balance changes flow through.",
+    "importance": "critical",
+    "related_files": [
+      "apps/server/src/storage/CoinStore.ts",
+      "packages/shared/src/economy.ts",
+      "apps/server/src/http/spRewardRoutes.ts",
+      "apps/server/src/http/authRoutes.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/sp/SpRewardTokens.ts",
+    "type": "service",
+    "purpose": "In-memory one-time SP reward tokens (D3 anti-cheat): issue snapshots the difficulty at game start; consume validates ownership/expiry and deletes (one-time). Per-user active limit + TTL. Single-instance.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/http/spRewardRoutes.ts",
+      "packages/shared/src/economy.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/http/spRewardRoutes.ts",
+    "type": "route",
+    "purpose": "Optional `/sp/*` HTTP routes: POST /sp/start (auth, issues a one-time token) and POST /sp/reward (auth, min duration, per-user rate limit, hard daily cap; reward derived from the token difficulty). Tried before the auth handler.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/sp/SpRewardTokens.ts",
+      "apps/server/src/wallet/WalletService.ts",
+      "apps/server/src/http/httpUtils.ts",
+      "apps/server/test/http/spRewardRoutes.integration.test.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/http/httpUtils.ts",
+    "type": "utility",
+    "purpose": "Shared raw-HTTP route helpers (writeJson, bearerToken, clientIp, applyCors) used by both authRoutes and spRewardRoutes to avoid duplication.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/http/authRoutes.ts",
+      "apps/server/src/http/spRewardRoutes.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/CoinIcon.tsx",
+    "type": "ui",
+    "purpose": "Reusable gold coin/chip SVG icon colored only via currentColor (inherits --coin), no color literals. Used by CoinBalance and the game-end reward banner.",
+    "importance": "low",
+    "related_files": [
+      "apps/web/components/CoinBalance.tsx",
+      "apps/web/components/GameDialogs.tsx",
+      "apps/web/styles/coin.css"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/CoinBalance.tsx",
+    "type": "ui",
+    "purpose": "Reusable gold balance display: CoinIcon + count-up number (requestAnimationFrame, animates only on change, respects prefers-reduced-motion). Token-colored via --coin.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/CoinIcon.tsx",
+      "apps/web/components/auth/LobbyProfile.tsx",
+      "apps/web/styles/coin.css"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/sp/spReward.ts",
+    "type": "service",
+    "purpose": "Client HTTP wrapper for the SP coin-reward flow: apiSpStart (POST /sp/start) and apiSpReward (POST /sp/reward). Reuses requestJson/jsonInit from authApi.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/AppShell.tsx",
+      "apps/server/src/http/spRewardRoutes.ts",
+      "apps/web/lib/auth/authApi.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/styles/coin.css",
+    "type": "ui",
+    "purpose": "Token-only CSS for the reusable coin UI primitives (.coinBalance/.coinBalanceIcon/.coinBalanceValue) and the game-end reward banner (.gameEndReward). Color only from --coin.",
+    "importance": "low",
+    "related_files": [
+      "apps/web/components/CoinBalance.tsx",
+      "apps/web/components/GameDialogs.tsx",
+      "apps/web/app/globals.css"
     ],
     "confidence": "high"
   }

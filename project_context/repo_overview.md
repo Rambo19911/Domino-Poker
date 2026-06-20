@@ -1,6 +1,6 @@
 # Repository Overview
 
-Last refreshed: 2026-06-17.
+Last refreshed: 2026-06-20.
 
 ## Purpose
 
@@ -12,6 +12,8 @@ It has two game modes:
 - Multiplayer: authoritative real-time server over WebSocket, with lobby rooms, chat, reconnect/resume, turn timers, optional accounts/profiles, SQLite persistence by default, and PostgreSQL persistence/fanout foundations for multi-instance deployments.
 
 The core rule engine is shared. The browser may derive UI hints from shared logic, but authoritative multiplayer decisions belong to the server.
+
+A virtual gold-coin economy is being added on top of the optional account system (server-authoritative). Each registered account holds a coin balance persisted in the DB; single-player wins award coins via a server-issued one-time game token (Phase 2, shipped), and multiplayer paid rooms (entry fee + prize pot) are planned (Phase 3). Anonymous play is unaffected — anonymous users have no wallet and earn nothing. Economy phases are tracked in `docs/TODO/gold-coins-plan.md` (local/ignored).
 
 ## Main Technologies
 
@@ -27,10 +29,10 @@ Node is pinned/restricted through `.nvmrc`, `.node-version`, `package.json` engi
 
 ## Workspace Layout
 
-- `apps/web`: Next.js app, main route, PWA shell, local single-player UI, multiplayer lobby/table UI, MP chat emoji/translation UI, auth/profile UI, localization, shared UI primitives, theme tokens, CSS partials, public assets, and web-focused Vitest tests.
-- `apps/server`: authoritative multiplayer server, HTTP `/health`, `/metrics`, optional `/auth/*`, optional `/chat/translate`, WebSocket `/ws`, gateway/hub/fanout, room/lobby lifecycle, game timers/directors, chat, auth, sessions/identity, storage adapters, PostgreSQL event bus, and server tests.
+- `apps/web`: Next.js app, main route, PWA shell, local single-player UI, multiplayer lobby/table UI, MP chat emoji/translation UI, auth/profile UI, gold-coin balance + SP reward UI (`components/CoinIcon.tsx`, `CoinBalance.tsx`, `lib/sp/spReward.ts`, `styles/coin.css`), localization, shared UI primitives, theme tokens, CSS partials, public assets, and web-focused Vitest tests.
+- `apps/server`: authoritative multiplayer server, HTTP `/health`, `/metrics`, optional `/auth/*`, optional `/sp/*` (single-player coin rewards), optional `/chat/translate`, WebSocket `/ws`, gateway/hub/fanout, room/lobby lifecycle, game timers/directors, chat, auth, the gold-coin wallet (`wallet/WalletService.ts`, `storage/CoinStore.ts`) + SP reward tokens (`sp/SpRewardTokens.ts`), sessions/identity, storage adapters, PostgreSQL event bus, and server tests.
 - `packages/core`: framework-free Domino Poker rules, tile/shuffle logic, legal-play validation, scoring, single-player game state, AI heuristics, plus the separate `packages/core/src/multiplayer` command/event state machine.
-- `packages/shared`: public protocol package. It owns Zod client-message validation, protocol versioning, room DTOs, error payloads, avatar/title helpers, and server-event schemas. Important coupling: `serverEvents.ts` imports core multiplayer event/snapshot types from `@domino-poker/core/multiplayer`.
+- `packages/shared`: public protocol package. It owns Zod client-message validation, protocol versioning, room DTOs, error payloads, avatar/title helpers, server-event schemas, and the single-source economy constants (`economy.ts`: `STARTING_COINS`, `SP_REWARDS`, `POT_SPLIT`, `MIN_ENTRY_FEE`, `splitPot`). Important coupling: `serverEvents.ts` imports core multiplayer event/snapshot types from `@domino-poker/core/multiplayer`.
 - `packages/ai_bot`: strong Domino Poker bot (hidden-hand, ISMCTS max^n), sub-packages `engine`, `ai`, `bot-adapter`. WIRED INTO single-player: `engine` + `ai` are now root npm workspaces consumed by the browser game (`bot-adapter` stays Node-only and is bypassed). The trained bot drives all 3 SP CPU seats via `apps/web/lib/bot/botBridge.ts` with 3 difficulty levels (Medium/Hard/Epic) chosen in Settings. Its `dist` is gitignored and deploy-excluded, so `apps/web` prebuild/predev and CI build `engine` then `ai` from `src` before the web build. Not yet wired into multiplayer (server still uses `core/aiService`).
 - `tools/simulators`: headless full-game simulator for multiplayer core determinism/invariants.
 - `tools/load-test`: local WebSocket load generator that speaks the real shared protocol against a running server.
@@ -53,7 +55,8 @@ Node is pinned/restricted through `.nvmrc`, `.node-version`, `package.json` engi
 - Server routing/gateway: `apps/server/src/net/WebSocketGateway.ts`, `GatewayHub.ts`, `GatewayConnection.ts`, `ServerEventBus.ts`, `PostgresEventBus.ts`, `messageRouter.ts`, `apps/server/src/httpServer.ts`, optional `apps/server/src/chat/chatTranslateRoutes.ts`.
 - Room workflow: `apps/server/src/rooms/RoomManager.ts`, `RoomEngine.ts`, `GameDirector.ts`, `LobbyManager.ts`.
 - Session/identity workflow: `apps/server/src/sessions/SessionManager.ts`, `DurableSessionStore.ts`, `apps/server/src/identity/DisplayIdRegistry.ts`.
-- Storage boundary: `apps/server/src/storage/StoragePort.ts`, `index.ts`, `SqliteStorage.ts`, `PostgresStorage.ts`, `schema.ts`.
+- Storage boundary: `apps/server/src/storage/StoragePort.ts`, `CoinStore.ts`, `index.ts`, `SqliteStorage.ts`, `PostgresStorage.ts`, `schema.ts`.
+- Gold-coin economy: shared `packages/shared/src/economy.ts`; server `apps/server/src/wallet/WalletService.ts`, `storage/CoinStore.ts`, `sp/SpRewardTokens.ts`, `http/spRewardRoutes.ts`, `http/httpUtils.ts`; web `apps/web/components/CoinBalance.tsx`, `CoinIcon.tsx`, `lib/sp/spReward.ts`. Balance is surfaced via `GET /auth/me` (`balance`) and the WS `WELCOME` event (`goldBalance`).
 - Core rules: `packages/core/src/dominoTile.ts`, `player.ts`, `gameState.ts`, `aiService.ts`.
 - Multiplayer core API: `packages/core/src/multiplayer/applyCommand.ts`, `types.ts`, `commands.ts`, `events.ts`, `snapshots.ts`.
 - Shared protocol API: `packages/shared/src/clientMessages.ts`, `serverEvents.ts`, `roomTypes.ts`, `errors.ts`, `protocolVersion.ts`.
@@ -66,6 +69,7 @@ Node is pinned/restricted through `.nvmrc`, `.node-version`, `package.json` engi
 - `apps/server` is the authoritative application/infrastructure layer for multiplayer. It may use core and shared, and it owns DB/network/time authority.
 - Inside `apps/server`, keep request flow directional: gateway/hub -> router -> room manager/engine -> core. Storage, auth, sessions, event bus, and HTTP are infrastructure boundaries around that flow.
 - `apps/web` is presentation and client application state. It may use core for single-player and UI hints, and shared for protocol types, but it must not become authoritative for multiplayer decisions.
+- Gold-coin economy is server-authoritative: all balance changes flow through `WalletService` over the `CoinStore` boundary (atomic + idempotent ledger). `packages/shared/src/economy.ts` is the one authoritative source for amounts/splits — the server enforces them, the web only displays them. The web never decides balances; it shows `/auth/me` / `WELCOME` values and asks the server to reward/charge.
 - `tools/*` are verification/load utilities and must not become production dependencies.
 - `packages/ai_bot`: `engine` + `ai` are root npm workspaces consumed by the browser single-player game through `apps/web/lib/bot/botBridge.ts` (maps core `{side1,side2}` tiles <-> bot bitmask `PlayerView`). `ai`'s dep on `engine` is exact `1.0.0` (npm rejects pnpm `workspace:*`). `bot-adapter` (Node `worker_threads`) is intentionally NOT a workspace. Do not keep a local pnpm `node_modules` under `packages/ai_bot` (its `tsc` bin shadows root typescript for the npm build). The browser bridge — not `AiClient` — is the SP integration surface; `bot-adapter`/`AiClient` would only be needed for a Node/Web-Worker transport later.
 
@@ -99,8 +103,11 @@ CI (`.github/workflows/ci.yml`) runs install, core/shared/server build, typechec
 - `apps/server/src/net/WebSocketGateway.ts`, `GatewayHub.ts`, `GatewayConnection.ts`, and `ServerEventBus.ts`: handshake, heartbeat, reconnect, supersede, slow-client backpressure, and cross-instance fanout are tightly coupled.
 - `apps/server/src/sessions/SessionManager.ts`, `DurableSessionStore.ts`, and `apps/server/src/identity/DisplayIdRegistry.ts`: reconnect tokens, display ids, public profiles, and durable cleanup must stay privacy-safe and anonymous-play compatible.
 - `apps/server/src/rooms/RoomEngine.ts`: single-writer room state mutation path. Do not mutate room state elsewhere.
-- `apps/server/src/storage/schema.ts`: single DDL source for SQLite and PostgreSQL migrations. Add migrations only at the end; do not renumber or fork schema definitions.
-- `apps/server/src/auth/*` and `apps/server/src/http/authRoutes.ts`: optional auth must remain additive. Anonymous single-player and multiplayer must keep working.
+- `apps/server/src/storage/schema.ts`: single DDL source for SQLite and PostgreSQL migrations (latest is `0007_coin_wallet`: `coin_balances` + append-only `coin_ledger`). Add migrations only at the end; do not renumber or fork schema definitions.
+- `apps/server/src/wallet/WalletService.ts` + `apps/server/src/storage/CoinStore.ts`: gold-coin money authority. All changes go through `applyLedger` (atomic; idempotent by `(user_id, reason, ref)` ledger unique key — SQLite tx, Postgres `FOR UPDATE` tx). Never mutate `coin_balances` directly. SP daily cap is clamped under a per-user in-process lock (single-instance, like the rate limiter). Money correctness is critical; favor under-credit over over-credit on errors.
+- `apps/server/src/sp/SpRewardTokens.ts` + `apps/server/src/http/spRewardRoutes.ts`: SP coin-reward anti-cheat (D3). Reward difficulty comes from a server-issued one-time token (not the client); `/sp/reward` enforces auth + min game duration + rate limit + hard daily cap. Tokens are in-memory/single-instance. Residual: the client still asserts placement.
+- `apps/server/src/http/httpUtils.ts`: shared raw-HTTP helpers (`writeJson`, `bearerToken`, `clientIp`, `applyCors`) used by both `authRoutes` and `spRewardRoutes`. `httpServer.ts` chains the SP handler before the auth handler.
+- `apps/server/src/auth/*` and `apps/server/src/http/authRoutes.ts`: optional auth must remain additive. Anonymous single-player and multiplayer must keep working. `/auth/me` now also returns `balance`; registration grants the signup bonus (repair-on-read in `WalletService.getBalance` also backfills existing accounts).
 - `apps/web/components/AppShell.tsx`: central shell for screen routing, auth state, locale, audio, round count, and password-reset hash routing.
 - `apps/web/components/DominoPokerGame.tsx`: single-player UI workflow and timers around core state.
 - `apps/web/components/MultiplayerLobby.tsx` and `apps/web/lib/mp/*`: render server state and send intents only. Do not accept/reject MP moves authoritatively in the browser.

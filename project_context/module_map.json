@@ -77,7 +77,8 @@
       "packages/shared/src/errors.ts",
       "packages/shared/src/avatarCatalog.ts",
       "packages/shared/src/titles.ts",
-      "packages/shared/src/leaderboard.ts"
+      "packages/shared/src/leaderboard.ts",
+      "packages/shared/src/economy.ts"
     ],
     "depends_on": [
       "Core Multiplayer"
@@ -147,7 +148,11 @@
       "apps/web/styles/glass.css",
       "apps/web/styles/ui-button.css",
       "apps/web/styles/ui-icon-button.css",
-      "apps/web/styles/ui-text-field.css"
+      "apps/web/styles/ui-text-field.css",
+      "apps/web/components/CoinBalance.tsx",
+      "apps/web/components/CoinIcon.tsx",
+      "apps/web/lib/sp/spReward.ts",
+      "apps/web/styles/coin.css"
     ],
     "depends_on": [
       "Core Rules",
@@ -203,7 +208,11 @@
       "apps/server/src/net/gameUpdateDelivery.ts",
       "apps/server/src/identity/DisplayIdRegistry.ts",
       "apps/server/src/sessions/DurableSessionStore.ts",
-      "apps/server/src/leaderboard/LeaderboardService.ts"
+      "apps/server/src/leaderboard/LeaderboardService.ts",
+      "apps/server/src/wallet/WalletService.ts",
+      "apps/server/src/sp/SpRewardTokens.ts",
+      "apps/server/src/http/spRewardRoutes.ts",
+      "apps/server/src/http/httpUtils.ts"
     ],
     "depends_on": [
       "Core Multiplayer",
@@ -270,7 +279,8 @@
       "apps/server/src/storage/PostgresStorage.ts",
       "apps/server/src/storage/MatchPersistence.ts",
       "apps/server/src/storage/OutcomeRecorder.ts",
-      "apps/server/src/storage/RoomLeaseStore.ts"
+      "apps/server/src/storage/RoomLeaseStore.ts",
+      "apps/server/src/storage/CoinStore.ts"
     ],
     "depends_on": [
       "Core Multiplayer",
@@ -288,7 +298,8 @@
       "SQLite files under data/ are runtime data and ignored; do not commit them.",
       "PostgreSQL pool settings affect storage and event bus pools.",
       "Storage implementations also provide contracts used by auth and durable session code, not only match/event persistence.",
-      "Room leases are PostgreSQL multi-instance coordination state and must stay aligned with RoomOwnershipGuard."
+      "Room leases are PostgreSQL multi-instance coordination state and must stay aligned with RoomOwnershipGuard.",
+      "CoinStore (gold wallet) is implemented by both SQLite and PostgreSQL alongside StoragePort/AuthStore; applyLedger must stay atomic + idempotent in both backends and is covered by the shared storage contract. See the Coin Economy (Gold) module."
     ],
     "confidence": "high"
   },
@@ -623,6 +634,44 @@
       "Keep DEFAULT_DIFFICULTY/BOT_DIFFICULTIES in difficulty.ts (no heavy imports) so AppShell/LobbyScreen don't drag the bot back into the lobby chunk. Difficulty (Medium 8000/1000, Hard 30000/3000, Epic 50000/5000) is chosen in the Settings dialog (lobby) and threaded AppShell -> DominoPokerGame -> botBridge; read via a ref so it doesn't churn the AI effect.",
       "The AI turn effect is async with turnKey + cancelled guards; decideBid/decideMove are async (await the worker). The worker has a 20s per-request timeout backstop and onerror handling so a worker crash/hang rejects the call and the liveness net engages (it never permanently stalls the turn).",
       "Old heuristic bots (core/aiService makeAIBid/selectAITile/selectNumber) are NO LONGER used in SP, but they are NOT dead: multiplayer still uses them via core/multiplayer autoBid/autoMove -> server GameDirector. Do not delete them."
+    ],
+    "confidence": "high"
+  },
+  {
+    "name": "Coin Economy (Gold)",
+    "folder": ".",
+    "purpose": "Cross-cutting virtual gold-coin currency on top of the optional account system. Server-authoritative: per-account balance + append-only ledger in the DB, a wallet application layer, single-player win rewards gated by a server-issued one-time token, and balance surfaced to the web. Multiplayer paid rooms (entry fee + pot) are planned (Phase 3, not yet built). Anonymous play has no wallet and earns nothing.",
+    "main_files": [
+      "packages/shared/src/economy.ts",
+      "apps/server/src/storage/CoinStore.ts",
+      "apps/server/src/wallet/WalletService.ts",
+      "apps/server/src/sp/SpRewardTokens.ts",
+      "apps/server/src/http/spRewardRoutes.ts",
+      "apps/server/src/http/httpUtils.ts",
+      "apps/server/src/storage/schema.ts",
+      "apps/web/lib/sp/spReward.ts",
+      "apps/web/components/CoinBalance.tsx",
+      "apps/web/components/CoinIcon.tsx",
+      "apps/web/styles/coin.css"
+    ],
+    "depends_on": [
+      "Shared Protocol",
+      "Server Storage",
+      "Server Auth",
+      "Web Auth Client"
+    ],
+    "used_by": [
+      "Web App",
+      "Multiplayer Server"
+    ],
+    "risks": [
+      "Money is server-authoritative: every balance change goes through WalletService.applyLedger (atomic + idempotent by (user_id, reason, ref)); never mutate coin_balances directly. SQLite uses a transaction; Postgres uses an ensure-row + FOR UPDATE transaction so concurrent same-user ops serialize.",
+      "packages/shared/src/economy.ts is the single source of amounts/splits (STARTING_COINS=5000, SP_REWARDS medium/hard/epic=50/100/300, POT_SPLIT 70/30, MIN_ENTRY_FEE, splitPot). Do not hardcode these elsewhere; the server enforces, the web only displays.",
+      "SP reward anti-cheat (D3): reward difficulty comes from the server-issued one-time token (SpRewardTokens), not the client; /sp/reward also enforces auth + min duration + per-user rate limit + a HARD daily cap clamped under a per-user in-process lock. Tokens are in-memory/single-instance (matches the per-instance RateLimiter assumption). Residual: client still asserts placement.",
+      "Coin tables (migration 0007_coin_wallet: coin_balances, coin_ledger) follow the schema.ts rules — append-only, never renumber. Ledger has CHECK constraints (delta<>0, balance>=0, reason enum) and a UNIQUE(user_id, reason, ref) idempotency index.",
+      "Registration grants the signup bonus; WalletService.getBalance is repair-on-read so /auth/me and WELCOME also backfill existing accounts idempotently.",
+      "WELCOME carries optional goldBalance and /auth/me returns balance — both additive/optional, backward compatible with old clients.",
+      "Single-instance caveat: the SP daily-cap lock and token store are per-process; a true multi-instance SP mode would need the cap pushed into the DB transaction."
     ],
     "confidence": "high"
   }

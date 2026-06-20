@@ -1,6 +1,6 @@
 # AI Working Rules
 
-Last refreshed: 2026-06-17.
+Last refreshed: 2026-06-20.
 
 ## Before Major Edits
 
@@ -124,6 +124,7 @@ Care points:
 Read these before changing persistence, migrations, storage adapters, auth storage, stats, chat persistence, leases, sessions, or metrics DB health:
 
 - `apps/server/src/storage/StoragePort.ts`
+- `apps/server/src/storage/CoinStore.ts`
 - `apps/server/src/storage/schema.ts`
 - `apps/server/src/storage/migrations.ts`
 - `apps/server/src/storage/SqliteStorage.ts`
@@ -221,6 +222,30 @@ Care points:
 - The heavy ISMCTS runs CLIENT-SIDE in `botWorker.ts` (browser Web Worker), never on the VPS. Single-player adds NO server game CPU; measure its client cost with `tools/bot-benchmark` (`npm run bench:bot`). `eslint` ignores `packages/ai_bot/**` (vendored sub-project).
 - Randomness is seedable (`mulberry32`); keep no `Math.random`/`Date.now` in decisions.
 
+### Gold-Coin Economy
+
+Read these before changing the virtual gold-coin currency (balances, ledger, signup bonus, single-player rewards, or — later — multiplayer paid rooms):
+
+- `packages/shared/src/economy.ts` (single source of amounts/splits)
+- `apps/server/src/storage/CoinStore.ts`, `apps/server/src/storage/schema.ts` (0007_coin_wallet)
+- `apps/server/src/storage/SqliteStorage.ts`, `apps/server/src/storage/PostgresStorage.ts` (applyLedger/sumLedgerSince)
+- `apps/server/src/wallet/WalletService.ts`
+- `apps/server/src/sp/SpRewardTokens.ts`, `apps/server/src/http/spRewardRoutes.ts`, `apps/server/src/http/httpUtils.ts`
+- `apps/server/src/http/authRoutes.ts` (signup bonus + `/auth/me` balance), `apps/server/src/net/WebSocketGateway.ts` (WELCOME goldBalance)
+- `apps/web/lib/sp/spReward.ts`, `apps/web/components/CoinBalance.tsx`, `apps/web/components/CoinIcon.tsx`, `apps/web/components/GameDialogs.tsx`, `apps/web/components/auth/LobbyProfile.tsx`, `apps/web/lib/auth/useAuthUser.ts`, `apps/web/styles/coin.css`
+- tests: `apps/server/test/wallet/*`, `apps/server/test/sp/*`, `apps/server/test/http/spRewardRoutes.integration.test.ts`, the coin block in `apps/server/test/storage/storageContract.ts`, `apps/web/test/CoinBalance.test.tsx`, `apps/web/test/GameEndReward.test.tsx`
+
+Care points:
+
+- Money is server-authoritative. Every balance change goes through `WalletService` over `CoinStore.applyLedger` (atomic; idempotent by `(user_id, reason, ref)`). Never mutate `coin_balances` directly and never trust client-supplied amounts.
+- `packages/shared/src/economy.ts` is the single source of amounts/splits (STARTING_COINS, SP_REWARDS, POT_SPLIT, MIN_ENTRY_FEE, splitPot). Do not hardcode these anywhere else; the server enforces, the web only displays.
+- `applyLedger` must behave identically in SQLite (transaction) and PostgreSQL (ensure-row + `FOR UPDATE` transaction) and is covered by the shared storage contract. Coin migration `0007_coin_wallet` follows schema.ts rules (append-only, never renumber).
+- SP reward anti-cheat (D3): the reward difficulty comes from a server-issued one-time token (`SpRewardTokens`), NOT the client. `/sp/reward` enforces auth + minimum game duration + per-user rate limit + a HARD daily cap clamped under a per-user in-process lock. Tokens and the lock are in-memory/single-instance (same assumption as `rateLimiter.ts`). The client still asserts placement — an accepted residual.
+- Anonymous play has no wallet and earns nothing. Registration grants the signup bonus; `WalletService.getBalance` is repair-on-read so `/auth/me` and `WELCOME` also backfill existing accounts idempotently.
+- `httpServer.ts` chains the `/sp/*` handler before the auth handler; raw-HTTP helpers are shared via `http/httpUtils.ts` (do not re-copy them).
+- On reward/charge errors, favor under-credit over over-credit (the SP token is consumed before the DB credit by design).
+- Multiplayer paid rooms (entry fee + pot, 70/30 payout to top-2 registered humans) are PLANNED (Phase 3) and NOT built yet; see `docs/TODO/gold-coins-plan.md` (local/ignored).
+
 ## Commands
 
 - Install: `npm install`
@@ -262,7 +287,7 @@ Important ordering:
 - `.env` and `.env.*` are ignored except `.env.example`.
 - `WEB_ORIGIN`, `RESEND_API_KEY`, `EMAIL_FROM`, and `APP_BASE_URL` are read by `apps/server/src/config.ts`; verify `.env.example` when changing auth CORS or password-reset email behavior because those examples can drift.
 - `TRANSLATE_ENABLED`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_APPLICATION_CREDENTIALS`, and `TRANSLATE_*` limits are read by `apps/server/src/config.ts` for optional MP chat translation. Service account JSON files must stay outside source control.
-- Reverse proxies must route `/ws`, `/auth/*`, and `/chat/translate` to the server port. Enable `TRUST_PROXY=true` only behind a trusted proxy that controls `X-Forwarded-For`.
+- Reverse proxies must route `/ws`, `/auth/*`, `/sp/*`, and `/chat/translate` to the server port. Enable `TRUST_PROXY=true` only behind a trusted proxy that controls `X-Forwarded-For`.
 - `TRICK_PAUSE_MS` must remain aligned with the web client's completed-trick freeze (`apps/web/lib/mp/useTrickFreeze.ts`); config rejects values below 1500 ms.
 - `data/*.sqlite`, `data/*.sqlite-wal`, and `data/*.sqlite-shm` are ignored runtime files.
 - `logs/` is ignored. MP action logging is opt-in through `MP_ACTION_LOG=1`.
@@ -286,6 +311,7 @@ Important ordering:
 - Protocol changes: update shared tests, server/client consumers, and load-test/simulator expectations if needed.
 - UI changes: run focused web Vitest tests and Playwright e2e for affected flows.
 - Security/auth changes: run auth route/service/storage tests and inspect CORS/rate-limit/token behavior.
+- Gold-coin economy changes: run `apps/server/test/wallet/*`, `apps/server/test/sp/*`, the `/sp` route integration test, the coin block in the storage contract (SQLite + PostgreSQL), and the web coin tests; verify amounts/splits only come from `packages/shared/src/economy.ts`.
 
 ## Known Local Context
 
