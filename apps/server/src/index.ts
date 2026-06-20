@@ -20,9 +20,11 @@ import { RoomManager } from "./rooms/RoomManager.js";
 import { isRoomLeaseStore, LeaseBackedRoomOwnershipGuard } from "./rooms/RoomOwnershipGuard.js";
 import { MatchPersistence } from "./storage/MatchPersistence.js";
 import { OutcomeRecorder } from "./storage/OutcomeRecorder.js";
+import { isCoinStore } from "./storage/CoinStore.js";
 import { PostgresStorage } from "./storage/PostgresStorage.js";
 import { openStorage } from "./storage/index.js";
 import { SystemTurnTimerScheduler } from "./timers/SystemTurnTimerScheduler.js";
+import { WalletService } from "./wallet/WalletService.js";
 
 const config = loadServerConfig();
 const clock: () => number = () => Date.now();
@@ -63,6 +65,9 @@ const emailSender = createEmailSender({
 const authService = isAuthStore(storage)
   ? new AuthService({ store: storage, clock, emailSender, appBaseUrl: config.email.appBaseUrl })
   : undefined;
+// Fāze 0: zelta monētu maks (virtuālā valūta). Gan SqliteStorage, gan PostgresStorage
+// implementē CoinStore. Anonīmā spēle to neizmanto. Starta bonuss + bilance.
+const wallet = isCoinStore(storage) ? new WalletService({ coins: storage, clock }) : undefined;
 const instanceId = randomUUID();
 const roomOwnership = isRoomLeaseStore(storage)
   ? new LeaseBackedRoomOwnershipGuard({
@@ -158,7 +163,19 @@ const gateway = new WebSocketGateway({
   ...(storage instanceof PostgresStorage ? { durableSessionStore: storage } : {}),
   ...(eventBus ? { eventBus } : {}),
   // Opcionālā autentifikācija: HELLO authToken → lietotājs (username pārraksta displayId).
-  ...(authService ? { resolveAuth: (token: string) => authService.resolvePublic(token) } : {})
+  ...(authService
+    ? {
+        // Fāze 0: WELCOME nes goldBalance ielogotam — atrisinām bilanci kopā ar auth
+        // (gateway WELCOME sūtīšana paliek sinhrona). `getBalance` = repair-on-read.
+        resolveAuth: async (token: string) => {
+          const resolved = await authService.resolvePublic(token);
+          if (!resolved || !wallet) {
+            return resolved;
+          }
+          return { ...resolved, goldBalance: await wallet.getBalance(resolved.userId) };
+        }
+      }
+    : {})
 });
 await eventBus?.start((message) => {
   if (message.kind === "broadcast") {
@@ -223,6 +240,7 @@ const server = createHealthHttpServer({
         authHandler: createAuthHandler({
           auth: authService,
           leaderboard,
+          ...(wallet ? { wallet } : {}),
           webOrigins: config.webOrigins,
           clock,
           dev: config.nodeEnv !== "production",

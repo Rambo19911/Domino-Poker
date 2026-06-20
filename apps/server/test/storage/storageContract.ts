@@ -4,6 +4,7 @@ import type { MultiplayerEvent } from "@domino-poker/core/multiplayer";
 import type { ChatMessage } from "@domino-poker/shared";
 
 import type { AuthStore, UserRecord } from "../../src/auth/AuthStore.js";
+import type { CoinStore } from "../../src/storage/CoinStore.js";
 import type { MatchStartedRecord, StoragePort } from "../../src/storage/StoragePort.js";
 
 /**
@@ -12,11 +13,11 @@ import type { MatchStartedRecord, StoragePort } from "../../src/storage/StorageP
  * PostgreSQL, kad `TEST_POSTGRES_DATABASE_URL` iestatīts), lai pierādītu, ka abi
  * dod IDENTISKUS rezultātus. Tā ir parity drošības tīkls pirms shēmas dedublēšanas.
  *
- * Kontrakts pieskaras `StoragePort` + `getUserStats`/`createUser` (`AuthStore`),
- * jo `recordUserMatchOutcome` FK prasa esošu lietotāju — tāpēc `Setup` atgriež
- * `StoragePort & AuthStore` (abi backendi implementē abus).
+ * Kontrakts pieskaras `StoragePort` + `getUserStats`/`createUser` (`AuthStore`) +
+ * `CoinStore` (zelta maks), jo to FK prasa esošu lietotāju — tāpēc `Setup` atgriež
+ * `StoragePort & AuthStore & CoinStore` (visi backendi implementē visus).
  */
-export type ContractStorage = StoragePort & AuthStore;
+export type ContractStorage = StoragePort & AuthStore & CoinStore;
 
 /** Izveido svaigu, izolētu glabātuvi un atgriež arī tās teardown (SQLite: close; PG: close + drop schema). */
 export type ContractSetup = () => Promise<{
@@ -218,6 +219,110 @@ export function runStoragePortContract(label: string, setup: ContractSetup): voi
           losses: 1,
           updatedAt: 200
         });
+      });
+    });
+
+    describe("coin wallet (atomic, idempotent)", () => {
+      beforeEach(async () => {
+        expect(await storage.createUser(makeUser())).toBe("created");
+      });
+
+      it("returns 0 balance for a wallet with no ledger entries", async () => {
+        expect(await storage.getBalance("user-1")).toBe(0);
+      });
+
+      it("rejects a first-ever debit on a wallet with no balance row (insufficient, not an error)", async () => {
+        const res = await storage.applyLedger({
+          id: "d1",
+          userId: "user-1",
+          delta: -100,
+          reason: "mp_entry",
+          ref: "entry-A",
+          now: 100
+        });
+        expect(res).toEqual({ ok: false, reason: "insufficient" });
+        expect(await storage.getBalance("user-1")).toBe(0);
+      });
+
+      it("applies a credit and reflects it in the balance", async () => {
+        const res = await storage.applyLedger({
+          id: "led-1",
+          userId: "user-1",
+          delta: 5000,
+          reason: "signup",
+          ref: "user-1",
+          now: 100
+        });
+        expect(res).toEqual({ ok: true, applied: true, balance: 5000 });
+        expect(await storage.getBalance("user-1")).toBe(5000);
+      });
+
+      it("is idempotent per (user, reason, ref): the second apply is a no-op", async () => {
+        await storage.applyLedger({
+          id: "led-1",
+          userId: "user-1",
+          delta: 5000,
+          reason: "signup",
+          ref: "user-1",
+          now: 100
+        });
+        // Tā pati atslēga (cits id, cits delta) → idempotents no-op, bilance nemainās.
+        const repeat = await storage.applyLedger({
+          id: "led-2",
+          userId: "user-1",
+          delta: 999,
+          reason: "signup",
+          ref: "user-1",
+          now: 200
+        });
+        expect(repeat).toEqual({ ok: true, applied: false, balance: 5000 });
+        expect(await storage.getBalance("user-1")).toBe(5000);
+      });
+
+      it("debits when funds are sufficient and accumulates across distinct refs", async () => {
+        await storage.applyLedger({ id: "c1", userId: "user-1", delta: 5000, reason: "signup", ref: "user-1", now: 100 });
+        const debit = await storage.applyLedger({
+          id: "d1",
+          userId: "user-1",
+          delta: -300,
+          reason: "mp_entry",
+          ref: "entry-A",
+          now: 200
+        });
+        expect(debit).toEqual({ ok: true, applied: true, balance: 4700 });
+        const debit2 = await storage.applyLedger({
+          id: "d2",
+          userId: "user-1",
+          delta: -700,
+          reason: "mp_entry",
+          ref: "entry-B",
+          now: 300
+        });
+        expect(debit2).toEqual({ ok: true, applied: true, balance: 4000 });
+      });
+
+      it("rejects a debit that would breach the minBalance guard and leaves balance + ledger untouched", async () => {
+        await storage.applyLedger({ id: "c1", userId: "user-1", delta: 100, reason: "signup", ref: "user-1", now: 100 });
+        const tooBig = await storage.applyLedger({
+          id: "d1",
+          userId: "user-1",
+          delta: -500,
+          reason: "mp_entry",
+          ref: "entry-A",
+          now: 200
+        });
+        expect(tooBig).toEqual({ ok: false, reason: "insufficient" });
+        expect(await storage.getBalance("user-1")).toBe(100);
+        // Sargs atritināja ledger rindu → tā PATI atslaga ar pieņemamu summu tagad piemērojas.
+        const ok = await storage.applyLedger({
+          id: "d2",
+          userId: "user-1",
+          delta: -40,
+          reason: "mp_entry",
+          ref: "entry-A",
+          now: 300
+        });
+        expect(ok).toEqual({ ok: true, applied: true, balance: 60 });
       });
     });
   });

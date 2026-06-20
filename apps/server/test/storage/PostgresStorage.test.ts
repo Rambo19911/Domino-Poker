@@ -17,6 +17,11 @@ class RecordingPool {
     return { rows } as QueryResult<T>;
   }
 
+  // Tipa apmierināšanai (PgPool.connect); šie testi neizsauc transakciju ceļu.
+  async connect() {
+    return { query: this.query.bind(this), release: () => undefined };
+  }
+
   async end(): Promise<void> {
     this.closed = true;
   }
@@ -59,6 +64,11 @@ class HealthPool {
       return { rows: this.tableRows } as QueryResult<T>;
     }
     return { rows: [] as unknown[] } as QueryResult<T>;
+  }
+
+  // Tipa apmierināšanai (PgPool.connect); šie testi neizsauc transakciju ceļu.
+  async connect() {
+    return { query: this.query.bind(this), release: () => undefined };
   }
 
   async end(): Promise<void> {

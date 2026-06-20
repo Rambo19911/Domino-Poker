@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import type { AuthService } from "../auth/AuthService.js";
 import type { LeaderboardService } from "../leaderboard/LeaderboardService.js";
+import type { WalletService } from "../wallet/WalletService.js";
 import { MAX_AVATAR_BYTES, readBinaryBody, readJsonBody } from "./readJsonBody.js";
 import { RateLimiter } from "./rateLimiter.js";
 
@@ -65,6 +66,11 @@ export interface AuthRoutesOptions {
    * maršruts atbild 503 (funkcija nav konfigurēta). Konstruēts kopā ar `auth`.
    */
   readonly leaderboard?: LeaderboardService | undefined;
+  /**
+   * Zelta monētu maks (Fāze 0). Ja `undefined` (glabātuve neatbalsta), bilance
+   * netiek atgriezta `/auth/me` un starta bonuss netiek piešķirts.
+   */
+  readonly wallet?: WalletService | undefined;
   /** Atļauto izcelšu (Origin) saraksts CORS — NEKAD `*`. No `config.webOrigins`. */
   readonly webOrigins: readonly string[];
   readonly clock: () => number;
@@ -117,7 +123,14 @@ export function createAuthHandler(options: AuthRoutesOptions): AuthHandler {
 
     try {
       if (request.method === "POST" && path === "/auth/register") {
-        await handleRegister(request, response, options.auth, registerLimiter, options.trustProxy);
+        await handleRegister(
+          request,
+          response,
+          options.auth,
+          options.wallet,
+          registerLimiter,
+          options.trustProxy
+        );
       } else if (request.method === "POST" && path === "/auth/login") {
         await handleLogin(
           request,
@@ -128,7 +141,7 @@ export function createAuthHandler(options: AuthRoutesOptions): AuthHandler {
           options.trustProxy
         );
       } else if (request.method === "GET" && path === "/auth/me") {
-        await handleMe(request, response, options.auth, options.leaderboard);
+        await handleMe(request, response, options.auth, options.leaderboard, options.wallet);
       } else if (request.method === "PATCH" && path === "/auth/me/language") {
         await handleSetLanguage(
           request,
@@ -183,6 +196,7 @@ async function handleRegister(
   request: IncomingMessage,
   response: ServerResponse,
   auth: AuthService,
+  wallet: WalletService | undefined,
   limiter: RateLimiter,
   trustProxy: boolean
 ): Promise<void> {
@@ -204,6 +218,11 @@ async function handleRegister(
   if (!result.ok) {
     writeJson(response, 409, { error: result.error });
     return;
+  }
+  // Starta bonuss (Fāze 0): idempotenti piešķir 5000 monētas pēc reģistrācijas.
+  // (repair-on-read `getBalance` to atkārtoti nodrošina pirmajā bilances lasījumā.)
+  if (wallet) {
+    await wallet.grantSignupBonus(result.user.id);
   }
   writeJson(response, 200, { token: result.token, user: result.user });
 }
@@ -246,7 +265,8 @@ async function handleMe(
   request: IncomingMessage,
   response: ServerResponse,
   auth: AuthService,
-  leaderboard: LeaderboardService | undefined
+  leaderboard: LeaderboardService | undefined,
+  wallet: WalletService | undefined
 ): Promise<void> {
   const token = bearerToken(request);
   const user = token ? await auth.resolveToken(token) : undefined;
@@ -256,12 +276,15 @@ async function handleMe(
   }
   // rankBadge (Leaderboard fāze): globālā ranga emblēma main-lobby profilam; `null`,
   // ja ārpus badge-rangiem (71+) vai leaderboard nav konfigurēts.
-  const [stats, language, rankBadge] = await Promise.all([
+  // balance (Fāze 0): zelta monētu bilance; `null`, ja maks nav konfigurēts. `getBalance`
+  // ir repair-on-read → nodrošina starta bonusu (arī esošo lietotāju backfill).
+  const [stats, language, rankBadge, balance] = await Promise.all([
     auth.getStats(user.id),
     auth.getLanguage(user.id),
-    leaderboard ? leaderboard.getRankBadgeFor(user.id) : Promise.resolve(null)
+    leaderboard ? leaderboard.getRankBadgeFor(user.id) : Promise.resolve(null),
+    wallet ? wallet.getBalance(user.id) : Promise.resolve(null)
   ]);
-  writeJson(response, 200, { user, stats: stats ?? null, language, rankBadge });
+  writeJson(response, 200, { user, stats: stats ?? null, language, rankBadge, balance });
 }
 
 /**

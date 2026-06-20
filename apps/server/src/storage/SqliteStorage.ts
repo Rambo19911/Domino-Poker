@@ -30,6 +30,7 @@ import type {
   UpdateProfileResult,
   UserRecord
 } from "../auth/AuthStore.js";
+import type { ApplyLedgerResult, CoinStore, LedgerEntryInput } from "./CoinStore.js";
 import { buildMigrations } from "./schema.js";
 
 export interface SqliteStorageOptions {
@@ -50,7 +51,7 @@ export interface SqliteStorageOptions {
  * (state ir atjaunojams no `seed`), pamata statistiku un lobby čatu (pārdzīvo
  * restartu). Nekādu dzīvu objektu vai spēles state šeit.
  */
-export class SqliteStorage implements StoragePort, AuthStore {
+export class SqliteStorage implements StoragePort, AuthStore, CoinStore {
   private readonly db: DatabaseSync;
 
   constructor(options: SqliteStorageOptions) {
@@ -517,6 +518,56 @@ export class SqliteStorage implements StoragePort, AuthStore {
       }
       this.db.exec("COMMIT");
       return isNew;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  async getBalance(userId: string): Promise<number> {
+    const row = this.db
+      .prepare(`SELECT balance FROM coin_balances WHERE user_id = ?`)
+      .get(userId) as { balance: number | bigint } | undefined;
+    return row ? Number(row.balance) : 0;
+  }
+
+  async applyLedger(entry: LedgerEntryInput): Promise<ApplyLedgerResult> {
+    const minBalance = entry.minBalance ?? 0;
+    // node:sqlite ir sinhrons → transakcija ir droša (bez interleaving).
+    this.db.exec("BEGIN");
+    try {
+      // Idempotences sargs: atkārtots (userId, reason, ref) → INSERT OR IGNORE neko
+      // neraksta; tad delta NETIEK piemērota otrreiz.
+      const inserted = this.db
+        .prepare(
+          `INSERT OR IGNORE INTO coin_ledger (id, user_id, delta, reason, ref, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)`
+        )
+        .run(entry.id, entry.userId, entry.delta, entry.reason, entry.ref, entry.now);
+      const currentRow = this.db
+        .prepare(`SELECT balance FROM coin_balances WHERE user_id = ?`)
+        .get(entry.userId) as { balance: number | bigint } | undefined;
+      const current = currentRow ? Number(currentRow.balance) : 0;
+      if (Number(inserted.changes) === 0) {
+        // Jau piemērota agrāk — idempotents no-op.
+        this.db.exec("COMMIT");
+        return { ok: true, applied: false, balance: current };
+      }
+      const next = current + entry.delta;
+      if (next < minBalance) {
+        // Debets pārsniegtu sargu — atritina arī tikko ievietoto ledger rindu.
+        this.db.exec("ROLLBACK");
+        return { ok: false, reason: "insufficient" };
+      }
+      this.db
+        .prepare(
+          `INSERT INTO coin_balances (user_id, balance, updated_at)
+           VALUES (?, ?, ?)
+           ON CONFLICT(user_id) DO UPDATE SET balance = ?, updated_at = ?`
+        )
+        .run(entry.userId, next, entry.now, next, entry.now);
+      this.db.exec("COMMIT");
+      return { ok: true, applied: true, balance: next };
     } catch (error) {
       this.db.exec("ROLLBACK");
       throw error;

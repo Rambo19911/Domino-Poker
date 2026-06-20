@@ -15,6 +15,7 @@ import type {
   UnfinishedMatch,
   UserStatsRecord
 } from "./StoragePort.js";
+import type { ApplyLedgerResult, CoinStore, LedgerEntryInput } from "./CoinStore.js";
 import { runMigrations } from "./migrations.js";
 import type { RoomLeaseRecord, RoomLeaseRequest, RoomLeaseStore } from "./RoomLeaseStore.js";
 import type {
@@ -37,11 +38,22 @@ import type {
   UserRecord
 } from "../auth/AuthStore.js";
 
+/** Viena (rezervēta) pool klienta savienojuma apakškopa transakcijām (`pg` `PoolClient`). */
+interface PgPoolClient {
+  query<T extends QueryResultRow = QueryResultRow>(
+    text: string,
+    values?: readonly unknown[]
+  ): Promise<QueryResult<T>>;
+  release(): void;
+}
+
 interface PgPool {
   query<T extends QueryResultRow = QueryResultRow>(
     text: string,
     values?: readonly unknown[]
   ): Promise<QueryResult<T>>;
+  /** Rezervē klientu transakcijai (BEGIN/COMMIT + FOR UPDATE); sk. `applyLedger`. */
+  connect(): Promise<PgPoolClient>;
   end(): Promise<void>;
   // `pg` `Pool` atklāj šos kā sinhronus getterus; opcionāli, lai test-dubultnieki
   // tos var nesniegt (sk. `healthCheck`).
@@ -82,7 +94,7 @@ export interface DbHealthReport {
 }
 
 export class PostgresStorage
-  implements StoragePort, RoomLeaseStore, DurableSessionStore, AuthStore
+  implements StoragePort, RoomLeaseStore, DurableSessionStore, AuthStore, CoinStore
 {
   private constructor(private readonly pool: PgPool) {}
 
@@ -663,6 +675,70 @@ export class PostgresStorage
       [matchId, userId, outcome, now, winInc, loseInc]
     );
     return (result.rowCount ?? 0) > 0;
+  }
+
+  async getBalance(userId: string): Promise<number> {
+    const result = await this.pool.query<{ balance: number }>(
+      `SELECT balance FROM coin_balances WHERE user_id = $1`,
+      [userId]
+    );
+    const row = result.rows[0];
+    return row ? Number(row.balance) : 0;
+  }
+
+  async applyLedger(entry: LedgerEntryInput): Promise<ApplyLedgerResult> {
+    const minBalance = entry.minBalance ?? 0;
+    // Transakcija ar FOR UPDATE (kā SQLite). Viena-statement CTE nevar vienlaikus
+    // korekti apvienot funds-rejection (kas NEDRĪKST ierakstīt ledger) UN idempotenci
+    // zem konkurences: bez bloķēšanas rodas vai nu read-then-write race, vai ledger/
+    // balance nekonsekvence. `INSERT ON CONFLICT DO NOTHING` vispirms NODROŠINA rindu,
+    // lai `SELECT ... FOR UPDATE` vienmēr to bloķē → serializē vienlaicīgas tā paša
+    // lietotāja darbības (daudzinstanču Postgres droši). ROLLBACK atritina arī ensure-row.
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(
+        `INSERT INTO coin_balances (user_id, balance, updated_at) VALUES ($1, 0, $2)
+         ON CONFLICT (user_id) DO NOTHING`,
+        [entry.userId, entry.now]
+      );
+      const locked = await client.query<{ balance: number }>(
+        `SELECT balance FROM coin_balances WHERE user_id = $1 FOR UPDATE`,
+        [entry.userId]
+      );
+      const current = locked.rows[0] ? Number(locked.rows[0].balance) : 0;
+      const existing = await client.query(
+        `SELECT 1 FROM coin_ledger WHERE user_id = $1 AND reason = $2 AND ref = $3`,
+        [entry.userId, entry.reason, entry.ref]
+      );
+      if ((existing.rowCount ?? 0) > 0) {
+        // Atslēga jau piemērota — idempotents no-op.
+        await client.query("COMMIT");
+        return { ok: true, applied: false, balance: current };
+      }
+      const next = current + entry.delta;
+      if (next < minBalance) {
+        await client.query("ROLLBACK");
+        return { ok: false, reason: "insufficient" };
+      }
+      await client.query(
+        `INSERT INTO coin_ledger (id, user_id, delta, reason, ref, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [entry.id, entry.userId, entry.delta, entry.reason, entry.ref, entry.now]
+      );
+      await client.query(`UPDATE coin_balances SET balance = $2, updated_at = $3 WHERE user_id = $1`, [
+        entry.userId,
+        next,
+        entry.now
+      ]);
+      await client.query("COMMIT");
+      return { ok: true, applied: true, balance: next };
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async getUserStats(userId: string): Promise<UserStatsRecord | undefined> {

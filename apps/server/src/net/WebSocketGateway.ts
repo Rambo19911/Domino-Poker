@@ -46,6 +46,8 @@ export interface ResolvedAuthInfo {
   readonly username: string;
   readonly avatar: string;
   readonly title: TitleId;
+  /** Zelta monētu bilance (Fāze 0), atrisināta kopā ar auth (sk. `index.ts`). */
+  readonly goldBalance?: number;
 }
 
 /** HELLO `authToken` atrisinātājs (injicē `index.ts` no `AuthService.resolvePublic`). */
@@ -454,7 +456,13 @@ export class WebSocketGateway implements GatewayHub {
       reconnectToken: identity.reconnectToken,
       serverNow: this.clock(),
       ...(auth
-        ? { userId: auth.userId, username: auth.username, avatar: auth.avatar, isRegistered: true }
+        ? {
+            userId: auth.userId,
+            username: auth.username,
+            avatar: auth.avatar,
+            isRegistered: true,
+            ...(auth.goldBalance !== undefined ? { goldBalance: auth.goldBalance } : {})
+          }
         : {})
     });
     // Jauns lobby dalībnieks: čata vēsture + onlineCount push pārējiem.

@@ -33,6 +33,11 @@ export interface WelcomeEvent {
   readonly username?: string;
   readonly avatar?: string;
   readonly isRegistered?: boolean;
+  /**
+   * Zelta monētu bilance (Fāze 0; aditīvs, atpakaļsaderīgs). Aizpildīts tikai
+   * ielogotam lietotājam, ja serverim ir maks. Anonīmam `undefined`.
+   */
+  readonly goldBalance?: number;
 }
 
 export interface RoomListEvent {

@@ -243,6 +243,41 @@ function userPreferencesSchema(t: DialectTypes): string {
 }
 
 /**
+ * 0007: zelta monētu maku (virtuālā valūta). `coin_balances` = autoritatīvā bilance
+ * uz kontu; `coin_ledger` = append-only audita žurnāls + idempotences sargs. Apzināti
+ * ATSEVIŠĶAS tabulas (kā `user_preferences`, NE `ALTER TABLE users`): `node:sqlite`
+ * neatbalsta `ADD COLUMN IF NOT EXISTS` → ALTER nebūtu idempotents pie crash-rerun.
+ *
+ * Idempotence: `UNIQUE (user_id, reason, ref)` garantē TIEŠI VIENU kustību uz
+ * (lietotājs, iemesls, konteksts). `ref` = per-darbības konteksts: signup→userId,
+ * sp_reward→gameToken, mp_entry/mp_refund→entryId (per-sēdvietas-ieņemšana, NE roomId,
+ * citādi refund→rejoin tai pašai istabai būtu no-op = bezmaksas sēdvieta), mp_payout→matchId.
+ * `CHECK`: bilance nedrīkst kļūt negatīva, `delta != 0`, `reason` ierobežots enum. FK CASCADE.
+ */
+function coinWalletSchema(t: DialectTypes): string {
+  return `
+  CREATE TABLE IF NOT EXISTS coin_balances (
+    user_id    TEXT PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
+    balance    INTEGER NOT NULL DEFAULT 0 CHECK (balance >= 0),
+    updated_at ${t.bigint} NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS coin_ledger (
+    id         TEXT PRIMARY KEY,
+    user_id    TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    delta      INTEGER NOT NULL CHECK (delta <> 0),
+    reason     TEXT NOT NULL CHECK (reason IN ('signup', 'sp_reward', 'mp_entry', 'mp_refund', 'mp_payout')),
+    ref        TEXT NOT NULL,
+    created_at ${t.bigint} NOT NULL
+  );
+
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_coin_ledger_idem
+    ON coin_ledger (user_id, reason, ref);
+  CREATE INDEX IF NOT EXISTS idx_coin_ledger_user_id ON coin_ledger (user_id);
+`;
+}
+
+/**
  * Renderē sakārtoto migrāciju sarakstu dotajam dialektam. ID un secība ir
  * STABILA un identiska abiem dialektiem (versionēšanas paritāte); atšķiras tikai
  * kolonnu tipi un PG-only tabulu klātbūtne (tikai 0001).
@@ -257,6 +292,7 @@ export function buildMigrations(dialect: SchemaDialect): readonly SchemaMigratio
     { id: "0003_user_stats", up: userStatsSchema(t) },
     { id: "0004_password_reset_tokens", up: passwordResetSchema(t) },
     { id: "0005_custom_avatars", up: customAvatarSchema(t) },
-    { id: "0006_user_preferences", up: userPreferencesSchema(t) }
+    { id: "0006_user_preferences", up: userPreferencesSchema(t) },
+    { id: "0007_coin_wallet", up: coinWalletSchema(t) }
   ];
 }

@@ -15,6 +15,8 @@ export type {
 } from "./StoragePort.js";
 export { PostgresStorage } from "./PostgresStorage.js";
 export type { DbHealthReport, PgPoolOptions } from "./PostgresStorage.js";
+export { isCoinStore } from "./CoinStore.js";
+export type { ApplyLedgerResult, CoinStore, LedgerEntryInput, LedgerReason } from "./CoinStore.js";
 export { MIGRATIONS, runMigrations } from "./migrations.js";
 export type { Migration, MigratablePool, RunMigrationsOptions } from "./migrations.js";
 export { InMemoryRoomLeaseStore, toLeaseRecord } from "./RoomLeaseStore.js";
