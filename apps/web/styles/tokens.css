@@ -30,6 +30,10 @@
   --overlay-rgb: 30 38 34;
   --primary: #d6ad47;
   --primary-rgb: 214 173 71;
+  /* Zelta monētu semantiskais aliass (Fāze 1): punkto uz `--primary` (tēmas-drošs).
+     Lieto monētu UI (bilance, pods, istabu nozīme), lai semantika ir skaidra. */
+  --coin: var(--primary);
+  --coin-rgb: var(--primary-rgb);
   --error: #e1233f;
   --error-rgb: 225 35 63;
   --success: #2e7d32;

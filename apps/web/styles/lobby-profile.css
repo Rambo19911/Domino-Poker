@@ -70,6 +70,20 @@
   color: var(--primary);
   letter-spacing: 0.02em;
 }
+/* Zelta bilance zem titula (Fāze 1): pill ar zelta tokenu; ienāk ar `balanceEnter`. */
+.lobbyProfileBalance {
+  margin-top: 2px;
+  padding: 2px 10px;
+  font-size: 14px;
+  border-radius: var(--radius-pill);
+  background: rgb(var(--coin-rgb) / 0.14);
+  border: 1px solid rgb(var(--coin-rgb) / 0.34);
+  animation: balanceEnter var(--motion-slow) var(--ease-standard) both;
+}
+.lobbyProfileBalance .coinBalanceIcon {
+  width: 15px;
+  height: 15px;
+}
 .lobbyProfileLoser {
   margin-top: 2px;
   padding: 1px 8px;

@@ -37,6 +37,7 @@ type LobbyAuth = Pick<
   | "user"
   | "stats"
   | "rankBadge"
+  | "balance"
   | "register"
   | "login"
   | "logout"
@@ -141,6 +142,7 @@ export function LobbyScreen({
           user={auth.user}
           {...(auth.stats ? { stats: { wins: auth.stats.wins, losses: auth.stats.losses } } : {})}
           rankBadge={auth.rankBadge}
+          balance={auth.balance}
           onOpen={openAuth}
         />
         <LobbyWheel

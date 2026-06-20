@@ -1,4 +1,4 @@
-import type { GameLanguage, RankBadgeId } from "@domino-poker/shared";
+import { STARTING_COINS, type GameLanguage, type RankBadgeId } from "@domino-poker/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { readLocalStorage, writeLocalStorage } from "../safeStorage";
@@ -31,6 +31,8 @@ export interface UseAuthUser {
   readonly stats: UserStats | null;
   /** Globālā ranga badge (Leaderboard fāze) main-lobby profilam; `null`, ja ārpus top-rangiem. */
   readonly rankBadge: RankBadgeId | null;
+  /** Zelta monētu bilance (Fāze 1); `null`, ja anonīms vai vēl neielādēta. */
+  readonly balance: number | null;
   /**
    * Konta serverī saglabātā spēles valoda; `null`, ja anonīms vai vēl neielādēta.
    * Atjaunojas TIKAI sesijas iegūšanas brīžos (mount-ar-tokenu, login) un caur
@@ -65,6 +67,7 @@ export function useAuthUser(): UseAuthUser {
   // getToken lasa ref, lai WS slānis vienmēr redz jaunāko tokenu bez re-render.
   const [stats, setStats] = useState<UserStats | null>(null);
   const [rankBadge, setRankBadge] = useState<RankBadgeId | null>(null);
+  const [balance, setBalance] = useState<number | null>(null);
   const [language, setLanguageState] = useState<GameLanguage | null>(null);
   const tokenRef = useRef<string | null>(null);
   // Palielinās ar katru lietotāja valodas maiņu; novecojusi `/auth/me` atbilde
@@ -83,6 +86,7 @@ export function useAuthUser(): UseAuthUser {
     setUser(null);
     setStats(null);
     setRankBadge(null);
+    setBalance(null);
     setLanguageState(null);
     setStatus("anonymous");
   }, [applyToken]);
@@ -106,6 +110,7 @@ export function useAuthUser(): UseAuthUser {
         setUser(result.data.user);
         setStats(result.data.stats);
         setRankBadge(result.data.rankBadge ?? null);
+        setBalance(result.data.balance ?? null);
         // Valodu pielieto TIKAI ja prasīts UN lietotājs to nav mainījis šī izsaukuma laikā.
         if (options.applyLanguage && result.data.language && seqAtStart === languageWriteSeq.current) {
           setLanguageState(result.data.language);
@@ -149,6 +154,9 @@ export function useAuthUser(): UseAuthUser {
         setUser(result.data.user);
         setStats(null); // jauns konts — vēl bez statistikas
         setRankBadge(null); // jauns konts — vēl bez ranga
+        // Jauns konts saņem starta bonusu serverī (autoritatīvi); rādām to uzreiz
+        // optimistiski (nākamais /auth/me apstiprina no servera).
+        setBalance(STARTING_COINS);
         setLanguageState(null); // valodu serverī iestata izsaucējs (AppShell) ar pašreizējo locale
         setStatus("authenticated");
       }
@@ -237,6 +245,7 @@ export function useAuthUser(): UseAuthUser {
     user,
     stats,
     rankBadge,
+    balance,
     language,
     token,
     register,

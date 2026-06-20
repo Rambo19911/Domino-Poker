@@ -57,6 +57,18 @@
   }
 }
 
+/* Zelta bilances/monētu pill ienākšana (Fāze 1); saskan ar `playedTileEnter` toni. */
+@keyframes balanceEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

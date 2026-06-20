@@ -102,12 +102,14 @@ export function apiLogin(input: LoginInput): Promise<AuthResult<TokenUser>> {
   return requestJson<TokenUser>("/auth/login", jsonInit("POST", input));
 }
 
-/** `/auth/me` atbilde: profils + statistika + valoda + globālā ranga badge (vai `null`). */
+/** `/auth/me` atbilde: profils + statistika + valoda + globālā ranga badge + zelta bilance. */
 export interface MeResponse {
   readonly user: AuthUser;
   readonly stats: UserStats | null;
   readonly language?: GameLanguage;
   readonly rankBadge?: RankBadgeId | null;
+  /** Zelta monētu bilance (Fāze 0/1); `null`, ja serverim nav maka. */
+  readonly balance?: number | null;
 }
 
 export function apiMe(token: string): Promise<AuthResult<MeResponse>> {

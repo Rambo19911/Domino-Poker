@@ -5,6 +5,7 @@ import { isLoser, titleForWins, type RankBadgeId } from "@domino-poker/shared";
 import { avatarUrl } from "../../lib/auth/avatarUrl";
 
 import { AvatarRankBadge } from "../AvatarRankBadge";
+import { CoinBalance } from "../CoinBalance";
 import type { AuthUser } from "../../lib/auth/authApi";
 import { titleLabel } from "../../lib/auth/titleLabel";
 import type { AuthStatus } from "../../lib/auth/useAuthUser";
@@ -29,6 +30,7 @@ export function LobbyProfile({
   user,
   stats,
   rankBadge,
+  balance,
   onOpen
 }: {
   readonly labels: AppStrings;
@@ -36,6 +38,8 @@ export function LobbyProfile({
   readonly user: AuthUser | null;
   readonly stats?: ProfileStats;
   readonly rankBadge?: RankBadgeId | null;
+  /** Zelta monētu bilance (Fāze 1); `null`, ja vēl neielādēta. */
+  readonly balance?: number | null;
   readonly onOpen: () => void;
 }) {
   // Anonīmam / ielādes laikā NEKĀDA profila apzīmējuma (sk. lietotāja prasību).
@@ -70,6 +74,9 @@ export function LobbyProfile({
         </span>
         <span className="lobbyProfileName">{user.username}</span>
         <span className="lobbyProfileTitle">{title}</span>
+        {typeof balance === "number" ? (
+          <CoinBalance className="lobbyProfileBalance" value={balance} label={t.balanceLabel} />
+        ) : null}
         {loser ? <span className="lobbyProfileLoser">{t.titleLoser}</span> : null}
       </span>
       <span className="lobbyProfileStats lobbyProfileStatsRight">

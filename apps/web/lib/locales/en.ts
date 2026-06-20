@@ -212,6 +212,7 @@ export const en = {
   statsLosses: "Losses",
   statsWinRate: "Win rate",
   statsGames: "Games",
+  balanceLabel: "Gold balance",
   statsTitle: "Title",
   statsNoGames: "No ranked games yet",
   titleMushroom: "Mushroom",

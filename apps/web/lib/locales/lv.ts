@@ -216,6 +216,7 @@ export const lv = {
   statsLosses: "Zaudējumi",
   statsWinRate: "Uzvaru %",
   statsGames: "Spēles",
+  balanceLabel: "Zelta bilance",
   statsTitle: "Tituls",
   statsNoGames: "Vēl nav ieskaitītu spēļu",
   titleMushroom: "Sēne",

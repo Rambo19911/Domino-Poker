@@ -1,0 +1,23 @@
+/* Zelta monētu UI primitīvi (Fāze 1) — atkārtoti lietojami: bilance, pods, istabu
+   nozīme. Krāsa TIKAI no `--coin` tokena (= `--primary`). Bez krāsu literāļiem. */
+
+.coinBalance {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--coin);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.coinBalanceIcon {
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+  /* Ikona manto `color` (currentColor) → `--coin`. */
+}
+
+.coinBalanceValue {
+  /* tabular-nums: skaitļa platums nemainās count-up laikā (nelec). */
+  font-variant-numeric: tabular-nums;
+}
