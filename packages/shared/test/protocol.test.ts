@@ -184,7 +184,8 @@ describe("server event types", () => {
       hostDisplayId: "#04217",
       createdAt: 0,
       expiresAt: 3_600_000,
-      numberOfRounds: 7
+      numberOfRounds: 7,
+      entryFee: 0
     };
 
     const events: ServerEvent[] = [
@@ -197,12 +198,13 @@ describe("server event types", () => {
         serverNow: 1
       },
       { type: "ROOM_LIST", rooms: [summary] },
-      { type: "ROOM_VIEW", room: { ...summary, seats: [] } },
+      { type: "ROOM_VIEW", room: { ...summary, seats: [], pot: 0 } },
       { type: "ROOM_LEFT", roomId: "room-1" },
       { type: "LOBBY_STATE", rooms: [summary], onlineCount: 3 },
       { type: "CHAT_MESSAGE", id: "m1", authorDisplayId: "#04217", text: "hi", serverNow: 2 },
       { type: "ERROR", code: "RATE_LIMITED", message: "slow down" },
-      { type: "PONG", clientTime: 10, serverNow: 11 }
+      { type: "PONG", clientTime: 10, serverNow: 11 },
+      { type: "WALLET_UPDATED", balance: 5300 }
     ];
 
     expect(events.map((event) => event.type)).toEqual([
@@ -213,7 +215,8 @@ describe("server event types", () => {
       "LOBBY_STATE",
       "CHAT_MESSAGE",
       "ERROR",
-      "PONG"
+      "PONG",
+      "WALLET_UPDATED"
     ]);
   });
 });

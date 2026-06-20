@@ -407,6 +407,8 @@ function roomView(id: string) {
     createdAt: 0,
     expiresAt: 0,
     numberOfRounds: 7,
+    entryFee: 0,
+    pot: 0,
     seats: []
   };
 }

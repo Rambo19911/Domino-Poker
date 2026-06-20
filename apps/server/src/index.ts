@@ -26,6 +26,7 @@ import { isCoinStore } from "./storage/CoinStore.js";
 import { PostgresStorage } from "./storage/PostgresStorage.js";
 import { openStorage } from "./storage/index.js";
 import { SystemTurnTimerScheduler } from "./timers/SystemTurnTimerScheduler.js";
+import { MatchPayoutService } from "./wallet/MatchPayoutService.js";
 import { WalletService } from "./wallet/WalletService.js";
 
 const config = loadServerConfig();
@@ -70,6 +71,8 @@ const authService = isAuthStore(storage)
 // Fāze 0: zelta monētu maks (virtuālā valūta). Gan SqliteStorage, gan PostgresStorage
 // implementē CoinStore. Anonīmā spēle to neizmanto. Starta bonuss + bilance.
 const wallet = isCoinStore(storage) ? new WalletService({ coins: storage, clock }) : undefined;
+// Fāze 3: MP poda izmaksas dzinējs (atsevišķs no OutcomeRecorder; tikai ar maku).
+const payouts = wallet ? new MatchPayoutService({ wallet }) : undefined;
 // Fāze 2: SP balvas vienreizējie spēles tokeni (in-memory, vienas instances anti-cheat).
 const spRewardTokens =
   authService && wallet
@@ -102,6 +105,9 @@ const eventBus =
 // Kopīgs DisplayIdRegistry: gateway (WELCOME) un RoomManager (sēdvietas) rāda
 // vienu un to pašu publisko `displayId`.
 const displayIds = new DisplayIdRegistry();
+// Fāze 3: bilances push sinks (WALLET_UPDATED) — piesaista gateway, kas top vēlāk.
+// Maksas spēles poda izmaksa (game-over) sūta to uzvarētājiem; noklusējumā no-op.
+let emitWalletUpdated: (clientId: string, balance: number) => void = () => {};
 // Fāze 7: katrai istabai īsts setTimeout-bāzēts turn timeris.
 const rooms = new RoomManager({
   clock,
@@ -114,11 +120,32 @@ const rooms = new RoomManager({
   onMatchStarted: (record) => {
     persistence.matchStarted(record);
     outcomes.matchStarted(record);
+    // Fāze 3: maksas spēlēm kešo podu + sastāvu poda izmaksai pie GAME_OVER.
+    payouts?.matchStarted(record);
   },
   onMatchEvents: (events) => persistence.events(events),
-  onMatchFinished: (matchId, standings) => outcomes.gameOver(matchId, standings),
-  onPlayerForfeited: (matchId, corePlayerId) => outcomes.playerForfeited(matchId, corePlayerId),
-  onRoomAbandoned: (matchId) => outcomes.matchAbandoned(matchId),
+  onMatchFinished: (matchId, standings) => {
+    outcomes.gameOver(matchId, standings);
+    // Fāze 3: sadala podu top-2 reģistrētajiem cilvēkiem un push WALLET_UPDATED.
+    // Fire-and-forget (idempotents pēc matchId; kešs neatkarīgs no istabas dzīves cikla).
+    if (payouts) {
+      void payouts
+        .gameOver(matchId, standings)
+        .then((results) => {
+          for (const result of results) emitWalletUpdated(result.clientId, result.balance);
+        })
+        .catch((error: unknown) => console.error("[payout] settlement failed:", error));
+    }
+  },
+  onPlayerForfeited: (matchId, corePlayerId) => {
+    outcomes.playerForfeited(matchId, corePlayerId);
+    // Fāze 3: forfeitētājs izslēgts no poda izmaksas (pat ja bot-spēle finišē augstu).
+    payouts?.playerForfeited(matchId, corePlayerId);
+  },
+  onRoomAbandoned: (matchId) => {
+    outcomes.matchAbandoned(matchId);
+    payouts?.matchAbandoned(matchId);
+  },
   // Pirms-spēles atskaite uz galda, lai lēnāki klienti paspēj ielādēt galdu
   // pirms sākas solījumi (sk. RoomManager.startGame / GAME_STARTING).
   preGameDelayMs: config.preGameDelayMs,
@@ -166,7 +193,9 @@ const router = new CoreMessageRouter({
   rooms,
   chat,
   lobbyStateDebounceMs: config.lobbyStateDebounceMs,
-  ...(roomOwnership ? { roomOwnership } : {})
+  ...(roomOwnership ? { roomOwnership } : {}),
+  // Fāze 3: maksas istabu dalības maksas debets/refunds (entry/join/leave/delete/TTL).
+  ...(wallet ? { wallet } : {})
 });
 const gateway = new WebSocketGateway({
   clock,
@@ -206,6 +235,11 @@ await eventBus?.start((message) => {
 rooms.setGameUpdateSink((roomId, events) =>
   router.deliverServerGameUpdate(gateway, roomId, events, clock())
 );
+// Fāze 3: tagad, kad gateway pastāv, piesaista bilances push (poda izmaksai pie game-over).
+if (payouts) {
+  emitWalletUpdated = (clientId, balance) =>
+    gateway.sendToPlayer(clientId, { type: "WALLET_UPDATED", balance });
+}
 // Fāze 3: partijas sākumā attiecinām katru cilvēka sēdvietu uz autentificēto userId
 // (ja ielogojies) statistikas vajadzībām. Anonīmam → undefined (nesaskaitās).
 rooms.setUserIdResolver((clientId) => gateway.getUserId(clientId));

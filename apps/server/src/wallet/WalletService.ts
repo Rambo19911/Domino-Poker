@@ -99,6 +99,65 @@ export class WalletService {
     return result.ok ? result.balance : this.coins.getBalance(userId);
   }
 
+  /**
+   * MP dalības maksas debets (Fāze 3). Atomiski atskaita `fee` no `userId` bilances,
+   * ja pietiek (`minBalance: 0`). Idempotents pēc `entryId` (vienreizēja sēdvietas
+   * ieņemšanas atslēga, NE roomId — citādi refund→rejoin tai pašai istabai būtu
+   * no-op = bezmaksas sēdvieta). `entryId` korelē debetu ar tā refundu/payout.
+   * `{ ok:false }` ja bilance nepietiek (sēdvieta netiek piešķirta).
+   */
+  async debitEntryFee(
+    userId: string,
+    entryId: string,
+    fee: number
+  ): Promise<{ ok: true; balance: number } | { ok: false; reason: "insufficient" }> {
+    const result = await this.coins.applyLedger({
+      id: this.createId(),
+      userId,
+      delta: -fee,
+      reason: "mp_entry",
+      ref: entryId,
+      minBalance: 0,
+      now: this.clock()
+    });
+    return result.ok ? { ok: true, balance: result.balance } : result;
+  }
+
+  /**
+   * MP dalības maksas refunds (Fāze 3). Idempotents pēc `entryId` — atkārtots refund
+   * (piem. leave + TTL sweep vienlaikus) neieskaita divreiz. Refundē TIEŠI to
+   * sēdvietas ieņemšanu, ko `debitEntryFee` atskaitīja. Atgriež bilanci pēc kreditēšanas.
+   */
+  async refundEntryFee(userId: string, entryId: string, fee: number): Promise<number> {
+    const result = await this.coins.applyLedger({
+      id: this.createId(),
+      userId,
+      delta: fee,
+      reason: "mp_refund",
+      ref: entryId,
+      now: this.clock()
+    });
+    return result.ok ? result.balance : this.coins.getBalance(userId);
+  }
+
+  /**
+   * MP poda izmaksa vienam uzvarētājam (Fāze 3). Idempotents pēc `matchId` — viena
+   * izmaksa uz lietotāju uz spēli (atkārtots GAME_OVER neizmaksā divreiz). Atgriež
+   * bilanci pēc kreditēšanas. (Poda dalījumu (70/30, A1/A2) aprēķina `splitPot`
+   * augstāk, pirms šī izsaukuma.)
+   */
+  async payoutCoins(userId: string, matchId: string, amount: number): Promise<number> {
+    const result = await this.coins.applyLedger({
+      id: this.createId(),
+      userId,
+      delta: amount,
+      reason: "mp_payout",
+      ref: matchId,
+      now: this.clock()
+    });
+    return result.ok ? result.balance : this.coins.getBalance(userId);
+  }
+
   /** Kopā SP balvās nopelnītās monētas pēdējās 24h (dienas griestu pārbaudei). */
   async spRewardLast24h(userId: string, now: number): Promise<number> {
     return this.coins.sumLedgerSince(userId, "sp_reward", now - 24 * 60 * 60 * 1000);

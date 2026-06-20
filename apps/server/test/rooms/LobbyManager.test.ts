@@ -258,3 +258,98 @@ describe("LobbyManager TTL and identity", () => {
     }
   });
 });
+
+describe("LobbyManager paid rooms (Phase 3: entryFee / pot / entry)", () => {
+  it("defaults to a free room (entryFee 0, pot 0) and exposes them in views", () => {
+    const { lobby } = createLobby();
+    const room = lobby.createRoom({ hostPlayerId: "h1" });
+    expect(room.entryFee).toBe(0);
+    expect(room.pot).toBe(0);
+    expect(lobby.getRoomView(room.id).entryFee).toBe(0);
+    expect(lobby.getRoomView(room.id).pot).toBe(0);
+  });
+
+  it("creates a paid room with the host's seat entry and pot seeded by one fee", () => {
+    const { lobby } = createLobby();
+    const room = lobby.createRoom({
+      hostPlayerId: "h1",
+      entryFee: 100,
+      hostEntry: { entryId: "e-host", payerUserId: "u-host" }
+    });
+    expect(room.entryFee).toBe(100);
+    expect(room.pot).toBe(100); // hosts maksā (D6)
+    expect(room.seats[0]?.entry).toEqual({ entryId: "e-host", payerUserId: "u-host" });
+  });
+
+  it("rejects a paid room created without the host's paid entry", () => {
+    const { lobby } = createLobby();
+    expectLobbyError(() => lobby.createRoom({ hostPlayerId: "h1", entryFee: 100 }), "FORBIDDEN");
+  });
+
+  it("rejects an invalid (non-integer / negative) entry fee", () => {
+    const { lobby } = createLobby();
+    expectLobbyError(
+      () => lobby.createRoom({ hostPlayerId: "h1", entryFee: 1.5, hostEntry: { entryId: "e", payerUserId: "u" } }),
+      "FORBIDDEN"
+    );
+    expectLobbyError(
+      () => lobby.createRoom({ hostPlayerId: "h1", entryFee: -5, hostEntry: { entryId: "e", payerUserId: "u" } }),
+      "FORBIDDEN"
+    );
+  });
+
+  it("bumps the pot when a paying human takes a seat", () => {
+    const { lobby } = createLobby();
+    const room = lobby.createRoom({
+      hostPlayerId: "h1",
+      entryFee: 100,
+      hostEntry: { entryId: "e-host", payerUserId: "u-host" }
+    });
+    const updated = lobby.assignSeat(room.id, "p2", 1, { entryId: "e2", payerUserId: "u2" });
+    expect(updated.pot).toBe(200);
+    expect(updated.seats[1]?.entry).toEqual({ entryId: "e2", payerUserId: "u2" });
+  });
+
+  it("returns a leaver's fee to the pot (WAITING) and clears their seat entry", () => {
+    const { lobby } = createLobby();
+    const room = lobby.createRoom({
+      hostPlayerId: "h1",
+      entryFee: 100,
+      hostEntry: { entryId: "e-host", payerUserId: "u-host" }
+    });
+    lobby.assignSeat(room.id, "p2", 1, { entryId: "e2", payerUserId: "u2" });
+    const afterLeave = lobby.leaveRoom(room.id, "p2");
+    expect(afterLeave.pot).toBe(100); // p2 maksa atgriezta podā
+    expect(afterLeave.seats[1]?.entry).toBeUndefined();
+  });
+
+  it("keeps the pot intact when a paid seat forfeits in-game (fees stay in pot, D5)", () => {
+    const { lobby } = createLobby();
+    const room = lobby.createRoom({
+      hostPlayerId: "h1",
+      entryFee: 100,
+      hostEntry: { entryId: "e-host", payerUserId: "u-host" }
+    });
+    lobby.assignSeat(room.id, "p2", 1, { entryId: "e2", payerUserId: "u2" });
+    lobby.fillSeatsWithBots(room.id, "h1"); // sēdvietas 2,3 = boti (nemaksā)
+    lobby.startGame(room.id, "h1");
+    lobby.markInGame(room.id);
+    const afterForfeit = lobby.forfeitSeat(room.id, "p2");
+    expect(afterForfeit.pot).toBe(200); // p2 maksa PALIEK podā
+    expect(afterForfeit.seats[1]?.kind).toBe("bot");
+  });
+
+  it("does not collect a fee or entry for bot seats", () => {
+    const { lobby } = createLobby();
+    const room = lobby.createRoom({
+      hostPlayerId: "h1",
+      entryFee: 100,
+      hostEntry: { entryId: "e-host", payerUserId: "u-host" }
+    });
+    const filled = lobby.fillSeatsWithBots(room.id, "h1");
+    expect(filled.pot).toBe(100); // tikai hosta maksa
+    for (let i = 1; i < SEAT_COUNT; i += 1) {
+      expect(filled.seats[i]?.entry).toBeUndefined();
+    }
+  });
+});

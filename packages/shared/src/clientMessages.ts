@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { MAX_ENTRY_FEE } from "./economy.js";
 import {
   maxRoomNumberOfRounds,
   minRoomNumberOfRounds
@@ -54,7 +55,11 @@ export const createRoomSchema = z.object({
   type: z.literal("CREATE_ROOM"),
   visibility: visibilitySchema.optional(),
   numberOfRounds: z.number().int().min(minRoomNumberOfRounds).max(maxRoomNumberOfRounds).optional(),
-  fillWithBots: z.boolean().optional()
+  fillWithBots: z.boolean().optional(),
+  // Zelta monētu dalības maksa (Fāze 3): 0/izlaists = bezmaksas; > 0 = maksas istaba.
+  // Augšējā robeža ir saprātīguma sargs (precizitāte/DoS); īstā robeža = hosta bilance,
+  // ko serveris piespiež autoritatīvi pie debeta. Anonīms klients maksas istabu nedrīkst.
+  entryFee: z.number().int().min(0).max(MAX_ENTRY_FEE).optional()
 });
 
 export const viewRoomSchema = z.object({

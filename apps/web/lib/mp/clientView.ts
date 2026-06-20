@@ -127,6 +127,11 @@ export function reduceServerEvent(view: ClientView, event: ServerEvent): ClientV
       return { ...view, lastError: errorFrom(event) };
     case "PONG":
       return view; // latence varētu tikt izsekota vēlāk
+    case "WALLET_UPDATED":
+      // Fāze 3 (serveris): zelta bilances push pēc maksas darbības. Live bilances UI
+      // (auth state atjauninājums) tiek pieslēgts Fāzē 4 (MP UI); šeit pagaidām
+      // neglabājam — bilance jau atspoguļojas, atgriežoties lobby (/auth/me + WELCOME).
+      return view;
     default:
       // Forward-compat (F12): nezināmu servera notikumu IGNORĒJAM (atgriežam `view`
       // nemainītu), nevis metam izņēmumu — jaunāks serveris saderīgā protokola

@@ -115,6 +115,11 @@ export interface MatchStartedRecord {
   readonly players: readonly MatchSeatRecord[];
   /** Servera laiks (ms), kad partija sākās — kalpo arī istabas TTL atskaitei. */
   readonly startedAt: number;
+  /**
+   * Zelta monētu pods partijas sākumā (Fāze 3); `0`/izlaists bezmaksas istabās.
+   * Tikai atmiņā (poda izmaksai pie GAME_OVER) — NETIEK persistēts (storage to ignorē).
+   */
+  readonly pot?: number;
 }
 
 /** Viens append-only partijas notikums (room-līmeņa `seq` + core notikums). */

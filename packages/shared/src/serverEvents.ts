@@ -117,6 +117,17 @@ export interface PongEvent {
   readonly serverNow: number;
 }
 
+/**
+ * Zelta monētu bilances atjauninājums (Fāze 3): serveris to sūta KONKRĒTAM
+ * spēlētājam pēc jebkuras maksas darbības (dalības maksas debets, refund, poda
+ * izmaksa), lai UI atjaunina bilanci bez lapas pārlādes. Aditīvs/atpakaļsaderīgs —
+ * vecs klients to ignorē (reducer izlaiž nezināmus tipus).
+ */
+export interface WalletUpdatedEvent {
+  readonly type: "WALLET_UPDATED";
+  readonly balance: number;
+}
+
 /** Visu servera → klients eventu diskriminētā union (pēc `type`). */
 export type ServerEvent =
   | WelcomeEvent
@@ -132,7 +143,8 @@ export type ServerEvent =
   | ChatMessageEvent
   | ChatHistoryEvent
   | ErrorEvent
-  | PongEvent;
+  | PongEvent
+  | WalletUpdatedEvent;
 
 export type ServerEventType = ServerEvent["type"];
 
@@ -212,7 +224,8 @@ export const serverEventSchema = z.discriminatedUnion("type", [
     message: z.string(),
     requestId: z.string().optional()
   }),
-  z.object({ type: z.literal("PONG"), clientTime: z.number(), serverNow: z.number() })
+  z.object({ type: z.literal("PONG"), clientTime: z.number(), serverNow: z.number() }),
+  z.object({ type: z.literal("WALLET_UPDATED"), balance: z.number() })
 ]);
 
 /**

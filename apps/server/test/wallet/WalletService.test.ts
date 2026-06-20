@@ -93,4 +93,51 @@ describe("WalletService", () => {
     expect(a.awarded + b.awarded).toBe(100);
     expect(await wallet.spRewardLast24h("u1", 5000)).toBe(3000);
   });
+
+  describe("MP entry fee / refund / payout (Phase 3)", () => {
+    it("debits an entry fee and rejects when funds are insufficient", async () => {
+      await wallet.grantSignupBonus("u1"); // 5000
+      const ok = await wallet.debitEntryFee("u1", "entry-A", 2000);
+      expect(ok).toEqual({ ok: true, balance: 3000 });
+      const tooMuch = await wallet.debitEntryFee("u1", "entry-B", 4000);
+      expect(tooMuch).toEqual({ ok: false, reason: "insufficient" });
+      // Bilance nemainās pēc noraidīta debeta.
+      expect(await storage.getBalance("u1")).toBe(3000);
+    });
+
+    it("debit is idempotent per entryId (reconnect / replay never double-charges)", async () => {
+      await wallet.grantSignupBonus("u1");
+      await wallet.debitEntryFee("u1", "entry-A", 1000);
+      // Tas pats entryId → idempotents no-op, bilance nemainās.
+      const replay = await wallet.debitEntryFee("u1", "entry-A", 1000);
+      expect(replay).toEqual({ ok: true, balance: 4000 });
+      expect(await storage.getBalance("u1")).toBe(4000);
+    });
+
+    it("refunds exactly the matching entry and is idempotent per entryId", async () => {
+      await wallet.grantSignupBonus("u1");
+      await wallet.debitEntryFee("u1", "entry-A", 1500); // 3500
+      expect(await wallet.refundEntryFee("u1", "entry-A", 1500)).toBe(5000);
+      // Dubults refund (leave + TTL sweep) → idempotents, neieskaita divreiz.
+      expect(await wallet.refundEntryFee("u1", "entry-A", 1500)).toBe(5000);
+    });
+
+    it("refund→rejoin the same room is NOT a free seat (entryId differs per occupation)", async () => {
+      await wallet.grantSignupBonus("u1");
+      await wallet.debitEntryFee("u1", "entry-1", 1000); // 4000
+      await wallet.refundEntryFee("u1", "entry-1", 1000); // 5000
+      // Atkārtota ieņemšana = JAUNS entryId → reāls debets (nevis idempotents no-op).
+      const rejoin = await wallet.debitEntryFee("u1", "entry-2", 1000);
+      expect(rejoin).toEqual({ ok: true, balance: 4000 });
+    });
+
+    it("pays out a pot share once per match (idempotent by matchId)", async () => {
+      await wallet.grantSignupBonus("u1");
+      expect(await wallet.payoutCoins("u1", "match-X", 700)).toBe(5700);
+      // Atkārtots GAME_OVER tam pašam match → idempotents, neizmaksā divreiz.
+      expect(await wallet.payoutCoins("u1", "match-X", 700)).toBe(5700);
+      // Cits match → izmaksā.
+      expect(await wallet.payoutCoins("u1", "match-Y", 300)).toBe(6000);
+    });
+  });
 });

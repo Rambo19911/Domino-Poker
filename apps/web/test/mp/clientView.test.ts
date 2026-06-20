@@ -16,12 +16,13 @@ function summary(id: string, overrides: Partial<RoomSummary> = {}): RoomSummary 
     createdAt: 0,
     expiresAt: 0,
     numberOfRounds: 7,
+    entryFee: 0,
     ...overrides
   };
 }
 
 function roomView(id: string): RoomView {
-  return { ...summary(id), seats: [] };
+  return { ...summary(id), seats: [], pot: 0 };
 }
 
 /** STATE_SNAPSHOT events ietver core PlayerSnapshot; testam pietiek ar opaku objektu. */

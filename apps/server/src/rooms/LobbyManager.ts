@@ -1,6 +1,8 @@
 import {
   defaultRoomNumberOfRounds,
   maxRoomNumberOfRounds,
+  MAX_ENTRY_FEE,
+  MIN_ENTRY_FEE,
   minRoomNumberOfRounds
 } from "@domino-poker/shared";
 import type {
@@ -31,12 +33,27 @@ export type {
 export const SEAT_COUNT = 4;
 export const DEFAULT_ROOM_TTL_MS = 60 * 60 * 1000; // 1 stunda no createdAt
 
+/** Maksas sēdvietas ieņemšanas dati (Fāze 3) — naudai necaurspīdīgi virkņu id. */
+export interface SeatEntry {
+  /** Vienreizēja sēdvietas ieņemšanas atslēga (ledger idempotence: debit↔refund). */
+  readonly entryId: string;
+  /** Lietotājs, kas samaksāja šo dalības maksu (refunds iet atpakaļ TIEŠI viņam). */
+  readonly payerUserId: string;
+}
+
 /** Servera iekšējais sēdeklis — satur `playerId` (NEtiek atklāts citiem). */
 export interface Seat {
   readonly index: number;
   readonly kind: SeatKind;
   readonly playerId?: string;
   readonly displayId?: string;
+  /**
+   * Maksas istabas sēdvietas ieņemšanas dati (Fāze 3): aizpildīts tikai cilvēka
+   * sēdvietai maksas istabā (`room.entryFee > 0`). Botiem/bezmaksas — `undefined`.
+   * `LobbyManager` to glabā necaurspīdīgi (kā `playerId`); naudas darbības iet caur
+   * `WalletService` orķestrācijas slānī. Refunds atsaucas uz `entry.entryId`.
+   */
+  readonly entry?: SeatEntry;
 }
 
 /** Servera iekšējais istabas state — satur `playerId`/`hostPlayerId`. */
@@ -50,6 +67,10 @@ export interface Room {
   readonly createdAt: number;
   readonly expiresAt: number;
   readonly numberOfRounds: number;
+  /** Zelta monētu dalības maksa (Fāze 3); `0` = bezmaksas istaba. */
+  readonly entryFee: number;
+  /** Faktiski savāktais pods = `entryFee` × samaksājušo cilvēku skaits; `0` bezmaksas. */
+  readonly pot: number;
 }
 
 export interface LobbyManagerOptions {
@@ -91,8 +112,19 @@ export class LobbyManager {
     readonly hostPlayerId: string;
     readonly visibility?: RoomVisibility;
     readonly numberOfRounds?: number;
+    /**
+     * Zelta monētu dalības maksa (Fāze 3); `0`/izlaists = bezmaksas. Ja `> 0`,
+     * `hostEntry` ir OBLIGĀTS (hosts maksā, D6) — orķestrācijas slānis vispirms
+     * atomiski debitē hostu, tad izsauc šo ar `hostEntry`.
+     */
+    readonly entryFee?: number;
+    readonly hostEntry?: SeatEntry;
   }): Room {
     const hostPlayerId = requireNonEmpty(options.hostPlayerId, "hostPlayerId");
+    const entryFee = normalizeEntryFee(options.entryFee);
+    if (entryFee > 0 && options.hostEntry === undefined) {
+      throw new LobbyError("FORBIDDEN", "A paid room requires the host's paid seat entry.");
+    }
     const now = this.clock();
     const room: Room = {
       id: this.nextRoomId(),
@@ -100,10 +132,13 @@ export class LobbyManager {
       visibility: options.visibility ?? "public",
       status: "WAITING",
       hostPlayerId,
-      seats: this.buildInitialSeats(hostPlayerId),
+      seats: this.buildInitialSeats(hostPlayerId, entryFee > 0 ? options.hostEntry : undefined),
       createdAt: now,
       expiresAt: now + this.ttlMs,
-      numberOfRounds: normalizeNumberOfRounds(options.numberOfRounds)
+      numberOfRounds: normalizeNumberOfRounds(options.numberOfRounds),
+      entryFee,
+      // Hosts vienmēr maksā maksas istabā (D6) → sākotnējais pods = viena maksa.
+      pot: entryFee > 0 ? entryFee : 0
     };
     this.rooms.set(room.id, room);
     this.codes.add(room.code);
@@ -146,8 +181,14 @@ export class LobbyManager {
     return this.toView(this.getRoom(roomId));
   }
 
-  /** Pievieno cilvēku spēlētāju izvēlētā vai pirmajā brīvajā sēdeklī (tikai WAITING istabā). */
-  assignSeat(roomId: string, playerId: string, requestedSeatIndex?: number): Room {
+  /**
+   * Pievieno cilvēku spēlētāju izvēlētā vai pirmajā brīvajā sēdeklī (tikai WAITING
+   * istabā). Maksas istabā (`room.entryFee > 0`) padod `entry` (ieņemšanas dati);
+   * sēdvieta to glabā un pods palielinās par vienu dalības maksu. Orķestrācijas
+   * slānis vispirms atomiski debitē, tad izsauc šo (debet-tad-commit-seat); ja šis
+   * met (piem. ROOM_FULL race uz pēdējo sēdvietu pēc debeta), orķestrācija refundē.
+   */
+  assignSeat(roomId: string, playerId: string, requestedSeatIndex?: number, entry?: SeatEntry): Room {
     const room = this.getRoom(roomId);
     const id = requireNonEmpty(playerId, "playerId");
     this.assertJoinable(room);
@@ -166,9 +207,12 @@ export class LobbyManager {
       throw new LobbyError("ROOM_FULL", `Seat ${emptyIndex} in room ${roomId} is not empty.`);
     }
 
+    const seatEntry = room.entryFee > 0 ? entry : undefined;
     return this.replaceRoom({
       ...room,
-      seats: this.withSeat(room.seats, emptyIndex, this.makeSeat(emptyIndex, id, "human"))
+      seats: this.withSeat(room.seats, emptyIndex, this.makeSeat(emptyIndex, id, "human", seatEntry)),
+      // Maksas istabā katra cilvēka ieņemšana palielina podu par vienu dalības maksu.
+      pot: seatEntry !== undefined ? room.pot + room.entryFee : room.pot
     });
   }
 
@@ -207,9 +251,12 @@ export class LobbyManager {
     this.displayIds.release(playerId);
     const seats = this.withSeat(room.seats, seat.index, emptySeat(seat.index));
     const remainingHumans = seats.filter((candidate) => candidate.kind === "human");
+    // Maksas sēdvietas atbrīvošana (WAITING) atgriež tās maksu no poda; faktisko
+    // refundu kontā veic orķestrācijas slānis pēc `seat.entry`.
+    const pot = seat.entry !== undefined ? room.pot - room.entryFee : room.pot;
 
     if (remainingHumans.length === 0) {
-      return this.replaceRoom({ ...room, seats, status: "DESTROYED", hostPlayerId: undefined });
+      return this.replaceRoom({ ...room, seats, pot, status: "DESTROYED", hostPlayerId: undefined });
     }
 
     const nextHostPlayerId =
@@ -217,7 +264,7 @@ export class LobbyManager {
         ? remainingHumans[0]?.playerId ?? room.hostPlayerId
         : room.hostPlayerId;
 
-    return this.replaceRoom({ ...room, seats, hostPlayerId: nextHostPlayerId });
+    return this.replaceRoom({ ...room, seats, pot, hostPlayerId: nextHostPlayerId });
   }
 
   /**
@@ -333,18 +380,20 @@ export class LobbyManager {
 
   // ---- iekšējie palīgi ----
 
-  private buildInitialSeats(hostPlayerId: string): readonly Seat[] {
+  private buildInitialSeats(hostPlayerId: string, hostEntry?: SeatEntry): readonly Seat[] {
     return Array.from({ length: SEAT_COUNT }, (_unused, index) =>
-      index === 0 ? this.makeSeat(0, hostPlayerId, "human") : emptySeat(index)
+      index === 0 ? this.makeSeat(0, hostPlayerId, "human", hostEntry) : emptySeat(index)
     );
   }
 
-  private makeSeat(index: number, playerId: string, kind: "human" | "bot"): Seat {
+  private makeSeat(index: number, playerId: string, kind: "human" | "bot", entry?: SeatEntry): Seat {
     return {
       index,
       kind,
       playerId,
-      displayId: this.displayIds.assign(playerId)
+      displayId: this.displayIds.assign(playerId),
+      // Maksas ieņemšanas dati tikai cilvēka sēdvietai; boti nekad nemaksā.
+      ...(kind === "human" && entry !== undefined ? { entry } : {})
     };
   }
 
@@ -400,13 +449,15 @@ export class LobbyManager {
       hostDisplayId: host?.displayId,
       createdAt: room.createdAt,
       expiresAt: room.expiresAt,
-      numberOfRounds: room.numberOfRounds
+      numberOfRounds: room.numberOfRounds,
+      entryFee: room.entryFee
     };
   }
 
   private toView(room: Room): RoomView {
     return {
       ...this.toSummary(room, { revealCode: true }),
+      pot: room.pot,
       seats: room.seats.map((seat) => ({
         index: seat.index,
         kind: seat.kind,
@@ -444,6 +495,22 @@ function normalizeNumberOfRounds(value: number | undefined): number {
     throw new LobbyError(
       "FORBIDDEN",
       `Room numberOfRounds must be an integer from ${minRoomNumberOfRounds} to ${maxRoomNumberOfRounds}.`
+    );
+  }
+  return value;
+}
+
+/**
+ * Validē dalības maksu (Fāze 3): vesels skaitlis, `0` (bezmaksas) vai `>= MIN_ENTRY_FEE`,
+ * līdz `MAX_ENTRY_FEE` saprātīguma robežai. Faktisko bilances robežu piespiež
+ * orķestrācijas slānis (atomisks debets); šī ir tikai pēdējā struktūras pārbaude.
+ */
+function normalizeEntryFee(value: number | undefined): number {
+  if (value === undefined || value === 0) return 0;
+  if (!Number.isInteger(value) || value < MIN_ENTRY_FEE || value > MAX_ENTRY_FEE) {
+    throw new LobbyError(
+      "FORBIDDEN",
+      `Room entryFee must be 0 or an integer from ${MIN_ENTRY_FEE} to ${MAX_ENTRY_FEE}.`
     );
   }
   return value;

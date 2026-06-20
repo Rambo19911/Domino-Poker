@@ -18,7 +18,9 @@ import {
   type Room,
   type RoomSummary,
   type RoomView,
-  type RoomVisibility
+  type RoomVisibility,
+  type Seat,
+  type SeatEntry
 } from "./LobbyManager.js";
 import { GameDirector } from "./GameDirector.js";
 import { LobbyError } from "./lobbyErrors.js";
@@ -33,6 +35,22 @@ import {
 export interface SeatedHuman {
   readonly clientId: string;
   readonly corePlayerId: string;
+}
+
+/**
+ * Atmaksājama maksas sēdvietas ieņemšana (Fāze 3): pietiekami, lai orķestrācijas
+ * slānis veiktu atomisku, idempotentu refundu un atjauninātu klienta bilanci.
+ * Atgriež `RoomManager` pirms-spēles atbrīvošanas ceļi (leave / host-delete / TTL).
+ */
+export interface SeatRefund {
+  /** Savienojuma `clientId` (WALLET_UPDATED push mērķis). */
+  readonly clientId: string;
+  /** Lietotājs, kas samaksāja (kredīta saņēmējs). */
+  readonly payerUserId: string;
+  /** Vienreizēja ieņemšanas atslēga (ledger idempotence). */
+  readonly entryId: string;
+  /** Atmaksājamā summa (= istabas dalības maksa). */
+  readonly fee: number;
 }
 
 /** Core spēlētāja id sēdeklim: indekss 0..3 → "1".."4" (sakrīt ar createNewGame). */
@@ -193,13 +211,21 @@ export class RoomManager {
   /** Izveido istabu; izveidotājs kļūst par host. Klients drīkst būt tikai 1 istabā. */
   createRoom(
     clientId: string,
-    options: { readonly visibility?: RoomVisibility; readonly numberOfRounds?: number } = {}
+    options: {
+      readonly visibility?: RoomVisibility;
+      readonly numberOfRounds?: number;
+      /** Fāze 3: maksas istaba — hosts jau atomiski debitēts ar šo `hostEntry`. */
+      readonly entryFee?: number;
+      readonly hostEntry?: SeatEntry;
+    } = {}
   ): Room {
     this.assertNotInRoom(clientId);
     const room = this.lobby.createRoom({
       hostPlayerId: clientId,
       ...(options.visibility ? { visibility: options.visibility } : {}),
-      ...(options.numberOfRounds !== undefined ? { numberOfRounds: options.numberOfRounds } : {})
+      ...(options.numberOfRounds !== undefined ? { numberOfRounds: options.numberOfRounds } : {}),
+      ...(options.entryFee !== undefined ? { entryFee: options.entryFee } : {}),
+      ...(options.hostEntry !== undefined ? { hostEntry: options.hostEntry } : {})
     });
     this.clientRoom.set(clientId, room.id);
     return room;
@@ -210,17 +236,50 @@ export class RoomManager {
     return "code" in target ? this.findByCode(target.code) : this.openRoomById(target.roomId);
   }
 
-  /** Pievienojas istabai pēc id (tikai publiska) vai pēc koda (publiska/privāta). */
+  /**
+   * Pievienojas istabai pēc id (tikai publiska) vai pēc koda (publiska/privāta).
+   * Maksas istabā (`room.entryFee > 0`) padod `entry` (orķestrācijas slānis to
+   * ģenerē un atomiski debitē PIRMS šī izsaukuma — debet-tad-commit-seat). Ja
+   * `assignSeat` met (piem. ROOM_FULL race uz pēdējo sēdvietu), orķestrācija refundē.
+   */
   joinRoom(
     clientId: string,
-    target: { readonly roomId: string; readonly seatIndex: number } | { readonly code: string; readonly seatIndex: number }
+    target:
+      | { readonly roomId: string; readonly seatIndex: number }
+      | { readonly code: string; readonly seatIndex: number },
+    entry?: SeatEntry
   ): Room {
     this.assertNotInRoom(clientId);
 
     const room = "code" in target ? this.findByCode(target.code) : this.openRoomById(target.roomId);
-    const updated = this.lobby.assignSeat(room.id, clientId, target.seatIndex);
+    const updated = this.lobby.assignSeat(room.id, clientId, target.seatIndex, entry);
     this.clientRoom.set(clientId, room.id);
     return updated;
+  }
+
+  /**
+   * Vai dotais reģistrētais lietotājs jau ieņem maksas sēdvietu šajā istabā (Fāze 3).
+   * Novērš vienu `userId` vairākās maksas sēdvietās (vairākas sesijas), kas konfliktētu
+   * ar `mp_payout/ref=matchId` (viena izmaksa uz lietotāju uz spēli). Orķestrācija to
+   * pārbauda pirms maksas pievienošanās.
+   */
+  isUserSeated(roomId: string, userId: string): boolean {
+    return this.lobby
+      .getRoom(roomId)
+      .seats.some((seat) => seat.entry?.payerUserId === userId);
+  }
+
+  /**
+   * Maksas sēdvietas refunda info dotajam klientam, ja viņš ieņem apmaksātu sēdvietu
+   * (Fāze 3); citādi `undefined`. Lasa BEZ mutācijas — orķestrācijas slānis to nolasa
+   * PIRMS `leaveRoom`, lai pēc atbrīvošanas varētu idempotenti refundēt + atjaunot bilanci.
+   */
+  peekSeatRefund(clientId: string): SeatRefund | undefined {
+    const roomId = this.clientRoom.get(clientId);
+    if (roomId === undefined) return undefined;
+    const room = this.lobby.getRoom(roomId);
+    const seat = room.seats.find((candidate) => candidate.playerId === clientId);
+    return seat ? seatRefundOf(seat, room.entryFee) : undefined;
   }
 
   /** Pamet istabu (WAITING). Notīra dalību; ja istaba kļuva DESTROYED, noņem dzinēju. */
@@ -247,6 +306,8 @@ export class RoomManager {
   deleteWaitingRoomByHost(hostClientId: string): {
     readonly roomId: string;
     readonly departedClientIds: readonly string[];
+    /** Fāze 3: maksas sēdvietu refundi visiem apmaksātajiem (orķestrācija tos izmaksā). */
+    readonly refunds: readonly SeatRefund[];
   } {
     const roomId = this.requireRoomOf(hostClientId);
     const room = this.lobby.getRoom(roomId);
@@ -261,12 +322,14 @@ export class RoomManager {
         seat.kind === "human" && seat.playerId !== undefined
       )
       .map((seat) => seat.playerId);
+    // Refundus savāc PIRMS iznīcināšanas (visiem apmaksātajiem, ieskaitot hostu).
+    const refunds = collectSeatRefunds(room);
     for (const clientId of departedClientIds) {
       this.departMember(clientId);
     }
     this.lobby.destroyRoom(roomId);
     this.disposeRoom(roomId);
-    return { roomId, departedClientIds };
+    return { roomId, departedClientIds, refunds };
   }
 
   /**
@@ -328,15 +391,21 @@ export class RoomManager {
    * cilvēku dalību (citādi host paliktu "iesprūdis" jau iznīcinātā istabā). Atgriež
    * iznīcināto istabu id (≥1 → net slānis pārraida jauno LOBBY_STATE).
    */
-  destroyExpiredRooms(now: number): readonly string[] {
+  destroyExpiredRooms(now: number): {
+    readonly roomIds: readonly string[];
+    /** Fāze 3: maksas sēdvietu refundi no iznīcinātajām (WAITING/STARTING) istabām. */
+    readonly refunds: readonly SeatRefund[];
+  } {
     const destroyed = this.lobby.destroyExpired(now);
-    if (destroyed.length === 0) return destroyed;
+    if (destroyed.length === 0) return { roomIds: destroyed, refunds: [] };
+    // Refundus savāc PIRMS dzinēju/dalību tīrīšanas (iznīcinātās istabas vēl lasāmas).
+    const refunds = destroyed.flatMap((roomId) => collectSeatRefunds(this.lobby.getRoom(roomId)));
     const destroyedSet = new Set(destroyed);
     for (const [clientId, roomId] of this.clientRoom) {
       if (destroyedSet.has(roomId)) this.departMember(clientId);
     }
     for (const roomId of destroyed) this.disposeRoom(roomId);
-    return destroyed;
+    return { roomIds: destroyed, refunds };
   }
 
   /** Noņem istabas dzinēju, direktoru un visus timerus (pēc iznīcināšanas). */
@@ -615,7 +684,9 @@ export class RoomManager {
       seed,
       numberOfRounds: room.numberOfRounds,
       players,
-      startedAt: this.clock()
+      startedAt: this.clock(),
+      // Fāze 3: pods partijas sākumā (poda izmaksai pie GAME_OVER); 0 bezmaksas istabās.
+      ...(room.pot > 0 ? { pot: room.pot } : {})
     });
   }
 
@@ -840,4 +911,25 @@ export class RoomManager {
 
 function defaultSeed(): string {
   return globalThis.crypto.randomUUID();
+}
+
+/** Maksas sēdvietas refunda info, ja sēdvieta ir apmaksāta (cilvēks ar `entry`); citādi `undefined`. */
+function seatRefundOf(seat: Seat, fee: number): SeatRefund | undefined {
+  if (seat.entry === undefined || seat.playerId === undefined) return undefined;
+  return {
+    clientId: seat.playerId,
+    payerUserId: seat.entry.payerUserId,
+    entryId: seat.entry.entryId,
+    fee
+  };
+}
+
+/** Visu istabas apmaksāto sēdvietu refundi (pirms-spēles iznīcināšanas ceļiem). */
+function collectSeatRefunds(room: Room): readonly SeatRefund[] {
+  const refunds: SeatRefund[] = [];
+  for (const seat of room.seats) {
+    const refund = seatRefundOf(seat, room.entryFee);
+    if (refund) refunds.push(refund);
+  }
+  return refunds;
 }

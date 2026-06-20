@@ -1,6 +1,9 @@
+import { randomUUID } from "node:crypto";
+
 import type { ClientMessage, ProtocolErrorCode, ServerEvent } from "@domino-poker/shared";
 
 import type { LobbyChat } from "../chat/LobbyChat.js";
+import type { SeatEntry } from "../rooms/LobbyManager.js";
 import { LobbyError, type LobbyErrorCode } from "../rooms/lobbyErrors.js";
 import {
   noopRoomOwnershipGuard,
@@ -8,7 +11,8 @@ import {
   type RoomOwnershipGuard
 } from "../rooms/RoomOwnershipGuard.js";
 import type { RoomDispatchResult, SequencedRoomEvent } from "../rooms/RoomEngine.js";
-import type { RoomManager } from "../rooms/RoomManager.js";
+import type { RoomManager, SeatRefund } from "../rooms/RoomManager.js";
+import type { WalletService } from "../wallet/WalletService.js";
 import { publishGameUpdate } from "./gameUpdateDelivery.js";
 import { errorEvent } from "./gatewayEvents.js";
 import type { GatewayConnection } from "./GatewayConnection.js";
@@ -71,10 +75,21 @@ export interface MessageRouter {
   sweepExpiredRooms(hub: GatewayHub, now: number): MaybePromise<void>;
 }
 
+/** Maks debet/refund vajadzībām (Fāze 3); opcionāls — bez tā maksas istabas noraida. */
+export type RouterWallet = Pick<WalletService, "debitEntryFee" | "refundEntryFee">;
+
 export interface CoreMessageRouterOptions {
   readonly rooms: RoomManager;
   readonly chat: LobbyChat;
   readonly roomOwnership?: RoomOwnershipGuard;
+  /**
+   * Zelta monētu maks (Fāze 3) maksas istabu dalības maksas debetam/refundam. Ja nav
+   * injicēts, `entryFee > 0` istabas tiek noraidītas deterministiski (nekad neizveido
+   * neapmaksātu maksas istabu). Bezmaksas istabas strādā bez tā.
+   */
+  readonly wallet?: RouterWallet;
+  /** Vienreizēja sēdvietas ieņemšanas id ģenerators (injicējams testiem). */
+  readonly createEntryId?: () => string;
   /**
    * LOBBY_STATE broadcast koalescēšana (ms). 0 (noklusējums) = izsūta uzreiz
    * (testi paliek sinhroni). Produkcijā (`index.ts`) > 0: vairāki istabu izmaiņu
@@ -103,17 +118,29 @@ export class CoreMessageRouter implements MessageRouter {
   private readonly rooms: RoomManager;
   private readonly chat: LobbyChat;
   private readonly roomOwnership: RoomOwnershipGuard;
+  private readonly wallet: RouterWallet | undefined;
+  private readonly createEntryId: () => string;
   private readonly lobbyStateDebounceMs: number;
   /** Gaidošā debounce flush (ja kāda) + pēdējais hub LOBBY_STATE izsūtīšanai. */
   private lobbyFlushTimer: ReturnType<typeof setTimeout> | undefined;
   private pendingLobbyHub: GatewayHub | undefined;
   /** Per-savienojuma istabu-izveides token-bucket (M5: novērš create-spam DoS). */
   private readonly roomCreateBuckets = new Map<string, { tokens: number; updatedAt: number }>();
+  /**
+   * Fāze 3 refundu retry rinda (atslēga = `entryId`): ja `refundEntryFee` DB izsaukums
+   * neizdodas PĒC tam, kad sēdvieta jau atbrīvota, refundu aiztur šeit un periodiskais
+   * `sweepExpiredRooms` to atkārto (idempotents pēc `entryId`). Tas novērš īslaicīgu DB
+   * kļūmju radītu iesprūdušu maksu. Atlikušais risks (R3): in-memory → process crash
+   * starp atbrīvošanu un retry pazaudē ierakstu (pieņemts virtuālai valūtai; bez DB outbox).
+   */
+  private readonly pendingRefunds = new Map<string, SeatRefund>();
 
   constructor(options: CoreMessageRouterOptions) {
     this.rooms = options.rooms;
     this.chat = options.chat;
     this.roomOwnership = options.roomOwnership ?? noopRoomOwnershipGuard;
+    this.wallet = options.wallet;
+    this.createEntryId = options.createEntryId ?? (() => randomUUID());
     this.lobbyStateDebounceMs = Math.max(0, options.lobbyStateDebounceMs ?? 0);
   }
 
@@ -165,10 +192,14 @@ export class CoreMessageRouter implements MessageRouter {
     message: Extract<PostHandshakeMessage, { type: "CREATE_ROOM" }>
   ): MaybePromise<void> {
     return this.guard(ctx, () => {
-      // M5: rate-limits istabu izveidi pirms jebkādas state izmaiņas.
+      // M5: rate-limits istabu izveidi pirms jebkādas state izmaiņas (un pirms debeta).
       if (!this.consumeRoomCreateToken(ctx.identity.playerId, ctx.serverNow)) {
         ctx.conn.send(errorEvent("RATE_LIMITED", "You are creating rooms too quickly."));
         return;
+      }
+      // Fāze 3: maksas istaba — hosts vispirms atomiski debitēts (D6), tad istaba.
+      if ((message.entryFee ?? 0) > 0) {
+        return this.createPaidRoom(ctx, message, message.entryFee as number);
       }
       const room = this.rooms.createRoom(ctx.identity.playerId, {
         ...(message.visibility ? { visibility: message.visibility } : {}),
@@ -186,6 +217,65 @@ export class CoreMessageRouter implements MessageRouter {
     });
   }
 
+  /**
+   * Maksas istabas izveide (Fāze 3, D6): atomiski debitē hostu PIRMS istabas, tad
+   * izveido istabu ar `pot = entryFee` un hosta sēdvietu, kas nes `entryId`. Jebkura
+   * KĻŪDA pēc debeta (createRoom / lease / fillWithBots) → idempotents refunds +
+   * istabas iznīcināšana (Codex: pilns rollback). Anonīms / bez maka / nepietiekama
+   * bilance → noraida pirms jebkādas state izmaiņas (neapmaksāta istaba nekad nerodas).
+   */
+  private async createPaidRoom(
+    ctx: RouteContext,
+    message: Extract<PostHandshakeMessage, { type: "CREATE_ROOM" }>,
+    fee: number
+  ): Promise<void> {
+    const userId = ctx.identity.userId;
+    if (!this.wallet) {
+      ctx.conn.send(errorEvent("INTERNAL_ERROR", "Gold coins are not available on this server."));
+      return;
+    }
+    if (userId === undefined) {
+      ctx.conn.send(errorEvent("FORBIDDEN", "Sign in to create a paid room."));
+      return;
+    }
+    const entryId = this.createEntryId();
+    const debit = await this.wallet.debitEntryFee(userId, entryId, fee);
+    if (!debit.ok) {
+      ctx.conn.send(errorEvent("INSUFFICIENT_FUNDS", "Not enough gold for this entry fee."));
+      return;
+    }
+    const hostEntry: SeatEntry = { entryId, payerUserId: userId };
+
+    let room;
+    try {
+      room = this.rooms.createRoom(ctx.identity.playerId, {
+        ...(message.visibility ? { visibility: message.visibility } : {}),
+        ...(message.numberOfRounds !== undefined ? { numberOfRounds: message.numberOfRounds } : {}),
+        entryFee: fee,
+        hostEntry
+      });
+    } catch (error) {
+      // Istaba netika izveidota → tikai refunds (nav ko iznīcināt).
+      await this.refundDebit(ctx.hub, hostEntry, fee, ctx.identity.playerId);
+      throw error;
+    }
+
+    try {
+      await this.ensureOwnership(room.id, ctx.serverNow);
+      if (message.fillWithBots === true) {
+        this.rooms.fillSeatsWithBots(ctx.identity.playerId);
+      }
+      ctx.conn.send({ type: "ROOM_CREATED", room: this.rooms.getRoomView(room.id) });
+      ctx.conn.send({ type: "WALLET_UPDATED", balance: debit.balance });
+      this.pushLobbyState(ctx.hub);
+    } catch (error) {
+      // Post-debet kļūda (lease / fillWithBots) → iznīcina istabu + refunds host.
+      this.destroyRoomAfterFailedLease(ctx.hub, room.id);
+      await this.refundDebit(ctx.hub, hostEntry, fee, ctx.identity.playerId);
+      throw error;
+    }
+  }
+
   private handleJoinRoom(
     ctx: RouteContext,
     message: Extract<PostHandshakeMessage, { type: "JOIN_ROOM" }>
@@ -200,6 +290,10 @@ export class CoreMessageRouter implements MessageRouter {
       if (target === undefined) {
         throw new LobbyError("ROOM_NOT_FOUND", "JOIN_ROOM requires roomId or code.");
       }
+      // Fāze 3: maksas istaba — debet-tad-commit-seat ar rollback (skat. joinPaidRoom).
+      if (target.entryFee > 0) {
+        return this.joinPaidRoom(ctx, target.id, target.entryFee, message);
+      }
       return this.withOwnedRoom(ctx, target.id, () => {
         const room = code
           ? this.rooms.joinRoom(ctx.identity.playerId, { code, seatIndex: message.seatIndex })
@@ -211,6 +305,67 @@ export class CoreMessageRouter implements MessageRouter {
         this.pushLobbyState(ctx.hub);
       });
     });
+  }
+
+  /**
+   * Maksas istabai pievienošanās (Fāze 3): **debet-tad-commit-seat**. Atomiski
+   * debitē, TIKAI pēc veiksmīga debeta ieņem sēdvietu. Ja `assignSeat` met (piem.
+   * ROOM_FULL race uz pēdējo sēdvietu pēc `await`), idempotents refunds + pārmet
+   * kļūdu (nekad neatstāj neapmaksātu aizņemtu sēdvietu vai apmaksu bez sēdvietas).
+   * Anonīms / bez maka / nepietiekama bilance / jau ieņemta sēdvieta šim userId →
+   * noraida PIRMS debeta.
+   */
+  private async joinPaidRoom(
+    ctx: RouteContext,
+    roomId: string,
+    fee: number,
+    message: Extract<PostHandshakeMessage, { type: "JOIN_ROOM" }>
+  ): Promise<void> {
+    const userId = ctx.identity.userId;
+    if (!this.wallet) {
+      ctx.conn.send(errorEvent("INTERNAL_ERROR", "Gold coins are not available on this server."));
+      return;
+    }
+    if (userId === undefined) {
+      ctx.conn.send(errorEvent("FORBIDDEN", "Sign in to join a paid room."));
+      return;
+    }
+    // Viens userId nedrīkst ieņemt vairākas maksas sēdvietas (konfliktētu ar
+    // mp_payout/ref=matchId — viena izmaksa uz lietotāju uz spēli).
+    if (this.rooms.isUserSeated(roomId, userId)) {
+      ctx.conn.send(errorEvent("ALREADY_IN_ROOM", "You already hold a paid seat in this room."));
+      return;
+    }
+    const entryId = this.createEntryId();
+    const debit = await this.wallet.debitEntryFee(userId, entryId, fee);
+    if (!debit.ok) {
+      ctx.conn.send(errorEvent("INSUFFICIENT_FUNDS", "Not enough gold to join this room."));
+      return;
+    }
+    const entry: SeatEntry = { entryId, payerUserId: userId };
+    const code = message.code?.trim();
+    try {
+      await this.ensureOwnership(roomId, ctx.serverNow);
+      // Race sargs: divas vienlaicīgas TĀ PAŠA userId sesijas var abas iziet cauri
+      // sākotnējai isUserSeated pārbaudei pirms `await debitEntryFee`. Atkārto pārbaudi
+      // ŠEIT — sinhroni, tieši pirms `joinRoom` (bez `await` starpā) — tāpēc pirmā
+      // sēdvietas ieņemšana izpildās līdz galam pirms otrās; otrā tad redz aizņemtu
+      // userId un tiek noraidīta (+ refunds caur catch). Novērš dubultu maksas sēdvietu
+      // (kas konfliktētu ar mp_payout/ref=matchId).
+      if (this.rooms.isUserSeated(roomId, userId)) {
+        throw new LobbyError("ALREADY_IN_ROOM", "You already hold a paid seat in this room.");
+      }
+      const room = code
+        ? this.rooms.joinRoom(ctx.identity.playerId, { code, seatIndex: message.seatIndex }, entry)
+        : this.rooms.joinRoom(ctx.identity.playerId, { roomId, seatIndex: message.seatIndex }, entry);
+      this.pushRoomView(ctx.hub, room.id);
+      ctx.conn.send({ type: "WALLET_UPDATED", balance: debit.balance });
+      this.pushLobbyState(ctx.hub);
+    } catch (error) {
+      // Sēdvietas ieņemšana neizdevās pēc debeta → refunds + pārmet oriģinālo kļūdu.
+      await this.refundDebit(ctx.hub, entry, fee, ctx.identity.playerId);
+      throw error;
+    }
   }
 
   private handleViewRoom(
@@ -235,12 +390,16 @@ export class CoreMessageRouter implements MessageRouter {
     return this.guard(ctx, () => {
       const roomId = this.requireCurrentRoom(ctx);
       // Spēles laikā "Exit" = forfeit (sēdvieta → bots / istabu iznīcina); citādi
-      // parastā WAITING pamešana.
-      return this.withOwnedRoom(ctx, roomId, () => {
+      // parastā WAITING pamešana. Maksas WAITING sēdvietai → refunds (Fāze 3).
+      // Validācija/mutācija notiek sinhroni (kļūdas piegādā sinhroni); refunds seko.
+      let refund: SeatRefund | undefined;
+      const owned = this.withOwnedRoom(ctx, roomId, () => {
         if (this.rooms.findRoom(roomId).status === "IN_GAME") {
           this.handleForfeit(ctx);
           return;
         }
+        // Refundu nolasa PIRMS leaveRoom (kas notīra sēdvietas `entry`).
+        refund = this.rooms.peekSeatRefund(ctx.identity.playerId);
         const room = this.rooms.leaveRoom(ctx.identity.playerId);
         ctx.conn.send({ type: "ROOM_LEFT", roomId: room.id });
         if (room.status !== "DESTROYED") {
@@ -250,6 +409,9 @@ export class CoreMessageRouter implements MessageRouter {
         }
         this.pushLobbyState(ctx.hub);
       });
+      const refundAfter = (): MaybePromise<void> =>
+        refund !== undefined ? this.refundSeats(ctx.hub, [refund]) : undefined;
+      return isPromiseLike(owned) ? owned.then(refundAfter) : refundAfter();
     });
   }
 
@@ -263,14 +425,20 @@ export class CoreMessageRouter implements MessageRouter {
   private handleDeleteRoom(ctx: RouteContext): MaybePromise<void> {
     return this.guard(ctx, () => {
       const roomId = this.requireCurrentRoom(ctx);
-      return this.withOwnedRoom(ctx, roomId, () => {
-        const { departedClientIds } = this.rooms.deleteWaitingRoomByHost(ctx.identity.playerId);
+      // Fāze 3: host-delete WAITING istabā → refunds VISIEM apmaksātajiem (incl. host).
+      // Validācija/mutācija sinhroni (kļūdas sinhroni); refunds (async) seko pēc tam.
+      let refunds: readonly SeatRefund[] = [];
+      const owned = this.withOwnedRoom(ctx, roomId, () => {
+        const result = this.rooms.deleteWaitingRoomByHost(ctx.identity.playerId);
+        refunds = result.refunds;
         this.releaseRoomLease(roomId);
-        for (const clientId of departedClientIds) {
+        for (const clientId of result.departedClientIds) {
           ctx.hub.sendToPlayer(clientId, { type: "ROOM_LEFT", roomId });
         }
         this.pushLobbyState(ctx.hub);
       });
+      const refundAfter = (): MaybePromise<void> => this.refundSeats(ctx.hub, refunds);
+      return isPromiseLike(owned) ? owned.then(refundAfter) : refundAfter();
     });
   }
 
@@ -768,13 +936,20 @@ export class CoreMessageRouter implements MessageRouter {
   }
 
   sweepExpiredRooms(hub: GatewayHub, now: number): void {
-    const destroyed = this.rooms.destroyExpiredRooms(now);
-    if (destroyed.length > 0) {
-      for (const roomId of destroyed) {
+    const { roomIds, refunds } = this.rooms.destroyExpiredRooms(now);
+    if (roomIds.length > 0) {
+      for (const roomId of roomIds) {
         this.releaseRoomLease(roomId);
       }
       this.pushLobbyState(hub);
     }
+    // Fāze 3: iznīcinātajām (WAITING/STARTING) maksas istabām refundē sēdvietas.
+    // Fire-and-forget (sweep no setInterval; refunds idempotenti pēc entryId).
+    if (refunds.length > 0) {
+      void this.refundSeats(hub, refunds);
+    }
+    // Fāze 3: izlej iepriekš neizdevušos refundus (transienta DB kļūme → retry).
+    this.retryPendingRefunds(hub);
   }
 
   /**
@@ -881,6 +1056,70 @@ export class CoreMessageRouter implements MessageRouter {
       this.pushLobbyState(hub);
     } catch {
       // Room may already have been destroyed by another code path.
+    }
+  }
+
+  /**
+   * Nodrošina šīs instances istabas līzingu kā Promise (vienots sync/async lease
+   * guard maksas ceļiem). Atraisa, ja līzingu neizdodas iegūt (orķestrācija tad refundē).
+   */
+  private ensureOwnership(roomId: string, now: number): Promise<void> {
+    return Promise.resolve(this.roomOwnership.ensureOwner(roomId, now));
+  }
+
+  /**
+   * Idempotents dalības maksas refunds (Fāze 3, rollback ceļiem) + WALLET_UPDATED
+   * push samaksātājam. Neizdošanās → aizturēts retry rindā (sk. `tryRefund`).
+   */
+  private async refundDebit(
+    hub: GatewayHub,
+    entry: SeatEntry,
+    fee: number,
+    clientId: string
+  ): Promise<void> {
+    await this.tryRefund(hub, { clientId, payerUserId: entry.payerUserId, entryId: entry.entryId, fee });
+  }
+
+  /**
+   * Idempotenti refundē apmaksātās sēdvietas (pirms-spēles atbrīvošana: leave /
+   * host-delete / TTL) un katram nosūta WALLET_UPDATED. Idempotents pēc `entryId`,
+   * tāpēc dubults izsaukums (leave + TTL) neieskaita divreiz. Neizdevušies → retry rinda.
+   */
+  private async refundSeats(hub: GatewayHub, refunds: readonly SeatRefund[]): Promise<void> {
+    for (const refund of refunds) {
+      await this.tryRefund(hub, refund);
+    }
+  }
+
+  /**
+   * Viens idempotents refunda mēģinājums: pie veiksmes — push WALLET_UPDATED un
+   * izņem no retry rindas; pie neizdošanās — aiztur rindā (retry caur sweep) un
+   * reģistrē. NEKAD nemet (refundu kļūda nedrīkst maskēt sākotnējo darbības kļūdu).
+   */
+  private async tryRefund(hub: GatewayHub, refund: SeatRefund): Promise<void> {
+    if (!this.wallet) return;
+    try {
+      const balance = await this.wallet.refundEntryFee(
+        refund.payerUserId,
+        refund.entryId,
+        refund.fee
+      );
+      hub.sendToPlayer(refund.clientId, { type: "WALLET_UPDATED", balance });
+      this.pendingRefunds.delete(refund.entryId);
+    } catch (error) {
+      this.pendingRefunds.set(refund.entryId, refund);
+      console.error(
+        `[wallet] refund failed (queued for retry) ${refund.payerUserId}/${refund.entryId}:`,
+        error
+      );
+    }
+  }
+
+  /** Atkārto aizturētos refundus (idempotenti pēc entryId); izsauc periodiskais sweep. */
+  private retryPendingRefunds(hub: GatewayHub): void {
+    if (this.pendingRefunds.size === 0) return;
+    for (const refund of [...this.pendingRefunds.values()]) {
+      void this.tryRefund(hub, refund);
     }
   }
 

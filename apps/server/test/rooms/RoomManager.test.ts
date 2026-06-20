@@ -232,7 +232,7 @@ describe("RoomManager destroyExpiredRooms (TTL sweep)", () => {
     timer.set(1_000 + 60_000 + 1); // past expiresAt
     const destroyed = manager.destroyExpiredRooms(timer.now());
 
-    expect(destroyed).toContain(room.id);
+    expect(destroyed.roomIds).toContain(room.id);
     expect(manager.listRooms().map((r) => r.id)).not.toContain(room.id);
     // Host vairs nav "iesprūdis" iznīcinātajā istabā — drīkst izveidot jaunu.
     expect(manager.roomOf("host")).toBeUndefined();
@@ -242,7 +242,7 @@ describe("RoomManager destroyExpiredRooms (TTL sweep)", () => {
   it("returns empty (no broadcast) when nothing has expired yet", () => {
     const { manager } = createManager();
     manager.createRoom("host");
-    expect(manager.destroyExpiredRooms(2_000)).toEqual([]);
+    expect(manager.destroyExpiredRooms(2_000)).toEqual({ roomIds: [], refunds: [] });
   });
 });
 

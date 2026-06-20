@@ -17,6 +17,8 @@ export const protocolErrorCodes = [
   "NOT_HOST",
   "ALREADY_IN_ROOM",
   "FORBIDDEN",
+  // Zelta monētas (Fāze 3): maksas istabā nepietiek bilances dalības maksai.
+  "INSUFFICIENT_FUNDS",
   // Gājieni / kārta
   "NOT_YOUR_TURN",
   "ACTION_TOO_LATE",

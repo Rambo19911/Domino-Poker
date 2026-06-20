@@ -57,8 +57,21 @@ export interface RoomSummary {
   readonly createdAt: number;
   readonly expiresAt: number;
   readonly numberOfRounds: number;
+  /**
+   * Zelta monētu dalības maksa (Fāze 3). `0` = bezmaksas istaba (esošā uzvedība
+   * nemainās). `> 0` = maksas istaba: katrs cilvēks maksā šo, ieņemot sēdvietu;
+   * pods (`pot`) tiek sadalīts uzvarētājiem. Klients rāda monētas nozīmi sarakstā,
+   * ja `> 0`. Aizpildīts vienmēr (aditīvs lauks; vecs klients to ignorē).
+   */
+  readonly entryFee: number;
 }
 
 export interface RoomView extends RoomSummary {
   readonly seats: readonly RoomSeatView[];
+  /**
+   * Faktiski savāktais zelta monētu pods (Fāze 3) = `entryFee` × samaksājušo cilvēku
+   * skaits. `0` bezmaksas istabās. Spēles laikā rāda galda skatā (mobilais pretī
+   * round skaitlim; web zem punktu tabulas). Sadala uzvarētājiem spēles beigās.
+   */
+  readonly pot: number;
 }

@@ -30,6 +30,14 @@ export const POT_SPLIT: readonly [number, number] = [0.7, 0.3];
 export const MIN_ENTRY_FEE = 1;
 
 /**
+ * Maksas istabas dalības maksas saprātīguma augšējā robeža (drošības/precizitātes
+ * sargs, NE produkta limits). Faktiskā robeža paliek hosta bilance (serveris to
+ * piespiež atomiski pie debeta). Šī tikai bloķē absurdas/precizitāti laužošas
+ * vērtības boundary validācijā (`createRoomSchema`), saglabājot drošu veselu skaitli.
+ */
+export const MAX_ENTRY_FEE = 1_000_000_000;
+
+/**
  * Sadala podu starp diviem labākajiem cilvēkiem (70/30), atlikumu pievienojot
  * 1. vietai. Ja ir tikai viens cilvēks, viņš saņem visu podu. Atgriež veselus
  * skaitļus, kas vienmēr summējas līdz `pot`.

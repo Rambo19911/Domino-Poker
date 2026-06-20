@@ -710,10 +710,11 @@
   {
     "path": "apps/server/src/net/messageRouter.ts",
     "type": "service",
-    "purpose": "Post-handshake application router for lobby, room, game, snapshot, resume, chat, membership, ownership, and finalization paths.",
+    "purpose": "Post-handshake application router for lobby, room, game, snapshot, resume, chat, membership, ownership, and finalization paths. Phase 3 also orchestrates paid-room money: createPaidRoom/joinPaidRoom (debit-then-commit-seat with rollback; synchronous isUserSeated re-check before commit to close the duplicate-userId race) and leave/delete/TTL refunds via tryRefund + an in-memory pendingRefunds retry queue drained by sweepExpiredRooms.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/rooms/RoomManager.ts",
+      "apps/server/src/wallet/WalletService.ts",
       "packages/shared/src/clientMessages.ts"
     ],
     "confidence": "high"
@@ -732,7 +733,7 @@
   {
     "path": "apps/server/src/rooms/LobbyManager.ts",
     "type": "service",
-    "purpose": "In-memory lobby room metadata, seats, visibility, TTL, room codes, and room summaries/views.",
+    "purpose": "In-memory lobby room metadata, seats, visibility, TTL, room codes, and room summaries/views. Phase 3: Room carries entryFee + pot; Seat carries opaque entry{entryId,payerUserId}; owns pot bookkeeping (create/join +fee, leave −fee, forfeit/mid-game teardown unchanged so forfeited fees stay in the pot). Money-agnostic (no wallet).",
     "importance": "high",
     "related_files": [
       "apps/server/src/rooms/RoomManager.ts",
@@ -1082,7 +1083,7 @@
   {
     "path": "packages/shared/src/serverEvents.ts",
     "type": "model",
-    "purpose": "Zod validation and TypeScript types for server-to-client events and fanout messages; imports core MP event/snapshot types. WelcomeEvent carries an optional `goldBalance` for logged-in users (gold-coin economy, additive).",
+    "purpose": "Zod validation and TypeScript types for server-to-client events and fanout messages; imports core MP event/snapshot types. WelcomeEvent carries an optional `goldBalance` for logged-in users; Phase 3 adds WALLET_UPDATED (balance push) to BOTH the union and serverEventSchema so cross-instance Postgres fanout keeps it (gold-coin economy, additive).",
     "importance": "critical",
     "related_files": [
       "packages/core/src/multiplayer/events.ts",
@@ -1093,7 +1094,7 @@
   {
     "path": "packages/shared/src/roomTypes.ts",
     "type": "model",
-    "purpose": "Shared room status/visibility/seat DTOs (incl. optional seat rankBadge) and round-count limits.",
+    "purpose": "Shared room status/visibility/seat DTOs (incl. optional seat rankBadge) and round-count limits. Phase 3: RoomSummary.entryFee + RoomView.pot (required; 0 = free room).",
     "importance": "high",
     "related_files": [
       "apps/server/src/rooms/LobbyManager.ts",
@@ -2112,7 +2113,7 @@
   {
     "path": "packages/shared/src/economy.ts",
     "type": "model",
-    "purpose": "Single authoritative source for gold-coin economy constants (STARTING_COINS, SP_REWARDS medium/hard/epic, POT_SPLIT, MIN_ENTRY_FEE) and the splitPot helper. Imported by both server (enforces) and web (displays).",
+    "purpose": "Single authoritative source for gold-coin economy constants (STARTING_COINS, SP_REWARDS medium/hard/epic, POT_SPLIT 70/30, MIN_ENTRY_FEE, MAX_ENTRY_FEE sanity cap) and the splitPot helper (remainder→1st place, single human→100%). Imported by both server (enforces) and web (displays).",
     "importance": "high",
     "related_files": [
       "apps/server/src/wallet/WalletService.ts",
@@ -2136,13 +2137,28 @@
   {
     "path": "apps/server/src/wallet/WalletService.ts",
     "type": "service",
-    "purpose": "Gold-coin money application layer over CoinStore: signup bonus (repair-on-read), getBalance, SP reward credit, and creditSpRewardCapped (per-user lock + daily-cap clamp). The one place all balance changes flow through.",
+    "purpose": "Gold-coin money application layer over CoinStore: signup bonus (repair-on-read), getBalance, SP reward credit, creditSpRewardCapped (per-user lock + daily-cap clamp), and Phase 3 MP money — debitEntryFee (mp_entry, minBalance 0), refundEntryFee (mp_refund), payoutCoins (mp_payout); all reuse applyLedger (no new migration). The one place all balance changes flow through.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/storage/CoinStore.ts",
       "packages/shared/src/economy.ts",
+      "apps/server/src/wallet/MatchPayoutService.ts",
+      "apps/server/src/net/messageRouter.ts",
       "apps/server/src/http/spRewardRoutes.ts",
       "apps/server/src/http/authRoutes.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/wallet/MatchPayoutService.ts",
+    "type": "service",
+    "purpose": "Phase 3 MP pot payout engine (mirrors OutcomeRecorder): caches pot + start-roster for paid matches at matchStarted; at gameOver splits the pot 70/30 (splitPot) among the top-2 registered, non-forfeited humans by standings (bots + forfeiters excluded), pays each via WalletService.payoutCoins (idempotent by matchId), and returns results for WALLET_UPDATED push. Fire-and-forget; wired in index.ts only when a wallet exists.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/wallet/WalletService.ts",
+      "packages/shared/src/economy.ts",
+      "apps/server/src/index.ts",
+      "apps/server/src/storage/StoragePort.ts"
     ],
     "confidence": "high"
   },

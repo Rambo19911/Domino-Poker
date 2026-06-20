@@ -9,7 +9,7 @@
     "build": "tsc -p tsconfig.build.json",
     "migrate": "node dist/storage/migrate.js",
     "test": "vitest run",
-    "test:postgres": "vitest run test/storage/storageContract.test.ts test/storage/PostgresStorage.integration.test.ts test/net/PostgresEventBus.integration.test.ts",
+    "test:postgres": "vitest run test/storage/storageContract.test.ts test/storage/PostgresStorage.integration.test.ts test/storage/coinConcurrency.integration.test.ts test/net/PostgresEventBus.integration.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
