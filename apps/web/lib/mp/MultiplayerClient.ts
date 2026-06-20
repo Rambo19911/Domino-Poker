@@ -39,6 +39,8 @@ export interface CreateRoomOptions {
   readonly visibility?: RoomVisibility;
   readonly numberOfRounds?: number;
   readonly fillWithBots?: boolean;
+  /** Zelta monētu dalības maksa (Fāze 4); 0/izlaists = bezmaksas istaba. */
+  readonly entryFee?: number;
 }
 
 export interface MultiplayerClientOptions {
@@ -136,7 +138,8 @@ export class MultiplayerClient {
       type: "CREATE_ROOM",
       ...(options.visibility ? { visibility: options.visibility } : {}),
       ...(options.numberOfRounds !== undefined ? { numberOfRounds: options.numberOfRounds } : {}),
-      ...(options.fillWithBots !== undefined ? { fillWithBots: options.fillWithBots } : {})
+      ...(options.fillWithBots !== undefined ? { fillWithBots: options.fillWithBots } : {}),
+      ...(options.entryFee !== undefined ? { entryFee: options.entryFee } : {})
     });
   }
 

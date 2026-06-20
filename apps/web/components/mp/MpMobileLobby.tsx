@@ -16,6 +16,7 @@ import {
 } from "./MpChatTranslation";
 import { ConnectionBanner } from "./ConnectionBanner";
 import { MpEmojiPicker } from "./MpEmojiPicker";
+import { RoomFeeChip } from "./RoomFeeChip";
 
 const CHAT_MAX_LENGTH = 200;
 
@@ -329,7 +330,10 @@ function RoomRow({
           #{shortRoomId(room.id)}
         </span>
         <span className="mplRowSub">👥 {room.seatsFilled}/{room.seatsTotal} · {t.roundCount}: {room.numberOfRounds}</span>
-        <span className="mplRowSub">{t.mpExpiresIn}: {formatTtlShort(room.expiresAt, nowMs, t)}</span>
+        <span className="mplRowSub">
+          {t.mpExpiresIn}: {formatTtlShort(room.expiresAt, nowMs, t)}
+          <RoomFeeChip entryFee={room.entryFee} labels={t} className="mplRowFee" />
+        </span>
       </div>
       <div className="mplRowRight">
         <span className={`mplStatus ${isPlaying ? "playing" : ""}`}>

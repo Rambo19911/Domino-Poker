@@ -1,6 +1,6 @@
 # Repository Overview
 
-Last refreshed: 2026-06-20 (gold-coin Phase 3 — MP entry fee / pot / refund / payout, server).
+Last refreshed: 2026-06-20 (gold-coin Phase 4 — MP paid-room UI: fee input, room badges, table pot, live balance).
 
 ## Purpose
 
@@ -13,7 +13,7 @@ It has two game modes:
 
 The core rule engine is shared. The browser may derive UI hints from shared logic, but authoritative multiplayer decisions belong to the server.
 
-A virtual gold-coin economy is being added on top of the optional account system (server-authoritative). Each registered account holds a coin balance persisted in the DB; single-player wins award coins via a server-issued one-time game token (Phase 2, shipped), and multiplayer paid rooms (host-set entry fee, prize pot split 70/30 to the top-2 registered humans) are shipped server-side (Phase 3). Anonymous play is unaffected — anonymous users have no wallet, cannot join paid rooms, and earn nothing. Economy phases are tracked in `docs/TODO/gold-coins-plan.md` (local/ignored); Phase 4 (paid-room UI) and Phase 5 (rules/i18n) remain.
+A virtual gold-coin economy is being added on top of the optional account system (server-authoritative). Each registered account holds a coin balance persisted in the DB; single-player wins award coins via a server-issued one-time game token (Phase 2, shipped), and multiplayer paid rooms (host-set entry fee, prize pot split 70/30 to the top-2 registered humans) are shipped server-side (Phase 3) with the paid-room web UI in Phase 4 (fee input gated to logged-in hosts, coin badges in room lists, pot at the table, live `WALLET_UPDATED` balance). Anonymous play is unaffected — anonymous users have no wallet, cannot join paid rooms, and earn nothing. Economy phases are tracked in `docs/TODO/gold-coins-plan.md` (local/ignored); Phase 5 (rules/i18n polish) and Phase 6 (test/docs sweep) remain.
 
 ## Main Technologies
 
@@ -112,7 +112,7 @@ CI (`.github/workflows/ci.yml`) runs install, core/shared/server build, typechec
 - `apps/server/src/auth/*` and `apps/server/src/http/authRoutes.ts`: optional auth must remain additive. Anonymous single-player and multiplayer must keep working. `/auth/me` now also returns `balance`; registration grants the signup bonus (repair-on-read in `WalletService.getBalance` also backfills existing accounts).
 - `apps/web/components/AppShell.tsx`: central shell for screen routing, auth state, locale, audio, round count, and password-reset hash routing.
 - `apps/web/components/DominoPokerGame.tsx`: single-player UI workflow and timers around core state.
-- `apps/web/components/MultiplayerLobby.tsx` and `apps/web/lib/mp/*`: render server state and send intents only. Do not accept/reject MP moves authoritatively in the browser.
+- `apps/web/components/MultiplayerLobby.tsx` and `apps/web/lib/mp/*`: render server state and send intents only. Do not accept/reject MP moves authoritatively in the browser. Phase 4 paid-room UI: `lib/mp/clientView.ts` holds `wallet.balance` (from WELCOME `goldBalance` + live `WALLET_UPDATED`; each WELCOME reflects current auth state, so anonymous reconnect clears it); `lib/mp/gameTableView.ts` carries `pot`; `components/mp/RoomFeeChip.tsx` is the shared coin badge for room lists; `CreateRoomDialog` (in `MpLobbyDialogs.tsx`) shows the entry-fee input only to logged-in hosts with client-side balance validation (server re-checks at debit); `components/MobilePot.tsx` + `MP_MOBILE_POS.pot` render the table pot on mobile, `MpInfoPanel` on desktop. Coin colors are token-only (`--coin`); animations (`coinGainPulse`, `potBump`) live in `styles/animations.css` and respect `prefers-reduced-motion`.
 - `apps/web/components/mp/MpDesktopTable.tsx`, `MpMobileTable.tsx`, `apps/web/lib/mp/mobileLayout.ts`, and `desktopStage.ts`: multiplayer table layout is split by viewport and needs both desktop and phone checks.
 - `apps/web/styles/tokens.css`, `glass.css`, `components/ui/*`, and `apps/web/lib/theme.ts`: token/theme primitives are shared UI infrastructure. Keep color tokens and RGB channel pairs aligned.
 - `apps/web/app/globals.css`: import-only CSS entry. Add CSS to feature partials under `apps/web/styles/`.

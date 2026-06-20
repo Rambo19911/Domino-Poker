@@ -117,6 +117,14 @@ describe("toGameTableView", () => {
     expect(view?.seats.find((s) => s.gameSeatIndex === 1)?.displayId).toBeUndefined();
   });
 
+  it("passes the room pot through to the table view (Phase 4)", () => {
+    const paidRoom = { ...room([seat(0), seat(1), seat(2), seat(3)]), pot: 250 };
+    expect(toGameTableView(snapshot(), paidRoom, "t1")?.pot).toBe(250);
+    // Bezmaksas istaba (vai bez room) → pot 0.
+    expect(toGameTableView(snapshot(), room([seat(0)]), "t1")?.pot).toBe(0);
+    expect(toGameTableView(snapshot(), undefined, "t1")?.pot).toBe(0);
+  });
+
   it("rotates so the viewer is visual seat 0 when seated elsewhere", () => {
     const players = [
       player(0, { isAI: true }),

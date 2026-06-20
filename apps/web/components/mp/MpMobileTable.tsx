@@ -19,6 +19,7 @@ import { useMobileStageLayout } from "../../lib/mobileStage";
 import { AvatarRankBadge } from "../AvatarRankBadge";
 import { DominoTileView } from "../DominoTileView";
 import { ExitIcon } from "../GameDialogs";
+import { MobilePot } from "../MobilePot";
 import { MobileRoundCount } from "../MobileRoundCount";
 
 /**
@@ -78,6 +79,8 @@ export function MpMobileTable({
       <MpmSummaryTable labels={t} seats={table.seats} activeSeatIndex={activeSeatIndex} />
 
       <MobileRoundCount labels={t} currentRound={table.currentRound} totalRounds={table.totalRounds} />
+
+      <MobilePot labels={t} pot={table.pot} />
 
       <section
         className="mpmTable"

@@ -99,6 +99,8 @@ export interface MpGameTableView {
   readonly preGameStartsAt: number | undefined;
   /** Tikai `gameEnd`: sēdvieta ar augstāko `totalScore` (attēlošanai). */
   readonly winnerSeatIndex: number | undefined;
+  /** Zelta monētu pods (Fāze 4) no `RoomView.pot`; `0` bezmaksas istabā (nerāda). */
+  readonly pot: number;
 }
 
 /** Pārvērš spēles sēdvietas indeksu vizuālā pozīcijā ar skatītāju apakšā. */
@@ -219,7 +221,8 @@ export function toGameTableView(
     // nomāktu atskaiti vienam cilvēkam, bet ne otram. Pirms-spēlē serveris vēl nav
     // atvēris turnu → `snapshot.turnId === undefined` → atskaite redzama VISIEM.
     preGameStartsAt: startsAt !== undefined && snapshot.turnId === undefined ? startsAt : undefined,
-    winnerSeatIndex: snapshot.phase === "gameEnd" ? highestScoreSeatIndex(snapshot.players) : undefined
+    winnerSeatIndex: snapshot.phase === "gameEnd" ? highestScoreSeatIndex(snapshot.players) : undefined,
+    pot: room?.pot ?? 0
   };
 }
 

@@ -85,6 +85,19 @@
   }
 }
 
+/* Poda pieaugums (Fāze 4): īss "bump", kad pods palielinās (jauns spēlētājs maksā). */
+@keyframes potBump {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -13,6 +13,7 @@ import type { StageContainLayout } from "../../lib/mp/desktopStage";
 import type { AudioSettings } from "../../lib/useAudioSettings";
 import { AudioControls, VolumeIcon, VolumeOffIcon } from "../AudioControls";
 import { AvatarRankBadge } from "../AvatarRankBadge";
+import { CoinIcon } from "../CoinIcon";
 import { DominoTileView, HiddenTile } from "../DominoTileView";
 import { ExitIcon } from "../GameDialogs";
 import { HelpIcon } from "../RulesDialog";
@@ -385,6 +386,18 @@ function MpInfoPanel({
           );
         })}
       </div>
+      {table.pot > 0 ? (
+        <>
+          <div className="infoDivider" />
+          <div className="potRow" aria-label={`${t.mpPotLabel}: ${table.pot}`}>
+            <span className="potLabel">{t.mpPotLabel}</span>
+            <span className="potValue" key={table.pot}>
+              <CoinIcon className="potIcon" />
+              {table.pot}
+            </span>
+          </div>
+        </>
+      ) : null}
     </aside>
   );
 }

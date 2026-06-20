@@ -46,3 +46,100 @@
 .gameEndRewardValue {
   font-variant-numeric: tabular-nums;
 }
+
+/* Maksas istabas nozīme istabu sarakstā (Fāze 4) — web + mobile. */
+.mpRoomFee {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--coin);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: rgb(var(--coin-rgb) / 0.14);
+  border: 1px solid rgb(var(--coin-rgb) / 0.4);
+  transition: transform 160ms var(--ease-standard);
+}
+.mpRoomFee:hover {
+  transform: scale(1.06);
+}
+.mpRoomFeeIcon {
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+}
+/* Mobilais saraksta čips — kompaktāks, līdzās TTL apakšrindai. */
+.mplRowFee {
+  margin-left: 8px;
+  font-size: 0.85em;
+  padding: 0 6px;
+}
+
+/* Dalības maksas ievade istabas izveides formā (Fāze 4). */
+.mpEntryFeeLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--coin);
+}
+.mpEntryFeeIcon {
+  width: 1.1em;
+  height: 1.1em;
+  flex: 0 0 auto;
+}
+.mpEntryFeeHint {
+  display: block;
+  opacity: 0.85;
+}
+
+/* Pods spēles galdā — desktop info panelī zem punktu tabulas (Fāze 4). */
+.potRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+}
+.potLabel {
+  font-weight: 600;
+  opacity: 0.85;
+}
+.potValue {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--coin);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  animation: potBump 220ms var(--ease-standard) both;
+}
+.potIcon {
+  width: 1.1em;
+  height: 1.1em;
+  flex: 0 0 auto;
+}
+
+/* Pods mobilajā galdā — labajā ailē, pretī raundu skaitlim (Fāze 4). */
+.mpmPot {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--coin);
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.mpmPotIcon {
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+}
+.mpmPotValue {
+  display: inline-block;
+  animation: potBump 220ms var(--ease-standard) both;
+}

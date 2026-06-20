@@ -46,6 +46,11 @@ export interface ClientError {
  * Viss, ko UI renderē — atvasināts TIKAI no servera ziņojumiem. Klients nesatur
  * autoritatīvu spēles noteikumu loģiku: `game.snapshot` ir servera patiesība.
  */
+/** Zelta monētu maks (Fāze 4): ielogota lietotāja bilance; `undefined` anonīmam. */
+export interface WalletView {
+  readonly balance: number;
+}
+
 export interface ClientView {
   readonly connection: ConnectionStatus;
   readonly identity: ClientIdentity | undefined;
@@ -53,6 +58,12 @@ export interface ClientView {
   readonly room: RoomView | undefined;
   readonly game: GameView;
   readonly lastError: ClientError | undefined;
+  /**
+   * Zelta bilance (Fāze 4): no `WELCOME goldBalance` (ielogots) un atjaunota live ar
+   * `WALLET_UPDATED` (maksas darbības). `undefined` anonīmam (nav maka). UI to rāda
+   * maksas istabas izveides formā un atjaunina bez lapas pārlādes.
+   */
+  readonly wallet: WalletView | undefined;
 }
 
 /** Cik čata ziņas paturēt klienta atmiņā (serveris sūta ~50 vēsturē). */
@@ -64,7 +75,8 @@ export const initialClientView: ClientView = {
   lobby: { rooms: [], onlineCount: 0, chat: [] },
   room: undefined,
   game: { snapshot: undefined, seq: 0, turnId: undefined, startsAt: undefined },
-  lastError: undefined
+  lastError: undefined,
+  wallet: undefined
 };
 
 /**
@@ -74,7 +86,15 @@ export const initialClientView: ClientView = {
 export function reduceServerEvent(view: ClientView, event: ServerEvent): ClientView {
   switch (event.type) {
     case "WELCOME":
-      return { ...view, connection: "connected", identity: identityFrom(event) };
+      return {
+        ...view,
+        connection: "connected",
+        identity: identityFrom(event),
+        // Katrs WELCOME atspoguļo PAŠREIZĒJO auth stāvokli: derīgs auth tokens vienmēr
+        // nes goldBalance; anonīms / beidzies tokens to NENES → maks jānotīra (citādi
+        // reconnect kā anonīmam paturētu veco bilanci un maksas istabas lauku).
+        wallet: event.goldBalance !== undefined ? { balance: event.goldBalance } : undefined
+      };
     case "ROOM_LIST":
       return { ...view, lobby: { ...view.lobby, rooms: event.rooms } };
     case "LOBBY_STATE":
@@ -128,10 +148,9 @@ export function reduceServerEvent(view: ClientView, event: ServerEvent): ClientV
     case "PONG":
       return view; // latence varētu tikt izsekota vēlāk
     case "WALLET_UPDATED":
-      // Fāze 3 (serveris): zelta bilances push pēc maksas darbības. Live bilances UI
-      // (auth state atjauninājums) tiek pieslēgts Fāzē 4 (MP UI); šeit pagaidām
-      // neglabājam — bilance jau atspoguļojas, atgriežoties lobby (/auth/me + WELCOME).
-      return view;
+      // Fāze 4: live bilances atjauninājums pēc maksas darbības (debets/refund/payout)
+      // — bez lapas pārlādes. Maksas istabas formā un (nākotnē) profila bilancē.
+      return { ...view, wallet: { balance: event.balance } };
     default:
       // Forward-compat (F12): nezināmu servera notikumu IGNORĒJAM (atgriežam `view`
       // nemainītu), nevis metam izņēmumu — jaunāks serveris saderīgā protokola

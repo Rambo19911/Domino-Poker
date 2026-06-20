@@ -59,6 +59,68 @@ describe("reduceServerEvent (8.2)", () => {
     });
   });
 
+  it("stores the gold balance from WELCOME for a logged-in user (Phase 4)", () => {
+    const view = reduceServerEvent(initialClientView, {
+      type: "WELCOME",
+      sessionId: "s1",
+      playerId: "p1",
+      displayId: "Alice",
+      reconnectToken: "tok",
+      serverNow: 1,
+      goldBalance: 5000
+    });
+    expect(view.wallet).toEqual({ balance: 5000 });
+  });
+
+  it("leaves the wallet undefined for an anonymous WELCOME (no goldBalance)", () => {
+    const view = reduceServerEvent(initialClientView, {
+      type: "WELCOME",
+      sessionId: "s1",
+      playerId: "p1",
+      displayId: "#00001",
+      reconnectToken: "tok",
+      serverNow: 1
+    });
+    expect(view.wallet).toBeUndefined();
+  });
+
+  it("clears the wallet when a later WELCOME has no goldBalance (logged-in → anonymous)", () => {
+    const loggedIn = reduceServerEvent(initialClientView, {
+      type: "WELCOME",
+      sessionId: "s1",
+      playerId: "p1",
+      displayId: "Alice",
+      reconnectToken: "tok",
+      serverNow: 1,
+      goldBalance: 5000
+    });
+    expect(loggedIn.wallet).toEqual({ balance: 5000 });
+    // Reconnect ar beigušos/nederīgu tokenu → anonīms WELCOME bez goldBalance.
+    const anonymous = reduceServerEvent(loggedIn, {
+      type: "WELCOME",
+      sessionId: "s2",
+      playerId: "p1",
+      displayId: "#00001",
+      reconnectToken: "tok2",
+      serverNow: 2
+    });
+    expect(anonymous.wallet).toBeUndefined();
+  });
+
+  it("WALLET_UPDATED updates the balance live (Phase 4)", () => {
+    const before = reduceServerEvent(initialClientView, {
+      type: "WELCOME",
+      sessionId: "s1",
+      playerId: "p1",
+      displayId: "Alice",
+      reconnectToken: "tok",
+      serverNow: 1,
+      goldBalance: 5000
+    });
+    const after = reduceServerEvent(before, { type: "WALLET_UPDATED", balance: 4900 });
+    expect(after.wallet).toEqual({ balance: 4900 });
+  });
+
   it("ignores an unknown server event type without throwing (forward-compat, F12)", () => {
     // Simulē jaunāku serveri, kas saderīgā protokola versijā sūta klientam vēl
     // nezināmu notikuma tipu. Reducers to drīkst IGNORĒT, NE mest izņēmumu.

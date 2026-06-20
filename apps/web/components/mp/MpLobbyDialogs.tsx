@@ -4,7 +4,9 @@ import { useState } from "react";
 
 import {
   defaultRoomNumberOfRounds,
+  MAX_ENTRY_FEE,
   maxRoomNumberOfRounds,
+  MIN_ENTRY_FEE,
   minRoomNumberOfRounds,
   type RoomVisibility
 } from "@domino-poker/shared";
@@ -12,6 +14,7 @@ import {
 import type { AppStrings } from "../../lib/i18n";
 import { getMpRulesDoc } from "../../lib/mpRulesContent";
 import type { AudioSettings } from "../../lib/useAudioSettings";
+import { CoinIcon } from "../CoinIcon";
 import { Dialog } from "../Dialog";
 import { HelpIcon } from "../RulesDialog";
 import { IconButton } from "../ui/IconButton";
@@ -29,6 +32,7 @@ export function MpLobbyDialogs({
   isRulesOpen,
   isDeleteRoomOpen,
   isConnected,
+  hostBalance,
   audio,
   labels: t,
   onCreate,
@@ -44,12 +48,15 @@ export function MpLobbyDialogs({
   readonly isRulesOpen: boolean;
   readonly isDeleteRoomOpen: boolean;
   readonly isConnected: boolean;
+  /** Zelta bilance (Fāze 4); `undefined` = anonīms (maksas istabas slēptas). */
+  readonly hostBalance: number | undefined;
   readonly audio: AudioSettings;
   readonly labels: AppStrings;
   readonly onCreate: (settings: {
     readonly visibility: RoomVisibility;
     readonly numberOfRounds: number;
     readonly fillWithBots: boolean;
+    readonly entryFee: number;
   }) => void;
   readonly onCancelCreate: () => void;
   readonly onJoin: (code: string) => void;
@@ -72,6 +79,7 @@ export function MpLobbyDialogs({
       {isCreateOpen ? (
         <CreateRoomDialog
           isConnected={isConnected}
+          hostBalance={hostBalance}
           labels={t}
           onCancel={onCancelCreate}
           onCreate={onCreate}
@@ -128,28 +136,43 @@ function DeleteRoomDialog({
 
 function CreateRoomDialog({
   isConnected,
+  hostBalance,
   labels: t,
   onCancel,
   onCreate
 }: {
   readonly isConnected: boolean;
+  readonly hostBalance: number | undefined;
   readonly labels: AppStrings;
   readonly onCancel: () => void;
   readonly onCreate: (settings: {
     readonly visibility: RoomVisibility;
     readonly numberOfRounds: number;
     readonly fillWithBots: boolean;
+    readonly entryFee: number;
   }) => void;
 }) {
   const [visibility, setVisibility] = useState<RoomVisibility>("public");
   const [numberOfRounds, setNumberOfRounds] = useState(defaultRoomNumberOfRounds);
   const [fillWithBots, setFillWithBots] = useState(false);
+  const [entryFee, setEntryFee] = useState(0);
+
+  // Maksas istabas drīkst veidot tikai ielogots lietotājs (anonīmam nav maka).
+  const canSetFee = hostBalance !== undefined;
+  // Klienta validācija (serveris paliek autoritāte): vesels skaitlis 0..bilance.
+  const feeExceedsBalance = canSetFee && entryFee > (hostBalance ?? 0);
+  const feeInvalid = feeExceedsBalance;
 
   const submitCreate = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!isConnected) return;
+    if (!isConnected || feeInvalid) return;
     const clampedRounds = clampRoundCount(numberOfRounds);
-    onCreate({ visibility, numberOfRounds: clampedRounds, fillWithBots });
+    onCreate({
+      visibility,
+      numberOfRounds: clampedRounds,
+      fillWithBots,
+      entryFee: canSetFee ? clampEntryFee(entryFee) : 0
+    });
   };
 
   return (
@@ -202,6 +225,29 @@ function CreateRoomDialog({
           />
         </label>
 
+        {canSetFee ? (
+          <label className="mpNumberField mpEntryFeeField">
+            <span className="mpEntryFeeLabel">
+              <CoinIcon className="mpEntryFeeIcon" />
+              {t.mpEntryFee}
+            </span>
+            <input
+              type="number"
+              min={0}
+              max={Math.min(MAX_ENTRY_FEE, hostBalance ?? 0)}
+              step={1}
+              value={entryFee}
+              onChange={(event) => setEntryFee(sanitizeFeeInput(event.currentTarget.valueAsNumber))}
+            />
+            <small className="mpEntryFeeHint">
+              {entryFee > 0 ? t.mpEntryFeeHint : t.mpEntryFeeFree} · {t.balanceLabel}: {hostBalance ?? 0}
+            </small>
+            {feeExceedsBalance ? (
+              <small className="mpDialogWarning">{t.mpEntryFeeTooHigh}</small>
+            ) : null}
+          </label>
+        ) : null}
+
         <label className="mpCheckboxOption">
           <input
             type="checkbox"
@@ -220,7 +266,7 @@ function CreateRoomDialog({
           <button className="textButton" type="button" onClick={onCancel}>
             {t.cancel}
           </button>
-          <button className="primaryButton" type="submit" disabled={!isConnected}>
+          <button className="primaryButton" type="submit" disabled={!isConnected || feeInvalid}>
             {t.mpCreateRoom}
           </button>
         </div>
@@ -364,6 +410,19 @@ function CloseIcon() {
 function clampRoundCount(value: number): number {
   if (!Number.isFinite(value)) return defaultRoomNumberOfRounds;
   return Math.min(maxRoomNumberOfRounds, Math.max(minRoomNumberOfRounds, Math.round(value)));
+}
+
+/** Tīra dalības maksas ievadi: vesels skaitlis ≥ 0 (tukšs/NaN → 0). */
+function sanitizeFeeInput(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.floor(value);
+}
+
+/** Galīgais maksas saspraudums pirms sūtīšanas (0 vai MIN..MAX); serveris pārbauda bilanci. */
+function clampEntryFee(value: number): number {
+  const fee = sanitizeFeeInput(value);
+  if (fee === 0) return 0;
+  return Math.min(MAX_ENTRY_FEE, Math.max(MIN_ENTRY_FEE, fee));
 }
 
 function normalizeRoomCode(code: string): string {

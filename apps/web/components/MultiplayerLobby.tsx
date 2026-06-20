@@ -232,6 +232,7 @@ export function MultiplayerLobby({
         isRulesOpen={isRulesOpen}
         isDeleteRoomOpen={isDeleteRoomOpen}
         isConnected={view.connection === "connected"}
+        hostBalance={view.wallet?.balance}
         audio={audio}
         labels={t}
         onCreate={(settings) => {

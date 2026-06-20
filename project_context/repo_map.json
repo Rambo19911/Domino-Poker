@@ -484,7 +484,7 @@
   {
     "path": "apps/web/lib/mp/clientView.ts",
     "type": "model",
-    "purpose": "Client-side reducer/view model for server events, lobby state, room state, game snapshot, and errors.",
+    "purpose": "Client-side reducer/view model for server events, lobby state, room state, game snapshot, and errors. Phase 4: holds `wallet.balance` from WELCOME `goldBalance` + live `WALLET_UPDATED`; every WELCOME reflects current auth state so an anonymous reconnect clears a stale balance.",
     "importance": "high",
     "related_files": [
       "packages/shared/src/serverEvents.ts"
@@ -494,11 +494,35 @@
   {
     "path": "apps/web/lib/mp/gameTableView.ts",
     "type": "utility",
-    "purpose": "Transforms server game snapshots into renderable table view and UI-only playable-tile hints.",
+    "purpose": "Transforms server game snapshots into renderable table view and UI-only playable-tile hints. Phase 4: carries `pot` (from RoomView.pot) for the table pot display.",
     "importance": "high",
     "related_files": [
       "apps/web/components/mp/MpGameTable.tsx",
       "packages/core/src/multiplayer/snapshots.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/mp/RoomFeeChip.tsx",
+    "type": "component",
+    "purpose": "Phase 4 shared coin badge (icon + entry fee, aria-labeled) for paid rooms in both desktop and mobile room lists; renders nothing for free rooms. Token-only color (--coin).",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/CoinIcon.tsx",
+      "apps/web/components/mp/MpDesktopLobby.tsx",
+      "apps/web/components/mp/MpMobileLobby.tsx"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/MobilePot.tsx",
+    "type": "component",
+    "purpose": "Phase 4 gold pot indicator on the mobile MP table (MP_MOBILE_POS.pot, mirror of the round counter); renders only when pot > 0. Desktop shows the pot in MpInfoPanel instead.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/mp/MpMobileTable.tsx",
+      "apps/web/lib/mp/mobileLayout.ts",
+      "apps/web/lib/mp/gameTableView.ts"
     ],
     "confidence": "high"
   },
@@ -1568,7 +1592,7 @@
   {
     "path": "apps/web/components/mp/MpLobbyDialogs.tsx",
     "type": "ui",
-    "purpose": "Multiplayer lobby/room dialogs for join/create/error flows.",
+    "purpose": "Multiplayer lobby/room dialogs for join/create/error flows. Phase 4: CreateRoomDialog shows the gold entry-fee input only to logged-in hosts (hostBalance defined), with client-side balance validation; onCreate forwards entryFee. Server re-checks at debit.",
     "importance": "medium",
     "related_files": [
       "apps/web/components/MultiplayerLobby.tsx",
@@ -1579,7 +1603,7 @@
   {
     "path": "apps/web/lib/mp/mobileLayout.ts",
     "type": "utility",
-    "purpose": "Mobile multiplayer layout calculations and helpers.",
+    "purpose": "Mobile multiplayer layout calculations and helpers. Phase 4: adds MP_MOBILE_POS.pot (right column, mirror of the round counter) for the table pot.",
     "importance": "medium",
     "related_files": [
       "apps/web/components/mp/MpMobileTable.tsx"

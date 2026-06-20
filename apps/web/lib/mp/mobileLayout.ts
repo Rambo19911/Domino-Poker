@@ -40,6 +40,9 @@ export const MP_MOBILE_POS = {
   summary: { cx: 0.5037, cy: 0.0823 },
   // Atlikušo raundu skaitlis — kreisajā ailē, vertikāli vienā līmenī ar tabulu.
   roundCount: { cx: 0.083, cy: 0.0823 },
+  // Zelta monētu pods (Fāze 4): simetriski PRETĪ round skaitlim (labajā ailē),
+  // vienā līmenī ar kopsavilkuma tabulu. Rāda tikai maksas istabās (pot > 0).
+  pot: { cx: 0.917, cy: 0.0823 },
   leave: { cx: 0.9222, cy: 0.0329 },
   trick: {
     N: { cx: 0.5, cy: 0.4476 },

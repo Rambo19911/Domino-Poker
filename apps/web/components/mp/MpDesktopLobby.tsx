@@ -13,6 +13,7 @@ import { avatarUrl } from "../../lib/auth/avatarUrl";
 import type { AppStrings } from "../../lib/i18n";
 import type { ConnectionStatus } from "../../lib/mp/clientView";
 import { VolumeIcon, VolumeOffIcon } from "../AudioControls";
+import { RoomFeeChip } from "./RoomFeeChip";
 import { AvatarRankBadge } from "../AvatarRankBadge";
 import { HelpIcon } from "../RulesDialog";
 import { Button } from "../ui/Button";
@@ -558,6 +559,7 @@ function PublicRoomRow({
         </span>
         <span className="mpRoomSeats">{t.roundCount}: {room.numberOfRounds}</span>
         <span className="mpRoomSeats">{t.mpExpiresIn}: {formatTtl(room.expiresAt, nowMs, t)}</span>
+        <RoomFeeChip entryFee={room.entryFee} labels={t} />
       </div>
       <div className="mpRoomRight">
         <span className={`mpChip${isPlaying ? " mpChipPlaying" : ""}`}>
@@ -640,6 +642,7 @@ function PrivateRoomRow({
         </span>
         <span className="mpRoomSeats">{t.roundCount}: {room.numberOfRounds}</span>
         <span className="mpRoomSeats">{t.mpExpiresIn}: {formatTtl(room.expiresAt, nowMs, t)}</span>
+        <RoomFeeChip entryFee={room.entryFee} labels={t} />
       </div>
       <div className="mpRoomRight">
         {isPlaying ? (
