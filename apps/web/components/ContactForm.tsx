@@ -88,14 +88,13 @@ export function ContactForm({
         />
       </label>
 
-      {status === "sent" ? (
-        <p className="contactStatus contactStatusOk" role="status">{t.contactSuccess}</p>
-      ) : null}
-      {status === "error" ? (
-        <p className="contactStatus contactStatusError" role="alert">{errorText}</p>
-      ) : null}
-
       <div className="contactActions">
+        {status === "sent" ? (
+          <p className="contactStatus contactStatusOk" role="status">{t.contactSuccess}</p>
+        ) : null}
+        {status === "error" ? (
+          <p className="contactStatus contactStatusError" role="alert">{errorText}</p>
+        ) : null}
         <button className="primaryButton" type="submit" disabled={isSending}>
           {isSending ? t.contactSending : t.contactSend}
         </button>

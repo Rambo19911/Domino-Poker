@@ -405,7 +405,10 @@
 }
 
 .contactStatus {
+  /* margin-right:auto → statuss pa kreisi, poga paliek pa labi tajā pašā rindā;
+     rindas augstumu nosaka poga, tāpēc statusa parādīšanās NEpaplašina dialogu. */
   margin: 0;
+  margin-right: auto;
   font-size: 13px;
   line-height: 1.45;
 }
@@ -420,7 +423,10 @@
 
 .contactActions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 12px;
+  min-height: 44px;
 }
 
 .languageSelector {
