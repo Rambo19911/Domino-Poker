@@ -120,26 +120,31 @@
   flex: 0 0 auto;
 }
 
-/* Pods mobilajā galdā — labajā ailē, pretī raundu skaitlim (Fāze 4). */
+/* Pods mobilajā galdā — labajā ailē, pretī raundu skaitlim. Lāde augšā + summa
+   apakšā (vertikāli), aizņem līdzīgu laukumu kā raundu skaitlis, lai pods būtu
+   labi saskatāms. Lādes attēls mainās pēc poda lieluma (`chestForPot`). */
 .mpmPot {
   position: absolute;
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: 6px;
   color: var(--coin);
   font-weight: 800;
-  font-size: 15px;
   line-height: 1;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   pointer-events: none;
 }
-.mpmPotIcon {
-  width: 1em;
-  height: 1em;
+.mpmPotChest {
+  width: 148px;
+  height: 148px;
   flex: 0 0 auto;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px rgb(var(--shadow-rgb) / 0.55));
 }
 .mpmPotValue {
   display: inline-block;
+  font-size: 52px;
   animation: potBump 220ms var(--ease-standard) both;
 }

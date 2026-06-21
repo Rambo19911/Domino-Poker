@@ -38,11 +38,13 @@ export const MP_MOBILE_POS = {
   // lai uzraksts nepārklājas pāri galdam. ~26px atstarpe līdz galdam.
   trumpLabel: { cx: 0.5, cy: 0.373 },
   summary: { cx: 0.5037, cy: 0.0823 },
-  // Atlikušo raundu skaitlis — kreisajā ailē, vertikāli vienā līmenī ar tabulu.
-  roundCount: { cx: 0.083, cy: 0.0823 },
-  // Zelta monētu pods (Fāze 4): simetriski PRETĪ round skaitlim (labajā ailē),
-  // vienā līmenī ar kopsavilkuma tabulu. Rāda tikai maksas istabās (pot > 0).
-  pot: { cx: 0.917, cy: 0.0823 },
+  // Atlikušo raundu skaitlis — kreisajā ailē. Nedaudz zem tabulas līmeņa, lai
+  // simetriski sakristu ar poda lādi (kas ir augstāka un citādi skartu exit pogu).
+  roundCount: { cx: 0.083, cy: 0.103 },
+  // Zelta monētu pods: simetriski PRETĪ round skaitlim (labajā ailē), tajā pašā
+  // līmenī. Pabīdīts zem augšējās malas, lai lāde nepārklāj exit pogu (cy 0.0329).
+  // Rāda tikai maksas istabās (pot > 0).
+  pot: { cx: 0.917, cy: 0.103 },
   leave: { cx: 0.9222, cy: 0.0329 },
   trick: {
     N: { cx: 0.5, cy: 0.4476 },

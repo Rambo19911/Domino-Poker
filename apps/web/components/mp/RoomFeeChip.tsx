@@ -1,5 +1,5 @@
 import type { AppStrings } from "../../lib/i18n";
-import { CoinIcon } from "../CoinIcon";
+import { CoinGif } from "../CoinGif";
 
 /**
  * Maksas istabas nozīme istabu sarakstā (Fāze 4): monētas ikona + dalības maksa.
@@ -21,7 +21,7 @@ export function RoomFeeChip({
       className={`mpRoomFee${className ? ` ${className}` : ""}`}
       aria-label={`${t.mpEntryFee}: ${entryFee}`}
     >
-      <CoinIcon className="mpRoomFeeIcon" />
+      <CoinGif className="mpRoomFeeIcon" />
       {entryFee}
     </span>
   );

@@ -1,12 +1,14 @@
 import type { AppStrings } from "../lib/i18n";
+import { chestForPot } from "../lib/mp/potChest";
 import { MP_MOBILE_POS, centerPoint } from "../lib/mp/mobileLayout";
-import { CoinIcon } from "./CoinIcon";
 
 /**
- * Zelta monētu pods mobilajā MP galdā (Fāze 4) — labajā ailē, simetriski pretī
- * raundu skaitlim, vienā līmenī ar kopsavilkuma tabulu. Rāda TIKAI maksas istabās
- * (`pot > 0`). Krāsa token-only (`--coin`). `key={pot}` retrigger `potBump`, ja pods
- * mainās (spēlē tas ir iesaldēts; animācija paredzēta vispārējai poda atjaunināšanai).
+ * Zelta monētu pods mobilajā MP galdā — labajā ailē, simetriski pretī raundu
+ * skaitlim, vienā līmenī ar kopsavilkuma tabulu. Rāda TIKAI maksas istabās
+ * (`pot > 0`). Lādes attēls mainās pēc poda lieluma (`chestForPot`), izkārtojums
+ * vertikāls: lāde augšā, summa apakšā. Aizņem līdzīgu laukumu kā raundu skaitlis,
+ * lai pods būtu labi saskatāms (agrāk mazā ikona bija gandrīz neredzama).
+ * `key={pot}` retrigger `potBump`, kad pods mainās.
  */
 export function MobilePot({
   labels: t,
@@ -22,9 +24,9 @@ export function MobilePot({
       style={centerPoint(MP_MOBILE_POS.pot)}
       aria-label={`${t.mpPotLabel}: ${pot}`}
     >
-      <CoinIcon className="mpmPotIcon" />
+      <img className="mpmPotChest" src={chestForPot(pot)} alt="" aria-hidden="true" draggable={false} />
       <span className="mpmPotValue" key={pot}>
-        {pot}
+        {pot.toLocaleString()}
       </span>
     </div>
   );

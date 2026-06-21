@@ -14,7 +14,7 @@ import {
 import type { AppStrings } from "../../lib/i18n";
 import { getMpRulesDoc } from "../../lib/mpRulesContent";
 import type { AudioSettings } from "../../lib/useAudioSettings";
-import { CoinIcon } from "../CoinIcon";
+import { CoinGif } from "../CoinGif";
 import { Dialog } from "../Dialog";
 import { HelpIcon } from "../RulesDialog";
 import { IconButton } from "../ui/IconButton";
@@ -214,21 +214,22 @@ function CreateRoomDialog({
           </label>
         </fieldset>
 
-        <label className="mpNumberField">
-          <span>{t.roundCount}</span>
-          <input
-            type="number"
-            min={minRoomNumberOfRounds}
-            max={maxRoomNumberOfRounds}
-            value={numberOfRounds}
-            onChange={(event) => setNumberOfRounds(clampRoundCount(event.currentTarget.valueAsNumber))}
-          />
-        </label>
+        <div className="mpFieldRow">
+          <label className="mpNumberField">
+            <span>{t.roundCount}</span>
+            <input
+              type="number"
+              min={minRoomNumberOfRounds}
+              max={maxRoomNumberOfRounds}
+              value={numberOfRounds}
+              onChange={(event) => setNumberOfRounds(clampRoundCount(event.currentTarget.valueAsNumber))}
+            />
+          </label>
 
-        {canSetFee ? (
-          <label className="mpNumberField mpEntryFeeField">
+          {canSetFee ? (
+            <label className="mpNumberField mpEntryFeeField">
             <span className="mpEntryFeeLabel">
-              <CoinIcon className="mpEntryFeeIcon" />
+              <CoinGif className="mpEntryFeeIcon" />
               {t.mpEntryFee}
             </span>
             <input
@@ -243,10 +244,11 @@ function CreateRoomDialog({
               {entryFee > 0 ? t.mpEntryFeeHint : t.mpEntryFeeFree} · {t.balanceLabel}: {hostBalance ?? 0}
             </small>
             {feeExceedsBalance ? (
-              <small className="mpDialogWarning">{t.mpEntryFeeTooHigh}</small>
-            ) : null}
-          </label>
-        ) : null}
+                <small className="mpDialogWarning">{t.mpEntryFeeTooHigh}</small>
+              ) : null}
+            </label>
+          ) : null}
+        </div>
 
         <label className="mpCheckboxOption">
           <input

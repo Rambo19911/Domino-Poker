@@ -16,7 +16,7 @@ describe("CoinBalance", () => {
   it("renders the value (formatted) with a coin icon and an accessible label", () => {
     const { container } = render(<CoinBalance value={5000} label="Gold balance" />);
     expect(container.querySelector(".coinBalanceValue")?.textContent).toBe((5000).toLocaleString());
-    expect(container.querySelector("svg.coinBalanceIcon")).not.toBeNull();
+    expect(container.querySelector("img.coinBalanceIcon")).not.toBeNull();
     expect(container.querySelector(".coinBalance")?.getAttribute("aria-label")).toBe(
       "Gold balance: 5000"
     );

@@ -221,6 +221,12 @@
   min-width: 0;
 }
 
+/* Maksas čips satura platumā: bez tā flex-column `align-items: stretch` to izstieptu
+   pa visu kartes platumu (nesmuki mainās izmērs/pozīcija pie platuma maiņas). */
+.mpRoomMeta .mpRoomFee {
+  align-self: flex-start;
+}
+
 .mpRoomName {
   display: flex;
   align-items: center;
@@ -580,6 +586,19 @@
   color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.45;
+}
+
+/* RAUNDS + ENTRY FEE blakus (2 kolonnas) — lietderīgāka brīvās vietas izmantošana
+   dialogā (gan mobile, gan desktop). Kolonnas top-līdzinātas; entry-fee mājiens un
+   brīdinājums karājas zem tās kolonnas. Ja maksas lauks slēpts → viens lauks rindā. */
+.mpFieldRow {
+  display: flex;
+  gap: 16px;
+  align-items: start;
+}
+.mpFieldRow > .mpNumberField {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .mpNumberField input {

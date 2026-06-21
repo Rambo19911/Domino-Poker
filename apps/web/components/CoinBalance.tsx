@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { CoinIcon } from "./CoinIcon";
+import { CoinGif } from "./CoinGif";
 
 /** Count-up ilgums (saskan ar `--motion-slow` tonalitāti; nedaudz garāks skaitlim). */
 const COUNT_UP_MS = 600;
@@ -75,7 +75,7 @@ export function CoinBalance({
       className={className ? `coinBalance ${className}` : "coinBalance"}
       aria-label={`${label}: ${value}`}
     >
-      <CoinIcon className="coinBalanceIcon" />
+      <CoinGif className="coinBalanceIcon" />
       <span className="coinBalanceValue">{display.toLocaleString()}</span>
     </span>
   );
