@@ -53,9 +53,27 @@ export interface TrickCompletedEvent
   readonly winnerPlayerId: string;
 }
 
+/**
+ * Viena spēlētāja raunda iznākums `ROUND_RESULT` eventā: solījums (`bid`) pret
+ * paņemtajiem stiķiem (`tricksWon`), uzņemts PIRMS nākamā raunda reseta. Tā ir
+ * noturīga, replayojama event-fakta, ko servera bid-accuracy statistika lieto
+ * (sk. docs/TODO/player-stats-plan.md), nevis lasa no jau-resetota stāvokļa.
+ */
+export interface RoundPlayerResult {
+  readonly playerId: string;
+  readonly bid: number;
+  readonly tricksWon: number;
+}
+
 export interface RoundResultEvent extends MultiplayerEventBase<"ROUND_RESULT"> {
   readonly round: number;
   readonly winnerPlayerId?: string | undefined;
+  /**
+   * Per-spēlētāja solījums + paņemtie stiķi šajā raundā (pirms reseta). Aditīvs un
+   * atpakaļsaderīgs — vecie persistētie eventi šī lauka nesatur, tāpēc patērētāji
+   * to tolerē kā `undefined` (skaita tikai raundus, kur tas ir klāt).
+   */
+  readonly playerResults?: readonly RoundPlayerResult[] | undefined;
 }
 
 export interface GameOverEvent extends MultiplayerEventBase<"GAME_OVER"> {

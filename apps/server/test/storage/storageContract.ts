@@ -5,6 +5,7 @@ import type { ChatMessage } from "@domino-poker/shared";
 
 import type { AuthStore, UserRecord } from "../../src/auth/AuthStore.js";
 import type { CoinStore } from "../../src/storage/CoinStore.js";
+import type { PlayerStatsStore } from "../../src/storage/PlayerStatsStore.js";
 import type { MatchStartedRecord, StoragePort } from "../../src/storage/StoragePort.js";
 
 /**
@@ -14,10 +15,11 @@ import type { MatchStartedRecord, StoragePort } from "../../src/storage/StorageP
  * dod IDENTISKUS rezultātus. Tā ir parity drošības tīkls pirms shēmas dedublēšanas.
  *
  * Kontrakts pieskaras `StoragePort` + `getUserStats`/`createUser` (`AuthStore`) +
- * `CoinStore` (zelta maks), jo to FK prasa esošu lietotāju — tāpēc `Setup` atgriež
- * `StoragePort & AuthStore & CoinStore` (visi backendi implementē visus).
+ * `CoinStore` (zelta maks) + `PlayerStatsStore` (padziļinātā statistika), jo to FK
+ * prasa esošu lietotāju — tāpēc `Setup` atgriež `StoragePort & AuthStore & CoinStore &
+ * PlayerStatsStore` (visi backendi implementē visus).
  */
-export type ContractStorage = StoragePort & AuthStore & CoinStore;
+export type ContractStorage = StoragePort & AuthStore & CoinStore & PlayerStatsStore;
 
 /** Izveido svaigu, izolētu glabātuvi un atgriež arī tās teardown (SQLite: close; PG: close + drop schema). */
 export type ContractSetup = () => Promise<{
@@ -219,6 +221,98 @@ export function runStoragePortContract(label: string, setup: ContractSetup): voi
           losses: 1,
           updatedAt: 200
         });
+      });
+    });
+
+    describe("player game results (sp + mp deep stats)", () => {
+      beforeEach(async () => {
+        expect(await storage.createUser(makeUser())).toBe("created");
+      });
+
+      it("returns an empty aggregate before any games", async () => {
+        expect(await storage.getPlayerGameStats("user-1")).toEqual([]);
+      });
+
+      it("looks up the owner of a recorded game by id (for /sp/complete replay)", async () => {
+        expect(await storage.getGameResultOwner("sp:tok-x")).toBeUndefined();
+        await storage.recordGameResult({
+          id: "sp:tok-x", userId: "user-1", mode: "sp", difficulty: "medium",
+          placement: 1, roundCount: 3, bidMet: 3, bidExceeded: 0, bidMissed: 0, completedAt: 1
+        });
+        expect(await storage.getGameResultOwner("sp:tok-x")).toBe("user-1");
+      });
+
+      it("records sp + mp games idempotently and aggregates by mode/difficulty/placement", async () => {
+        // SP medium, 1. vieta: 5 met / 1 exceeded / 1 missed pa 7 raundiem.
+        expect(
+          await storage.recordGameResult({
+            id: "sp:tok-1", userId: "user-1", mode: "sp", difficulty: "medium",
+            placement: 1, roundCount: 7, bidMet: 5, bidExceeded: 1, bidMissed: 1, completedAt: 100
+          })
+        ).toBe(true);
+        // Tas pats `id` → idempotents no-op.
+        expect(
+          await storage.recordGameResult({
+            id: "sp:tok-1", userId: "user-1", mode: "sp", difficulty: "medium",
+            placement: 1, roundCount: 7, bidMet: 5, bidExceeded: 1, bidMissed: 1, completedAt: 999
+          })
+        ).toBe(false);
+        // Otra SP spēle, hard, 3. vieta.
+        expect(
+          await storage.recordGameResult({
+            id: "sp:tok-2", userId: "user-1", mode: "sp", difficulty: "hard",
+            placement: 3, roundCount: 5, bidMet: 4, bidExceeded: 0, bidMissed: 1, completedAt: 200
+          })
+        ).toBe(true);
+        // MP spēle (bez difficulty), 2. vieta.
+        expect(
+          await storage.recordGameResult({
+            id: "mp:match-A:user-1", userId: "user-1", mode: "mp",
+            placement: 2, roundCount: 7, bidMet: 3, bidExceeded: 2, bidMissed: 2, completedAt: 300
+          })
+        ).toBe(true);
+
+        const agg = [...(await storage.getPlayerGameStats("user-1"))].sort((a, b) =>
+          `${a.mode}|${a.difficulty}|${a.placement}`.localeCompare(
+            `${b.mode}|${b.difficulty}|${b.placement}`
+          )
+        );
+        expect(agg).toEqual([
+          { mode: "mp", difficulty: null, placement: 2, games: 1, bidMet: 3, bidExceeded: 2, bidMissed: 2 },
+          { mode: "sp", difficulty: "hard", placement: 3, games: 1, bidMet: 4, bidExceeded: 0, bidMissed: 1 },
+          { mode: "sp", difficulty: "medium", placement: 1, games: 1, bidMet: 5, bidExceeded: 1, bidMissed: 1 }
+        ]);
+      });
+
+      it("sums multiple games within the same (mode, difficulty, placement) group", async () => {
+        for (const [i, ts] of [100, 200].entries()) {
+          expect(
+            await storage.recordGameResult({
+              id: `sp:dup-${i}`, userId: "user-1", mode: "sp", difficulty: "epic",
+              placement: 1, roundCount: 4, bidMet: 2, bidExceeded: 1, bidMissed: 1, completedAt: ts
+            })
+          ).toBe(true);
+        }
+        expect(await storage.getPlayerGameStats("user-1")).toEqual([
+          { mode: "sp", difficulty: "epic", placement: 1, games: 2, bidMet: 4, bidExceeded: 2, bidMissed: 2 }
+        ]);
+      });
+
+      it("rejects invalid records (sum mismatch, mode/difficulty mismatch, range) without writing", async () => {
+        const base = {
+          id: "sp:bad", userId: "user-1", mode: "sp" as const, difficulty: "medium" as const,
+          placement: 1, roundCount: 7, bidMet: 5, bidExceeded: 1, bidMissed: 1, completedAt: 1
+        };
+        // Solījumu summa != raundu skaits.
+        await expect(storage.recordGameResult({ ...base, id: "sp:bad1", bidMissed: 99 })).rejects.toThrow();
+        // SP bez difficulty.
+        await expect(storage.recordGameResult({ ...base, id: "sp:bad2", difficulty: undefined })).rejects.toThrow();
+        // MP ar difficulty.
+        await expect(storage.recordGameResult({ ...base, id: "mp:bad3", mode: "mp" })).rejects.toThrow();
+        // Placement ārpus 1..4.
+        await expect(storage.recordGameResult({ ...base, id: "sp:bad4", placement: 5 })).rejects.toThrow();
+        // Neviens nederīgais ieraksts nedrīkst būt ierakstīts.
+        expect(await storage.getPlayerGameStats("user-1")).toEqual([]);
       });
     });
 

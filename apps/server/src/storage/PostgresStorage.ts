@@ -16,6 +16,12 @@ import type {
   UserStatsRecord
 } from "./StoragePort.js";
 import type { ApplyLedgerResult, CoinStore, LedgerEntryInput } from "./CoinStore.js";
+import {
+  assertValidGameResult,
+  type GameResultRecord,
+  type GameStatsAggregateRow,
+  type PlayerStatsStore
+} from "./PlayerStatsStore.js";
 import { runMigrations } from "./migrations.js";
 import type { RoomLeaseRecord, RoomLeaseRequest, RoomLeaseStore } from "./RoomLeaseStore.js";
 import type {
@@ -94,7 +100,13 @@ export interface DbHealthReport {
 }
 
 export class PostgresStorage
-  implements StoragePort, RoomLeaseStore, DurableSessionStore, AuthStore, CoinStore
+  implements
+    StoragePort,
+    RoomLeaseStore,
+    DurableSessionStore,
+    AuthStore,
+    CoinStore,
+    PlayerStatsStore
 {
   private constructor(private readonly pool: PgPool) {}
 
@@ -770,6 +782,61 @@ export class PostgresStorage
     };
   }
 
+  async recordGameResult(record: GameResultRecord): Promise<boolean> {
+    assertValidGameResult(record);
+    const result = await this.pool.query(
+      `INSERT INTO player_game_results
+         (id, user_id, mode, difficulty, placement, round_count,
+          bid_met, bid_exceeded, bid_missed, completed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       ON CONFLICT (id) DO NOTHING`,
+      [
+        record.id,
+        record.userId,
+        record.mode,
+        record.difficulty ?? null,
+        record.placement,
+        record.roundCount,
+        record.bidMet,
+        record.bidExceeded,
+        record.bidMissed,
+        record.completedAt
+      ]
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async getPlayerGameStats(userId: string): Promise<readonly GameStatsAggregateRow[]> {
+    const result = await this.pool.query<GameResultsAggRow>(
+      `SELECT mode, difficulty, placement,
+              COUNT(*)::int          AS games,
+              SUM(bid_met)::int      AS bid_met,
+              SUM(bid_exceeded)::int AS bid_exceeded,
+              SUM(bid_missed)::int   AS bid_missed
+         FROM player_game_results
+        WHERE user_id = $1
+        GROUP BY mode, difficulty, placement`,
+      [userId]
+    );
+    return result.rows.map((row) => ({
+      mode: row.mode as GameStatsAggregateRow["mode"],
+      difficulty: (row.difficulty ?? null) as GameStatsAggregateRow["difficulty"],
+      placement: Number(row.placement),
+      games: Number(row.games),
+      bidMet: Number(row.bid_met),
+      bidExceeded: Number(row.bid_exceeded),
+      bidMissed: Number(row.bid_missed)
+    }));
+  }
+
+  async getGameResultOwner(id: string): Promise<string | undefined> {
+    const result = await this.pool.query<{ user_id: string }>(
+      `SELECT user_id FROM player_game_results WHERE id = $1`,
+      [id]
+    );
+    return result.rows[0]?.user_id;
+  }
+
   async getLeaderboard(limit: number, minGames: number): Promise<readonly LeaderboardEntryRecord[]> {
     // CTE: win_rate kā double precision PIRMS ranžēšanas (nedrīkst aliasu ORDER BY
     // iekšā ROW_NUMBER). LEFT JOIN preferences + COALESCE → bez backfill veciem kontiem.
@@ -976,6 +1043,17 @@ interface UserStatsRow {
   readonly wins: number | string;
   readonly losses: number | string;
   readonly updated_at: number | string;
+}
+
+/** Agregāta rinda no `player_game_results` GROUP BY (pg var atgriezt skaitļus kā string). */
+interface GameResultsAggRow {
+  readonly mode: string;
+  readonly difficulty: string | null;
+  readonly placement: number | string;
+  readonly games: number | string;
+  readonly bid_met: number | string;
+  readonly bid_exceeded: number | string;
+  readonly bid_missed: number | string;
 }
 
 /**

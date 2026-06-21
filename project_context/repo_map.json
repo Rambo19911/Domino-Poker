@@ -2268,5 +2268,81 @@
       "apps/web/app/globals.css"
     ],
     "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/storage/PlayerStatsStore.ts",
+    "type": "source",
+    "purpose": "Deep-stats storage capability port (implemented by SqliteStorage + PostgresStorage): recordGameResult (idempotent by id), getPlayerGameStats (GROUP BY aggregate rows), getGameResultOwner (for /sp/complete replay). Includes assertValidGameResult, the DB-agnostic invariant guard backing migration 0008 CHECKs.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/storage/schema.ts",
+      "apps/server/src/storage/SqliteStorage.ts",
+      "apps/server/src/storage/PostgresStorage.ts",
+      "apps/server/src/stats/PlayerStatsService.ts",
+      "apps/server/test/storage/storageContract.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/stats/PlayerStatsService.ts",
+    "type": "source",
+    "purpose": "Player-stats application service: recordSpGame (builds sp:{gameToken} id), findSpGameOwner (replay), getStats which composes GROUP-BY aggregate rows into the UI shape (bid accuracy + sp placement-by-difficulty + mp placement).",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/storage/PlayerStatsStore.ts",
+      "apps/server/src/http/statsRoutes.ts",
+      "apps/server/src/http/spRewardRoutes.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/stats/MpStatsRecorder.ts",
+    "type": "source",
+    "purpose": "Server-authoritative MP bid-accuracy writer (sibling of OutcomeRecorder, room-owner lifecycle). Accumulates from ROUND_RESULT.playerResults in onMatchEvents (before onMatchFinished), persists one idempotent mp:{matchId}:{userId} row per registered human at GAME_OVER. Records all MP games incl. with bots.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/index.ts",
+      "apps/server/src/rooms/RoomManager.ts",
+      "packages/core/src/multiplayer/events.ts",
+      "apps/server/src/storage/PlayerStatsStore.ts",
+      "apps/server/test/stats/MpStatsRecorder.test.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/http/statsRoutes.ts",
+    "type": "source",
+    "purpose": "GET /stats (auth, own rate limiter, lazy) returning PlayerStatsService.getStats. Wired in httpServer before the auth handler; owned by the stats module, not auth.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/httpServer.ts",
+      "apps/server/src/stats/PlayerStatsService.ts",
+      "apps/server/test/http/statsRoutes.integration.test.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/stats/playerStats.ts",
+    "type": "source",
+    "purpose": "Web client API + types for deep stats: apiGetStats (GET /stats) lazily fetched when the Statistics tab opens; PlayerStats/PlacementDistribution shapes mirror the server.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/auth/StatisticsPanel.tsx",
+      "apps/web/lib/auth/authApi.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/auth/StatisticsPanel.tsx",
+    "type": "ui",
+    "purpose": "Profile dialog Statistics tab: lazy-fetches /stats and renders hand-rolled token-only CSS segmented bars (no chart lib, no animation, reduced-motion safe) for bid accuracy, tactical tendencies, and placement distributions by difficulty + MP. Loading/error/empty states.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/auth/AuthDialog.tsx",
+      "apps/web/lib/stats/playerStats.ts",
+      "apps/web/styles/auth.css",
+      "apps/web/test/StatisticsPanel.test.tsx"
+    ],
+    "confidence": "high"
   }
 ]

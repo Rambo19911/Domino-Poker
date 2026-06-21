@@ -264,4 +264,40 @@ describe("server event runtime validation", () => {
     expect(parseServerEventFanout({ kind: "player", playerId: "c1" }).success).toBe(false); // trūkst event
     expect(parseServerEventFanout({ kind: "broadcast", event: { type: "X" } }).success).toBe(false);
   });
+
+  it("preserves ROUND_RESULT.playerResults through GAME_EVENT validation + fanout (statistika)", () => {
+    // GAME_EVENT.event ir `z.unknown()` (passthrough) → bagātinātais bid-accuracy lauks
+    // (Fāze 1) izdzīvo gan envelope validāciju, gan cross-instance fanout (NEtiek nogriezts).
+    const gameEvent = {
+      type: "GAME_EVENT" as const,
+      roomId: "r1",
+      seq: 7,
+      event: {
+        type: "ROUND_RESULT",
+        gameId: "r1",
+        eventSeq: 7,
+        round: 2,
+        playerResults: [
+          { playerId: "1", bid: 3, tricksWon: 3 },
+          { playerId: "2", bid: 2, tricksWon: 4 }
+        ]
+      },
+      serverNow: 100
+    };
+    // `GAME_EVENT.event` ir `z.unknown()` (passthrough) → validācija PIEŅEM bagātināto
+    // eventu (nenoraida/nenogriež), un parse atdod oriģinālo objektu, tāpēc `playerResults`
+    // izdzīvo gan envelope validāciju, gan cross-instance fanout. Galvenais: `success`.
+    const parsed = parseServerEvent(gameEvent);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      const event = parsed.event as { event: { playerResults: unknown } };
+      expect(event.event.playerResults).toEqual(gameEvent.event.playerResults);
+    }
+    const fanout = parseServerEventFanout({ kind: "broadcast", event: gameEvent });
+    expect(fanout.success).toBe(true);
+    if (fanout.success) {
+      const inner = (fanout.message as { event: { event: { playerResults: unknown } } }).event.event;
+      expect(inner.playerResults).toEqual(gameEvent.event.playerResults);
+    }
+  });
 });

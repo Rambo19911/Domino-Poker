@@ -13,7 +13,7 @@ import { avatarUrl } from "../lib/auth/avatarUrl";
 import { titleLabel } from "../lib/auth/titleLabel";
 import type { AuthResult } from "../lib/auth/authApi";
 import { useAuthUser } from "../lib/auth/useAuthUser";
-import { apiSpReward, apiSpStart, type SpStartResponse } from "../lib/sp/spReward";
+import { apiSpComplete, apiSpStart, type SpGameResult, type SpStartResponse } from "../lib/sp/spReward";
 import {
   defaultLocale,
   getAppStrings,
@@ -186,29 +186,36 @@ export function AppShell() {
     // ja īsa spēle beidzas pirms atbildes. Anonīmam izlaižam — spēlē, bet nesaņem neko.
     setSpAward(null);
     const token = getAuthToken();
-    spStartRef.current = token ? apiSpStart(token, selectedDifficulty) : null;
+    spStartRef.current = token ? apiSpStart(token, selectedDifficulty, selectedRoundCount) : null;
     setScreen("game");
   };
 
-  // Fāze 2: SP spēle beigusies. Ja cilvēks ir 1.–2. vietā, sagaidām /sp/start atbildi
-  // un pieprasām balvu pret tās tokenu (vienreizējs; serveris piespiež grūtību+griestus).
-  // Bilance lobby atjaunojas pati caur `screen === "lobby"` refresh efektu.
+  // Fāze 2 + statistika: SP spēle beigusies. VISIEM placement 1..4 sagaidām /sp/start
+  // atbildi un izsaucam `/sp/complete` (reģistrē statistiku + piešķir balvu 1./2. vietai;
+  // serveris piespiež grūtību+raundu skaitu+griestus). Bilance lobby atjaunojas pati.
   const handleSpGameEnd = useCallback(
-    (humanPlacement: number): void => {
+    (result: SpGameResult): void => {
       const startRequest = spStartRef.current;
       const token = getAuthToken();
       spStartRef.current = null; // viena izsaukuma sargs
-      if (!startRequest || !token || humanPlacement < 1 || humanPlacement > 2) {
+      if (!startRequest || !token || result.placement < 1 || result.placement > 4) {
         return;
       }
-      const placement = humanPlacement as 1 | 2;
       void startRequest
         .then((startRes) =>
-          startRes.ok ? apiSpReward(token, { gameToken: startRes.data.gameToken, placement }) : null
+          startRes.ok
+            ? apiSpComplete(token, {
+                gameToken: startRes.data.gameToken,
+                placement: result.placement,
+                bidMet: result.bidMet,
+                bidExceeded: result.bidExceeded,
+                bidMissed: result.bidMissed
+              })
+            : null
         )
-        .then((rewardRes) => {
-          if (rewardRes && rewardRes.ok && rewardRes.data.awarded > 0) {
-            setSpAward(rewardRes.data.awarded);
+        .then((completeRes) => {
+          if (completeRes && completeRes.ok && completeRes.data.coinsAwarded > 0) {
+            setSpAward(completeRes.data.coinsAwarded);
           }
         });
     },

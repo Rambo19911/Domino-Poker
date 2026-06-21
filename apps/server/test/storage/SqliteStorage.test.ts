@@ -233,12 +233,13 @@ describe("SqliteStorage schema version tracking", () => {
       "0004_password_reset_tokens",
       "0005_custom_avatars",
       "0006_user_preferences",
-      "0007_coin_wallet"
+      "0007_coin_wallet",
+      "0008_player_game_results"
     ]);
 
     // Reopen: nepiemēro neko atkārtoti (joprojām tieši tās pašas rindas).
     const second = new SqliteStorage({ filename: tmpFile });
     await second.close();
-    expect(recordedMigrations()).toHaveLength(7);
+    expect(recordedMigrations()).toHaveLength(8);
   });
 });

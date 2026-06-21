@@ -10,6 +10,7 @@ import { createChatTranslateHandler } from "./chat/chatTranslateRoutes.js";
 import { loadServerConfig } from "./config.js";
 import { createAuthHandler } from "./http/authRoutes.js";
 import { createSpRewardHandler } from "./http/spRewardRoutes.js";
+import { createStatsHandler } from "./http/statsRoutes.js";
 import { createHealthHttpServer } from "./httpServer.js";
 import { DisplayIdRegistry } from "./identity/DisplayIdRegistry.js";
 import { LeaderboardService } from "./leaderboard/LeaderboardService.js";
@@ -23,6 +24,9 @@ import { MatchPersistence } from "./storage/MatchPersistence.js";
 import { OutcomeRecorder } from "./storage/OutcomeRecorder.js";
 import { SpRewardTokens } from "./sp/SpRewardTokens.js";
 import { isCoinStore } from "./storage/CoinStore.js";
+import { isPlayerStatsStore } from "./storage/PlayerStatsStore.js";
+import { MpStatsRecorder } from "./stats/MpStatsRecorder.js";
+import { PlayerStatsService } from "./stats/PlayerStatsService.js";
 import { PostgresStorage } from "./storage/PostgresStorage.js";
 import { openStorage } from "./storage/index.js";
 import { SystemTurnTimerScheduler } from "./timers/SystemTurnTimerScheduler.js";
@@ -71,6 +75,15 @@ const authService = isAuthStore(storage)
 // Fāze 0: zelta monētu maks (virtuālā valūta). Gan SqliteStorage, gan PostgresStorage
 // implementē CoinStore. Anonīmā spēle to neizmanto. Starta bonuss + bilance.
 const wallet = isCoinStore(storage) ? new WalletService({ coins: storage, clock }) : undefined;
+// Fāze: padziļinātā spēlētāja statistika. Abas glabātuves implementē PlayerStatsStore.
+const playerStats = isPlayerStatsStore(storage)
+  ? new PlayerStatsService({ store: storage })
+  : undefined;
+// MP servera-autoritatīvais bid-accuracy reģistrētājs (brālis OutcomeRecorder; istabas
+// īpašnieka dzīves cikla āķos). Uzkrāj no ROUND_RESULT.playerResults, persistē pie GAME_OVER.
+const mpStats = isPlayerStatsStore(storage)
+  ? new MpStatsRecorder({ store: storage, clock })
+  : undefined;
 // Fāze 3: MP poda izmaksas dzinējs (atsevišķs no OutcomeRecorder; tikai ar maku).
 const payouts = wallet ? new MatchPayoutService({ wallet }) : undefined;
 // Fāze 2: SP balvas vienreizējie spēles tokeni (in-memory, vienas instances anti-cheat).
@@ -78,7 +91,10 @@ const spRewardTokens =
   authService && wallet
     ? new SpRewardTokens({
         clock,
-        ttlMs: 30 * 60 * 1000,
+        // 2h: lēna/AFK/50-raundu (SP_MAX_ROUNDS) spēle var pārsniegt 30 min — tad tokens
+        // izbeigtos pirms /sp/complete un zustu gan statistika, gan balva. 50 raundi reāli
+        // neaizņem 2h, tāpēc statisks 2h ir droša augšējā robeža (NE dinamisks per-spēle).
+        ttlMs: 2 * 60 * 60 * 1000,
         maxPerUser: 3,
         createId: () => randomUUID()
       })
@@ -122,10 +138,18 @@ const rooms = new RoomManager({
     outcomes.matchStarted(record);
     // Fāze 3: maksas spēlēm kešo podu + sastāvu poda izmaksai pie GAME_OVER.
     payouts?.matchStarted(record);
+    // Statistika: kešo reģistrēto cilvēku sastāvu MP bid-accuracy uzkrāšanai.
+    mpStats?.matchStarted(record);
   },
-  onMatchEvents: (events) => persistence.events(events),
+  onMatchEvents: (events) => {
+    persistence.events(events);
+    // Statistika: uzkrāj MP bid-accuracy no ROUND_RESULT (PIRMS GAME_OVER tajā pašā batch).
+    mpStats?.recordEvents(events);
+  },
   onMatchFinished: (matchId, standings) => {
     outcomes.gameOver(matchId, standings);
+    // Statistika: persistē MP per-cilvēka rindu (vieta no standings + uzkrātie skaitītāji).
+    mpStats?.gameOver(matchId, standings);
     // Fāze 3: sadala podu top-2 reģistrētajiem cilvēkiem un push WALLET_UPDATED.
     // Fire-and-forget (idempotents pēc matchId; kešs neatkarīgs no istabas dzīves cikla).
     if (payouts) {
@@ -146,6 +170,8 @@ const rooms = new RoomManager({
   onRoomAbandoned: (matchId) => {
     outcomes.matchAbandoned(matchId);
     payouts?.matchAbandoned(matchId);
+    // Statistika: bez GAME_OVER nav autoritatīvas vietas → aizmirst (nepersistē).
+    mpStats?.forget(matchId);
   },
   // Pirms-spēles atskaite uz galda, lai lēnāki klienti paspēj ielādēt galdu
   // pirms sākas solījumi (sk. RoomManager.startGame / GAME_STARTING).
@@ -299,12 +325,24 @@ const server = createHealthHttpServer({
         })
       }
     : {}),
-  ...(authService && wallet && spRewardTokens
+  ...(authService && wallet && spRewardTokens && playerStats
     ? {
         spRewardHandler: createSpRewardHandler({
           auth: authService,
           wallet,
           tokens: spRewardTokens,
+          stats: playerStats,
+          webOrigins: config.webOrigins,
+          clock,
+          dev: config.nodeEnv !== "production"
+        })
+      }
+    : {}),
+  ...(authService && playerStats
+    ? {
+        statsHandler: createStatsHandler({
+          auth: authService,
+          stats: playerStats,
           webOrigins: config.webOrigins,
           clock,
           dev: config.nodeEnv !== "production"

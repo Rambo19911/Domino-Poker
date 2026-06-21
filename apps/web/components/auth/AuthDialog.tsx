@@ -17,6 +17,7 @@ import { avatarUrl } from "../../lib/auth/avatarUrl";
 import { prepareAvatar } from "../../lib/auth/avatarUpload";
 import { IconButton } from "../ui/IconButton";
 import { TextField } from "../ui/TextField";
+import { StatisticsPanel } from "./StatisticsPanel";
 import type { AuthStatus } from "../../lib/auth/useAuthUser";
 import type { AppStrings } from "../../lib/i18n";
 import { readLocalStorage, removeLocalStorage, writeLocalStorage } from "../../lib/safeStorage";
@@ -30,7 +31,7 @@ import {
 } from "../../lib/theme";
 import { Dialog } from "../Dialog";
 
-type Tab = "login" | "register" | "profile" | "personalization" | "forgot";
+type Tab = "login" | "register" | "profile" | "personalization" | "statistics" | "forgot";
 
 export interface AuthDialogProps {
   readonly labels: AppStrings;
@@ -45,6 +46,8 @@ export interface AuthDialogProps {
   readonly uploadAvatar: (blob: Blob) => Promise<AuthResult<{ user: AuthUser; avatarVersion: number }>>;
   readonly onClose: () => void;
   readonly playClick?: () => void;
+  /** Pašreizējā auth tokena lasītājs — "Statistika" tabs to lieto `GET /stats`. */
+  readonly getToken: () => string | undefined;
 }
 
 /** Maršrutē servera kļūdas kodu uz lokalizētu ziņu (nekādu hardcoded tekstu). */
@@ -111,6 +114,15 @@ export function AuthDialog(props: AuthDialogProps) {
                 onClick={() => selectTab("personalization")}
               >
                 {t.personalization}
+              </button>
+              <button
+                className="settingsTab"
+                type="button"
+                role="tab"
+                aria-selected={tab === "statistics"}
+                onClick={() => selectTab("statistics")}
+              >
+                {t.statistics}
               </button>
             </>
           ) : (
@@ -250,6 +262,10 @@ export function AuthDialog(props: AuthDialogProps) {
 
       {tab === "personalization" && authenticated ? (
         <PersonalizationPanel labels={t} playClick={playClick} />
+      ) : null}
+
+      {tab === "statistics" && authenticated ? (
+        <StatisticsPanel labels={t} getToken={props.getToken} />
       ) : null}
     </Dialog>
   );

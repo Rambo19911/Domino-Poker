@@ -4,6 +4,7 @@ import process from "node:process";
 import type { ChatTranslateHandler } from "./chat/chatTranslateRoutes.js";
 import type { AuthHandler } from "./http/authRoutes.js";
 import type { SpRewardHandler } from "./http/spRewardRoutes.js";
+import type { StatsHandler } from "./http/statsRoutes.js";
 
 interface PoolCounts {
   readonly total: number;
@@ -43,6 +44,11 @@ export interface HealthHttpServerOptions {
    * `createSpRewardHandler`. Mēģināts PIRMS `authHandler`; atgriež `true`, ja apstrādāja.
    */
   readonly spRewardHandler?: SpRewardHandler;
+  /**
+   * Opcionāls padziļinātās statistikas maršruts (`GET /stats`, Fāze 5). Injicē
+   * `index.ts` no `createStatsHandler`. Mēģināts PIRMS `authHandler`.
+   */
+  readonly statsHandler?: StatsHandler;
   /** Optional MP lobby chat translation HTTP route (`/chat/translate`). */
   readonly chatTranslateHandler?: ChatTranslateHandler;
 }
@@ -104,7 +110,7 @@ function routeAuthOr404(
   void routeApiHandlers(request, response, options);
 }
 
-/** Mēģina API apstrādātājus secīgi (sp → auth); pirmais, kas atgriež `true`, beidz. */
+/** Mēģina API apstrādātājus secīgi (sp → stats → auth); pirmais, kas atgriež `true`, beidz. */
 async function routeApiHandlers(
   request: IncomingMessage,
   response: ServerResponse,
@@ -112,6 +118,9 @@ async function routeApiHandlers(
 ): Promise<void> {
   try {
     if (options.spRewardHandler !== undefined && (await options.spRewardHandler(request, response))) {
+      return;
+    }
+    if (options.statsHandler !== undefined && (await options.statsHandler(request, response))) {
       return;
     }
     if (options.authHandler !== undefined && (await options.authHandler(request, response))) {

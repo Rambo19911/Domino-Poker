@@ -7,6 +7,19 @@ interface SpToken {
   readonly userId: string;
   /** Grūtība momentuzņemta SĀKUMĀ — balva tiek atvasināta no ŠĪS, ne no klienta. */
   readonly difficulty: CoinDifficulty;
+  /**
+   * Raundu skaits momentuzņemts SĀKUMĀ (Fāze: statistika). Bid-accuracy validācijai —
+   * `/sp/complete` pārbauda, ka klienta ziņoto solījumu skaitītāju summa sakrīt ar ŠO
+   * (nevis ar klienta apgalvojumu), tāpēc to nevar uzpūst.
+   */
+  readonly roundCount: number;
+  readonly issuedAt: number;
+}
+
+/** Tokena momentuzņēmums (peek/consume rezultāts): serverī uzticamie spēles parametri. */
+export interface SpTokenSnapshot {
+  readonly difficulty: CoinDifficulty;
+  readonly roundCount: number;
   readonly issuedAt: number;
 }
 
@@ -43,21 +56,36 @@ export class SpRewardTokens {
     this.createId = options.createId;
   }
 
-  /** Izsniedz jaunu vienreizēju tokenu lietotājam, momentuzņemot grūtību. */
-  issue(userId: string, difficulty: CoinDifficulty): string {
+  /** Izsniedz jaunu vienreizēju tokenu lietotājam, momentuzņemot grūtību + raundu skaitu. */
+  issue(userId: string, difficulty: CoinDifficulty, roundCount: number): string {
     const now = this.clock();
     this.prune(now);
     this.enforcePerUserLimit(userId);
     const token = this.createId();
-    this.tokens.set(token, { userId, difficulty, issuedAt: now });
+    this.tokens.set(token, { userId, difficulty, roundCount, issuedAt: now });
     return token;
   }
 
   /**
-   * Patērē (vienreizēji) tokenu. Atgriež momentuzņemto grūtību + izsniegšanas laiku,
-   * ja tokens derīgs, neizbeidzies un pieder `userId`; citādi `null`. Dzēš tokenu.
+   * Apskata (NEpatērē) tokenu. Atgriež momentuzņēmumu, ja tokens derīgs, neizbeidzies
+   * un pieder `userId`; citādi `null`. Lieto `/sp/complete`, lai DB kļūme PĒC peek
+   * nepazaudētu tokenu (token patērē TIKAI pēc veiksmīgas ierakstīšanas — sk. plānu).
    */
-  consume(token: string, userId: string): { difficulty: CoinDifficulty; issuedAt: number } | null {
+  peek(token: string, userId: string): SpTokenSnapshot | null {
+    const now = this.clock();
+    this.prune(now);
+    const entry = this.tokens.get(token);
+    if (!entry || entry.userId !== userId) {
+      return null;
+    }
+    return { difficulty: entry.difficulty, roundCount: entry.roundCount, issuedAt: entry.issuedAt };
+  }
+
+  /**
+   * Patērē (vienreizēji) tokenu. Atgriež momentuzņēmumu, ja tokens derīgs, neizbeidzies
+   * un pieder `userId`; citādi `null`. Dzēš tokenu.
+   */
+  consume(token: string, userId: string): SpTokenSnapshot | null {
     const now = this.clock();
     this.prune(now);
     const entry = this.tokens.get(token);
@@ -65,7 +93,7 @@ export class SpRewardTokens {
       return null;
     }
     this.tokens.delete(token);
-    return { difficulty: entry.difficulty, issuedAt: entry.issuedAt };
+    return { difficulty: entry.difficulty, roundCount: entry.roundCount, issuedAt: entry.issuedAt };
   }
 
   /** Izstumj beigušos tokenus (slinki, pie katra issue/consume). */

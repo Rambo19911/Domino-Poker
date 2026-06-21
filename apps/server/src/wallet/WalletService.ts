@@ -85,9 +85,15 @@ export class WalletService {
   /**
    * Ieskaita SP balvu (Fāze 2). Idempotents pēc `gameToken` (ref) — atkārtots
    * pieprasījums ar to pašu tokenu neieskaita divreiz (papildu DB-līmeņa sargs virs
-   * vienreizējā in-memory tokena). Atgriež bilanci pēc kreditēšanas.
+   * vienreizējā in-memory tokena). Atgriež `applied` (vai TIKKO tika ieskaitīts, NE
+   * idempotents no-op) + bilanci. `applied` ļauj `/sp/complete` ziņot ĪSTO `awarded`
+   * (dublikātā 0), kreditējot katrā izsaukumā recoverability dēļ.
    */
-  async creditSpReward(userId: string, gameToken: string, amount: number): Promise<number> {
+  async creditSpReward(
+    userId: string,
+    gameToken: string,
+    amount: number
+  ): Promise<{ applied: boolean; balance: number }> {
     const result = await this.coins.applyLedger({
       id: this.createId(),
       userId,
@@ -96,7 +102,9 @@ export class WalletService {
       ref: gameToken,
       now: this.clock()
     });
-    return result.ok ? result.balance : this.coins.getBalance(userId);
+    return result.ok
+      ? { applied: result.applied, balance: result.balance }
+      : { applied: false, balance: await this.coins.getBalance(userId) };
   }
 
   /**
@@ -182,8 +190,10 @@ export class WalletService {
       if (grantable <= 0) {
         return { awarded: 0, balance: await this.getBalance(userId) };
       }
-      const balance = await this.creditSpReward(userId, gameToken, grantable);
-      return { awarded: grantable, balance };
+      // Kreditē; `applied=false` nozīmē, ka šim tokenam jau bija ieraksts (idempotents
+      // no-op) → ziņojam awarded:0, nevis nepatiesi apgalvojam jaunas monētas.
+      const { applied, balance } = await this.creditSpReward(userId, gameToken, grantable);
+      return { awarded: applied ? grantable : 0, balance };
     });
   }
 }

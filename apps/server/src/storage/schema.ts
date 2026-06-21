@@ -278,6 +278,42 @@ function coinWalletSchema(t: DialectTypes): string {
 }
 
 /**
+ * 0008: padziļinātā spēlētāja statistika (sk. `docs/TODO/player-stats-plan.md`).
+ * VIENA `player_game_results` tabula ar per-spēli rindām GAN SP, GAN MP (`mode`
+ * diskriminators). `id` = idempotences atslēga (`sp:{token}` / `mp:{matchId}:{userId}`),
+ * tāpēc atkārtots ieraksts ir no-op. `difficulty` ir tikai SP rindām (MP = NULL).
+ * `CHECK` atspoguļo `PlayerStatsStore.assertValidGameResult` (otrā aizsardzības līnija):
+ * derīgs `mode`/`placement`/`round_count`/negatīvums, solījumu summa = raundu skaits,
+ * un mode↔difficulty saderība. Visas formas (CHECK IN/BETWEEN/IS NULL, tabulas-līmeņa
+ * CHECK) jau lietotas 0003/0006/0007 → identiskas SQLite un PostgreSQL. FK CASCADE.
+ * Index `(user_id, mode, difficulty)` agregātlasīšanai pēc režīma/grūtības.
+ */
+function playerGameResultsSchema(t: DialectTypes): string {
+  return `
+  CREATE TABLE IF NOT EXISTS player_game_results (
+    id           TEXT PRIMARY KEY,
+    user_id      TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    mode         TEXT NOT NULL CHECK (mode IN ('sp', 'mp')),
+    difficulty   TEXT CHECK (difficulty IN ('medium', 'hard', 'epic')),
+    placement    INTEGER NOT NULL CHECK (placement BETWEEN 1 AND 4),
+    round_count  INTEGER NOT NULL CHECK (round_count > 0),
+    bid_met      INTEGER NOT NULL CHECK (bid_met >= 0),
+    bid_exceeded INTEGER NOT NULL CHECK (bid_exceeded >= 0),
+    bid_missed   INTEGER NOT NULL CHECK (bid_missed >= 0),
+    completed_at ${t.bigint} NOT NULL,
+    CHECK (bid_met + bid_exceeded + bid_missed = round_count),
+    CHECK (
+      (mode = 'sp' AND difficulty IS NOT NULL) OR
+      (mode = 'mp' AND difficulty IS NULL)
+    )
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_player_game_results_user
+    ON player_game_results (user_id, mode, difficulty);
+`;
+}
+
+/**
  * Renderē sakārtoto migrāciju sarakstu dotajam dialektam. ID un secība ir
  * STABILA un identiska abiem dialektiem (versionēšanas paritāte); atšķiras tikai
  * kolonnu tipi un PG-only tabulu klātbūtne (tikai 0001).
@@ -293,6 +329,7 @@ export function buildMigrations(dialect: SchemaDialect): readonly SchemaMigratio
     { id: "0004_password_reset_tokens", up: passwordResetSchema(t) },
     { id: "0005_custom_avatars", up: customAvatarSchema(t) },
     { id: "0006_user_preferences", up: userPreferencesSchema(t) },
-    { id: "0007_coin_wallet", up: coinWalletSchema(t) }
+    { id: "0007_coin_wallet", up: coinWalletSchema(t) },
+    { id: "0008_player_game_results", up: playerGameResultsSchema(t) }
   ];
 }

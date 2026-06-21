@@ -689,5 +689,49 @@
       "DB-level money correctness is validated against a real multi-instance PostgreSQL in apps/server/test/storage/coinConcurrency.integration.test.ts (run via `npm run test:postgres:docker`): concurrent distinct-ref debits never overdraft (FOR UPDATE serializes; exactly floor(balance/fee) succeed), same-key debit/refund/payout apply exactly once under concurrency (no double-apply, no unique-violation crash), and two separate PostgresStorage pools (two app instances) racing the same row keep all invariants. The orchestration-layer in-memory refund-retry/payout caches are the only non-DB-durable part (R3)."
     ],
     "confidence": "high"
+  },
+  {
+    "name": "Player Statistics (Deep Stats)",
+    "folder": ".",
+    "purpose": "Cross-cutting deep player statistics for registered users (bid accuracy + placement distributions; NOT a competitive leaderboard — they drive no rewards/ranking). One generalized player_game_results table (migration 0008, mode sp/mp discriminator, per-game rows, idempotent by id) via the PlayerStatsStore capability. Bid accuracy needs per-round bid-vs-tricks, which the engine resets each round, so the authoritative ROUND_RESULT event was enriched with playerResults captured pre-reset. SP is client-reported + server-validated via POST /sp/complete (token snapshots difficulty+roundCount; sum===roundCount check; coins for 1st/2nd; independent idempotency + consumed-token replay -> stable success). MP is server-authoritative via MpStatsRecorder (room-owner lifecycle, accumulates from ROUND_RESULT.playerResults before GAME_OVER, persists mp:{matchId}:{userId} rows; records all MP games incl. with bots). Read via GET /stats (lazy, own handler) -> PlayerStatsService.getStats composition; profile Statistics tab renders hand-rolled token-only CSS bars.",
+    "main_files": [
+      "packages/core/src/multiplayer/events.ts",
+      "packages/core/src/multiplayer/applyCommand.ts",
+      "apps/server/src/storage/PlayerStatsStore.ts",
+      "apps/server/src/storage/schema.ts",
+      "apps/server/src/stats/PlayerStatsService.ts",
+      "apps/server/src/stats/MpStatsRecorder.ts",
+      "apps/server/src/http/statsRoutes.ts",
+      "apps/server/src/http/spRewardRoutes.ts",
+      "apps/server/src/sp/SpRewardTokens.ts",
+      "apps/server/src/wallet/WalletService.ts",
+      "apps/web/lib/stats/playerStats.ts",
+      "apps/web/components/auth/StatisticsPanel.tsx",
+      "apps/web/components/auth/AuthDialog.tsx",
+      "apps/web/components/DominoPokerGame.tsx",
+      "apps/web/lib/sp/spReward.ts",
+      "apps/web/lib/locales/en.ts",
+      "apps/web/lib/locales/lv.ts",
+      "apps/web/styles/auth.css"
+    ],
+    "depends_on": [
+      "Shared Protocol",
+      "Core Multiplayer",
+      "Server Storage",
+      "Server Auth",
+      "Coin Economy (Gold)"
+    ],
+    "used_by": [
+      "Web App",
+      "Multiplayer Server"
+    ],
+    "risks": [
+      "player_game_results (migration 0008) is one generalized table with a mode sp/mp discriminator + per-game rows, idempotent by id (sp:{gameToken} / mp:{matchId}:{userId}). assertValidGameResult is a DB-agnostic guard (placement 1..4, non-negative counters, bid_met+bid_exceeded+bid_missed===round_count, sp=>difficulty / mp=>no difficulty); DDL CHECKs are the backstop. Aggregates computed on read via GROUP BY (verified identical on SQLite + Postgres via the storage contract / docker).",
+      "ROUND_RESULT was enriched with playerResults:{playerId,bid,tricksWon}[] captured PRE-reset in core applyStartNextRound. GAME_EVENT.event is zod-passthrough, so the field survives cross-instance fanout — do not add strict event schemas that would strip it.",
+      "SP stats are client-reported (the exact/over/under split and placement), validated only by sum===token.roundCount; acceptable because stats drive nothing competitive (coins still derive only from token difficulty + placement). POST /sp/complete: peek (do NOT consume) -> validate -> record -> credit (1st/2nd, >=5s) -> consume AFTER success; independent idempotency (row id + ledger key); consumed-token replay returns a stable 200 via getGameResultOwner (cross-user -> 409). Token TTL is 2h. Known future edge: credit fails AND token expires before retry can lose that reward (mitigated by TTL; full fix = reward_claimed flag).",
+      "MP stats: MpStatsRecorder is a room-owner-lifecycle sibling of OutcomeRecorder; it accumulates from ROUND_RESULT.playerResults in onMatchEvents (runs before onMatchFinished in the same RoomManager.onEventsAppended, so the final round counts) and persists at GAME_OVER. Owner-only + idempotent rows; an owner crash before GAME_OVER loses that match's stats (same class as OutcomeRecorder). Records ALL MP games incl. with bots (same-account multi-seat is impossible via messageRouter.isUserSeated).",
+      "/sp/reward is app-unused (the client calls /sp/complete) but kept + tested (deprecated); startSchema.rounds.default(7) keeps it functional. Deferred future hardening (non-blocking): reward_claimed robustness, full-game client accumulation test, e2e MP stats-row wiring test, populated live visual check."
+    ],
+    "confidence": "high"
   }
 ]

@@ -31,6 +31,12 @@ import type {
   UserRecord
 } from "../auth/AuthStore.js";
 import type { ApplyLedgerResult, CoinStore, LedgerEntryInput } from "./CoinStore.js";
+import {
+  assertValidGameResult,
+  type GameResultRecord,
+  type GameStatsAggregateRow,
+  type PlayerStatsStore
+} from "./PlayerStatsStore.js";
 import { buildMigrations } from "./schema.js";
 
 export interface SqliteStorageOptions {
@@ -51,7 +57,7 @@ export interface SqliteStorageOptions {
  * (state ir atjaunojams no `seed`), pamata statistiku un lobby čatu (pārdzīvo
  * restartu). Nekādu dzīvu objektu vai spēles state šeit.
  */
-export class SqliteStorage implements StoragePort, AuthStore, CoinStore {
+export class SqliteStorage implements StoragePort, AuthStore, CoinStore, PlayerStatsStore {
   private readonly db: DatabaseSync;
 
   constructor(options: SqliteStorageOptions) {
@@ -603,6 +609,61 @@ export class SqliteStorage implements StoragePort, AuthStore, CoinStore {
     };
   }
 
+  async recordGameResult(record: GameResultRecord): Promise<boolean> {
+    assertValidGameResult(record);
+    const inserted = this.db
+      .prepare(
+        `INSERT OR IGNORE INTO player_game_results
+           (id, user_id, mode, difficulty, placement, round_count,
+            bid_met, bid_exceeded, bid_missed, completed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        record.id,
+        record.userId,
+        record.mode,
+        record.difficulty ?? null,
+        record.placement,
+        record.roundCount,
+        record.bidMet,
+        record.bidExceeded,
+        record.bidMissed,
+        record.completedAt
+      );
+    return Number(inserted.changes) > 0;
+  }
+
+  async getPlayerGameStats(userId: string): Promise<readonly GameStatsAggregateRow[]> {
+    const rows = this.db
+      .prepare(
+        `SELECT mode, difficulty, placement,
+                COUNT(*)        AS games,
+                SUM(bid_met)    AS bid_met,
+                SUM(bid_exceeded) AS bid_exceeded,
+                SUM(bid_missed) AS bid_missed
+           FROM player_game_results
+          WHERE user_id = ?
+          GROUP BY mode, difficulty, placement`
+      )
+      .all(userId) as unknown as GameResultsAggRow[];
+    return rows.map((row) => ({
+      mode: row.mode as GameStatsAggregateRow["mode"],
+      difficulty: (row.difficulty ?? null) as GameStatsAggregateRow["difficulty"],
+      placement: Number(row.placement),
+      games: Number(row.games),
+      bidMet: Number(row.bid_met),
+      bidExceeded: Number(row.bid_exceeded),
+      bidMissed: Number(row.bid_missed)
+    }));
+  }
+
+  async getGameResultOwner(id: string): Promise<string | undefined> {
+    const row = this.db
+      .prepare(`SELECT user_id FROM player_game_results WHERE id = ?`)
+      .get(id) as { user_id: string } | undefined;
+    return row?.user_id;
+  }
+
   async getLeaderboard(limit: number, minGames: number): Promise<readonly LeaderboardEntryRecord[]> {
     // CTE: vispirms aprēķina `win_rate` (REAL), tad ranžē (nedrīkst lietot SELECT
     // aliasu ORDER BY iekšā ROW_NUMBER). LEFT JOIN preferences + COALESCE → veci
@@ -753,6 +814,17 @@ interface UserStatsRow {
   readonly wins: number;
   readonly losses: number;
   readonly updated_at: number;
+}
+
+/** Agregāta rinda no `player_game_results` GROUP BY (skaitļi var nākt kā bigint). */
+interface GameResultsAggRow {
+  readonly mode: string;
+  readonly difficulty: string | null;
+  readonly placement: number | bigint;
+  readonly games: number | bigint;
+  readonly bid_met: number | bigint;
+  readonly bid_exceeded: number | bigint;
+  readonly bid_missed: number | bigint;
 }
 
 /**

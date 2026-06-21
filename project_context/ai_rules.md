@@ -243,9 +243,19 @@ Care points:
 - `applyLedger` must behave identically in SQLite (transaction) and PostgreSQL (ensure-row + `FOR UPDATE` transaction) and is covered by the shared storage contract. Coin migration `0007_coin_wallet` follows schema.ts rules (append-only, never renumber).
 - SP reward anti-cheat (D3): the reward difficulty comes from a server-issued one-time token (`SpRewardTokens`), NOT the client. `/sp/reward` enforces auth + minimum game duration + per-user rate limit + a HARD daily cap clamped under a per-user in-process lock. Tokens and the lock are in-memory/single-instance (same assumption as `rateLimiter.ts`). The client still asserts placement — an accepted residual.
 - Anonymous play has no wallet and earns nothing. Registration grants the signup bonus; `WalletService.getBalance` is repair-on-read so `/auth/me` and `WELCOME` also backfill existing accounts idempotently.
-- `httpServer.ts` chains the `/sp/*` handler before the auth handler; raw-HTTP helpers are shared via `http/httpUtils.ts` (do not re-copy them).
+- `httpServer.ts` chains handlers `/sp/*` → `/stats` → auth (first to return `true` wins); raw-HTTP helpers are shared via `http/httpUtils.ts` (do not re-copy them).
 - On reward/charge errors, favor under-credit over over-credit (the SP token is consumed before the DB credit by design).
 - Multiplayer paid rooms (entry fee + pot, 70/30 payout to top-2 registered humans) are PLANNED (Phase 3) and NOT built yet; see `docs/TODO/gold-coins-plan.md` (local/ignored).
+
+### Deep Player Statistics
+
+Registered-user bid accuracy + placement distributions (NOT a competitive leaderboard — they drive nothing). Read these before touching stats: `apps/server/src/storage/PlayerStatsStore.ts` (capability port + `assertValidGameResult`), `stats/PlayerStatsService.ts` (compose `getStats`; SP `recordSpGame`), `stats/MpStatsRecorder.ts` (MP writer), `http/statsRoutes.ts` (`GET /stats`), `http/spRewardRoutes.ts` (`POST /sp/complete`), `sp/SpRewardTokens.ts`; web `apps/web/components/auth/StatisticsPanel.tsx` + `lib/stats/playerStats.ts`; core `packages/core/src/multiplayer/events.ts` (`RoundResultEvent.playerResults`).
+
+- One generalized table `player_game_results` (migration `0008`, `mode` sp/mp discriminator, per-game rows, idempotent by `id`: `sp:{gameToken}` / `mp:{matchId}:{userId}`). `assertValidGameResult` is a DB-agnostic guard (placement 1..4, counters ≥0, `bid_met+bid_exceeded+bid_missed === round_count`, sp⇒difficulty, mp⇒no difficulty); DDL CHECKs are the backstop. Aggregates are computed on read via GROUP BY.
+- Per-round bid vs tricks resets each round, so the authoritative `ROUND_RESULT` event carries `playerResults: {playerId,bid,tricksWon}[]` captured PRE-reset in `core applyStartNextRound`. `GAME_EVENT.event` is zod-passthrough, so the field survives cross-instance fanout (do not add strict schemas that would strip it).
+- SP is client-reported, server-validated: `/sp/start` token snapshots difficulty+roundCount; `POST /sp/complete` peeks the token (does not consume), validates `sum===roundCount`, records stats for ALL placements, credits coins only for 1st/2nd (≥5s), then consumes the token AFTER success. Independent idempotency (row id + ledger `(user, sp_reward, token)`); a consumed-token replay returns a stable `200 {recorded:false}` via `getGameResultOwner` (cross-user → 409). Stats record even for sub-5s games (only coins are gated).
+- MP is server-authoritative: `MpStatsRecorder` (room-owner lifecycle, sibling of `OutcomeRecorder`) accumulates from `ROUND_RESULT.playerResults` in `onMatchEvents` (which runs before `onMatchFinished` in the same `RoomManager.onEventsAppended`, so the final round counts) and persists at `GAME_OVER`. Records ALL MP games incl. with bots; owner crash before GAME_OVER loses that match's stats (same limitation as `OutcomeRecorder`).
+- `/sp/reward` is app-unused (the client calls `/sp/complete`); kept + tested, deprecated. Token TTL is 2h (long/AFK games). Known future hardening: `reward_claimed` flag for the credit-fails-then-token-expires edge.
 
 ## Commands
 

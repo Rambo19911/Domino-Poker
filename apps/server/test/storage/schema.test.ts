@@ -9,7 +9,8 @@ const EXPECTED_IDS = [
   "0004_password_reset_tokens",
   "0005_custom_avatars",
   "0006_user_preferences",
-  "0007_coin_wallet"
+  "0007_coin_wallet",
+  "0008_player_game_results"
 ];
 
 const SHARED_TABLES = [
@@ -25,7 +26,8 @@ const SHARED_TABLES = [
   "user_avatars",
   "user_preferences",
   "coin_balances",
-  "coin_ledger"
+  "coin_ledger",
+  "player_game_results"
 ];
 
 const PG_ONLY_TABLES = ["player_sessions", "room_leases", "server_event_fanout"];

@@ -531,12 +531,20 @@ function applyStartNextRound(state: MultiplayerGameState): MultiplayerApplyResul
     roundWinnerIndex === undefined
       ? undefined
       : state.coreState.players[roundWinnerIndex];
+  // `state.coreState` ir PIRMS-reset (reset notiek `nextCoreState`), tāpēc šeit
+  // `bid`/`tricksWon` joprojām ir šī raunda gala vērtības — uzņemam tās event-faktā.
+  const playerResults = state.coreState.players.map((player) => ({
+    playerId: player.id,
+    bid: player.bid,
+    tricksWon: player.tricksWon
+  }));
   const events: MultiplayerEvent[] = [
     {
       type: "ROUND_RESULT",
       gameId: state.gameId,
       eventSeq: roundResultEventSeq,
       round: state.coreState.currentRound,
+      playerResults,
       ...(roundWinner ? { winnerPlayerId: roundWinner.id } : {})
     }
   ];

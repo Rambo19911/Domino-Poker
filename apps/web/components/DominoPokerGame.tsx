@@ -18,6 +18,7 @@ import type { DominoTile, GameState, InvalidMoveReason } from "@domino-poker/cor
 import { decideBid as botDecideBid, decideMove as botDecideMove } from "../lib/bot/botBridge";
 import type { BotDifficulty } from "../lib/bot/difficulty";
 import { resolveAiMove, tryAdvance, type SimpleMove } from "../lib/bot/liveness";
+import type { SpGameResult } from "../lib/sp/spReward";
 import { AudioControls, VolumeIcon, VolumeOffIcon } from "./AudioControls";
 import { DominoTileView } from "./DominoTileView";
 import {
@@ -70,7 +71,7 @@ export function DominoPokerGame({
   /** Fāze 2: SP balvā piešķirtās monētas (vai `null`); GameEndDialog rāda "+N". */
   readonly spAward?: number | null;
   /** Fāze 2: izsaukts VIENREIZ pie spēles beigām ar cilvēka vietu (1..4). */
-  readonly onGameEnd?: (humanPlacement: number) => void;
+  readonly onGameEnd?: (result: SpGameResult) => void;
   readonly onExitToLobby: () => void;
 }) {
   const humanPlayerName = humanProfile.displayName.trim() || labels.you;
@@ -93,6 +94,10 @@ export function DominoPokerGame({
   const phaseDialogTimerRef = useRef<number | null>(null);
   // Fāze 2: nodrošina, ka `onGameEnd` izsaukts TIKAI VIENREIZ uz spēli (instance-līmenī).
   const gameEndFiredRef = useRef(false);
+  // Statistika: cilvēka (bid, tricksWon) PA RAUNDIEM, uzņemts katrā `roundEnd` PIRMS
+  // nākamā raunda reseta (core resetē per-raunda laukus). Keyots pēc raunda → dedupē
+  // efekta atkārtotu palaišanu. Svaigs katrai spēlei (komponente remontē uz "game").
+  const roundResultsRef = useRef(new Map<number, { bid: number; tricksWon: number }>());
   const gameStateRef = useRef(gameState);
   const didInitializeGameRef = useRef(false);
   const lastTileSoundSignatureRef = useRef("");
@@ -228,6 +233,16 @@ export function DominoPokerGame({
     setShowGameEnd(false);
 
     if (gameState.phase === "roundEnd") {
+      // Statistika: uzņemam cilvēka šī raunda solījumu vs paņemtos stiķus PIRMS nākamā
+      // raunda reseta. `roundEnd` stāvoklis vēl nes per-raunda laukus; keyots pēc raunda.
+      const roundEndState = gameStateRef.current;
+      const human = roundEndState.players.find((player) => !player.isAI);
+      if (human && human.bid >= 0) {
+        roundResultsRef.current.set(roundEndState.currentRound, {
+          bid: human.bid,
+          tricksWon: human.tricksWon
+        });
+      }
       phaseDialogTimerRef.current = window.setTimeout(() => {
         setShowRoundSummary(true);
         audio.play("roundWin");
@@ -235,14 +250,23 @@ export function DominoPokerGame({
     }
 
     if (gameState.phase === "gameEnd") {
-      // Fāze 2: vienreiz paziņojam cilvēka vietu (1..4) balvas aprēķinam (AppShell).
+      // Fāze 2 + statistika: vienreiz paziņojam cilvēka vietu (1..4) + bid-accuracy
+      // kopsavilkumu (no pa raundiem uzkrātā) balvas+statistikas pieprasījumam (AppShell).
       // Lasām no `gameStateRef` (sinhronizēts iepriekšējā efektā) — gala stāvoklis.
       if (!gameEndFiredRef.current) {
         gameEndFiredRef.current = true;
         const finalState = gameStateRef.current;
         const humanId = finalState.players.find((player) => !player.isAI)?.id;
         const placement = humanId ? getStandings(finalState).indexOf(humanId) + 1 : 0;
-        onGameEnd?.(placement);
+        let bidMet = 0;
+        let bidExceeded = 0;
+        let bidMissed = 0;
+        for (const { bid, tricksWon } of roundResultsRef.current.values()) {
+          if (tricksWon === bid) bidMet += 1;
+          else if (tricksWon > bid) bidExceeded += 1;
+          else bidMissed += 1;
+        }
+        onGameEnd?.({ placement, bidMet, bidExceeded, bidMissed });
       }
       phaseDialogTimerRef.current = window.setTimeout(() => setShowGameEnd(true), 1000);
     }

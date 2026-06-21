@@ -217,6 +217,7 @@ export function LobbyScreen({
           logout={auth.logout}
           updateProfile={auth.updateProfile}
           uploadAvatar={auth.uploadAvatar}
+          getToken={auth.getToken}
           playClick={() => audio.play("uiClick")}
           onClose={() => setAuthOpen(false)}
         />

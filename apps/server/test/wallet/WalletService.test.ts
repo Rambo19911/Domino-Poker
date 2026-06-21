@@ -57,11 +57,11 @@ describe("WalletService", () => {
 
   it("credits an SP reward and is idempotent per gameToken", async () => {
     await wallet.grantSignupBonus("u1");
-    expect(await wallet.creditSpReward("u1", "game-A", 100)).toBe(5100);
-    // Tas pats tokens → idempotents, neieskaita divreiz.
-    expect(await wallet.creditSpReward("u1", "game-A", 100)).toBe(5100);
-    // Cits tokens → ieskaita.
-    expect(await wallet.creditSpReward("u1", "game-B", 300)).toBe(5400);
+    expect(await wallet.creditSpReward("u1", "game-A", 100)).toEqual({ applied: true, balance: 5100 });
+    // Tas pats tokens → idempotents (applied:false), neieskaita divreiz.
+    expect(await wallet.creditSpReward("u1", "game-A", 100)).toEqual({ applied: false, balance: 5100 });
+    // Cits tokens → ieskaita (applied:true).
+    expect(await wallet.creditSpReward("u1", "game-B", 300)).toEqual({ applied: true, balance: 5400 });
   });
 
   it("sums SP rewards within the last 24h for the daily cap", async () => {

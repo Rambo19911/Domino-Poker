@@ -19,6 +19,7 @@ function makeProps(overrides: Partial<AuthDialogProps> = {}): AuthDialogProps {
     logout: vi.fn(),
     updateProfile: vi.fn(),
     uploadAvatar: vi.fn(),
+    getToken: vi.fn(() => "test-token"),
     onClose: vi.fn(),
     playClick: vi.fn(),
     ...overrides

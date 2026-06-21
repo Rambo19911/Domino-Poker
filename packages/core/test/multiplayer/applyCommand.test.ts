@@ -1032,6 +1032,14 @@ describe("applyCommand", () => {
         gameId: "game-1",
         eventSeq: state.eventSeq + 1,
         round: 1,
+        // Solījums + paņemtie stiķi UZŅEMTI PIRMS reseta (no `createRoundEndGame`:
+        // bid=index, tricksWon=2 tikai 3. spēlētājam). Lieto MP bid-accuracy statistika.
+        playerResults: [
+          { playerId: state.coreState.players[0]!.id, bid: 0, tricksWon: 0 },
+          { playerId: state.coreState.players[1]!.id, bid: 1, tricksWon: 0 },
+          { playerId: state.coreState.players[2]!.id, bid: 2, tricksWon: 2 },
+          { playerId: state.coreState.players[3]!.id, bid: 3, tricksWon: 0 }
+        ],
         winnerPlayerId: state.coreState.players[2]!.id
       }
     ]);
@@ -1082,6 +1090,20 @@ describe("applyCommand", () => {
     expect(result.events.map((event) => event.type)).toEqual([
       "ROUND_RESULT",
       "GAME_OVER"
+    ]);
+
+    // Pēdējā raunda ROUND_RESULT (tajā pašā partijā ar GAME_OVER) JOPROJĀM nes
+    // playerResults ar pirms-reset solījumiem/stiķiem → MP statistika ieskaita arī
+    // pēdējo raundu (Codex: "final batch must count the final round").
+    const roundResult = result.events.find((event) => event.type === "ROUND_RESULT");
+    expect(roundResult?.type).toBe("ROUND_RESULT");
+    expect(
+      roundResult?.type === "ROUND_RESULT" ? roundResult.playerResults : undefined
+    ).toEqual([
+      { playerId: state.coreState.players[0]!.id, bid: 0, tricksWon: 0 },
+      { playerId: state.coreState.players[1]!.id, bid: 1, tricksWon: 0 },
+      { playerId: state.coreState.players[2]!.id, bid: 2, tricksWon: 2 },
+      { playerId: state.coreState.players[3]!.id, bid: 3, tricksWon: 0 }
     ]);
   });
 
