@@ -7,8 +7,17 @@ import { SqliteStorage } from "../../src/storage/SqliteStorage.js";
 /** Test dubultnieks: glabā nosūtītos e-pastus, lai pārbaudītu saturu un izvilktu tokenu. */
 class FakeEmailSender implements EmailSender {
   readonly sent: { to: string; resetUrl: string; locale: EmailLocale }[] = [];
+  readonly contacts: { to: string; replyTo: string; message: string; locale: EmailLocale }[] = [];
   async sendPasswordReset(to: string, resetUrl: string, locale: EmailLocale): Promise<void> {
     this.sent.push({ to, resetUrl, locale });
+  }
+  async sendContactMessage(
+    to: string,
+    replyTo: string,
+    message: string,
+    locale: EmailLocale
+  ): Promise<void> {
+    this.contacts.push({ to, replyTo, message, locale });
   }
 }
 

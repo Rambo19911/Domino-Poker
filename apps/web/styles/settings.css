@@ -165,6 +165,15 @@
   text-transform: uppercase;
 }
 
+/* Maza paskaidrojoša piezīme zem sadaļas virsraksta (piem. grūtība attiecas tikai
+   uz viena spēlētāja spēlēm). Token-only, neuzkrītoša. */
+.settingsSectionNote {
+  margin: -2px 0 10px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 /* Settings / About tabu pārslēdzējs (Settings ekrāns paliek nemainīts, tikai
    pievienota pārslēgšana uz About sadaļu). */
 .settingsTabs {
@@ -331,6 +340,87 @@
   font-size: 14px;
   font-style: italic;
   line-height: 1.45;
+}
+
+/* Kontaktforma (About panelī): aizpilda brīvo vietu zem meta saraksta. Lauku stils
+   seko `.languageSelector select` konvencijai (border + dialog-surface; token-only). */
+.contactForm {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgb(var(--border-rgb) / 0.8);
+  border-radius: var(--radius-lg);
+  background: var(--dialog-surface);
+}
+
+.contactTitle {
+  margin: 0;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.contactIntro {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.contactField {
+  display: grid;
+  gap: 6px;
+}
+
+.contactField span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.contactField input,
+.contactField textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgb(var(--border-rgb) / 0.8);
+  border-radius: var(--radius-md);
+  background: var(--overlay);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 14px;
+}
+
+.contactField textarea {
+  resize: vertical;
+  min-height: 84px;
+  line-height: 1.45;
+}
+
+.contactField input:focus,
+.contactField textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.contactStatus {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.contactStatusOk {
+  color: var(--success);
+}
+
+.contactStatusError {
+  color: var(--danger);
+}
+
+.contactActions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .languageSelector {

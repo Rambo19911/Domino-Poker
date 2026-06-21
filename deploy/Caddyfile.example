@@ -28,6 +28,14 @@ tavs-domens.lv {
         header_up X-Forwarded-For {http.request.remote.host}
     }
 
+    # About paneļa kontaktforma: POST /contact -> MP serveris (Resend e-pasts).
+    # Maršruts vajadzīgs tikai tad, ja serverim ir e-pasta senderis (RESEND_API_KEY +
+    # EMAIL_FROM); citādi serveris atbild 404 — nekaitīgi. Tāda pati XFF pārrakstīšana
+    # kā /auth (serveris rate-limito kontaktformu pēc IP).
+    reverse_proxy /contact 127.0.0.1:4000 {
+        header_up X-Forwarded-For {http.request.remote.host}
+    }
+
     # (pēc izvēles) metrikas tikai lokāli:
     # @metrics path /metrics
     # respond @metrics 403

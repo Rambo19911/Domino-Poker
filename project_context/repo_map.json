@@ -77,7 +77,7 @@
   {
     "path": ".env.example",
     "type": "config",
-    "purpose": "Environment template for server host/port, DATABASE_URL, PG pools, turn/pacing settings, NODE_ENV, TRUST_PROXY, optional Google Cloud chat translation, and MP action logging.",
+    "purpose": "Environment template for server host/port, DATABASE_URL, PG pools, turn/pacing settings, NODE_ENV, TRUST_PROXY, email (Resend key/from, APP_BASE_URL, CONTACT_EMAIL), optional Google Cloud chat translation, and MP action logging.",
     "importance": "high",
     "related_files": [
       "apps/server/src/config.ts"
@@ -239,12 +239,37 @@
   {
     "path": "apps/web/components/LobbyScreen.tsx",
     "type": "ui",
-    "purpose": "Main lobby screen with mode controls, settings/rules/leaderboard/auth/profile surfaces, and round-count selection.",
+    "purpose": "Main lobby screen with mode controls, settings/rules/leaderboard/auth/profile surfaces, and round-count selection. Settings dialog: difficulty selector with a single-player-only scope note (difficultyScopeNote); About tab renders app meta + the ContactForm.",
     "importance": "high",
     "related_files": [
       "apps/web/components/LobbyWheel.tsx",
       "apps/web/components/auth/AuthDialog.tsx",
-      "apps/web/components/LeaderboardDialog.tsx"
+      "apps/web/components/LeaderboardDialog.tsx",
+      "apps/web/components/ContactForm.tsx"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/ContactForm.tsx",
+    "type": "ui",
+    "purpose": "Bilingual contact form in the Settings -> About panel: email + message + submit, client-side validation mirroring the server (email regex + 10..2000 chars), POST /contact via contactApi, and localized idle/sending/sent/error status (incl. 429 rate-limit). No auth required.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/lib/contact/contactApi.ts",
+      "apps/web/components/LobbyScreen.tsx",
+      "apps/web/styles/settings.css"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/contact/contactApi.ts",
+    "type": "service",
+    "purpose": "Client HTTP wrapper for the contact form: apiContact (POST /contact) with email/message/locale. No token. Reuses requestJson/jsonInit from authApi (same server HTTP base).",
+    "importance": "low",
+    "related_files": [
+      "apps/web/components/ContactForm.tsx",
+      "apps/web/lib/auth/authApi.ts",
+      "apps/server/src/http/contactRoutes.ts"
     ],
     "confidence": "high"
   },
@@ -607,7 +632,7 @@
   {
     "path": "apps/server/src/config.ts",
     "type": "config",
-    "purpose": "Server env/.env loader and validator for ports, DB URL, timing, PG pools, CORS origins, proxy trust, email reset settings, and optional chat translation settings.",
+    "purpose": "Server env/.env loader and validator for ports, DB URL, timing, PG pools, CORS origins, proxy trust, email settings (Resend key/from, APP_BASE_URL, CONTACT_EMAIL recipient), and optional chat translation settings.",
     "importance": "critical",
     "related_files": [
       ".env.example"
@@ -617,7 +642,7 @@
   {
     "path": "apps/server/src/httpServer.ts",
     "type": "route",
-    "purpose": "Raw HTTP server for `/health`, `/metrics`, optional chat translation routes, optional SP coin-reward routes (`/sp/*`, tried before auth), optional auth routes, and JSON error responses.",
+    "purpose": "Raw HTTP server for `/health`, `/metrics`, optional chat translation routes, optional contact-form route (`POST /contact`), optional SP coin-reward routes (`/sp/*`), optional deep-stats route (`/stats`), optional auth routes, and JSON error responses. API handlers are tried in order: contact -> sp -> stats -> auth.",
     "importance": "high",
     "related_files": [
       "apps/server/src/http/authRoutes.ts",
@@ -664,7 +689,7 @@
   {
     "path": "apps/server/src/auth/EmailSender.ts",
     "type": "service",
-    "purpose": "Password-reset email abstraction with console development sender and Resend production sender.",
+    "purpose": "Email abstraction (console dev sender + Resend production sender) for both the password-reset email and the About-panel contact message (sendContactMessage with Resend reply_to=author).",
     "importance": "medium",
     "related_files": [
       "apps/server/src/auth/AuthService.ts",
@@ -715,6 +740,29 @@
       "apps/server/src/httpServer.ts",
       "apps/server/src/chat/ChatTranslationService.ts",
       "apps/server/test/chat/chatTranslateRoutes.test.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/http/contactRoutes.ts",
+    "type": "route",
+    "purpose": "Optional `POST /contact` route for the About-panel contact form: no auth, per-IP rate limit (5/h), CORS allowlist, bounded JSON body (8 KiB), zod validation (email regex + 10..2000 char message), delivery via EmailSender.sendContactMessage to the owner address (CONTACT_EMAIL) with reply_to=author. Mounted only when an EmailSender exists; send failure returns 502 (never silent).",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/auth/EmailSender.ts",
+      "apps/server/src/httpServer.ts",
+      "apps/server/src/http/httpUtils.ts",
+      "apps/server/test/http/contactRoutes.integration.test.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/http/contactRoutes.integration.test.ts",
+    "type": "test",
+    "purpose": "Integration coverage for `POST /contact`: valid send with reply-to + owner recipient, default locale, invalid email/short message rejection (400), non-POST 405, and per-IP rate limit (429).",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/http/contactRoutes.ts"
     ],
     "confidence": "high"
   },
@@ -1218,7 +1266,7 @@
   {
     "path": "deploy/nginx.conf.example",
     "type": "config",
-    "purpose": "nginx reverse proxy example for web, `/ws`, and `/auth/*` routing.",
+    "purpose": "nginx reverse proxy example for web, `/ws`, `/auth/*`, `/chat/*`, and `/contact` routing.",
     "importance": "medium",
     "related_files": [
       "deploy/Caddyfile.example",
@@ -1229,7 +1277,7 @@
   {
     "path": "deploy/Caddyfile.example",
     "type": "config",
-    "purpose": "Caddy reverse proxy example for web, `/ws`, and `/auth/*` routing.",
+    "purpose": "Caddy reverse proxy example for web, `/ws`, `/auth/*`, `/chat/*`, and `/contact` routing.",
     "importance": "medium",
     "related_files": [
       "deploy/nginx.conf.example",

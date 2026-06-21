@@ -152,7 +152,9 @@
       "apps/web/components/CoinBalance.tsx",
       "apps/web/components/CoinIcon.tsx",
       "apps/web/lib/sp/spReward.ts",
-      "apps/web/styles/coin.css"
+      "apps/web/styles/coin.css",
+      "apps/web/components/ContactForm.tsx",
+      "apps/web/lib/contact/contactApi.ts"
     ],
     "depends_on": [
       "Core Rules",
@@ -212,6 +214,7 @@
       "apps/server/src/wallet/WalletService.ts",
       "apps/server/src/sp/SpRewardTokens.ts",
       "apps/server/src/http/spRewardRoutes.ts",
+      "apps/server/src/http/contactRoutes.ts",
       "apps/server/src/http/httpUtils.ts"
     ],
     "depends_on": [

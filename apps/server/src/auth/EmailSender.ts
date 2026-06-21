@@ -14,6 +14,16 @@ export type EmailLocale = "lv" | "en";
 export interface EmailSender {
   /** Nosūta paroles atjaunošanas e-pastu ar `resetUrl`. Met kļūdu, ja piegāde neizdevās. */
   sendPasswordReset(to: string, resetUrl: string, locale: EmailLocale): Promise<void>;
+  /**
+   * Nosūta kontaktformas ziņu uz īpašnieka adresi (`to`). `replyTo` ir ziņas autora
+   * e-pasts, lai uz to var tieši atbildēt. Met kļūdu, ja piegāde neizdevās.
+   */
+  sendContactMessage(
+    to: string,
+    replyTo: string,
+    message: string,
+    locale: EmailLocale
+  ): Promise<void>;
 }
 
 /** Paroles atjaunošanas e-pasta saturs (subject + plain-text body) abās valodās. */
@@ -36,11 +46,37 @@ const RESET_EMAIL: Record<EmailLocale, { readonly subject: string; readonly body
   }
 };
 
+/** Kontaktformas e-pasta saturs (subject + plain-text body) abās valodās. */
+const CONTACT_EMAIL: Record<
+  EmailLocale,
+  { readonly subject: string; readonly body: (replyTo: string, message: string) => string }
+> = {
+  lv: {
+    subject: "Domino Poker — jauna kontaktziņa",
+    body: (replyTo, message) =>
+      `Jauna ziņa no Domino Poker kontaktformas.\n\nNo: ${replyTo}\n\nZiņojums:\n${message}\n`
+  },
+  en: {
+    subject: "Domino Poker — new contact message",
+    body: (replyTo, message) =>
+      `New message from the Domino Poker contact form.\n\nFrom: ${replyTo}\n\nMessage:\n${message}\n`
+  }
+};
+
 /** Dev/test senderis: logo reset linku konsolē (nesūta reālu e-pastu). */
 export class ConsoleEmailSender implements EmailSender {
   async sendPasswordReset(to: string, resetUrl: string, locale: EmailLocale): Promise<void> {
     // Tikai dev: drošs izvads atkļūdošanai. Prod NEKAD nelieto šo senderi.
     console.log(`[email:dev] password reset (${locale}) for ${to}: ${resetUrl}`);
+  }
+
+  async sendContactMessage(
+    to: string,
+    replyTo: string,
+    message: string,
+    locale: EmailLocale
+  ): Promise<void> {
+    console.log(`[email:dev] contact (${locale}) to ${to}, reply-to ${replyTo}: ${message}`);
   }
 }
 
@@ -71,6 +107,34 @@ export class ResendEmailSender implements EmailSender {
     });
     if (!response.ok) {
       // Detaļas (NE raw tokenu) logošanai; kļūda paceļas uz AuthService (best-effort).
+      const detail = await response.text().catch(() => "");
+      throw new Error(`Resend API error ${response.status}: ${detail.slice(0, 200)}`);
+    }
+  }
+
+  async sendContactMessage(
+    to: string,
+    replyTo: string,
+    message: string,
+    locale: EmailLocale
+  ): Promise<void> {
+    const content = CONTACT_EMAIL[locale];
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from: this.from,
+        to,
+        // `reply_to` = ziņas autors → atbilde no pastkastes aiziet tieši viņam.
+        reply_to: replyTo,
+        subject: content.subject,
+        text: content.body(replyTo, message)
+      })
+    });
+    if (!response.ok) {
       const detail = await response.text().catch(() => "");
       throw new Error(`Resend API error ${response.status}: ${detail.slice(0, 200)}`);
     }

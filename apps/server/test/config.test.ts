@@ -42,7 +42,12 @@ describe("loadServerConfig", () => {
       pg: { max: 10, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 0 },
       webOrigins: ["http://localhost:3000"],
       trustProxy: false,
-      email: { resendApiKey: undefined, from: undefined, appBaseUrl: "http://localhost:3000" }
+      email: {
+        resendApiKey: undefined,
+        from: undefined,
+        appBaseUrl: "http://localhost:3000",
+        contactTo: "rihardslaskovs@gmail.com"
+      }
     });
   });
 
@@ -68,7 +73,12 @@ describe("loadServerConfig", () => {
       pg: { max: 10, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 0 },
       webOrigins: ["http://localhost:3000"],
       trustProxy: false,
-      email: { resendApiKey: undefined, from: undefined, appBaseUrl: "http://localhost:3000" }
+      email: {
+        resendApiKey: undefined,
+        from: undefined,
+        appBaseUrl: "http://localhost:3000",
+        contactTo: "rihardslaskovs@gmail.com"
+      }
     });
   });
 
@@ -190,8 +200,15 @@ describe("loadServerConfig", () => {
     ).toEqual({
       resendApiKey: "re_test_key",
       from: "no-reply@domino-poker.com",
-      appBaseUrl: "https://domino-poker.com"
+      appBaseUrl: "https://domino-poker.com",
+      contactTo: "rihardslaskovs@gmail.com"
     });
+  });
+
+  it("reads CONTACT_EMAIL override for the contact form recipient", () => {
+    expect(
+      loadServerConfig({ CONTACT_EMAIL: "owner@example.com" }, missingEnvPath).email.contactTo
+    ).toBe("owner@example.com");
   });
 
   it("parses a comma-separated WEB_ORIGIN allowlist", () => {

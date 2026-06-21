@@ -3,6 +3,7 @@ import process from "node:process";
 
 import type { ChatTranslateHandler } from "./chat/chatTranslateRoutes.js";
 import type { AuthHandler } from "./http/authRoutes.js";
+import type { ContactHandler } from "./http/contactRoutes.js";
 import type { SpRewardHandler } from "./http/spRewardRoutes.js";
 import type { StatsHandler } from "./http/statsRoutes.js";
 
@@ -49,6 +50,11 @@ export interface HealthHttpServerOptions {
    * `index.ts` no `createStatsHandler`. Mēģināts PIRMS `authHandler`.
    */
   readonly statsHandler?: StatsHandler;
+  /**
+   * Opcionāls kontaktformas maršruts (`POST /contact`). Injicē `index.ts`, ja serverim
+   * ir e-pasta senderis. Mēģināts API ķēdē; atgriež `true`, ja apstrādāja ceļu.
+   */
+  readonly contactHandler?: ContactHandler;
   /** Optional MP lobby chat translation HTTP route (`/chat/translate`). */
   readonly chatTranslateHandler?: ChatTranslateHandler;
 }
@@ -110,13 +116,16 @@ function routeAuthOr404(
   void routeApiHandlers(request, response, options);
 }
 
-/** Mēģina API apstrādātājus secīgi (sp → stats → auth); pirmais, kas atgriež `true`, beidz. */
+/** Mēģina API apstrādātājus secīgi (contact → sp → stats → auth); pirmais, kas atgriež `true`, beidz. */
 async function routeApiHandlers(
   request: IncomingMessage,
   response: ServerResponse,
   options: HealthHttpServerOptions
 ): Promise<void> {
   try {
+    if (options.contactHandler !== undefined && (await options.contactHandler(request, response))) {
+      return;
+    }
     if (options.spRewardHandler !== undefined && (await options.spRewardHandler(request, response))) {
       return;
     }

@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 
 import { AudioControls } from "./AudioControls";
+import { ContactForm } from "./ContactForm";
 import { AuthDialog } from "./auth/AuthDialog";
 import { LobbyProfile } from "./auth/LobbyProfile";
 import { Dialog } from "./Dialog";
@@ -300,6 +301,7 @@ function SettingsDialog({
             <p className="settingsTabDescription">{t.settingsDescription}</p>
 
             <div className="settingsSectionTitle">{t.difficultySection}</div>
+            <p className="settingsSectionNote">{t.difficultyScopeNote}</p>
             <DifficultySelector
               audio={audio}
               labels={t}
@@ -319,13 +321,19 @@ function SettingsDialog({
             />
           </>
         ) : (
-          <AboutPanel labels={t} />
+          <AboutPanel labels={t} locale={locale} />
         )}
     </Dialog>
   );
 }
 
-function AboutPanel({ labels: t }: { readonly labels: AppStrings }) {
+function AboutPanel({
+  labels: t,
+  locale
+}: {
+  readonly labels: AppStrings;
+  readonly locale: Locale;
+}) {
   const version = process.env.NEXT_PUBLIC_APP_VERSION ?? "dev";
 
   return (
@@ -346,6 +354,8 @@ function AboutPanel({ labels: t }: { readonly labels: AppStrings }) {
           <dd>Apache License 2.0</dd>
         </div>
       </dl>
+
+      <ContactForm labels={t} locale={locale} />
     </div>
   );
 }

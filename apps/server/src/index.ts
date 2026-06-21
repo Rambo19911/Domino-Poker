@@ -9,6 +9,7 @@ import { LobbyChat } from "./chat/LobbyChat.js";
 import { createChatTranslateHandler } from "./chat/chatTranslateRoutes.js";
 import { loadServerConfig } from "./config.js";
 import { createAuthHandler } from "./http/authRoutes.js";
+import { createContactHandler } from "./http/contactRoutes.js";
 import { createSpRewardHandler } from "./http/spRewardRoutes.js";
 import { createStatsHandler } from "./http/statsRoutes.js";
 import { createHealthHttpServer } from "./httpServer.js";
@@ -346,6 +347,20 @@ const server = createHealthHttpServer({
           webOrigins: config.webOrigins,
           clock,
           dev: config.nodeEnv !== "production"
+        })
+      }
+    : {}),
+  // Kontaktforma (`POST /contact`) — pieejama tikai, ja ir e-pasta senderis (tāpat
+  // kā paroles atjaunošana); anonīmiem atļauta, ar IP rate-limit anti-spam.
+  ...(emailSender
+    ? {
+        contactHandler: createContactHandler({
+          email: emailSender,
+          to: config.email.contactTo,
+          webOrigins: config.webOrigins,
+          clock,
+          dev: config.nodeEnv !== "production",
+          trustProxy: config.trustProxy
         })
       }
     : {}),

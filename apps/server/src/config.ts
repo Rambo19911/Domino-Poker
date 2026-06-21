@@ -8,6 +8,8 @@ const DEFAULT_SERVER_HOST = "0.0.0.0";
 const DEFAULT_NODE_ENV = "development";
 // CORS allowlist auth maršrutiem; dev Next.js noklusējuma izcelsme.
 const DEFAULT_WEB_ORIGIN = "http://localhost:3000";
+// Kontaktformas noklusējuma saņēmējs (īpašnieks). Pārraksta ar `CONTACT_EMAIL` env.
+const DEFAULT_CONTACT_EMAIL = "rihardslaskovs@gmail.com";
 const DEFAULT_TURN_DURATION_MS = 10_000;
 const MIN_TURN_DURATION_MS = 100;
 const MAX_TURN_DURATION_MS = 600_000;
@@ -128,6 +130,8 @@ export interface EmailConfig {
   from: string | undefined;
   /** Web bāzes URL reset linkam (`APP_BASE_URL`; noklusējums dev web izcelsme). */
   appBaseUrl: string;
+  /** Kontaktformas saņēmēja adrese (`CONTACT_EMAIL`; noklusējums īpašnieka adrese). */
+  contactTo: string;
 }
 
 interface EnvValues {
@@ -218,7 +222,8 @@ export function loadServerConfig(
     email: {
       resendApiKey: readOptional(env.RESEND_API_KEY ?? fileEnv.RESEND_API_KEY),
       from: readOptional(env.EMAIL_FROM ?? fileEnv.EMAIL_FROM),
-      appBaseUrl: readNonEmpty(env.APP_BASE_URL ?? fileEnv.APP_BASE_URL, DEFAULT_WEB_ORIGIN)
+      appBaseUrl: readNonEmpty(env.APP_BASE_URL ?? fileEnv.APP_BASE_URL, DEFAULT_WEB_ORIGIN),
+      contactTo: readNonEmpty(env.CONTACT_EMAIL ?? fileEnv.CONTACT_EMAIL, DEFAULT_CONTACT_EMAIL)
     }
   };
 }

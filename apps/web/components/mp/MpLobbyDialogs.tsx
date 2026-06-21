@@ -158,7 +158,11 @@ function CreateRoomDialog({
   // (citādi tukšs/NaN starpstāvoklis uzreiz lēktu atpakaļ uz noklusējumu → nevar ierakstīt 1).
   const [roundsInput, setRoundsInput] = useState(String(defaultRoomNumberOfRounds));
   const [fillWithBots, setFillWithBots] = useState(false);
-  const [entryFee, setEntryFee] = useState(0);
+  // Maksas lauku (tāpat kā raundus) turam kā JĒLU virkni rediģēšanas laikā, lai lietotājs
+  // var notīrīt noklusējuma "0" un ierakstīt jebkuru summu. Saspraudums TIKAI pie blur/submit
+  // (citādi tukšs/NaN starpstāvoklis uzreiz lēktu atpakaļ uz 0 → nevar ierakstīt "500").
+  const [feeInput, setFeeInput] = useState("0");
+  const entryFee = sanitizeFeeInput(Number.parseInt(feeInput, 10));
 
   // Maksas istabas drīkst veidot tikai ielogots lietotājs (anonīmam nav maka).
   const canSetFee = hostBalance !== undefined;
@@ -243,8 +247,11 @@ function CreateRoomDialog({
               min={0}
               max={Math.min(MAX_ENTRY_FEE, hostBalance ?? 0)}
               step={1}
-              value={entryFee}
-              onChange={(event) => setEntryFee(sanitizeFeeInput(event.currentTarget.valueAsNumber))}
+              value={feeInput}
+              onChange={(event) => setFeeInput(event.currentTarget.value)}
+              onBlur={(event) =>
+                setFeeInput(String(clampEntryFee(Number.parseInt(event.currentTarget.value, 10))))
+              }
             />
             <small className="mpEntryFeeHint">
               {entryFee > 0 ? t.mpEntryFeeHint : t.mpEntryFeeFree} · {t.balanceLabel}: {hostBalance ?? 0}
