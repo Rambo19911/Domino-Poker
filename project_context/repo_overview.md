@@ -1,6 +1,6 @@
 # Repository Overview
 
-Last refreshed: 2026-06-20 (gold-coin Phase 5 — gold-coin rules in main + MP rules dialogs, en/lv; reduced-motion audit).
+Last refreshed: 2026-06-21 (v3.2 — swappable per-screen SVG backgrounds + per-screen palette accents on the 4 main screens; `--felt` token). Earlier: gold-coin Phase 5 (rules in main + MP rules dialogs, en/lv; reduced-motion audit).
 
 ## Purpose
 
@@ -115,6 +115,7 @@ CI (`.github/workflows/ci.yml`) runs install, core/shared/server build, typechec
 - `apps/web/components/MultiplayerLobby.tsx` and `apps/web/lib/mp/*`: render server state and send intents only. Do not accept/reject MP moves authoritatively in the browser. Phase 4 paid-room UI: `lib/mp/clientView.ts` holds `wallet.balance` (from WELCOME `goldBalance` + live `WALLET_UPDATED`; each WELCOME reflects current auth state, so anonymous reconnect clears it); `lib/mp/gameTableView.ts` carries `pot`; `components/mp/RoomFeeChip.tsx` is the shared coin badge for room lists; `CreateRoomDialog` (in `MpLobbyDialogs.tsx`) shows the entry-fee input only to logged-in hosts with client-side balance validation (server re-checks at debit); `components/MobilePot.tsx` + `MP_MOBILE_POS.pot` render the table pot on mobile, `MpInfoPanel` on desktop. Coin colors are token-only (`--coin`); animations (`coinGainPulse`, `potBump`) live in `styles/animations.css` and respect `prefers-reduced-motion`.
 - `apps/web/components/mp/MpDesktopTable.tsx`, `MpMobileTable.tsx`, `apps/web/lib/mp/mobileLayout.ts`, and `desktopStage.ts`: multiplayer table layout is split by viewport and needs both desktop and phone checks.
 - `apps/web/styles/tokens.css`, `glass.css`, `components/ui/*`, and `apps/web/lib/theme.ts`: token/theme primitives are shared UI infrastructure. Keep color tokens and RGB channel pairs aligned.
+- `apps/web/public/assets/backgrounds/*.svg` + `tokens.css` "per-screen palette" section: each of the 4 main screens (`.lobbyShell`, `.mpLobby`, `.gameShell.spRoomBg`, `.gameShell.mpRoomBg`) draws a swappable SVG bg via a `--bg-*` token and overrides its thematic chrome tokens (`--primary`/`--surface`/`--surface-floating`/`--felt`) to match that bg's palette — orthogonal to `[data-theme]`. `--coin` re-pinned gold per scope (money stays gold); dialogs inherit the screen accent; functional signals (green/red) + graphics stay universal. See `ai_rules.md` theming care points before recoloring or reskinning a screen.
 - `apps/web/app/globals.css`: import-only CSS entry. Add CSS to feature partials under `apps/web/styles/`.
 - PWA/service-worker/version assets can mask changes through cache behavior; verify browser behavior when changing `manifest.ts`, `sw.js`, `VERSION`, `next.config.ts`, icons, or public assets.
 - `data/*.sqlite*`, `logs/`, `.env`, local TODO/deploy/scaling docs, and `deploy.sh` are local/ignored and must not be committed.
