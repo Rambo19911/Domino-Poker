@@ -153,7 +153,10 @@ function CreateRoomDialog({
   }) => void;
 }) {
   const [visibility, setVisibility] = useState<RoomVisibility>("public");
-  const [numberOfRounds, setNumberOfRounds] = useState(defaultRoomNumberOfRounds);
+  // Raundu lauku turam kā JĒLU virkni rediģēšanas laikā, lai lietotājs var notīrīt
+  // (tukšs) un ierakstīt jebkuru 1..50 vērtību. Saspraudums NOTIEK TIKAI pie blur/submit
+  // (citādi tukšs/NaN starpstāvoklis uzreiz lēktu atpakaļ uz noklusējumu → nevar ierakstīt 1).
+  const [roundsInput, setRoundsInput] = useState(String(defaultRoomNumberOfRounds));
   const [fillWithBots, setFillWithBots] = useState(false);
   const [entryFee, setEntryFee] = useState(0);
 
@@ -166,7 +169,7 @@ function CreateRoomDialog({
   const submitCreate = (event: React.FormEvent) => {
     event.preventDefault();
     if (!isConnected || feeInvalid) return;
-    const clampedRounds = clampRoundCount(numberOfRounds);
+    const clampedRounds = clampRoundCount(Number.parseInt(roundsInput, 10));
     onCreate({
       visibility,
       numberOfRounds: clampedRounds,
@@ -221,8 +224,11 @@ function CreateRoomDialog({
               type="number"
               min={minRoomNumberOfRounds}
               max={maxRoomNumberOfRounds}
-              value={numberOfRounds}
-              onChange={(event) => setNumberOfRounds(clampRoundCount(event.currentTarget.valueAsNumber))}
+              value={roundsInput}
+              onChange={(event) => setRoundsInput(event.currentTarget.value)}
+              onBlur={(event) =>
+                setRoundsInput(String(clampRoundCount(Number.parseInt(event.currentTarget.value, 10))))
+              }
             />
           </label>
 

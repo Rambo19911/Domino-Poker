@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { MpGameTableView, MpTrickPlay } from "./gameTableView";
 
@@ -31,7 +31,11 @@ export function useTrickFreeze(table: TrickFreezeInput): TrickFreeze {
   const prevCompletedRef = useRef(table.completedTrickCount);
   const freezeTimerRef = useRef<number | undefined>(undefined);
 
-  useEffect(() => {
+  // useLayoutEffect (NEVIS useEffect): pabeigtais triks jāiesaldē PIRMS paint. Uz triku-
+  // pabeidzošā (4.) kauliņa snapshot `trick=[]`, tāpēc ar pasīvo efektu viens paint rādītu
+  // tukšu galdu, un kauliņa skaņa (pasīvs efekts pēc paint) varētu apsteigt vizuālo kauliņu.
+  // Layout-efekts uzstāda `frozenTrick` pirms paint → kauliņš redzams ≤ skaņa.
+  useLayoutEffect(() => {
     if (table.completedTrickCount > prevCompletedRef.current && table.lastCompletedTrick) {
       setFrozenTrick(table.lastCompletedTrick);
       if (freezeTimerRef.current !== undefined) window.clearTimeout(freezeTimerRef.current);

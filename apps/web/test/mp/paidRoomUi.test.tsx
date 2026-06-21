@@ -49,6 +49,36 @@ describe("CreateRoomDialog entry-fee field (Phase 4)", () => {
     expect(onCreate.mock.calls[0]![0]).toMatchObject({ entryFee: 100 });
   });
 
+  it("lets the host clear the rounds field and submit 1 round", () => {
+    const onCreate = vi.fn();
+    const { container } = renderAndReturnContainer(5000, onCreate);
+    const roundsInput = container.querySelector<HTMLInputElement>(".mpFieldRow .mpNumberField input")!;
+    // Notīrām (bija 7) — lauks NEDRĪKST uzreiz lēkt atpakaļ uz noklusējumu.
+    fireEvent.change(roundsInput, { target: { value: "" } });
+    expect(roundsInput.value).toBe("");
+    fireEvent.change(roundsInput, { target: { value: "1" } });
+    fireEvent.click(screen.getByRole("button", { name: en.mpCreateRoom }));
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    expect(onCreate.mock.calls[0]![0]).toMatchObject({ numberOfRounds: 1 });
+  });
+
+  it("normalizes an out-of-range rounds value to the max on blur", () => {
+    const { container } = renderAndReturnContainer(5000);
+    const roundsInput = container.querySelector<HTMLInputElement>(".mpFieldRow .mpNumberField input")!;
+    fireEvent.change(roundsInput, { target: { value: "999" } });
+    fireEvent.blur(roundsInput);
+    expect(roundsInput.value).toBe("50"); // saspraudums pie max, kad lauks pamests
+  });
+
+  it("falls back to the default rounds when submitted empty", () => {
+    const onCreate = vi.fn();
+    const { container } = renderAndReturnContainer(5000, onCreate);
+    const roundsInput = container.querySelector<HTMLInputElement>(".mpFieldRow .mpNumberField input")!;
+    fireEvent.change(roundsInput, { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: en.mpCreateRoom }));
+    expect(onCreate.mock.calls[0]![0]).toMatchObject({ numberOfRounds: 7 });
+  });
+
   it("blocks submit and warns when the fee exceeds the balance", () => {
     const onCreate = vi.fn();
     const { container } = renderAndReturnContainer(50, onCreate);
