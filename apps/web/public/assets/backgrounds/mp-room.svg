@@ -1,11 +1,75 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
-  <!-- MP-room (daudzspēlētāju galda) fons. Pašlaik: smalks vertikāls gradients, atbilst
-       esošajam .gameShell izskatam. Nākotnē: aizvietot ar domino/pokera tekstūru. -->
+  <style>
+    @keyframes drift-a{0%,100%{transform:translate(0,0) rotate(0)}50%{transform:translate(-18px,-12px) rotate(.7deg)}}
+    @keyframes drift-b{0%,100%{transform:translate(0,0) rotate(0)}50%{transform:translate(16px,18px) rotate(-.8deg)}}
+    @keyframes flA{0%{transform:translate(0,0);opacity:0}6%{opacity:.85}20%{transform:translate(40px,-30px)}29%{transform:translate(54px,-48px);opacity:0}30%{transform:translate(420px,160px);opacity:0}38%{opacity:.8}54%{transform:translate(452px,132px)}63%{opacity:0}64%{transform:translate(-280px,300px);opacity:0}72%{opacity:.9}92%{transform:translate(-318px,332px)}100%{opacity:0}}
+    @keyframes flB{0%{transform:translate(0,0);opacity:0}7%{opacity:.8}22%{transform:translate(-38px,24px)}31%{transform:translate(-56px,40px);opacity:0}32%{transform:translate(-360px,-200px);opacity:0}40%{opacity:.85}56%{transform:translate(-392px,-228px)}65%{opacity:0}66%{transform:translate(260px,-300px);opacity:0}74%{opacity:.75}94%{transform:translate(300px,-340px)}100%{opacity:0}}
+    @keyframes flC{0%{transform:translate(0,0);opacity:0}6%{opacity:.9}21%{transform:translate(46px,32px)}30%{transform:translate(64px,46px);opacity:0}31%{transform:translate(-300px,240px);opacity:0}39%{opacity:.8}55%{transform:translate(-336px,272px)}64%{opacity:0}65%{transform:translate(380px,-180px);opacity:0}73%{opacity:.9}93%{transform:translate(418px,-216px)}100%{opacity:0}}
+    @keyframes flD{0%{transform:translate(0,0);opacity:0}8%{opacity:.75}23%{transform:translate(-30px,-40px)}32%{transform:translate(-44px,-58px);opacity:0}33%{transform:translate(340px,-220px);opacity:0}41%{opacity:.85}57%{transform:translate(372px,-250px)}66%{opacity:0}67%{transform:translate(-220px,320px);opacity:0}75%{opacity:.7}95%{transform:translate(-256px,356px)}100%{opacity:0}}
+    @keyframes flE{0%{transform:translate(0,0);opacity:0}6%{opacity:.9}20%{transform:translate(34px,40px)}29%{transform:translate(48px,58px);opacity:0}30%{transform:translate(-380px,-160px);opacity:0}38%{opacity:.8}54%{transform:translate(-416px,-128px)}63%{opacity:0}64%{transform:translate(280px,260px);opacity:0}72%{opacity:.85}92%{transform:translate(316px,296px)}100%{opacity:0}}
+    @keyframes flF{0%{transform:translate(0,0);opacity:0}7%{opacity:.7}22%{transform:translate(-46px,-24px)}31%{transform:translate(-64px,-40px);opacity:0}32%{transform:translate(300px,200px);opacity:0}40%{opacity:.85}56%{transform:translate(336px,228px)}65%{opacity:0}66%{transform:translate(-260px,-320px);opacity:0}74%{opacity:.75}94%{transform:translate(-300px,-356px)}100%{opacity:0}}
+    @keyframes flG{0%{transform:translate(0,0);opacity:0}6%{opacity:.85}21%{transform:translate(52px,-20px)}30%{transform:translate(70px,-34px);opacity:0}31%{transform:translate(-340px,260px);opacity:0}39%{opacity:.8}55%{transform:translate(-376px,228px)}64%{opacity:0}65%{transform:translate(220px,-340px);opacity:0}73%{opacity:.9}93%{transform:translate(256px,-376px)}100%{opacity:0}}
+    @keyframes flH{0%{transform:translate(0,0);opacity:0}8%{opacity:.8}23%{transform:translate(-32px,30px)}32%{transform:translate(-50px,44px);opacity:0}33%{transform:translate(360px,-200px);opacity:0}41%{opacity:.85}57%{transform:translate(396px,-232px)}66%{opacity:0}67%{transform:translate(-240px,300px);opacity:0}75%{opacity:.7}95%{transform:translate(-276px,336px)}100%{opacity:0}}
+    .nebula-a{animation:drift-a 40s ease-in-out infinite;transform-origin:300px 680px}
+    .nebula-b{animation:drift-b 46s ease-in-out infinite;transform-origin:1320px 220px}
+    .tile-a{animation:drift-b 44s ease-in-out infinite;transform-origin:center}
+    .tile-b{animation:drift-a 49s ease-in-out infinite;transform-origin:center}
+    .fa{animation:flA ease-in-out infinite}.fb{animation:flB ease-in-out infinite}.fc{animation:flC ease-in-out infinite}.fd{animation:flD ease-in-out infinite}
+    .fe{animation:flE ease-in-out infinite}.ff{animation:flF ease-in-out infinite}.fg{animation:flG ease-in-out infinite}.fh{animation:flH ease-in-out infinite}
+  </style>
   <defs>
-    <linearGradient id="mproom" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#1e2c26"/>
-      <stop offset="100%" stop-color="#1e2622"/>
-    </linearGradient>
+    <radialGradient id="bg" cx="50%" cy="50%" r="78%"><stop offset="0%" stop-color="#080207"/><stop offset="56%" stop-color="#010002"/><stop offset="100%" stop-color="#000"/></radialGradient>
+    <radialGradient id="ruby" cx="50%" cy="50%" r="55%"><stop offset="0%" stop-color="#ff5fd6" stop-opacity=".35"/><stop offset="38%" stop-color="#5a123f" stop-opacity=".20"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient>
+    <radialGradient id="ember" cx="50%" cy="50%" r="55%"><stop offset="0%" stop-color="#ffb65f" stop-opacity=".28"/><stop offset="42%" stop-color="#4a2107" stop-opacity=".16"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient>
+    <radialGradient id="flareGrad" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#fff"/><stop offset="18%" stop-color="#ffc7f2" stop-opacity=".88"/><stop offset="58%" stop-color="#ff5fd6" stop-opacity=".22"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fff"/><stop offset="48%" stop-color="#ff5fd6"/><stop offset="100%" stop-color="#ffb65f"/></linearGradient>
+    <filter id="blur95" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="95"/></filter>
+    <filter id="blur24" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="24"/></filter>
+    <filter id="glow" x="-75%" y="-75%" width="250%" height="250%"><feGaussianBlur stdDeviation="4.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="hot" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="12" result="b1"/><feGaussianBlur stdDeviation="3" result="b2"/><feMerge><feMergeNode in="b1"/><feMergeNode in="b2"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="noise" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency=".005 .014" numOctaves="5" seed="512"/><feColorMatrix type="matrix" values="1.2 0 0 0 0 0 1 0 0 0 0 0 1.1 0 0 0 0 0 .50 0"/></filter>
+    <mask id="dust"><rect width="1600" height="900" fill="#fff" filter="url(#noise)" opacity=".68"/></mask>
+    <g id="spark"><line x1="-16" y1="0" x2="16" y2="0" stroke="#ffc7f2" stroke-width=".9"/><line x1="0" y1="-16" x2="0" y2="16" stroke="#ffc7f2" stroke-width=".9"/><circle r="2.1" fill="#fff" filter="url(#hot)"/></g>
+    <g id="tile42">
+      <polygon points="0,0 170,-112 278,38 108,150" fill="#080205" fill-opacity=".88" stroke="url(#edge)" stroke-width="1.8" filter="url(#glow)"/>
+      <polygon points="108,150 278,38 300,60 130,174" fill="#230719" fill-opacity=".58" stroke="#ff5fd6" stroke-opacity=".42"/>
+      <polygon points="0,0 108,150 130,174 22,24" fill="#16040f" fill-opacity=".62" stroke="#ff5fd6" stroke-opacity=".36"/>
+      <line x1="78" y1="-52" x2="184" y2="96" stroke="#ffc7f2" stroke-opacity=".60" stroke-width="1.1"/>
+      <g stroke="#ff5fd6" stroke-width=".7" stroke-opacity=".28"><line x1="45" y1="-3" x2="92" y2="-34"/><line x1="45" y1="-3" x2="82" y2="50"/><line x1="92" y1="-34" x2="130" y2="20"/><line x1="82" y1="50" x2="130" y2="20"/><line x1="190" y1="-72" x2="230" y2="-18"/></g>
+      <g filter="url(#hot)"><circle cx="45" cy="-3" r="4.5" fill="#fff"/><circle cx="92" cy="-34" r="4.1" fill="#ffc7f2"/><circle cx="82" cy="50" r="4.1" fill="#ffc7f2"/><circle cx="130" cy="20" r="4.5" fill="#fff"/><circle cx="190" cy="-72" r="4.5" fill="#fff"/><circle cx="230" cy="-18" r="4.5" fill="#fff"/></g>
+    </g>
   </defs>
-  <rect width="1600" height="900" fill="url(#mproom)"/>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect width="1600" height="900" fill="#2a071d" opacity=".34" mask="url(#dust)"/>
+  <g filter="url(#blur95)"><ellipse class="nebula-a" cx="260" cy="680" rx="600" ry="350" fill="url(#ruby)"/><ellipse class="nebula-b" cx="1335" cy="230" rx="610" ry="360" fill="url(#ember)"/></g>
+  <!-- arena rings + mesh: STATIC structure (its bright mesh nodes no longer drift back-and-forth) -->
+  <g opacity=".58">
+    <ellipse cx="800" cy="480" rx="565" ry="280" fill="none" stroke="#ff5fd6" stroke-opacity=".12" stroke-width="2"/>
+    <ellipse cx="800" cy="480" rx="430" ry="205" fill="none" stroke="#ffb65f" stroke-opacity=".09" stroke-width="2"/>
+    <path d="M245 492 C500 350 1100 350 1360 492" fill="none" stroke="#ffc7f2" stroke-opacity=".10"/>
+    <path d="M300 690 C540 585 1050 585 1300 690" fill="none" stroke="#ffb65f" stroke-opacity=".08"/>
+  </g>
+  <path d="M-140 590 C210 380 460 650 780 462 C1060 298 1300 470 1730 250" fill="none" stroke="#ff5fd6" stroke-width="84" stroke-opacity=".12" stroke-linecap="round" filter="url(#blur24)"/>
+  <path d="M-120 252 C230 365 470 120 790 275 C1080 415 1330 180 1720 330" fill="none" stroke="#ffb65f" stroke-width="70" stroke-opacity=".11" stroke-linecap="round" filter="url(#blur24)"/>
+  <g opacity=".5"><circle cx="120" cy="98" r=".8" fill="#fff"/><circle cx="300" cy="148" r=".9" fill="#ffc7f2"/><circle cx="500" cy="82" r="1" fill="#fff"/><circle cx="735" cy="132" r=".8" fill="#fff"/><circle cx="980" cy="76" r="1" fill="#ffc7f2"/><circle cx="1220" cy="118" r=".7" fill="#fff"/><circle cx="1490" cy="205" r=".9" fill="#fff"/><circle cx="178" cy="780" r=".8" fill="#fff"/><circle cx="640" cy="790" r="1" fill="#ffb65f"/><circle cx="1360" cy="750" r="1" fill="#fff"/></g>
+  <!-- the existing moving stars: now float like aquarium fish, appearing at several points -->
+  <g opacity=".62">
+    <circle class="fa" cx="250" cy="240" r="2.2" fill="#ff5fd6" filter="url(#glow)" style="animation-duration:15s"/>
+    <circle class="fc" cx="520" cy="600" r="1.6" fill="#fff" style="animation-duration:19s;animation-delay:3s"/>
+    <circle class="fe" cx="820" cy="330" r="3" fill="#ffc7f2" filter="url(#hot)" style="animation-duration:13s;animation-delay:6s"/>
+    <circle class="fg" cx="1080" cy="500" r="2.2" fill="#ffb65f" filter="url(#glow)" style="animation-duration:16s;animation-delay:9s"/>
+    <circle class="fh" cx="1320" cy="250" r="2.6" fill="#fff" filter="url(#hot)" style="animation-duration:14s;animation-delay:4s"/>
+  </g>
+  <g opacity=".68">
+    <path d="M210 640 L420 510 L610 602 L820 410 L1015 500 L1228 275 L1435 352" fill="none" stroke="#ff5fd6" stroke-opacity=".16"/>
+    <path d="M342 238 L555 320 L795 195 L1030 305 L1268 165 L1480 262" fill="none" stroke="#ffb65f" stroke-opacity=".13"/>
+    <g filter="url(#glow)"><circle cx="420" cy="510" r="3.8" fill="#ff5fd6"/><circle cx="610" cy="602" r="3.2" fill="#fff"/><circle cx="820" cy="410" r="4.8" fill="#ffc7f2"/><circle cx="1015" cy="500" r="3.4" fill="#ffb65f"/><circle cx="1228" cy="275" r="4.2" fill="#fff"/><circle cx="555" cy="320" r="3.4" fill="#ff5fd6"/><circle cx="1030" cy="305" r="3.8" fill="#fff"/></g>
+  </g>
+  <!-- 2 closest dominoes removed; only the 2 far/faint ones remain -->
+  <g transform="translate(520 210) rotate(12) scale(.38)" opacity=".28"><g class="tile-a"><use href="#tile42"/></g></g>
+  <g transform="translate(940 705) rotate(-16) scale(.36)" opacity=".25"><g class="tile-b"><use href="#tile42"/></g></g>
+  <!-- flares (large stars): float like the rest, distinct flows, slow tempo -->
+  <g transform="translate(190 270)"><g class="fd" style="animation-duration:23s"><use href="#spark"/><circle r="60" fill="url(#flareGrad)" opacity=".34"/></g></g>
+  <g transform="translate(1370 608)"><g class="fb" style="animation-duration:26s;animation-delay:7s"><use href="#spark"/><circle r="50" fill="url(#flareGrad)" opacity=".24"/></g></g>
+  <rect width="1600" height="900" fill="#000" opacity=".12"/>
 </svg>
