@@ -221,12 +221,6 @@
   min-width: 0;
 }
 
-/* Maksas čips satura platumā: bez tā flex-column `align-items: stretch` to izstieptu
-   pa visu kartes platumu (nesmuki mainās izmērs/pozīcija pie platuma maiņas). */
-.mpRoomMeta .mpRoomFee {
-  align-self: flex-start;
-}
-
 .mpRoomName {
   display: flex;
   align-items: center;

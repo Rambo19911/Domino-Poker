@@ -9,11 +9,12 @@ import type { AppStrings } from "../../lib/i18n";
 import { avatarUrl } from "../../lib/auth/avatarUrl";
 import { titleLabel } from "../../lib/auth/titleLabel";
 import type { MpGameTableView, MpTableSeat, MpTrickPlay, VisualSeat } from "../../lib/mp/gameTableView";
+import { chestForPot } from "../../lib/mp/potChest";
 import type { StageContainLayout } from "../../lib/mp/desktopStage";
 import type { AudioSettings } from "../../lib/useAudioSettings";
 import { AudioControls, VolumeIcon, VolumeOffIcon } from "../AudioControls";
 import { AvatarRankBadge } from "../AvatarRankBadge";
-import { CoinIcon } from "../CoinIcon";
+import { CoinGif } from "../CoinGif";
 import { DominoTileView, HiddenTile } from "../DominoTileView";
 import { ExitIcon } from "../GameDialogs";
 import { HelpIcon } from "../RulesDialog";
@@ -390,10 +391,10 @@ function MpInfoPanel({
         <>
           <div className="infoDivider" />
           <div className="potRow" aria-label={`${t.mpPotLabel}: ${table.pot}`}>
-            <span className="potLabel">{t.mpPotLabel}</span>
+            <img className="potChest" src={chestForPot(table.pot)} alt="" aria-hidden="true" draggable={false} />
             <span className="potValue" key={table.pot}>
-              <CoinIcon className="potIcon" />
-              {table.pot}
+              <CoinGif className="potIcon" />
+              {table.pot.toLocaleString()}
             </span>
           </div>
         </>

@@ -93,23 +93,29 @@
   opacity: 0.85;
 }
 
-/* Pods spēles galdā — desktop info panelī zem punktu tabulas (Fāze 4). */
+/* Pods spēles galdā — desktop info panelī zem punktu tabulas. Lādes attēls (pēc poda
+   lieluma, tāpat kā mobilajā) + kopsumma ar griežošos monētu; plašāka vieta nekā
+   agrākajai teksta rindai. */
 .potRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  margin-top: 6px;
+  gap: 12px;
+  margin-top: 10px;
 }
-.potLabel {
-  font-weight: 600;
-  opacity: 0.85;
+.potChest {
+  width: 52px;
+  height: 52px;
+  flex: 0 0 auto;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 8px rgb(var(--shadow-rgb) / 0.5));
 }
 .potValue {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   color: var(--coin);
+  font-size: 22px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   animation: potBump 220ms var(--ease-standard) both;

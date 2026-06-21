@@ -559,9 +559,9 @@ function PublicRoomRow({
         </span>
         <span className="mpRoomSeats">{t.roundCount}: {room.numberOfRounds}</span>
         <span className="mpRoomSeats">{t.mpExpiresIn}: {formatTtl(room.expiresAt, nowMs, t)}</span>
-        <RoomFeeChip entryFee={room.entryFee} labels={t} />
       </div>
       <div className="mpRoomRight">
+        <RoomFeeChip entryFee={room.entryFee} labels={t} />
         <span className={`mpChip${isPlaying ? " mpChipPlaying" : ""}`}>
           {isPlaying ? t.mpStatusPlaying : t.mpStatusWaiting}
         </span>
@@ -642,9 +642,9 @@ function PrivateRoomRow({
         </span>
         <span className="mpRoomSeats">{t.roundCount}: {room.numberOfRounds}</span>
         <span className="mpRoomSeats">{t.mpExpiresIn}: {formatTtl(room.expiresAt, nowMs, t)}</span>
-        <RoomFeeChip entryFee={room.entryFee} labels={t} />
       </div>
       <div className="mpRoomRight">
+        <RoomFeeChip entryFee={room.entryFee} labels={t} />
         {isPlaying ? (
           <span className="mpRoomLocked" aria-label={t.mpStatusPlaying}>🔒</span>
         ) : (
