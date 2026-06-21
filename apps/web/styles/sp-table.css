@@ -28,7 +28,7 @@
   width: 450px;
   height: 450px;
   border-radius: 50%;
-  background: radial-gradient(circle, var(--background), var(--overlay));
+  background: radial-gradient(circle, var(--felt), var(--overlay));
   box-shadow:
     0 15px 30px rgb(var(--overlay-rgb) / 0.7),
     0 0 50px -20px rgb(var(--primary-rgb) / 0.2);

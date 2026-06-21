@@ -44,7 +44,7 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: radial-gradient(circle, var(--background), var(--overlay));
+  background: radial-gradient(circle, var(--felt), var(--overlay));
   box-shadow:
     0 10px 24px rgb(var(--overlay-rgb) / 0.7),
     0 0 40px -16px rgb(var(--primary-rgb) / 0.3);

@@ -24,6 +24,12 @@
      caurspīdīgumu: `rgb(var(--primary-rgb) / 0.16)`. */
   --background: #1b6048;
   --background-rgb: 27 96 72;
+  /* Galda filca centrs (radial-gradient `.table`/`.mpmTable`). Atdalīts no
+     `--background` (kas paliek zaļais signāls/grafika), lai per-ekrāna SVG paletes
+     var pārkrāsot TIKAI filcu, neskarot tava-kārta gredzenu vai kauliņu mugurpuses.
+     Noklusējums = `--background` zaļais. */
+  --felt: #1b6048;
+  --felt-rgb: 27 96 72;
   --surface: #1d6b50;
   --surface-rgb: 29 107 80;
   --overlay: #1e2622;
@@ -174,6 +180,78 @@
   --glass-blur: 22px;
   --glass-saturate: 1.35;
   --modal-scrim: rgb(0 0 0 / 0.30);
+}
+
+/* ── PER-EKRĀNA KRĀSU SASKAŅOŠANA AR SVG FONA PALETI ──────────────────────────
+   Katrs ekrāns lieto savu swappable SVG fonu (`--bg-*`) ar atšķirīgu paleti. Tā
+   saknes konteiners pārraksta VISU tematisko/dekoratīvo krāsu komplektu uz attiecīgā
+   fona toņiem, lai akcenti (malas, pogas, mode-wheel, dealer-gredzens, čipi), paneļu
+   virsmas un galda filcs saskan ar fonu. Dialogi MANTO šo komplektu (renderējas
+   inline ekrāna iekšā) → tie arī pielāgojas; glass melnais fons (`--overlay`) paliek.
+
+   Tematiskie literāļi paliek ŠEIT tokens.css (NE stilu failos). Per-ekrāna scope ≠
+   `[data-theme]` tēma; ortogonāli (`[data-theme]` pārraksta `:root`, šie — konteineru).
+
+   Apzināti NESKARTS (mantojas no `:root`):
+   • `--coin`/`--coin-rgb` re-pin uz zeltu → nauda/ekonomika (bilance, pods, maksa)
+     paliek zeltaina visur ar savu GIF ikonu (lietotāja izvēle).
+   • Funkcionālie signāli — zaļais (`--success`/`--positive`/`--online`/`--accent-green`/
+     `--background`: tava-kārta, savienots, solīts-vs-paņemts) un sarkanais
+     (`--error`/`--danger`) — paliek universāli (NETIEK pārkrāsoti).
+   • Grafika: kauliņu mugurpuses (`--background`/`--domino-*`), logo, GIF, fona SVG. */
+
+.lobbyShell {            /* lobby.svg — tirkīzs/zelts; akcents = tirkīzs */
+  --primary: #5effd8;
+  --primary-rgb: 94 255 216;
+  --surface: #0c4a3e;
+  --surface-rgb: 12 74 62;
+  --surface-floating: #0e5547;
+  --surface-floating-rgb: 14 85 71;
+  --felt: #0c5a49;
+  --felt-rgb: 12 90 73;
+  --wheel-arc-top-rgb: 12 90 73;     /* mode-wheel augšējā loka pildījums → tirkīzs */
+  --wheel-arc-bottom-rgb: 8 56 47;
+  --coin: #d6ad47;
+  --coin-rgb: 214 173 71;
+}
+
+.mpLobby {               /* mp-lobby.svg — violets/zils/lavanda; akcents = violets */
+  --primary: #b47cff;
+  --primary-rgb: 180 124 255;
+  --surface: #241a55;
+  --surface-rgb: 36 26 85;
+  --surface-floating: #2b1466;
+  --surface-floating-rgb: 43 20 102;
+  --felt: #241a55;
+  --felt-rgb: 36 26 85;
+  --coin: #d6ad47;
+  --coin-rgb: 214 173 71;
+}
+
+.gameShell.mpRoomBg {    /* mp-room.svg — rubīns/dzintars (rozā/oranža); akcents = rubīns */
+  --primary: #ff5fd6;
+  --primary-rgb: 255 95 214;
+  --surface: #3a0f2a;
+  --surface-rgb: 58 15 42;
+  --surface-floating: #4a113a;
+  --surface-floating-rgb: 74 17 58;
+  --felt: #5a123f;
+  --felt-rgb: 90 18 63;
+  --coin: #d6ad47;
+  --coin-rgb: 214 173 71;
+}
+
+.gameShell.spRoomBg {    /* sp-room.svg — teal/zelts; akcents = tirkīzs (nauda paliek zelts) */
+  --primary: #55ffd6;
+  --primary-rgb: 85 255 214;
+  --surface: #0c4a3e;
+  --surface-rgb: 12 74 62;
+  --surface-floating: #0e5547;
+  --surface-floating-rgb: 14 85 71;
+  --felt: #08392e;
+  --felt-rgb: 8 57 46;
+  --coin: #d6ad47;
+  --coin-rgb: 214 173 71;
 }
 
 /* ── TĒMU VEIDNE ──────────────────────────────────────────────────────────────
