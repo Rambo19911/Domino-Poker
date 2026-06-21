@@ -48,4 +48,20 @@ describe("GameEndDialog SP reward banner", () => {
     );
     expect(baseElement.querySelector(".gameEndReward")).toBeNull();
   });
+
+  it("renders a place-award GIF per row, ranked by score (top row = 1st place)", () => {
+    const { baseElement } = render(
+      <GameEndDialog gameState={gameState} audio={audio} labels={t} spAward={300} onClose={() => {}} />
+    );
+    const rows = baseElement.querySelectorAll(".finalScores > div");
+    expect(rows).toHaveLength(4);
+    // Augstākais totalScore (You, 30) ir 1. rindā ar winner-number-1 GIF.
+    expect(rows[0]?.querySelector("dt")?.textContent).toBe("You");
+    expect(rows[0]?.querySelector("img.finalScorePlace")?.getAttribute("src")).toContain(
+      "winner-number-1"
+    );
+    expect(rows[3]?.querySelector("img.finalScorePlace")?.getAttribute("src")).toContain(
+      "winner-number-4"
+    );
+  });
 });

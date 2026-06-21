@@ -373,11 +373,16 @@ describe("MultiplayerClient game-over return to lobby", () => {
     welcomeEmit(sockets[0]!);
     sockets[0]!.emit({ type: "ROOM_JOINED", room: roomView("room-1") });
     expect(client.getView().room?.id).toBe("room-1");
+    // Poda izmaksa pirms "OK": coinsWon iestatās; pēc returnToLobby tas jānotīra (citādi
+    // "+N nopelnīts" paliktu nākamajai spēlei/sesijai — šis ceļš neemitē ROOM_LEFT).
+    sockets[0]!.emit({ type: "WALLET_UPDATED", balance: 5350, coinsWon: 350 });
+    expect(client.getView().coinsWon).toBe(350);
 
     client.returnToLobby();
 
     expect(sockets[0]!.sentTypes()).not.toContain("LEAVE_ROOM");
     expect(client.getView().room).toBeUndefined();
+    expect(client.getView().coinsWon).toBeUndefined();
   });
 });
 

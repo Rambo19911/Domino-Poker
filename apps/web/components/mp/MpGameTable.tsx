@@ -6,11 +6,13 @@ import { isTrump, tileKey } from "@domino-poker/core";
 import type { DominoTile } from "@domino-poker/core";
 import type { AppStrings } from "../../lib/i18n";
 import type { ClientView } from "../../lib/mp/clientView";
-import type { MpGameTableView } from "../../lib/mp/gameTableView";
+import type { MpGameTableView, MpTableSeat } from "../../lib/mp/gameTableView";
 import type { MoveIntent } from "../../lib/mp/MultiplayerClient";
 import type { AudioSettings } from "../../lib/useAudioSettings";
+import { CoinGif } from "../CoinGif";
 import { BidDialog, ExitDialog, NumberDialog } from "../GameDialogs";
 import { Dialog } from "../Dialog";
+import { WinnerGif } from "../WinnerGif";
 import { RulesDialog } from "../RulesDialog";
 import { ConnectionBanner } from "./ConnectionBanner";
 import { MpMobileTable } from "./MpMobileTable";
@@ -179,7 +181,13 @@ export function MpGameTable({
       ) : null}
 
       {table.phase === "gameEnd" ? (
-        <MpGameEndDialog audio={audio} labels={t} table={table} onClose={onLeaveFinishedGame} />
+        <MpGameEndDialog
+          audio={audio}
+          labels={t}
+          table={table}
+          coinsWon={view.coinsWon}
+          onClose={onLeaveFinishedGame}
+        />
       ) : null}
 
       {showRulesDialog ? (
@@ -202,14 +210,26 @@ function MpGameEndDialog({
   audio,
   labels: t,
   table,
+  coinsWon,
   onClose
 }: {
   readonly audio: AudioSettings;
   readonly labels: AppStrings;
   readonly table: MpGameTableView;
+  /** Fāze 6: skatītāja šajā spēlē nopelnītās monētas (poda izmaksa); rāda "+N", ja > 0. */
+  readonly coinsWon: number | undefined;
   readonly onClose: () => void;
 }) {
-  const ranked = [...table.seats].sort((a, b) => b.totalScore - a.totalScore);
+  // Rangs no AUTORITATĪVĀ `standingsSeatOrder` (core getStandings: totalScore → bid →
+  // tricksWon → dīleris) — tas pats avots, ko `winnerSeatIndex` (= order[0]), tāpēc
+  // 1. vietas GIF nekad nav pretrunā ar izcelto uzvarētāju, arī neizšķirtā. Fallback uz
+  // sēdvietu secību, ja saraksts tukšs (praksē šis dialogs rādās tikai `gameEnd`).
+  const ranked =
+    table.standingsSeatOrder.length > 0
+      ? table.standingsSeatOrder
+          .map((seatIndex) => table.seats.find((seat) => seat.gameSeatIndex === seatIndex))
+          .filter((seat): seat is MpTableSeat => seat !== undefined)
+      : [...table.seats];
   const winner = table.seats.find((seat) => seat.gameSeatIndex === table.winnerSeatIndex);
   return (
     <Dialog ariaLabelledBy="mp-game-end-title" className="alertDialog summaryDialog" onEscape={onClose}>
@@ -217,9 +237,16 @@ function MpGameEndDialog({
       <div className="winnerBanner">
         {t.winner}: {winner ? seatLabel(winner.displayId, winner.isAI, winner.gameSeatIndex, t) : ""}
       </div>
+      {typeof coinsWon === "number" && coinsWon > 0 ? (
+        <div className="gameEndReward" aria-label={`${t.coinsEarned}: ${coinsWon}`}>
+          <CoinGif className="gameEndRewardIcon" />
+          <span className="gameEndRewardValue">+{coinsWon.toLocaleString()}</span>
+        </div>
+      ) : null}
       <dl className="finalScores">
-        {ranked.map((seat) => (
+        {ranked.map((seat, index) => (
           <div className={seat.gameSeatIndex === table.winnerSeatIndex ? "winnerRow" : ""} key={seat.gameSeatIndex}>
+            <WinnerGif place={index + 1} className="finalScorePlace" />
             <dt>{seatLabel(seat.displayId, seat.isAI, seat.gameSeatIndex, t)}</dt>
             <dd>{seat.totalScore} {t.pointsLabel}</dd>
           </div>

@@ -278,7 +278,13 @@
 }
 
 .difficultyOption {
-  min-height: 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 54px;
+  padding: 6px 4px;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: rgb(var(--muted-rgb) / 0.2);
@@ -288,6 +294,23 @@
   font-weight: 800;
   cursor: pointer;
   transition: color 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+
+/* Balva par līmeni (+50/+100/+300) ar griežošos monētas GIF — lai redzams, ka SP
+   spēle pret botiem dod zelta monētas. Krāsa token-only (`--coin`). */
+.difficultyReward {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--coin);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.difficultyRewardIcon {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
 }
 
 .difficultyOption:hover {

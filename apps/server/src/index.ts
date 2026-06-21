@@ -107,7 +107,7 @@ const eventBus =
 const displayIds = new DisplayIdRegistry();
 // Fāze 3: bilances push sinks (WALLET_UPDATED) — piesaista gateway, kas top vēlāk.
 // Maksas spēles poda izmaksa (game-over) sūta to uzvarētājiem; noklusējumā no-op.
-let emitWalletUpdated: (clientId: string, balance: number) => void = () => {};
+let emitWalletUpdated: (clientId: string, balance: number, coinsWon?: number) => void = () => {};
 // Fāze 7: katrai istabai īsts setTimeout-bāzēts turn timeris.
 const rooms = new RoomManager({
   clock,
@@ -132,7 +132,8 @@ const rooms = new RoomManager({
       void payouts
         .gameOver(matchId, standings)
         .then((results) => {
-          for (const result of results) emitWalletUpdated(result.clientId, result.balance);
+          // coinsWon = šīs izmaksas summa → spēles beigu summary "+N" (Fāze 6).
+          for (const result of results) emitWalletUpdated(result.clientId, result.balance, result.amount);
         })
         .catch((error: unknown) => console.error("[payout] settlement failed:", error));
     }
@@ -237,8 +238,12 @@ rooms.setGameUpdateSink((roomId, events) =>
 );
 // Fāze 3: tagad, kad gateway pastāv, piesaista bilances push (poda izmaksai pie game-over).
 if (payouts) {
-  emitWalletUpdated = (clientId, balance) =>
-    gateway.sendToPlayer(clientId, { type: "WALLET_UPDATED", balance });
+  emitWalletUpdated = (clientId, balance, coinsWon) =>
+    gateway.sendToPlayer(clientId, {
+      type: "WALLET_UPDATED",
+      balance,
+      ...(coinsWon !== undefined ? { coinsWon } : {})
+    });
 }
 // Fāze 3: partijas sākumā attiecinām katru cilvēka sēdvietu uz autentificēto userId
 // (ja ielogojies) statistikas vajadzībām. Anonīmam → undefined (nesaskaitās).

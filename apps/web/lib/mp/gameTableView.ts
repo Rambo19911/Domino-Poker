@@ -1,5 +1,5 @@
-import { canPlayTile, isTrump, tileKey, trumpPriority } from "@domino-poker/core";
-import type { DominoTile, Player } from "@domino-poker/core";
+import { canPlayTile, getStandings, isTrump, tileKey, trumpPriority } from "@domino-poker/core";
+import type { DominoTile, GameState, Player } from "@domino-poker/core";
 import type { RankBadgeId, RoomView, TitleId } from "@domino-poker/shared";
 
 import type { GameSnapshot } from "./clientView";
@@ -97,8 +97,16 @@ export interface MpGameTableView {
    * `undefined`, kad pirmais turns ir sācies. UI rāda "Spēle sākas pēc Ns".
    */
   readonly preGameStartsAt: number | undefined;
-  /** Tikai `gameEnd`: sēdvieta ar augstāko `totalScore` (attēlošanai). */
+  /** Tikai `gameEnd`: uzvarētāja sēdvieta = autoritatīvā ranga 1. vieta (`standingsSeatOrder[0]`). */
   readonly winnerSeatIndex: number | undefined;
+  /**
+   * Tikai `gameEnd`: gala rangs sēdvietu indeksos (1. vieta → pēdējā), atvasināts ar
+   * AUTORITATĪVO core `getStandings` (totalScore → bid → tricksWon → dīlera secība) —
+   * tas pats avots, ko serveris lieto izmaksai/statistikai. Summary dialogs to lieto
+   * gan rindu kārtībai, gan vietas apbalvojuma GIF, lai 1. vietas GIF nekad nav
+   * pretrunā ar izcelto uzvarētāju (arī neizšķirtā). Ārpus `gameEnd` — tukšs.
+   */
+  readonly standingsSeatOrder: readonly number[];
   /** Zelta monētu pods (Fāze 4) no `RoomView.pot`; `0` bezmaksas istabā (nerāda). */
   readonly pot: number;
 }
@@ -195,6 +203,8 @@ export function toGameTableView(
       ? "bid"
       : "move";
 
+  const standingsSeatOrder = gameEndStandingsSeatOrder(snapshot);
+
   return {
     phase: snapshot.phase,
     currentRound: snapshot.currentRound,
@@ -221,7 +231,8 @@ export function toGameTableView(
     // nomāktu atskaiti vienam cilvēkam, bet ne otram. Pirms-spēlē serveris vēl nav
     // atvēris turnu → `snapshot.turnId === undefined` → atskaite redzama VISIEM.
     preGameStartsAt: startsAt !== undefined && snapshot.turnId === undefined ? startsAt : undefined,
-    winnerSeatIndex: snapshot.phase === "gameEnd" ? highestScoreSeatIndex(snapshot.players) : undefined,
+    winnerSeatIndex: standingsSeatOrder.length > 0 ? standingsSeatOrder[0] : undefined,
+    standingsSeatOrder,
     pot: room?.pot ?? 0
   };
 }
@@ -266,13 +277,24 @@ function highestTrumpPriorityInTrick(trick: GameSnapshot["currentTrick"]): numbe
   return best;
 }
 
-/** Sēdvieta ar augstāko `totalScore` (vienādības gadījumā mazākais indekss). */
-function highestScoreSeatIndex(players: readonly SnapshotPlayer[]): number | undefined {
-  let best: SnapshotPlayer | undefined;
-  for (const player of players) {
-    if (!best || player.totalScore > best.totalScore) {
-      best = player;
-    }
-  }
-  return best?.seatIndex;
+/**
+ * Gala rangs sēdvietu indeksos (1. vieta → pēdējā) ar AUTORITATĪVO core `getStandings`
+ * (totalScore → bid → tricksWon → dīlera secība). Plāns adapteris snapshot→GameState,
+ * lai NEDUBLĒTU tiebreaker loģiku klientā (vienīgais avots = core, tāpat kā serverī
+ * izmaksai/statistikai). Snapshot `players` ir sēdvietu secībā (indekss === seatIndex),
+ * tāpēc `id = seatIndex` un dīlera-rotācijas tiebreaker paliek korekts. Tukšs, ja nav `gameEnd`.
+ */
+function gameEndStandingsSeatOrder(snapshot: GameSnapshot): readonly number[] {
+  if (snapshot.phase !== "gameEnd") return [];
+  const adapter = {
+    phase: snapshot.phase,
+    dealerIndex: snapshot.dealerIndex,
+    players: snapshot.players.map((player) => ({
+      id: String(player.seatIndex),
+      totalScore: player.totalScore,
+      bid: player.bid,
+      tricksWon: player.tricksWon
+    }))
+  } as unknown as GameState;
+  return getStandings(adapter).map((id) => Number(id));
 }

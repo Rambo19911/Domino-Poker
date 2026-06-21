@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback } from "react";
-import { calculateRoundScore, getWinner } from "@domino-poker/core";
+import { calculateRoundScore, getStandings, getWinner } from "@domino-poker/core";
 import type { DominoTile, GameState } from "@domino-poker/core";
 import type { AppStrings } from "../lib/i18n";
 import type { AudioSettings } from "../lib/useAudioSettings";
-import { CoinIcon } from "./CoinIcon";
+import { CoinGif } from "./CoinGif";
 import { Dialog } from "./Dialog";
+import { WinnerGif } from "./WinnerGif";
 
 export function BidDialog({
   labels,
@@ -161,6 +162,15 @@ export function GameEndDialog({
   readonly onClose: () => void;
 }) {
   const winner = getWinner(gameState);
+  // Ranžē pēc AUTORITATĪVAJIEM standings (tas pats avots, ko `getWinner`: totalScore →
+  // bid → tricksWon → dīlera secība), lai rindas vieta = beigu vieta priekš GIF un 1.
+  // vietas GIF VIENMĒR sakrīt ar izcelto uzvarētāju arī neizšķirtā. Fallback uz spēlētāju
+  // secību, ja standings tukšs (nav gameEnd fāze — praksē šis dialogs rādās tikai tad).
+  const standings = getStandings(gameState);
+  const ranked =
+    standings.length > 0
+      ? standings.map((id) => gameState.players.find((player) => player.id === id)!)
+      : [...gameState.players];
   const handleClose = useCallback(() => {
     audio.play("uiClick");
     onClose();
@@ -176,13 +186,14 @@ export function GameEndDialog({
       <div className="winnerBanner">{labels.winner}: {winner?.name ?? ""}</div>
       {typeof spAward === "number" && spAward > 0 ? (
         <div className="gameEndReward" aria-label={`${labels.coinsEarned}: ${spAward}`}>
-          <CoinIcon className="gameEndRewardIcon" />
+          <CoinGif className="gameEndRewardIcon" />
           <span className="gameEndRewardValue">+{spAward.toLocaleString()}</span>
         </div>
       ) : null}
       <dl className="finalScores">
-        {gameState.players.map((player) => (
+        {ranked.map((player, index) => (
           <div className={player.id === winner?.id ? "winnerRow" : ""} key={player.id}>
+            <WinnerGif place={index + 1} className="finalScorePlace" />
             <dt>{player.name}</dt>
             <dd>{player.totalScore} {labels.pointsLabel}</dd>
           </div>

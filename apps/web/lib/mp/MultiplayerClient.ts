@@ -180,7 +180,10 @@ export class MultiplayerClient {
       ...this.view,
       room: undefined,
       game: initialClientView.game,
-      lastError: undefined
+      lastError: undefined,
+      // Fāze 6: notīram pēdējās spēles izmaksu arī šajā lokālajā ceļā (OK pēc spēles
+      // beigām neemitē ROOM_LEFT), lai "+N nopelnīts" nepaliek nākamajai sesijai.
+      coinsWon: undefined
     };
     this.options.onView(this.view);
   }

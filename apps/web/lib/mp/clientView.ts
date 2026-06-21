@@ -64,6 +64,12 @@ export interface ClientView {
    * maksas istabas izveides formā un atjaunina bez lapas pārlādes.
    */
   readonly wallet: WalletView | undefined;
+  /**
+   * Pēdējās poda izmaksas summa (Fāze 6) — spēles beigu summary rāda "+N nopelnīts".
+   * Iestata `WALLET_UPDATED.coinsWon`; notīra pie jaunas spēles (`GAME_STARTING`) un
+   * iziešanas (`ROOM_LEFT`), lai nepaliek "iestrēdzis" no iepriekšējās spēles.
+   */
+  readonly coinsWon: number | undefined;
 }
 
 /** Cik čata ziņas paturēt klienta atmiņā (serveris sūta ~50 vēsturē). */
@@ -76,7 +82,8 @@ export const initialClientView: ClientView = {
   room: undefined,
   game: { snapshot: undefined, seq: 0, turnId: undefined, startsAt: undefined },
   lastError: undefined,
-  wallet: undefined
+  wallet: undefined,
+  coinsWon: undefined
 };
 
 /**
@@ -110,11 +117,12 @@ export function reduceServerEvent(view: ClientView, event: ServerEvent): ClientV
       // Atgriežoties lobby, notīrām jebkuru gaistošu spēles kļūdu (citādi tā paliktu
       // "iestrēgusi" lobby — piem. "does not own current turn" pēc spēles beigām).
       const room = view.room?.id === event.roomId ? undefined : view.room;
-      return { ...view, room, lastError: undefined };
+      return { ...view, room, lastError: undefined, coinsWon: undefined };
     }
     case "GAME_STARTING":
       // Pirms-spēles atskaite: galds jau redzams, solījumi sāksies `startsAt`.
-      return { ...view, game: { ...view.game, startsAt: event.startsAt } };
+      // Notīram iepriekšējās spēles izmaksu, lai jaunās spēles beigās rāda tikai jauno.
+      return { ...view, game: { ...view.game, startsAt: event.startsAt }, coinsWon: undefined };
     case "STATE_SNAPSHOT":
       // Snapshot satur aktīvo turnId (vajadzīgs pēc reconnect, kad nav TURN_STARTED);
       // ja nav (vecāks snapshot/tests), saglabājam pēdējo no TURN_STARTED.
@@ -149,8 +157,13 @@ export function reduceServerEvent(view: ClientView, event: ServerEvent): ClientV
       return view; // latence varētu tikt izsekota vēlāk
     case "WALLET_UPDATED":
       // Fāze 4: live bilances atjauninājums pēc maksas darbības (debets/refund/payout)
-      // — bez lapas pārlādes. Maksas istabas formā un (nākotnē) profila bilancē.
-      return { ...view, wallet: { balance: event.balance } };
+      // — bez lapas pārlādes. Fāze 6: `coinsWon` (tikai poda izmaksā) → summary "+N";
+      // balance-only atjauninājumi (debets/refund) to NEPĀRRAKSTA (paliek iepriekšējais).
+      return {
+        ...view,
+        wallet: { balance: event.balance },
+        ...(event.coinsWon !== undefined ? { coinsWon: event.coinsWon } : {})
+      };
     default:
       // Forward-compat (F12): nezināmu servera notikumu IGNORĒJAM (atgriežam `view`
       // nemainītu), nevis metam izņēmumu — jaunāks serveris saderīgā protokola

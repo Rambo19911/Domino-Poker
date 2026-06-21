@@ -212,6 +212,22 @@
   font-weight: 700;
 }
 
+/* Spēles beigu rezultāti: vietas apbalvojuma GIF kreisajā malā, vārds blakus, punkti
+   pa labi (Fāze 6). Pārraksta kopīgo `space-between`: GIF+vārds kopā kreisajā pusē. */
+.finalScores div {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+}
+.finalScores dd {
+  margin-left: auto;
+}
+.finalScorePlace {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+}
+
 .winnerBanner {
   margin-bottom: 16px;
   padding: 12px 20px;

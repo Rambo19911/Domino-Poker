@@ -126,6 +126,11 @@ export interface PongEvent {
 export interface WalletUpdatedEvent {
   readonly type: "WALLET_UPDATED";
   readonly balance: number;
+  /**
+   * Tikai poda IZMAKSĀ (Fāze 6): šajā darbībā nopelnītās monētas (>0), lai spēles
+   * beigu summary var parādīt "+N". Debetam/refundam nav klāt (atpakaļsaderīgs).
+   */
+  readonly coinsWon?: number;
 }
 
 /** Visu servera → klients eventu diskriminētā union (pēc `type`). */
@@ -225,7 +230,11 @@ export const serverEventSchema = z.discriminatedUnion("type", [
     requestId: z.string().optional()
   }),
   z.object({ type: z.literal("PONG"), clientTime: z.number(), serverNow: z.number() }),
-  z.object({ type: z.literal("WALLET_UPDATED"), balance: z.number() })
+  z.object({
+    type: z.literal("WALLET_UPDATED"),
+    balance: z.number(),
+    coinsWon: z.number().int().nonnegative().optional()
+  })
 ]);
 
 /**

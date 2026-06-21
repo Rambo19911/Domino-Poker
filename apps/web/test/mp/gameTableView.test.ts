@@ -239,7 +239,7 @@ describe("toGameTableView", () => {
     expect(view?.leadTile).toEqual({ side1: 3, side2: 4 });
   });
 
-  it("derives the winner seat (highest total score) at game end", () => {
+  it("derives standings + winner via authoritative core getStandings at game end", () => {
     const players = [
       player(0, { totalScore: 10 }),
       player(1, { isAI: true, totalScore: 42 }),
@@ -247,8 +247,30 @@ describe("toGameTableView", () => {
       player(3, { isAI: true, totalScore: 42 })
     ];
     const view = toGameTableView(snapshot({ phase: "gameEnd", players }), room([seat(0), seat(1), seat(2), seat(3)]), undefined);
-    // Vienāds augstākais punktu skaits → mazākais sēdvietas indekss.
+    // Seats 1 & 3 tie on totalScore; tie defaults (bid/tricks equal) → dealer order from
+    // dealerIndex 0 → seat 1 first. Full standings exposed for the summary row order.
     expect(view?.winnerSeatIndex).toBe(1);
+    expect(view?.standingsSeatOrder).toEqual([1, 3, 0, 2]);
+  });
+
+  it("breaks final ties by core tiebreakers (bid), NOT by lowest seat index", () => {
+    // Seats 1 & 3 tie on totalScore, but seat 3 bid HIGHER → authoritative winner is 3.
+    // A naive lowest-seat tiebreak would wrongly pick seat 1.
+    const players = [
+      player(0, { totalScore: 10, bid: 1 }),
+      player(1, { isAI: true, totalScore: 42, bid: 2 }),
+      player(2, { isAI: true, totalScore: 7, bid: 0 }),
+      player(3, { isAI: true, totalScore: 42, bid: 5 })
+    ];
+    const view = toGameTableView(snapshot({ phase: "gameEnd", players }), room([seat(0), seat(1), seat(2), seat(3)]), undefined);
+    expect(view?.winnerSeatIndex).toBe(3);
+    expect(view?.standingsSeatOrder).toEqual([3, 1, 0, 2]);
+  });
+
+  it("leaves standings empty when the game is not over", () => {
+    const view = toGameTableView(snapshot({ phase: "playing" }), room([seat(0), seat(1), seat(2), seat(3)]), undefined);
+    expect(view?.standingsSeatOrder).toEqual([]);
+    expect(view?.winnerSeatIndex).toBeUndefined();
   });
 
   it("exposes preGameStartsAt while the first turn has not started", () => {

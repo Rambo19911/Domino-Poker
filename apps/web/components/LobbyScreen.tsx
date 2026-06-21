@@ -8,10 +8,12 @@ import { LobbyProfile } from "./auth/LobbyProfile";
 import { Dialog } from "./Dialog";
 import { InstallPrompt } from "./InstallPrompt";
 import { LeaderboardDialog, TrophyIcon } from "./LeaderboardDialog";
+import { CoinGif } from "./CoinGif";
 import { CompactLobbyPanel, LobbyWheel } from "./LobbyWheel";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
 import { IconButton } from "./ui/IconButton";
 
+import { SP_REWARDS } from "@domino-poker/shared";
 import type { BotDifficulty } from "../lib/bot/difficulty";
 import type { UseAuthUser } from "../lib/auth/useAuthUser";
 import {
@@ -419,7 +421,13 @@ function DifficultySelector({
             aria-pressed={difficulty === level}
             onClick={() => select(level)}
           >
-            {t[DIFFICULTY_META[level].labelKey]}
+            <span className="difficultyOptionLabel">{t[DIFFICULTY_META[level].labelKey]}</span>
+            <span
+              className="difficultyReward"
+              aria-label={`${t.coinsEarned}: +${SP_REWARDS[level]}`}
+            >
+              <CoinGif className="difficultyRewardIcon" />+{SP_REWARDS[level]}
+            </span>
           </button>
         ))}
       </div>

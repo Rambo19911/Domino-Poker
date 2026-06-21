@@ -234,7 +234,10 @@ describe("server event runtime validation", () => {
       },
       { type: "STATE_SNAPSHOT", roomId: "r1", seq: 3, snapshot: { any: "shape" }, serverNow: 2 },
       { type: "GAME_EVENT", roomId: "r1", seq: 4, event: { type: "TURN_STARTED" }, serverNow: 2 },
-      { type: "ERROR", code: "RATE_LIMITED", message: "slow" }
+      { type: "ERROR", code: "RATE_LIMITED", message: "slow" },
+      // WALLET_UPDATED: balance-only (debets/refund) UN ar coinsWon (poda izmaksa, Fāze 6).
+      { type: "WALLET_UPDATED", balance: 4500 },
+      { type: "WALLET_UPDATED", balance: 5350, coinsWon: 350 }
     ];
     for (const event of valid) {
       expect(parseServerEvent(event).success).toBe(true);
