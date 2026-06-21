@@ -7,11 +7,15 @@
    tabus, logs NEmainās. FIKSĒTS `height` (ne `min-height`): (1) īsā skatā
    `calc(100vh - 40px)` neļauj pārsniegt logu (ritina iekšēji); (2) Profile saturs,
    kas pārsniedz augstumu (piem. vārda-maiņas brīdinājums), ritinās, nevis aug, tāpēc
-   tab-maiņa nekad nemaina izmēru. 600px = mērīts Profile border-box augstums (ar
-   avatāru režģi tā 220px ierobežojumā). Ja Profile saturs mainās, atjaunini. */
+   tab-maiņa nekad nemaina izmēru. 600px = mērīts Profile border-box augstums. Profila
+   forma ir flex-kolonna, kas aizpilda šo augstumu → avatāru režģis paplašinās un
+   kājene paliek pie apakšas (sk. `.authDialogAuthenticated .authForm` zemāk). */
 .authDialogAuthenticated {
   height: min(600px, calc(100vh - 40px));
   overflow: auto;
+  /* Galvene fiksēta augšā; tab-saturs (forma) aizpilda atlikušo augstumu. */
+  display: flex;
+  flex-direction: column;
 }
 
 /* Auth dialoga tabi (Login/Register vai Profile/Personalization): mazāki un ne
@@ -104,6 +108,25 @@
   max-height: 220px;
   overflow-y: auto;
   scrollbar-width: none; /* Firefox: paslēpj ritjoslu */
+}
+/* Profila dialogā forma + avatāru izvēle aug, lai aizpildītu dialoga augstumu →
+   redzams vairāk avatāru rindu, kājene [Log out]/[Save changes] noslīd pie apakšas.
+   `min-height: 0` ļauj flex-bērniem sarukt zem satura (citādi režģis nesarūk/neritina).
+   Režģis ritina TIKAI tad, ja avatāri pārsniedz pieejamo augstumu (max-height noņemts). */
+.authDialogAuthenticated .authForm {
+  flex: 1;
+  min-height: 0;
+}
+.authDialogAuthenticated .avatarPicker {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.authDialogAuthenticated .avatarGrid {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
 }
 .avatarGrid::-webkit-scrollbar {
   display: none; /* WebKit/Blink: paslēpj ritjoslu */
