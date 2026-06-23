@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -30,6 +31,15 @@ import type {
   UpdateProfileResult,
   UserRecord
 } from "../auth/AuthStore.js";
+import {
+  ADMIN_LOGIN_CODE_ID,
+  type AdminAuditEntry,
+  type AdminLoginCodeConsumeResult,
+  type AdminLoginCodeRecord,
+  type AdminSessionRecord,
+  type AdminStore,
+  type LoginAttemptRecord
+} from "../admin/AdminStore.js";
 import type { ApplyLedgerResult, CoinStore, LedgerEntryInput } from "./CoinStore.js";
 import {
   assertValidGameResult,
@@ -57,7 +67,9 @@ export interface SqliteStorageOptions {
  * (state ir atjaunojams no `seed`), pamata statistiku un lobby čatu (pārdzīvo
  * restartu). Nekādu dzīvu objektu vai spēles state šeit.
  */
-export class SqliteStorage implements StoragePort, AuthStore, CoinStore, PlayerStatsStore {
+export class SqliteStorage
+  implements StoragePort, AuthStore, CoinStore, PlayerStatsStore, AdminStore
+{
   private readonly db: DatabaseSync;
 
   constructor(options: SqliteStorageOptions) {
@@ -730,6 +742,180 @@ export class SqliteStorage implements StoragePort, AuthStore, CoinStore, PlayerS
     return row?.language;
   }
 
+  // --- AdminStore (admin-panel-plan.md, Fāze 0) ---
+
+  async createAdminSession(record: AdminSessionRecord): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT OR IGNORE INTO admin_sessions
+           (token_hash, created_at, last_used_at, expires_at, revoked_at, ip, user_agent)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        record.tokenHash,
+        record.createdAt,
+        record.lastUsedAt,
+        record.expiresAt,
+        record.revokedAt ?? null,
+        record.ip ?? null,
+        record.userAgent ?? null
+      );
+  }
+
+  async getAdminSession(tokenHash: string): Promise<AdminSessionRecord | undefined> {
+    const row = this.db
+      .prepare(
+        `SELECT token_hash, created_at, last_used_at, expires_at, revoked_at, ip, user_agent
+           FROM admin_sessions WHERE token_hash = ?`
+      )
+      .get(tokenHash) as AdminSessionRow | undefined;
+    return row ? rowToAdminSession(row) : undefined;
+  }
+
+  async touchAdminSession(tokenHash: string, lastUsedAt: number, expiresAt: number): Promise<void> {
+    this.db
+      .prepare(
+        `UPDATE admin_sessions SET last_used_at = ?, expires_at = ? WHERE token_hash = ?`
+      )
+      .run(lastUsedAt, expiresAt, tokenHash);
+  }
+
+  async revokeAdminSession(tokenHash: string, revokedAt: number): Promise<void> {
+    this.db
+      .prepare(`UPDATE admin_sessions SET revoked_at = ? WHERE token_hash = ?`)
+      .run(revokedAt, tokenHash);
+  }
+
+  async deleteExpiredAdminSessions(now: number): Promise<void> {
+    this.db.prepare(`DELETE FROM admin_sessions WHERE expires_at <= ?`).run(now);
+  }
+
+  async createAdminLoginCode(record: AdminLoginCodeRecord): Promise<void> {
+    // Singleton rinda (viens aktīvs izaicinājums): atomisks upsert aizvieto iepriekšējo
+    // kodu un atiestata attempts/consumed_at. Viena statement → nav race ar paralēlu login.
+    this.db
+      .prepare(
+        `INSERT INTO admin_login_codes (id, code_hash, created_at, expires_at, attempts, consumed_at)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           code_hash   = excluded.code_hash,
+           created_at  = excluded.created_at,
+           expires_at  = excluded.expires_at,
+           attempts    = excluded.attempts,
+           consumed_at = excluded.consumed_at`
+      )
+      .run(
+        ADMIN_LOGIN_CODE_ID,
+        record.codeHash,
+        record.createdAt,
+        record.expiresAt,
+        record.attempts,
+        record.consumedAt ?? null
+      );
+  }
+
+  async consumeAdminLoginCode(
+    submittedCodeHash: string,
+    now: number,
+    maxAttempts: number
+  ): Promise<AdminLoginCodeConsumeResult> {
+    // node:sqlite ir sinhrons → transakcija serializē read-modify-write (bez interleaving).
+    this.db.exec("BEGIN");
+    try {
+      const row = this.db
+        .prepare(
+          `SELECT code_hash, expires_at, attempts FROM admin_login_codes
+            WHERE id = ? AND consumed_at IS NULL`
+        )
+        .get(ADMIN_LOGIN_CODE_ID) as
+        | { code_hash: string; expires_at: number; attempts: number }
+        | undefined;
+      if (!row) {
+        this.db.exec("COMMIT");
+        return { status: "no_code" };
+      }
+      const consume = (): void => {
+        this.db.prepare(`UPDATE admin_login_codes SET consumed_at = ? WHERE id = ?`).run(now, ADMIN_LOGIN_CODE_ID);
+      };
+      if (Number(row.expires_at) <= now) {
+        consume();
+        this.db.exec("COMMIT");
+        return { status: "expired" };
+      }
+      const attempts = Number(row.attempts) + 1;
+      if (attempts > maxAttempts) {
+        consume();
+        this.db.exec("COMMIT");
+        return { status: "locked" };
+      }
+      if (timingSafeEqualHex(row.code_hash, submittedCodeHash)) {
+        consume();
+        this.db.exec("COMMIT");
+        return { status: "ok" };
+      }
+      this.db.prepare(`UPDATE admin_login_codes SET attempts = ? WHERE id = ?`).run(attempts, ADMIN_LOGIN_CODE_ID);
+      this.db.exec("COMMIT");
+      return { status: "invalid" };
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  async deleteExpiredAdminLoginCodes(now: number): Promise<void> {
+    this.db.prepare(`DELETE FROM admin_login_codes WHERE expires_at <= ?`).run(now);
+  }
+
+  async appendAdminAudit(entry: AdminAuditEntry): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT OR IGNORE INTO admin_audit_log
+           (id, action, target_type, target_id, summary, diff_json, ip, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        entry.id,
+        entry.action,
+        entry.targetType ?? null,
+        entry.targetId ?? null,
+        entry.summary,
+        entry.diff === undefined ? null : JSON.stringify(entry.diff),
+        entry.ip ?? null,
+        entry.createdAt
+      );
+  }
+
+  async listAdminAudit(limit: number, offset: number): Promise<readonly AdminAuditEntry[]> {
+    const rows = this.db
+      .prepare(
+        `SELECT id, action, target_type, target_id, summary, diff_json, ip, created_at
+           FROM admin_audit_log
+          ORDER BY created_at DESC, id DESC
+          LIMIT ? OFFSET ?`
+      )
+      .all(clampLimit(limit), Math.max(0, Math.trunc(offset))) as unknown as AdminAuditRow[];
+    return rows.map(rowToAdminAudit);
+  }
+
+  async appendLoginAttempt(record: LoginAttemptRecord): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT OR IGNORE INTO login_attempts
+           (id, user_id, username_tried, ip, user_agent, source, success, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        record.id,
+        record.userId ?? null,
+        record.usernameTried,
+        record.ip ?? null,
+        record.userAgent ?? null,
+        record.source,
+        record.success ? 1 : 0,
+        record.createdAt
+      );
+  }
+
   async close(): Promise<void> {
     this.db.close();
   }
@@ -897,4 +1083,61 @@ function isSqliteUniqueViolation(error: unknown): boolean {
   return (
     error instanceof Error && /UNIQUE constraint failed/iu.test(error.message)
   );
+}
+
+interface AdminSessionRow {
+  readonly token_hash: string;
+  readonly created_at: number | bigint;
+  readonly last_used_at: number | bigint;
+  readonly expires_at: number | bigint;
+  readonly revoked_at: number | bigint | null;
+  readonly ip: string | null;
+  readonly user_agent: string | null;
+}
+
+function rowToAdminSession(row: AdminSessionRow): AdminSessionRecord {
+  return {
+    tokenHash: row.token_hash,
+    createdAt: Number(row.created_at),
+    lastUsedAt: Number(row.last_used_at),
+    expiresAt: Number(row.expires_at),
+    revokedAt: row.revoked_at === null ? undefined : Number(row.revoked_at),
+    ip: row.ip ?? undefined,
+    userAgent: row.user_agent ?? undefined
+  };
+}
+
+interface AdminAuditRow {
+  readonly id: string;
+  readonly action: string;
+  readonly target_type: string | null;
+  readonly target_id: string | null;
+  readonly summary: string;
+  readonly diff_json: string | null;
+  readonly ip: string | null;
+  readonly created_at: number | bigint;
+}
+
+function rowToAdminAudit(row: AdminAuditRow): AdminAuditEntry {
+  return {
+    id: row.id,
+    action: row.action,
+    targetType: row.target_type ?? undefined,
+    targetId: row.target_id ?? undefined,
+    summary: row.summary,
+    diff: row.diff_json === null ? undefined : (JSON.parse(row.diff_json) as unknown),
+    ip: row.ip ?? undefined,
+    createdAt: Number(row.created_at)
+  };
+}
+
+/**
+ * Konstanta laika hex virkņu salīdzinājums (OTP hash). Atgriež `false` pie atšķirīga
+ * garuma (timingSafeEqual prasa vienādu garumu); abi ir sha256 hex (64 rakstzīmes).
+ */
+function timingSafeEqualHex(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  return timingSafeEqual(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
 }

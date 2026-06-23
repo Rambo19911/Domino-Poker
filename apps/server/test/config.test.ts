@@ -18,6 +18,13 @@ const opsDefaults = {
   leaderboardRefreshMs: 30_000
 };
 
+const adminDefaults = {
+  enabled: false,
+  passwordHash: undefined,
+  email: "rihardslaskovs@gmail.com",
+  webOrigins: ["http://localhost:3001"]
+};
+
 const translationDefaults = {
   enabled: false,
   projectId: undefined,
@@ -47,7 +54,8 @@ describe("loadServerConfig", () => {
         from: undefined,
         appBaseUrl: "http://localhost:3000",
         contactTo: "rihardslaskovs@gmail.com"
-      }
+      },
+      admin: adminDefaults
     });
   });
 
@@ -78,7 +86,8 @@ describe("loadServerConfig", () => {
         from: undefined,
         appBaseUrl: "http://localhost:3000",
         contactTo: "rihardslaskovs@gmail.com"
-      }
+      },
+      admin: adminDefaults
     });
   });
 
@@ -209,6 +218,29 @@ describe("loadServerConfig", () => {
     expect(
       loadServerConfig({ CONTACT_EMAIL: "owner@example.com" }, missingEnvPath).email.contactTo
     ).toBe("owner@example.com");
+  });
+
+  it("disables admin by default and enables it only when ADMIN_PASSWORD_HASH is set", () => {
+    expect(loadServerConfig({}, missingEnvPath).admin).toEqual({
+      enabled: false,
+      passwordHash: undefined,
+      email: "rihardslaskovs@gmail.com",
+      webOrigins: ["http://localhost:3001"]
+    });
+    const enabled = loadServerConfig(
+      {
+        ADMIN_PASSWORD_HASH: "scrypt$16384$8$1$c2FsdA==$aGFzaA==",
+        ADMIN_EMAIL: "owner@example.com",
+        ADMIN_WEB_ORIGIN: "https://admin.domino-poker.com, https://admin2.example.com"
+      },
+      missingEnvPath
+    ).admin;
+    expect(enabled).toEqual({
+      enabled: true,
+      passwordHash: "scrypt$16384$8$1$c2FsdA==$aGFzaA==",
+      email: "owner@example.com",
+      webOrigins: ["https://admin.domino-poker.com", "https://admin2.example.com"]
+    });
   });
 
   it("parses a comma-separated WEB_ORIGIN allowlist", () => {

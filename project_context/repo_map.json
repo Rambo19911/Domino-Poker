@@ -2,7 +2,7 @@
   {
     "path": "package.json",
     "type": "config",
-    "purpose": "Root npm workspace manifest, shared scripts, dev dependencies, and Node engine requirement.",
+    "purpose": "Root npm workspace manifest (incl. apps/admin), shared scripts, dev dependencies, and Node engine requirement.",
     "importance": "critical",
     "related_files": [
       "package-lock.json",
@@ -25,7 +25,7 @@
   {
     "path": ".github/workflows/ci.yml",
     "type": "config",
-    "purpose": "CI pipeline: install, build core/shared/server, typecheck, lint, unit tests, PostgreSQL integration tests, web build, and Playwright e2e.",
+    "purpose": "CI pipeline: install, build core/shared/server, typecheck, lint, unit tests, PostgreSQL integration tests, web build, admin build, and Playwright e2e.",
     "importance": "critical",
     "related_files": [
       "package.json",
@@ -620,7 +620,7 @@
   {
     "path": "apps/server/src/index.ts",
     "type": "entrypoint",
-    "purpose": "Server composition root: config, storage, auth, gold-coin wallet + SP reward tokens, room manager, chat, router, gateway, event bus, HTTP server (auth/sp/chat handlers), WS upgrade, cleanup, shutdown.",
+    "purpose": "Server composition root: config, storage, auth, gold-coin wallet + SP reward tokens, admin auth/audit (when enabled), room manager, chat, router, gateway, event bus, HTTP server (admin/auth/sp/stats/contact/chat handlers + authRoutes.onLoginAttempt -> login_attempts), WS upgrade, periodic cleanup (incl. admin sessions/codes), shutdown.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/config.ts",
@@ -632,7 +632,7 @@
   {
     "path": "apps/server/src/config.ts",
     "type": "config",
-    "purpose": "Server env/.env loader and validator for ports, DB URL, timing, PG pools, CORS origins, proxy trust, email settings (Resend key/from, APP_BASE_URL, CONTACT_EMAIL recipient), and optional chat translation settings.",
+    "purpose": "Server env/.env loader and validator for ports, DB URL, timing, PG pools, CORS origins, proxy trust, email settings (Resend key/from, APP_BASE_URL, CONTACT_EMAIL recipient), optional chat translation settings, and the admin panel config (ADMIN_PASSWORD_HASH scrypt / ADMIN_EMAIL / ADMIN_WEB_ORIGIN; admin.enabled is derived from the password hash presence).",
     "importance": "critical",
     "related_files": [
       ".env.example"
@@ -642,7 +642,7 @@
   {
     "path": "apps/server/src/httpServer.ts",
     "type": "route",
-    "purpose": "Raw HTTP server for `/health`, `/metrics`, optional chat translation routes, optional contact-form route (`POST /contact`), optional SP coin-reward routes (`/sp/*`), optional deep-stats route (`/stats`), optional auth routes, and JSON error responses. API handlers are tried in order: contact -> sp -> stats -> auth.",
+    "purpose": "Raw HTTP server for `/health`, `/metrics`, optional chat translation routes, optional admin routes (`/admin/*`), optional contact-form route (`POST /contact`), optional SP coin-reward routes (`/sp/*`), optional deep-stats route (`/stats`), optional auth routes, and JSON error responses. API handlers are tried in order: admin -> contact -> sp -> stats -> auth.",
     "importance": "high",
     "related_files": [
       "apps/server/src/http/authRoutes.ts",
@@ -654,7 +654,7 @@
   {
     "path": "apps/server/src/http/authRoutes.ts",
     "type": "route",
-    "purpose": "Optional `/auth/*` HTTP routes with validation, rate limits, bearer auth, CORS allowlist, password reset, avatar upload/serve, the global `GET /auth/leaderboard`, `PATCH /auth/me/language`, the gold-coin signup bonus on register, and `balance` in `GET /auth/me`. Shares raw-HTTP helpers via http/httpUtils.ts.",
+    "purpose": "Optional `/auth/*` HTTP routes with validation, rate limits, bearer auth, CORS allowlist, password reset, avatar upload/serve, the global `GET /auth/leaderboard`, `PATCH /auth/me/language`, the gold-coin signup bonus on register, and `balance` in `GET /auth/me`. Exposes an optional onLoginAttempt hook (fire-and-forget, transport layer supplies IP) used to record player login_attempts for the admin panel. Shares raw-HTTP helpers via http/httpUtils.ts.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/auth/AuthService.ts",
@@ -689,7 +689,7 @@
   {
     "path": "apps/server/src/auth/EmailSender.ts",
     "type": "service",
-    "purpose": "Email abstraction (console dev sender + Resend production sender) for both the password-reset email and the About-panel contact message (sendContactMessage with Resend reply_to=author).",
+    "purpose": "Email abstraction (console dev sender + Resend production sender) for the password-reset email, the About-panel contact message (sendContactMessage with Resend reply_to=author), and the admin 2FA login code (sendAdminLoginCode, English-only).",
     "importance": "medium",
     "related_files": [
       "apps/server/src/auth/AuthService.ts",
@@ -763,6 +763,131 @@
     "importance": "medium",
     "related_files": [
       "apps/server/src/http/contactRoutes.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/admin/AdminStore.ts",
+    "type": "service",
+    "purpose": "Admin panel storage capability (separate from AuthStore/CoinStore), implemented by both SqliteStorage and PostgresStorage. Methods for admin sessions (create/get/touch/revoke/deleteExpired), the singleton OTP login code (create=atomic upsert, consume=atomic validate+attempts), audit log (append/list), and player login_attempts (append). Exports ADMIN_LOGIN_CODE_ID and the isAdminStore guard.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/storage/schema.ts",
+      "apps/server/src/admin/AdminAuthService.ts",
+      "apps/server/src/admin/AdminAuditService.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/admin/AdminAuthService.ts",
+    "type": "service",
+    "purpose": "Admin auth logic (Phase 0): scrypt password verify (reuses auth/passwords.ts), email OTP 2FA (single active challenge, single-use, attempts-capped, TTL'd), session issue/resolve/revoke (sliding TTL). login() is constant-form (no password oracle): both paths run verifyPassword and the email is fire-and-forget off the response critical path. Sessions + OTP stored only as sha256 hash.",
+    "importance": "critical",
+    "related_files": [
+      "apps/server/src/admin/AdminStore.ts",
+      "apps/server/src/auth/passwords.ts",
+      "apps/server/src/admin/adminRoutes.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/admin/AdminAuditService.ts",
+    "type": "service",
+    "purpose": "Admin audit log writer (Phase 0, section 22). record() appends one row per admin action; list() reads newest-first for the UI. Scope: authenticated admin actions + session lifecycle (admin.login/logout) + security signals (admin.verify_failed); 2FA auth-mechanism internal state is deliberately not audited. Phase 1+ data mutations write before/after diffs.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/admin/AdminStore.ts",
+      "apps/server/src/admin/adminRoutes.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/admin/adminRoutes.ts",
+    "type": "route",
+    "purpose": "Admin HTTP routes (/admin/login|verify|logout|session|audit) + requireAdmin guard. Session cookie is HttpOnly+Secure+SameSite=Strict; CSRF is double-submit (X-CSRF-Token header must equal admin_csrf cookie) for mutating routes. Per-IP + per-identity rate limit on login/verify; CORS with credentials for ADMIN_WEB_ORIGIN. Mounted only when admin is enabled.",
+    "importance": "critical",
+    "related_files": [
+      "apps/server/src/admin/AdminAuthService.ts",
+      "apps/server/src/admin/AdminAuditService.ts",
+      "apps/server/src/admin/cookies.ts",
+      "apps/server/src/httpServer.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/admin/cookies.ts",
+    "type": "utility",
+    "purpose": "Cookie helpers for the admin session: parseCookies + serializeCookie (Path=/, SameSite=Strict, Max-Age, optional HttpOnly/Secure) and the ADMIN_SESSION_COOKIE / ADMIN_CSRF_COOKIE / ADMIN_CSRF_HEADER constants.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/admin/adminRoutes.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/admin/adminRoutes.integration.test.ts",
+    "type": "test",
+    "purpose": "Admin HTTP integration coverage: constant-form login (200 regardless of password / email failure), HttpOnly session + readable CSRF cookie issuance on 2FA, wrong-code 401, /admin/session 401-vs-200 guard, logout CSRF 403-vs-200 + session invalidation, audit entry on sign-in and on failed verify, audit/session blocked without a session.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/admin/adminRoutes.ts",
+      "apps/server/src/admin/AdminAuthService.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/admin/package.json",
+    "type": "config",
+    "purpose": "Admin Next.js workspace manifest (port 3001) and scripts (dev/build/start/typecheck). Separate from apps/web; deps mirror web (next 16.2.6, react 19.2.6).",
+    "importance": "high",
+    "related_files": [
+      "apps/admin/next.config.ts",
+      "package.json"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/admin/next.config.ts",
+    "type": "config",
+    "purpose": "Admin Next.js config; Turbopack root = repo root so monorepo node_modules resolve. App runs on port 3001 and talks to the server (/admin/*) at NEXT_PUBLIC_ADMIN_API_BASE (default http://localhost:4000).",
+    "importance": "medium",
+    "related_files": [
+      "apps/admin/package.json",
+      "apps/admin/lib/api.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/admin/lib/api.ts",
+    "type": "service",
+    "purpose": "Admin API client: credentials:'include' fetches to /admin/*; mutating requests add X-CSRF-Token from the readable admin_csrf cookie (double-submit). Exposes apiLogin/apiVerify/apiSession/apiLogout/apiAudit and the AuditEntry type.",
+    "importance": "high",
+    "related_files": [
+      "apps/admin/app/page.tsx",
+      "apps/admin/app/dashboard/page.tsx",
+      "apps/server/src/admin/adminRoutes.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/admin/app/page.tsx",
+    "type": "ui",
+    "purpose": "Admin login page (client): two-step flow password -> 6-digit email OTP. Redirects to /dashboard when a session is already valid or after a successful verify. English-only.",
+    "importance": "high",
+    "related_files": [
+      "apps/admin/lib/api.ts",
+      "apps/admin/app/dashboard/page.tsx"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/admin/app/dashboard/page.tsx",
+    "type": "ui",
+    "purpose": "Admin dashboard + Audit History (Phase 0, section 22): session-guarded; renders the audit log table (time/action/target/summary/IP) with an expandable JSON diff, plus sign-out.",
+    "importance": "high",
+    "related_files": [
+      "apps/admin/lib/api.ts",
+      "apps/server/src/admin/AdminAuditService.ts"
     ],
     "confidence": "high"
   },
@@ -882,7 +1007,7 @@
   {
     "path": "apps/server/src/storage/schema.ts",
     "type": "database",
-    "purpose": "Single DDL source for SQLite/PostgreSQL migration rendering, including auth, stats, password reset, custom avatars, user_preferences (account language), the gold-coin wallet (0007_coin_wallet: coin_balances + append-only coin_ledger with a UNIQUE(user_id,reason,ref) idempotency index and CHECK constraints), and PG-only multi-instance tables.",
+    "purpose": "Single DDL source for SQLite/PostgreSQL migration rendering: auth, stats, password reset, custom avatars, user_preferences, the gold-coin wallet (0007), deep player stats (0008_player_game_results), the admin panel (0009_admin: admin_sessions, admin_login_codes [singleton id row for the OTP], admin_audit_log, login_attempts), and PG-only multi-instance tables. Migrations are append-only; identical CHECK/FK/types across both dialects.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/storage/migrations.ts",
@@ -904,7 +1029,7 @@
   {
     "path": "apps/server/src/storage/SqliteStorage.ts",
     "type": "database",
-    "purpose": "SQLite StoragePort/AuthStore/CoinStore implementation using node:sqlite and schema migrations; coin applyLedger uses a synchronous transaction.",
+    "purpose": "SQLite StoragePort/AuthStore/CoinStore/PlayerStatsStore/AdminStore implementation using node:sqlite and schema migrations; coin applyLedger and admin OTP consume use synchronous transactions; admin OTP create is an atomic singleton upsert.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/storage/StoragePort.ts",
@@ -915,7 +1040,7 @@
   {
     "path": "apps/server/src/storage/PostgresStorage.ts",
     "type": "database",
-    "purpose": "PostgreSQL StoragePort/AuthStore/CoinStore implementation with pool config, migrations, health checks, durable sessions, room leases, fanout, and an ensure-row + FOR UPDATE transaction for atomic per-user coin ledger writes.",
+    "purpose": "PostgreSQL StoragePort/AuthStore/CoinStore/PlayerStatsStore/AdminStore implementation with pool config, migrations, health checks, durable sessions, room leases, fanout, an ensure-row + FOR UPDATE transaction for atomic per-user coin ledger writes, and an atomic singleton-upsert + FOR UPDATE flow for the admin OTP login code.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/storage/StoragePort.ts",
@@ -1354,7 +1479,7 @@
   {
     "path": "apps/server/test/storage/storageContract.ts",
     "type": "test",
-    "purpose": "Shared storage contract suite used to keep SQLite/PostgreSQL behavior aligned.",
+    "purpose": "Shared storage contract suite used to keep SQLite/PostgreSQL behavior aligned (matches/events/stats/chat/outcomes/coin wallet/player game results + the admin store: sessions, singleton OTP consume, audit, login_attempts).",
     "importance": "critical",
     "related_files": [
       "apps/server/src/storage/StoragePort.ts",

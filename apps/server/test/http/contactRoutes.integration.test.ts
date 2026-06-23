@@ -22,6 +22,9 @@ class FakeEmailSender implements EmailSender {
   ): Promise<void> {
     this.contacts.push({ to, replyTo, message, locale });
   }
+  async sendAdminLoginCode(): Promise<void> {
+    // nav vajadzīgs šajos testos
+  }
 }
 
 describe("contact HTTP route (integration)", () => {

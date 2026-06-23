@@ -736,5 +736,40 @@
       "/sp/reward is app-unused (the client calls /sp/complete) but kept + tested (deprecated); startSchema.rounds.default(7) keeps it functional. Deferred future hardening (non-blocking): reward_claimed robustness, full-game client accumulation test, e2e MP stats-row wiring test, populated live visual check."
     ],
     "confidence": "high"
+  },
+  {
+    "name": "Admin Panel",
+    "folder": "apps/server/src/admin + apps/admin",
+    "purpose": "Separate Game Manager admin portal (PlayFab/Azure style, reduced scope), English-only. Phase 0 (security spine) shipped: see docs/TODO/admin-panel-plan.md. Fully separate auth from player auth: single admin (owner), .env scrypt password + Resend email OTP 2FA, session in HttpOnly+Secure+SameSite=Strict cookie + CSRF double-submit. Server module apps/server/src/admin/ (AdminStore capability, AdminAuthService, AdminAuditService, adminRoutes /admin/login|verify|logout|session|audit + requireAdmin guard, cookies); apps/admin is a Next.js app on port 3001 (login password->OTP + Audit History UI).",
+    "main_files": [
+      "apps/server/src/admin/AdminStore.ts",
+      "apps/server/src/admin/AdminAuthService.ts",
+      "apps/server/src/admin/AdminAuditService.ts",
+      "apps/server/src/admin/adminRoutes.ts",
+      "apps/server/src/admin/cookies.ts",
+      "apps/server/src/storage/schema.ts",
+      "apps/admin/app/page.tsx",
+      "apps/admin/app/dashboard/page.tsx",
+      "apps/admin/lib/api.ts"
+    ],
+    "depends_on": [
+      "Server Storage",
+      "Server Auth",
+      "Multiplayer Server"
+    ],
+    "used_by": [
+      "Admin (owner)"
+    ],
+    "risks": [
+      "Admin routes are mounted ONLY when config.admin.enabled (ADMIN_PASSWORD_HASH set) AND an EmailSender exists AND storage isAdminStore; otherwise /admin/* 404s. requireAdmin is the authoritative guard (CORS/ADMIN_WEB_ORIGIN is not security by itself).",
+      "Password is scrypt (reuses auth/passwords.ts verifyPassword), NEVER plain/sha256. OTP codes + session tokens are stored only as sha256 hash. OTP is single-active-challenge (new code deletes prior), single-use, attempts-capped, TTL'd; consume is atomic (SQLite tx / PG FOR UPDATE).",
+      "Migration 0009_admin (admin_sessions, admin_login_codes, admin_audit_log, login_attempts) follows schema.ts append-only rules; login_attempts.user_id FK is ON DELETE SET NULL.",
+      "EVERY admin mutation must write an AdminAuditService.record row (Codex invariant); covered by adminRoutes.integration test.",
+      "CSRF double-submit: mutating routes require X-CSRF-Token header == admin_csrf cookie (csrf cookie is NOT HttpOnly so the SPA can read it). Session cookie Secure flag is off in dev (http), on in prod.",
+      "login_attempts is recorded via authRoutes.onLoginAttempt hook (fire-and-forget) wired in index.ts only when storage isAdminStore; the player AuthService stays transport-agnostic (no IP).",
+      "apps/admin is a root workspace + CI build; deploy (domino-admin systemd + Caddy admin subdomain, D2) is NOT done yet. Owner must set ADMIN_PASSWORD_HASH (+ Resend) in VPS .env before use.",
+      "Phases 1-4 (player read/write, bans, moderation, analytics) are NOT implemented yet."
+    ],
+    "confidence": "high"
   }
 ]

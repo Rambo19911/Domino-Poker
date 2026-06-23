@@ -1,6 +1,6 @@
 # AI Working Rules
 
-Last refreshed: 2026-06-20.
+Last refreshed: 2026-06-22.
 
 ## Before Major Edits
 
@@ -257,6 +257,25 @@ Registered-user bid accuracy + placement distributions (NOT a competitive leader
 - MP is server-authoritative: `MpStatsRecorder` (room-owner lifecycle, sibling of `OutcomeRecorder`) accumulates from `ROUND_RESULT.playerResults` in `onMatchEvents` (which runs before `onMatchFinished` in the same `RoomManager.onEventsAppended`, so the final round counts) and persists at `GAME_OVER`. Records ALL MP games incl. with bots; owner crash before GAME_OVER loses that match's stats (same limitation as `OutcomeRecorder`).
 - `/sp/reward` is app-unused (the client calls `/sp/complete`); kept + tested, deprecated. Token TTL is 2h (long/AFK games). Known future hardening: `reward_claimed` flag for the credit-fails-then-token-expires edge.
 
+### Admin Panel (Game Manager)
+
+Separate admin portal (PlayFab/Azure style, reduced scope), English-only. Phase 0 (security spine) is built; Phases 1-4 are NOT. Full plan: `docs/TODO/admin-panel-plan.md` (local/ignored). Read these before touching the admin panel:
+
+- server module: `apps/server/src/admin/AdminStore.ts` (storage capability), `AdminAuthService.ts` (password + OTP 2FA + sessions), `AdminAuditService.ts` (audit log), `adminRoutes.ts` (`/admin/*` + `requireAdmin` guard), `cookies.ts`
+- wiring: `apps/server/src/config.ts` (`AdminConfig`), `index.ts` (admin construction + `onLoginAttempt` → `login_attempts`), `httpServer.ts` (handler chain), `http/authRoutes.ts` (`onLoginAttempt` hook), `auth/EmailSender.ts` (`sendAdminLoginCode`), `auth/passwords.ts` (reused scrypt), `storage/schema.ts` (migration `0009_admin`), `storage/SqliteStorage.ts` + `PostgresStorage.ts` (AdminStore impl)
+- admin app: `apps/admin/` (Next.js, port 3001) — `app/page.tsx` (login), `app/dashboard/page.tsx` (Audit History), `lib/api.ts`
+- tests: `apps/server/test/admin/adminRoutes.integration.test.ts`, the admin block in `apps/server/test/storage/storageContract.ts`
+
+Care points:
+
+- ENTIRELY separate from player auth: different token type, different tables (`admin_*`), mandatory 2FA. `requireAdmin` is the AUTHORITATIVE guard; CORS / `ADMIN_WEB_ORIGIN` is not security by itself. Routes mount ONLY when `config.admin.enabled` (`ADMIN_PASSWORD_HASH` set) AND an `EmailSender` exists AND storage `isAdminStore` — otherwise `/admin/*` 404s.
+- Password is scrypt (reuse `auth/passwords.ts` `verifyPassword`/`hashPassword`), NEVER plain/sha256. OTP codes + session tokens are stored only as `sha256` hash. OTP is a SINGLETON row (atomic upsert; one active challenge), single-use, attempts-capped, TTL'd; `consumeAdminLoginCode` is atomic (SQLite sync tx / PG `FOR UPDATE`).
+- `login` is constant-form (no password oracle): always returns `200`, both paths run `verifyPassword`, and the email is fire-and-forget OFF the response critical path (delivery failure is logged, never surfaced). Do not reintroduce a distinct status/timing for valid-vs-invalid password.
+- Session cookie is `HttpOnly`+`Secure`+`SameSite=Strict`; CSRF is double-submit (`X-CSRF-Token` header must equal the readable `admin_csrf` cookie) on mutating routes. `Secure` is off in dev (http) only.
+- AUDIT INVARIANT: every authenticated admin ACTION (+ session lifecycle + `admin.verify_failed`) writes an `AdminAuditService.record` row; Phase 1+ data mutations must record `before/after` diffs. 2FA auth-mechanism internal state (OTP creation, attempts) is deliberately not audited.
+- `login_attempts` is recorded via the `authRoutes.onLoginAttempt` hook (fire-and-forget; the transport layer supplies the IP so `AuthService` stays transport-agnostic). Never log the password/tokens.
+- Migration `0009_admin` follows `schema.ts` append-only rules. `apps/admin` is a root workspace + CI build; its deploy (own subdomain + Caddy + `domino-admin` systemd) is NOT configured yet — the owner must set `ADMIN_PASSWORD_HASH` (scrypt) + Resend in the VPS `.env` before the panel works.
+
 ## Commands
 
 - Install: `npm install`
@@ -283,7 +302,7 @@ Registered-user bid accuracy + placement distributions (NOT a competitive leader
 Important ordering:
 
 - `npm run dev:server` builds `packages/core`, then `packages/shared`, then `apps/server`, then runs server dist.
-- CI-like broad verification order is: `npm ci` -> build `packages/core`, `packages/shared`, `apps/server` -> `npm run typecheck` -> `npm run lint` -> `npm run test` -> PostgreSQL integration with `TEST_POSTGRES_DATABASE_URL` -> `npm run build --workspace apps/web` -> `npx playwright install --with-deps chromium` -> `npm run test:web`.
+- CI-like broad verification order is: `npm ci` -> build `packages/core`, `packages/shared`, `apps/server` -> `npm run typecheck` -> `npm run lint` -> `npm run test` -> PostgreSQL integration with `TEST_POSTGRES_DATABASE_URL` -> `npm run build --workspace apps/web` -> `npm run build --workspace apps/admin` -> `npx playwright install --with-deps chromium` -> `npm run test:web`.
 - `npm run test:web` expects `apps/server/dist/index.js` to exist because Playwright starts `node dist/index.js` in `apps/server`; it also starts `apps/web` dev server on `127.0.0.1:3000`.
 - Local Playwright may reuse existing servers (`reuseExistingServer: true` outside CI), so stop stale local servers when validating configuration or startup behavior.
 - If runtime tests cannot resolve `@domino-poker/*`, check workspace links and whether required dist builds exist.
@@ -298,7 +317,8 @@ Important ordering:
 - `.env` and `.env.*` are ignored except `.env.example`.
 - `WEB_ORIGIN`, `RESEND_API_KEY`, `EMAIL_FROM`, and `APP_BASE_URL` are read by `apps/server/src/config.ts`; verify `.env.example` when changing auth CORS or password-reset email behavior because those examples can drift.
 - `TRANSLATE_ENABLED`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_APPLICATION_CREDENTIALS`, and `TRANSLATE_*` limits are read by `apps/server/src/config.ts` for optional MP chat translation. Service account JSON files must stay outside source control.
-- Reverse proxies must route `/ws`, `/auth/*`, `/sp/*`, and `/chat/translate` to the server port. Enable `TRUST_PROXY=true` only behind a trusted proxy that controls `X-Forwarded-For`.
+- Reverse proxies must route `/ws`, `/auth/*`, `/sp/*`, `/stats`, `/contact`, `/chat/translate`, and (when the admin panel is enabled) `/admin/*` to the server port. Enable `TRUST_PROXY=true` only behind a trusted proxy that controls `X-Forwarded-For`.
+- Admin panel env (when enabled): `ADMIN_PASSWORD_HASH` (scrypt, format like `auth/passwords.ts`), `ADMIN_EMAIL` (2FA OTP recipient; default owner), `ADMIN_WEB_ORIGIN` (admin web CORS). Reuses `RESEND_API_KEY` / `EMAIL_FROM`. The admin web (`apps/admin`) should get its own subdomain (deploy not configured yet).
 - `TRICK_PAUSE_MS` must remain aligned with the web client's completed-trick freeze (`apps/web/lib/mp/useTrickFreeze.ts`); config rejects values below 1500 ms.
 - `data/*.sqlite`, `data/*.sqlite-wal`, and `data/*.sqlite-shm` are ignored runtime files.
 - `logs/` is ignored. MP action logging is opt-in through `MP_ACTION_LOG=1`.

@@ -86,6 +86,22 @@ export interface AuthRoutesOptions {
    * Ieslēgt TIKAI aiz uzticama reverse proxy; citādi header ir falsificējams.
    */
   readonly trustProxy: boolean;
+  /**
+   * Opcionāls login mēģinājuma reģistrētājs (admin-panel-plan.md, Fāze 0.4). Izsaukts
+   * pēc katra `/auth/login` (veiksme + neveiksme) ar IP/lietotājvārdu/iznākumu. Fire-and-
+   * forget (kļūda nedrīkst lauzt login). Injicē `index.ts`, ja glabātuve atbalsta admin.
+   */
+  readonly onLoginAttempt?: ((attempt: LoginAttemptInfo) => void) | undefined;
+}
+
+/** Viena login mēģinājuma fakts audita reģistrēšanai (`login_attempts`). */
+export interface LoginAttemptInfo {
+  readonly usernameTried: string;
+  readonly userId?: string | undefined;
+  readonly ip: string;
+  /** User-agent (D4 platformas segmentācijai); `undefined`, ja nav. */
+  readonly userAgent?: string | undefined;
+  readonly success: boolean;
 }
 
 export type AuthHandler = (
@@ -139,7 +155,8 @@ export function createAuthHandler(options: AuthRoutesOptions): AuthHandler {
           options.auth,
           loginIpLimiter,
           loginUserLimiter,
-          options.trustProxy
+          options.trustProxy,
+          options.onLoginAttempt
         );
       } else if (request.method === "GET" && path === "/auth/me") {
         await handleMe(request, response, options.auth, options.leaderboard, options.wallet);
@@ -234,9 +251,11 @@ async function handleLogin(
   auth: AuthService,
   ipLimiter: RateLimiter,
   userLimiter: RateLimiter,
-  trustProxy: boolean
+  trustProxy: boolean,
+  onLoginAttempt: ((attempt: LoginAttemptInfo) => void) | undefined
 ): Promise<void> {
-  if (!ipLimiter.check(clientIp(request, trustProxy))) {
+  const ip = clientIp(request, trustProxy);
+  if (!ipLimiter.check(ip)) {
     writeJson(response, 429, { error: "rate_limited" });
     return;
   }
@@ -255,6 +274,18 @@ async function handleLogin(
     return;
   }
   const result = await auth.login(parsed.data);
+  // Login mēģinājuma audits (veiksme + neveiksme); fire-and-forget (sk. LoginAttemptInfo).
+  const userAgent =
+    typeof request.headers["user-agent"] === "string"
+      ? request.headers["user-agent"].slice(0, 256)
+      : undefined;
+  onLoginAttempt?.({
+    usernameTried: parsed.data.username.trim(),
+    userId: result.ok ? result.user.id : undefined,
+    ip,
+    userAgent,
+    success: result.ok
+  });
   if (!result.ok) {
     writeJson(response, 401, { error: "invalid_credentials" });
     return;

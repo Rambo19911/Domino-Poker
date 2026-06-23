@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
 
+import { AdminAuditService } from "./admin/AdminAuditService.js";
+import { AdminAuthService } from "./admin/AdminAuthService.js";
+import { isAdminStore } from "./admin/AdminStore.js";
+import { createAdminHandler } from "./admin/adminRoutes.js";
 import { AuthService } from "./auth/AuthService.js";
 import { isAuthStore } from "./auth/AuthStore.js";
 import { createEmailSender } from "./auth/EmailSender.js";
@@ -76,6 +80,21 @@ const authService = isAuthStore(storage)
 // Fāze 0: zelta monētu maks (virtuālā valūta). Gan SqliteStorage, gan PostgresStorage
 // implementē CoinStore. Anonīmā spēle to neizmanto. Starta bonuss + bilance.
 const wallet = isCoinStore(storage) ? new WalletService({ coins: storage, clock }) : undefined;
+// Admin panelis (sk. docs/TODO/admin-panel-plan.md, Fāze 0). Iespējots TIKAI ja ir admin
+// parole (config.admin.enabled), e-pasta senderis (2FA OTP) UN admin-spējīga glabātuve
+// (abas to ir). Citādi `/admin/*` maršruti netiek mounted (404). Pilnīgi atsevišķa no
+// spēlētāju auth: cita parole, citas tabulas, obligāts 2FA.
+const adminAuth =
+  config.admin.enabled && config.admin.passwordHash !== undefined && emailSender && isAdminStore(storage)
+    ? new AdminAuthService({
+        store: storage,
+        passwordHash: config.admin.passwordHash,
+        email: config.admin.email,
+        emailSender,
+        clock
+      })
+    : undefined;
+const adminAudit = isAdminStore(storage) ? new AdminAuditService(storage, clock) : undefined;
 // Fāze: padziļinātā spēlētāja statistika. Abas glabātuves implementē PlayerStatsStore.
 const playerStats = isPlayerStatsStore(storage)
   ? new PlayerStatsService({ store: storage })
@@ -322,7 +341,30 @@ const server = createHealthHttpServer({
           webOrigins: config.webOrigins,
           clock,
           dev: config.nodeEnv !== "production",
-          trustProxy: config.trustProxy
+          trustProxy: config.trustProxy,
+          // Fāze 0.4: login mēģinājumu audits (admin panelis). Fire-and-forget; DB kļūda
+          // nedrīkst lauzt login. Tikai ja glabātuve atbalsta admin (login_attempts tabula).
+          ...(isAdminStore(storage)
+            ? {
+                onLoginAttempt: (attempt) => {
+                  const adminStore = storage;
+                  void adminStore
+                    .appendLoginAttempt({
+                      id: randomUUID(),
+                      userId: attempt.userId,
+                      usernameTried: attempt.usernameTried,
+                      ip: attempt.ip,
+                      userAgent: attempt.userAgent,
+                      source: "password",
+                      success: attempt.success,
+                      createdAt: clock()
+                    })
+                    .catch((error: unknown) => {
+                      console.error("[admin] login attempt record failed:", error);
+                    });
+                }
+              }
+            : {})
         })
       }
     : {}),
@@ -347,6 +389,19 @@ const server = createHealthHttpServer({
           webOrigins: config.webOrigins,
           clock,
           dev: config.nodeEnv !== "production"
+        })
+      }
+    : {}),
+  // Admin panelis (`/admin/*`) — tikai ja admin iespējots (parole + e-pasts + admin-store).
+  ...(adminAuth && adminAudit
+    ? {
+        adminHandler: createAdminHandler({
+          adminAuth,
+          audit: adminAudit,
+          webOrigins: config.admin.webOrigins,
+          clock,
+          dev: config.nodeEnv !== "production",
+          trustProxy: config.trustProxy
         })
       }
     : {}),
@@ -402,6 +457,12 @@ if (isAuthStore(storage)) {
     void authTokenStore.deleteExpiredPasswordResetTokens(now).catch((error: unknown) => {
       console.error("[auth] expired password-reset token cleanup failed:", error);
     });
+    // Admin panelis (Fāze 0): beigušās admin sesijas + OTP kodi (tā pati politika).
+    if (adminAuth) {
+      void adminAuth.cleanup().catch((error: unknown) => {
+        console.error("[admin] expired session/code cleanup failed:", error);
+      });
+    }
   };
   sweepExpiredAuthTokens();
   authTokenCleanupTimer = setInterval(sweepExpiredAuthTokens, AUTH_TOKEN_CLEANUP_INTERVAL_MS);

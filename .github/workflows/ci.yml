@@ -61,6 +61,10 @@ jobs:
       # ko vitest neaptver. @domino-poker/shared+core jau uzbūvēti augstāk.
       - run: npm run build --workspace apps/web
 
+      # Admin paneļa production build (admin-panel-plan.md, Fāze 0): noķer Next build
+      # kļūdas atsevišķajā admin lietotnē (port 3001), ko typecheck/vitest neaptver.
+      - run: npm run build --workspace apps/admin
+
       # Playwright e2e: single-player, layout, dialog-a11y, storage-resilience un
       # multiplayer browser-to-server smoke (starta MP serveri + web caur webServer).
       # BLOĶĒJOŠS: visi 18 testi stabili (verificēts lokāli); `retries: 1` sedz pārejošus

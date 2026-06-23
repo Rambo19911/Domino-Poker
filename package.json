@@ -10,6 +10,7 @@
     "packages/ai_bot/packages/ai",
     "apps/server",
     "apps/web",
+    "apps/admin",
     "tools/simulators",
     "tools/load-test",
     "tools/bot-benchmark"

@@ -24,7 +24,22 @@ export interface EmailSender {
     message: string,
     locale: EmailLocale
   ): Promise<void>;
+  /**
+   * Nosūta admin paneļa 2FA pieslēgšanās kodu (OTP) uz admin e-pastu. Tikai angļu valodā
+   * (admin panelis ir tikai ENG). Met kļūdu, ja piegāde neizdevās (NEKAD klusi — bez
+   * koda admin nevar pieslēgties, tāpēc kļūme jāatklāj).
+   */
+  sendAdminLoginCode(to: string, code: string): Promise<void>;
 }
+
+/** Admin 2FA OTP e-pasta saturs (tikai angļu — admin panelis ir ENG-only). */
+const ADMIN_CODE_EMAIL = {
+  subject: "Domino Poker Admin — login code",
+  body: (code: string) =>
+    `Your Domino Poker admin login code is:\n\n${code}\n\n` +
+    `It is valid for 10 minutes and can be used once. ` +
+    `If you did not try to sign in, ignore this email and rotate the admin password.`
+};
 
 /** Paroles atjaunošanas e-pasta saturs (subject + plain-text body) abās valodās. */
 const RESET_EMAIL: Record<EmailLocale, { readonly subject: string; readonly body: (url: string) => string }> = {
@@ -77,6 +92,11 @@ export class ConsoleEmailSender implements EmailSender {
     locale: EmailLocale
   ): Promise<void> {
     console.log(`[email:dev] contact (${locale}) to ${to}, reply-to ${replyTo}: ${message}`);
+  }
+
+  async sendAdminLoginCode(to: string, code: string): Promise<void> {
+    // Tikai dev: kods konsolē, lai var pieslēgties bez reāla e-pasta. Prod NEKAD šo senderi.
+    console.log(`[email:dev] admin login code for ${to}: ${code}`);
   }
 }
 
@@ -132,6 +152,26 @@ export class ResendEmailSender implements EmailSender {
         reply_to: replyTo,
         subject: content.subject,
         text: content.body(replyTo, message)
+      })
+    });
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      throw new Error(`Resend API error ${response.status}: ${detail.slice(0, 200)}`);
+    }
+  }
+
+  async sendAdminLoginCode(to: string, code: string): Promise<void> {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from: this.from,
+        to,
+        subject: ADMIN_CODE_EMAIL.subject,
+        text: ADMIN_CODE_EMAIL.body(code)
       })
     });
     if (!response.ok) {

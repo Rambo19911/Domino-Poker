@@ -32,6 +32,10 @@ const FREE_TRANSLATE_DAILY_CHARS = 16_000;
 const DEFAULT_TRANSLATE_LOCATION = "global";
 const DEFAULT_TRANSLATE_CACHE_MAX_ENTRIES = 1_000;
 const DEFAULT_TRANSLATE_RATE_LIMIT_PER_MINUTE = 30;
+// Admin panelis (sk. docs/TODO/admin-panel-plan.md, Fāze 0). Noklusējuma 2FA OTP saņēmējs
+// (īpašnieks) + admin web izcelsme (dev). Admin ir IESPĒJOTS tikai ja ir `ADMIN_PASSWORD_HASH`.
+const DEFAULT_ADMIN_EMAIL = "rihardslaskovs@gmail.com";
+const DEFAULT_ADMIN_WEB_ORIGIN = "http://localhost:3001";
 // Leaderboard (globālā statistika): cik kontu topā, min spēles ranžēšanai, keša TTL.
 const DEFAULT_LEADERBOARD_SIZE = 100;
 const DEFAULT_LEADERBOARD_MIN_GAMES = 10;
@@ -109,6 +113,26 @@ export interface ServerConfig {
   trustProxy: boolean;
   /** Paroles atjaunošanas e-pasta konfigurācija (Fāze 5). */
   email: EmailConfig;
+  /** Admin paneļa konfigurācija (admin-panel-plan.md, Fāze 0). */
+  admin: AdminConfig;
+}
+
+/**
+ * Admin paneļa konfigurācija. Admin ir IESPĒJOTS tikai ja `passwordHash` ir uzstādīts
+ * (`ADMIN_ENABLED` atvasināts) — bez tā `/admin/*` maršruti netiek mounted (404). Parole
+ * glabājas TIKAI kā scrypt hash (formāts kā `auth/passwords.ts`), NEKAD plain/sha256.
+ * 2FA OTP tiek sūtīts caur to pašu `EmailSender` (Resend) kā paroles atjaunošana — tāpēc
+ * admin login praktiski prasa GAN `passwordHash`, GAN konfigurētu e-pasta senderi (index.ts).
+ */
+export interface AdminConfig {
+  /** Vai admin ir iespējots (atvasināts: `passwordHash !== undefined`). */
+  readonly enabled: boolean;
+  /** Admin paroles scrypt hash (`ADMIN_PASSWORD_HASH`); `undefined` → admin atspējots. */
+  readonly passwordHash: string | undefined;
+  /** 2FA OTP saņēmēja e-pasts (`ADMIN_EMAIL`; noklusējums īpašnieka adrese). */
+  readonly email: string;
+  /** Admin web CORS atļauto izcelšu saraksts (`ADMIN_WEB_ORIGIN`, ar komatu atdalīts). */
+  readonly webOrigins: readonly string[];
 }
 
 export interface TranslationConfig {
@@ -224,8 +248,35 @@ export function loadServerConfig(
       from: readOptional(env.EMAIL_FROM ?? fileEnv.EMAIL_FROM),
       appBaseUrl: readNonEmpty(env.APP_BASE_URL ?? fileEnv.APP_BASE_URL, DEFAULT_WEB_ORIGIN),
       contactTo: readNonEmpty(env.CONTACT_EMAIL ?? fileEnv.CONTACT_EMAIL, DEFAULT_CONTACT_EMAIL)
-    }
+    },
+    admin: readAdminConfig(env, fileEnv)
   };
+}
+
+/**
+ * Admin konfigurācija no env. `enabled` ir atvasināts no `ADMIN_PASSWORD_HASH` klātbūtnes
+ * (bez paroles haša admin nav iespējots → maršruti netiek mounted). `webOrigins` noklusē uz
+ * dev admin izcelsmi; NEKAD `*` (drošības standarts, kā `WEB_ORIGIN`).
+ */
+function readAdminConfig(env: EnvValues, fileEnv: Record<string, string>): AdminConfig {
+  const passwordHash = readOptional(env.ADMIN_PASSWORD_HASH ?? fileEnv.ADMIN_PASSWORD_HASH);
+  return {
+    enabled: passwordHash !== undefined,
+    passwordHash,
+    email: readNonEmpty(env.ADMIN_EMAIL ?? fileEnv.ADMIN_EMAIL, DEFAULT_ADMIN_EMAIL),
+    webOrigins: readAdminOrigins(env.ADMIN_WEB_ORIGIN ?? fileEnv.ADMIN_WEB_ORIGIN)
+  };
+}
+
+/** Admin CORS izcelšu saraksts no komatu atdalīta `ADMIN_WEB_ORIGIN`; noklusējums dev admin izcelsme. */
+function readAdminOrigins(value: string | undefined): readonly string[] {
+  if (value === undefined || value.trim() === "") {
+    return [DEFAULT_ADMIN_WEB_ORIGIN];
+  }
+  return value
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
 }
 
 /** Būla karogs no env: `true`/`1` (case-insensitive) → `true`; viss cits → `false`. */

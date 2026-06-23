@@ -314,6 +314,77 @@ function playerGameResultsSchema(t: DialectTypes): string {
 }
 
 /**
+ * 0009: admin paneļa drošības mugurkauls (sk. `docs/TODO/admin-panel-plan.md`, Fāze 0).
+ * Pilnīgi ATSEVIŠĶA no spēlētāju auth: cits tokenu veids, citas tabulas, obligāts 2FA.
+ *   - `admin_sessions`: admin sesijas tokeni — glabā TIKAI `sha256(token)` (kā `auth_tokens`),
+ *     + `expires_at`/`last_used_at`/`revoked_at` (vienreizēja atsaukšana) + `ip`/`user_agent` audita.
+ *   - `admin_login_codes`: e-pasta OTP 2FA kods — glabā TIKAI `sha256(code)`, vienreizējs
+ *     (`consumed_at`), ar `attempts` griestiem un īsu TTL (`expires_at`). SINGLETON rinda
+ *     (`id` fiksēts, viens admins → viens aktīvs izaicinājums) — jauns kods atomiski (upsert
+ *     `ON CONFLICT(id)`) aizvieto iepriekšējo, tāpēc nav race ar paralēliem login (Codex).
+ *   - `admin_audit_log`: katras mutējošas admin darbības append-only žurnāls (laiks, darbība,
+ *     mērķis, kopsavilkums, pilns JSON diff, IP).
+ *   - `login_attempts`: spēlētāju login mēģinājumi (veiksme + neveiksme) — admin drošības audita
+ *     pamatdats UN last-login avots spēlētāju kārtošanai. `user_id` NULL neveiksmīgam mēģinājumam
+ *     (nezināms/nepareizs lietotājs). `success` kā INTEGER 0/1 (identiski SQLite+PG, kā citi enum).
+ *     `user_agent` (D4) = platformas segmentācijai; valsti atvasina no `ip` ar GeoIP lasīšanas laikā.
+ * Visas formas (CHECK IN, IF NOT EXISTS, t.json, FK CASCADE) jau lietotas 0001..0008 → identiskas
+ * abiem dialektiem. `login_attempts.user_id` FK ir `ON DELETE SET NULL` (mēģinājuma vēsture
+ * pārdzīvo konta dzēšanu, bet vairs nesaista uz noņemto rindu).
+ */
+function adminSchema(t: DialectTypes): string {
+  return `
+  CREATE TABLE IF NOT EXISTS admin_sessions (
+    token_hash   TEXT PRIMARY KEY,
+    created_at   ${t.bigint} NOT NULL,
+    last_used_at ${t.bigint} NOT NULL,
+    expires_at   ${t.bigint} NOT NULL,
+    revoked_at   ${t.bigint},
+    ip           TEXT,
+    user_agent   TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires_at ON admin_sessions (expires_at);
+
+  CREATE TABLE IF NOT EXISTS admin_login_codes (
+    id          TEXT PRIMARY KEY,
+    code_hash   TEXT NOT NULL,
+    created_at  ${t.bigint} NOT NULL,
+    expires_at  ${t.bigint} NOT NULL,
+    attempts    INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+    consumed_at ${t.bigint}
+  );
+
+  CREATE TABLE IF NOT EXISTS admin_audit_log (
+    id          TEXT PRIMARY KEY,
+    action      TEXT NOT NULL,
+    target_type TEXT,
+    target_id   TEXT,
+    summary     TEXT NOT NULL,
+    diff_json   ${t.json},
+    ip          TEXT,
+    created_at  ${t.bigint} NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_admin_audit_log_created_at ON admin_audit_log (created_at);
+
+  CREATE TABLE IF NOT EXISTS login_attempts (
+    id             TEXT PRIMARY KEY,
+    user_id        TEXT REFERENCES users (id) ON DELETE SET NULL,
+    username_tried TEXT NOT NULL,
+    ip             TEXT,
+    user_agent     TEXT,
+    source         TEXT NOT NULL,
+    success        INTEGER NOT NULL CHECK (success IN (0, 1)),
+    created_at     ${t.bigint} NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_login_attempts_user_id ON login_attempts (user_id);
+  CREATE INDEX IF NOT EXISTS idx_login_attempts_created_at ON login_attempts (created_at);
+`;
+}
+
+/**
  * Renderē sakārtoto migrāciju sarakstu dotajam dialektam. ID un secība ir
  * STABILA un identiska abiem dialektiem (versionēšanas paritāte); atšķiras tikai
  * kolonnu tipi un PG-only tabulu klātbūtne (tikai 0001).
@@ -330,6 +401,7 @@ export function buildMigrations(dialect: SchemaDialect): readonly SchemaMigratio
     { id: "0005_custom_avatars", up: customAvatarSchema(t) },
     { id: "0006_user_preferences", up: userPreferencesSchema(t) },
     { id: "0007_coin_wallet", up: coinWalletSchema(t) },
-    { id: "0008_player_game_results", up: playerGameResultsSchema(t) }
+    { id: "0008_player_game_results", up: playerGameResultsSchema(t) },
+    { id: "0009_admin", up: adminSchema(t) }
   ];
 }

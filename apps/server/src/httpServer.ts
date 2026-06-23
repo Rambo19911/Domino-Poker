@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import process from "node:process";
 
+import type { AdminHandler } from "./admin/adminRoutes.js";
 import type { ChatTranslateHandler } from "./chat/chatTranslateRoutes.js";
 import type { AuthHandler } from "./http/authRoutes.js";
 import type { ContactHandler } from "./http/contactRoutes.js";
@@ -57,6 +58,12 @@ export interface HealthHttpServerOptions {
   readonly contactHandler?: ContactHandler;
   /** Optional MP lobby chat translation HTTP route (`/chat/translate`). */
   readonly chatTranslateHandler?: ChatTranslateHandler;
+  /**
+   * Opcionāls admin paneļa maršruts (`/admin/*`). Injicē `index.ts`, ja admin iespējots
+   * (parole + e-pasts + admin-store). Mēģināts API ķēdē PIRMS pārējiem; atgriež `true`,
+   * ja apstrādāja ceļu.
+   */
+  readonly adminHandler?: AdminHandler;
 }
 
 /**
@@ -116,13 +123,16 @@ function routeAuthOr404(
   void routeApiHandlers(request, response, options);
 }
 
-/** Mēģina API apstrādātājus secīgi (contact → sp → stats → auth); pirmais, kas atgriež `true`, beidz. */
+/** Mēģina API apstrādātājus secīgi (admin → contact → sp → stats → auth); pirmais, kas atgriež `true`, beidz. */
 async function routeApiHandlers(
   request: IncomingMessage,
   response: ServerResponse,
   options: HealthHttpServerOptions
 ): Promise<void> {
   try {
+    if (options.adminHandler !== undefined && (await options.adminHandler(request, response))) {
+      return;
+    }
     if (options.contactHandler !== undefined && (await options.contactHandler(request, response))) {
       return;
     }

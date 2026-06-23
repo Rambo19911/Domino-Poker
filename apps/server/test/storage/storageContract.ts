@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { MultiplayerEvent } from "@domino-poker/core/multiplayer";
 import type { ChatMessage } from "@domino-poker/shared";
 
+import type { AdminStore } from "../../src/admin/AdminStore.js";
 import type { AuthStore, UserRecord } from "../../src/auth/AuthStore.js";
 import type { CoinStore } from "../../src/storage/CoinStore.js";
 import type { PlayerStatsStore } from "../../src/storage/PlayerStatsStore.js";
@@ -19,7 +20,12 @@ import type { MatchStartedRecord, StoragePort } from "../../src/storage/StorageP
  * prasa esošu lietotāju — tāpēc `Setup` atgriež `StoragePort & AuthStore & CoinStore &
  * PlayerStatsStore` (visi backendi implementē visus).
  */
-export type ContractStorage = StoragePort & AuthStore & CoinStore & PlayerStatsStore;
+export type ContractStorage = StoragePort & AuthStore & CoinStore & PlayerStatsStore & AdminStore;
+
+/** sha256-garuma (64 hex) palīgs admin OTP/sesijas hash testiem. */
+function hex(seed: string): string {
+  return seed.repeat(64).slice(0, 64);
+}
 
 /** Izveido svaigu, izolētu glabātuvi un atgriež arī tās teardown (SQLite: close; PG: close + drop schema). */
 export type ContractSetup = () => Promise<{
@@ -431,6 +437,103 @@ export function runStoragePortContract(label: string, setup: ContractSetup): voi
           now: 300
         });
         expect(ok).toEqual({ ok: true, applied: true, balance: 60 });
+      });
+    });
+
+    describe("admin store (sessions, OTP, audit, login attempts)", () => {
+      it("creates, resolves, touches and revokes admin sessions", async () => {
+        const tokenHash = hex("a");
+        await storage.createAdminSession({
+          tokenHash, createdAt: 100, lastUsedAt: 100, expiresAt: 1000, ip: "1.2.3.4", userAgent: "UA"
+        });
+        const got = await storage.getAdminSession(tokenHash);
+        expect(got).toMatchObject({ tokenHash, expiresAt: 1000, ip: "1.2.3.4", userAgent: "UA", revokedAt: undefined });
+
+        await storage.touchAdminSession(tokenHash, 500, 2000);
+        expect((await storage.getAdminSession(tokenHash))?.expiresAt).toBe(2000);
+
+        await storage.revokeAdminSession(tokenHash, 600);
+        expect((await storage.getAdminSession(tokenHash))?.revokedAt).toBe(600);
+
+        expect(await storage.getAdminSession(hex("z"))).toBeUndefined();
+      });
+
+      it("deletes expired admin sessions only", async () => {
+        await storage.createAdminSession({ tokenHash: hex("a"), createdAt: 1, lastUsedAt: 1, expiresAt: 100 });
+        await storage.createAdminSession({ tokenHash: hex("b"), createdAt: 1, lastUsedAt: 1, expiresAt: 9999 });
+        await storage.deleteExpiredAdminSessions(500);
+        expect(await storage.getAdminSession(hex("a"))).toBeUndefined();
+        expect(await storage.getAdminSession(hex("b"))).toBeDefined();
+      });
+
+      it("consumes a valid OTP exactly once and rejects a wrong/expired/missing code", async () => {
+        // Nav aktīva izaicinājuma.
+        expect(await storage.consumeAdminLoginCode(hex("a"), 100, 5)).toEqual({ status: "no_code" });
+
+        await storage.createAdminLoginCode({ codeHash: hex("a"), createdAt: 1, expiresAt: 1000, attempts: 0 });
+        // Nepareizs kods (tāds pats garums) → invalid (attempts inkrementēts).
+        expect(await storage.consumeAdminLoginCode(hex("b"), 100, 5)).toEqual({ status: "invalid" });
+        // Pareizs kods → ok (patērēts).
+        expect(await storage.consumeAdminLoginCode(hex("a"), 100, 5)).toEqual({ status: "ok" });
+        // Atkārtots → jau patērēts → no_code.
+        expect(await storage.consumeAdminLoginCode(hex("a"), 100, 5)).toEqual({ status: "no_code" });
+      });
+
+      it("locks the challenge after exceeding max attempts", async () => {
+        await storage.createAdminLoginCode({ codeHash: hex("a"), createdAt: 1, expiresAt: 1000, attempts: 0 });
+        expect(await storage.consumeAdminLoginCode(hex("b"), 10, 2)).toEqual({ status: "invalid" });
+        expect(await storage.consumeAdminLoginCode(hex("b"), 10, 2)).toEqual({ status: "invalid" });
+        // 3. mēģinājums pārsniedz griestus → locked (un izaicinājums invalidēts).
+        expect(await storage.consumeAdminLoginCode(hex("b"), 10, 2)).toEqual({ status: "locked" });
+        // Pat pareizs kods vairs nestrādā (izaicinājums patērēts).
+        expect(await storage.consumeAdminLoginCode(hex("a"), 10, 2)).toEqual({ status: "no_code" });
+      });
+
+      it("treats an expired OTP as expired", async () => {
+        await storage.createAdminLoginCode({ codeHash: hex("a"), createdAt: 1, expiresAt: 100, attempts: 0 });
+        expect(await storage.consumeAdminLoginCode(hex("a"), 200, 5)).toEqual({ status: "expired" });
+      });
+
+      it("replaces the active OTP challenge when a new code is created", async () => {
+        await storage.createAdminLoginCode({ codeHash: hex("a"), createdAt: 1, expiresAt: 1000, attempts: 0 });
+        await storage.createAdminLoginCode({ codeHash: hex("b"), createdAt: 2, expiresAt: 1000, attempts: 0 });
+        // Vecais kods vairs nav aktīvs; tikai jaunais der.
+        expect(await storage.consumeAdminLoginCode(hex("a"), 100, 5)).toEqual({ status: "invalid" });
+        expect(await storage.consumeAdminLoginCode(hex("b"), 100, 5)).toEqual({ status: "ok" });
+      });
+
+      it("appends audit entries and lists them newest first with diff round-trip", async () => {
+        await storage.appendAdminAudit({
+          id: "ev-1", action: "admin.login", summary: "signed in", createdAt: 100, ip: "1.1.1.1"
+        });
+        await storage.appendAdminAudit({
+          id: "ev-2", action: "player.coins.adjust", targetType: "player", targetId: "user-1",
+          summary: "+100 coins", diff: { before: 0, after: 100 }, createdAt: 200
+        });
+        const entries = await storage.listAdminAudit(10, 0);
+        expect(entries.map((e) => e.id)).toEqual(["ev-2", "ev-1"]);
+        expect(entries[0]).toMatchObject({
+          action: "player.coins.adjust", targetType: "player", targetId: "user-1", diff: { before: 0, after: 100 }
+        });
+        expect(entries[1]).toMatchObject({ action: "admin.login", diff: undefined });
+        // Lapošana: offset izlaiž jaunāko.
+        expect((await storage.listAdminAudit(10, 1)).map((e) => e.id)).toEqual(["ev-1"]);
+      });
+
+      it("records player login attempts (success + failure, with and without a userId)", async () => {
+        expect(await storage.createUser(makeUser())).toBe("created");
+        await storage.appendLoginAttempt({
+          id: "la-1", userId: "user-1", usernameTried: "Rihards", ip: "1.2.3.4",
+          userAgent: "Mozilla/5.0", source: "password", success: true, createdAt: 100
+        });
+        // Neveiksme bez userId (nezināms lietotājs) — nedrīkst mest (FK SET NULL atļauj NULL).
+        await storage.appendLoginAttempt({
+          id: "la-2", usernameTried: "ghost", ip: "5.6.7.8", source: "password", success: false, createdAt: 200
+        });
+        // Idempotents pēc id (atkārtots netiek dublēts un nemet).
+        await storage.appendLoginAttempt({
+          id: "la-2", usernameTried: "ghost", source: "password", success: false, createdAt: 999
+        });
       });
     });
   });

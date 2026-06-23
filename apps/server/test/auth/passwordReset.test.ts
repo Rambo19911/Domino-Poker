@@ -19,6 +19,9 @@ class FakeEmailSender implements EmailSender {
   ): Promise<void> {
     this.contacts.push({ to, replyTo, message, locale });
   }
+  async sendAdminLoginCode(): Promise<void> {
+    // Nelietots šajā testā.
+  }
 }
 
 /** Izvelk raw tokenu no reset linka (`.../#reset=<token>`). */

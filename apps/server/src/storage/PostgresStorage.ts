@@ -1,7 +1,19 @@
+import { timingSafeEqual } from "node:crypto";
+
 import { Pool, type QueryResult, type QueryResultRow } from "pg";
 
 import type { MultiplayerEvent } from "@domino-poker/core/multiplayer";
 import type { ChatMessage } from "@domino-poker/shared";
+
+import {
+  ADMIN_LOGIN_CODE_ID,
+  type AdminAuditEntry,
+  type AdminLoginCodeConsumeResult,
+  type AdminLoginCodeRecord,
+  type AdminSessionRecord,
+  type AdminStore,
+  type LoginAttemptRecord
+} from "../admin/AdminStore.js";
 
 import type {
   MatchEventRecord,
@@ -106,7 +118,8 @@ export class PostgresStorage
     DurableSessionStore,
     AuthStore,
     CoinStore,
-    PlayerStatsStore
+    PlayerStatsStore,
+    AdminStore
 {
   private constructor(private readonly pool: PgPool) {}
 
@@ -900,6 +913,186 @@ export class PostgresStorage
     return result.rows[0]?.language;
   }
 
+  // --- AdminStore (admin-panel-plan.md, Fāze 0) ---
+
+  async createAdminSession(record: AdminSessionRecord): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO admin_sessions
+         (token_hash, created_at, last_used_at, expires_at, revoked_at, ip, user_agent)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (token_hash) DO NOTHING`,
+      [
+        record.tokenHash,
+        record.createdAt,
+        record.lastUsedAt,
+        record.expiresAt,
+        record.revokedAt ?? null,
+        record.ip ?? null,
+        record.userAgent ?? null
+      ]
+    );
+  }
+
+  async getAdminSession(tokenHash: string): Promise<AdminSessionRecord | undefined> {
+    const result = await this.pool.query<AdminSessionRow>(
+      `SELECT token_hash, created_at, last_used_at, expires_at, revoked_at, ip, user_agent
+         FROM admin_sessions WHERE token_hash = $1`,
+      [tokenHash]
+    );
+    const row = result.rows[0];
+    return row ? rowToAdminSession(row) : undefined;
+  }
+
+  async touchAdminSession(tokenHash: string, lastUsedAt: number, expiresAt: number): Promise<void> {
+    await this.pool.query(
+      `UPDATE admin_sessions SET last_used_at = $2, expires_at = $3 WHERE token_hash = $1`,
+      [tokenHash, lastUsedAt, expiresAt]
+    );
+  }
+
+  async revokeAdminSession(tokenHash: string, revokedAt: number): Promise<void> {
+    await this.pool.query(`UPDATE admin_sessions SET revoked_at = $2 WHERE token_hash = $1`, [
+      tokenHash,
+      revokedAt
+    ]);
+  }
+
+  async deleteExpiredAdminSessions(now: number): Promise<void> {
+    await this.pool.query(`DELETE FROM admin_sessions WHERE expires_at <= $1`, [now]);
+  }
+
+  async createAdminLoginCode(record: AdminLoginCodeRecord): Promise<void> {
+    // Singleton rinda (viens aktīvs izaicinājums): atomisks upsert aizvieto iepriekšējo
+    // kodu un atiestata attempts/consumed_at. Viena statement → nav race ar paralēlu login.
+    await this.pool.query(
+      `INSERT INTO admin_login_codes (id, code_hash, created_at, expires_at, attempts, consumed_at)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (id) DO UPDATE SET
+         code_hash   = EXCLUDED.code_hash,
+         created_at  = EXCLUDED.created_at,
+         expires_at  = EXCLUDED.expires_at,
+         attempts    = EXCLUDED.attempts,
+         consumed_at = EXCLUDED.consumed_at`,
+      [
+        ADMIN_LOGIN_CODE_ID,
+        record.codeHash,
+        record.createdAt,
+        record.expiresAt,
+        record.attempts,
+        record.consumedAt ?? null
+      ]
+    );
+  }
+
+  async consumeAdminLoginCode(
+    submittedCodeHash: string,
+    now: number,
+    maxAttempts: number
+  ): Promise<AdminLoginCodeConsumeResult> {
+    // Singleton rinda + FOR UPDATE serializē paralēlus consume (kā SQLite sinhronā tx).
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const locked = await client.query<{ code_hash: string; expires_at: string; attempts: string }>(
+        `SELECT code_hash, expires_at, attempts FROM admin_login_codes
+          WHERE id = $1 AND consumed_at IS NULL
+          FOR UPDATE`,
+        [ADMIN_LOGIN_CODE_ID]
+      );
+      const row = locked.rows[0];
+      if (!row) {
+        await client.query("COMMIT");
+        return { status: "no_code" };
+      }
+      const consume = async (): Promise<void> => {
+        await client.query(`UPDATE admin_login_codes SET consumed_at = $2 WHERE id = $1`, [
+          ADMIN_LOGIN_CODE_ID,
+          now
+        ]);
+      };
+      if (Number(row.expires_at) <= now) {
+        await consume();
+        await client.query("COMMIT");
+        return { status: "expired" };
+      }
+      const attempts = Number(row.attempts) + 1;
+      if (attempts > maxAttempts) {
+        await consume();
+        await client.query("COMMIT");
+        return { status: "locked" };
+      }
+      if (timingSafeEqualHex(row.code_hash, submittedCodeHash)) {
+        await consume();
+        await client.query("COMMIT");
+        return { status: "ok" };
+      }
+      await client.query(`UPDATE admin_login_codes SET attempts = $2 WHERE id = $1`, [
+        ADMIN_LOGIN_CODE_ID,
+        attempts
+      ]);
+      await client.query("COMMIT");
+      return { status: "invalid" };
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async deleteExpiredAdminLoginCodes(now: number): Promise<void> {
+    await this.pool.query(`DELETE FROM admin_login_codes WHERE expires_at <= $1`, [now]);
+  }
+
+  async appendAdminAudit(entry: AdminAuditEntry): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO admin_audit_log
+         (id, action, target_type, target_id, summary, diff_json, ip, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8)
+       ON CONFLICT (id) DO NOTHING`,
+      [
+        entry.id,
+        entry.action,
+        entry.targetType ?? null,
+        entry.targetId ?? null,
+        entry.summary,
+        entry.diff === undefined ? null : JSON.stringify(entry.diff),
+        entry.ip ?? null,
+        entry.createdAt
+      ]
+    );
+  }
+
+  async listAdminAudit(limit: number, offset: number): Promise<readonly AdminAuditEntry[]> {
+    const result = await this.pool.query<AdminAuditRow>(
+      `SELECT id, action, target_type, target_id, summary, diff_json, ip, created_at
+         FROM admin_audit_log
+        ORDER BY created_at DESC, id DESC
+        LIMIT $1 OFFSET $2`,
+      [clampLimit(limit), Math.max(0, Math.trunc(offset))]
+    );
+    return result.rows.map(rowToAdminAudit);
+  }
+
+  async appendLoginAttempt(record: LoginAttemptRecord): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO login_attempts
+         (id, user_id, username_tried, ip, user_agent, source, success, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (id) DO NOTHING`,
+      [
+        record.id,
+        record.userId ?? null,
+        record.usernameTried,
+        record.ip ?? null,
+        record.userAgent ?? null,
+        record.source,
+        record.success ? 1 : 0,
+        record.createdAt
+      ]
+    );
+  }
+
   async close(): Promise<void> {
     await this.pool.end();
   }
@@ -1118,4 +1311,61 @@ function rowToUser(row: UserRow): UserRecord {
     createdAt: Number(row.created_at),
     updatedAt: Number(row.updated_at)
   };
+}
+
+interface AdminSessionRow {
+  readonly token_hash: string;
+  readonly created_at: number | string;
+  readonly last_used_at: number | string;
+  readonly expires_at: number | string;
+  readonly revoked_at: number | string | null;
+  readonly ip: string | null;
+  readonly user_agent: string | null;
+}
+
+function rowToAdminSession(row: AdminSessionRow): AdminSessionRecord {
+  return {
+    tokenHash: row.token_hash,
+    createdAt: Number(row.created_at),
+    lastUsedAt: Number(row.last_used_at),
+    expiresAt: Number(row.expires_at),
+    revokedAt: row.revoked_at === null ? undefined : Number(row.revoked_at),
+    ip: row.ip ?? undefined,
+    userAgent: row.user_agent ?? undefined
+  };
+}
+
+interface AdminAuditRow {
+  readonly id: string;
+  readonly action: string;
+  readonly target_type: string | null;
+  readonly target_id: string | null;
+  readonly summary: string;
+  readonly diff_json: unknown;
+  readonly ip: string | null;
+  readonly created_at: number | string;
+}
+
+function rowToAdminAudit(row: AdminAuditRow): AdminAuditEntry {
+  return {
+    id: row.id,
+    action: row.action,
+    targetType: row.target_type ?? undefined,
+    targetId: row.target_id ?? undefined,
+    summary: row.summary,
+    diff: row.diff_json === null ? undefined : parseJsonValue<unknown>(row.diff_json),
+    ip: row.ip ?? undefined,
+    createdAt: Number(row.created_at)
+  };
+}
+
+/**
+ * Konstanta laika hex virkņu salīdzinājums (OTP hash). Atgriež `false` pie atšķirīga
+ * garuma; abi ir sha256 hex (64 rakstzīmes).
+ */
+function timingSafeEqualHex(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  return timingSafeEqual(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
 }
