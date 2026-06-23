@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -51,9 +52,12 @@ export default function DashboardPage() {
           <h1>Audit history</h1>
           <p className="muted">Every admin action is recorded here.</p>
         </div>
-        <button className="secondary" type="button" onClick={() => void signOut()}>
-          Sign out
-        </button>
+        <nav className="navlinks">
+          <Link href="/players">Players</Link>
+          <button className="secondary" type="button" onClick={() => void signOut()}>
+            Sign out
+          </button>
+        </nav>
       </div>
 
       <div className="panel">

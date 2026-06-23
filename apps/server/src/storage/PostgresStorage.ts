@@ -10,9 +10,12 @@ import {
   type AdminAuditEntry,
   type AdminLoginCodeConsumeResult,
   type AdminLoginCodeRecord,
+  type AdminPlayerRow,
   type AdminSessionRecord,
   type AdminStore,
-  type LoginAttemptRecord
+  type LoginAttemptCounts,
+  type LoginAttemptRecord,
+  type LoginAttemptView
 } from "../admin/AdminStore.js";
 
 import type {
@@ -913,6 +916,65 @@ export class PostgresStorage
     return result.rows[0]?.language;
   }
 
+  // --- AdminStore: spēlētāju lasīšana (Fāze 1) ---
+
+  async searchPlayers(
+    query: string | undefined,
+    limit: number,
+    offset: number
+  ): Promise<readonly AdminPlayerRow[]> {
+    const lim = clampLimit(limit);
+    const off = Math.max(0, Math.trunc(offset));
+    const base =
+      `SELECT u.id, u.username, u.email, u.avatar, u.created_at,
+              (SELECT MAX(la.created_at) FROM login_attempts la
+                WHERE la.user_id = u.id AND la.success = 1) AS last_login_at
+         FROM users u`;
+    // Output alias kā ATSEVIŠĶS ORDER BY termins ar `DESC NULLS LAST` — validi SQLite+PG.
+    const order = `ORDER BY last_login_at DESC NULLS LAST, u.created_at DESC`;
+    const trimmed = query?.trim();
+    let result: QueryResult<AdminPlayerSearchRow>;
+    if (trimmed === undefined || trimmed === "") {
+      result = await this.pool.query<AdminPlayerSearchRow>(`${base} ${order} LIMIT $1 OFFSET $2`, [lim, off]);
+    } else {
+      const like = `%${escapeLike(trimmed.toLowerCase())}%`;
+      result = await this.pool.query<AdminPlayerSearchRow>(
+        `${base}
+          WHERE u.id = $1
+             OR u.username_norm LIKE $2 ESCAPE '\\'
+             OR (u.email_norm IS NOT NULL AND u.email_norm LIKE $2 ESCAPE '\\')
+          ${order} LIMIT $3 OFFSET $4`,
+        [trimmed, like, lim, off]
+      );
+    }
+    return result.rows.map(rowToAdminPlayer);
+  }
+
+  async getPlayerLoginHistory(
+    userId: string,
+    limit: number,
+    offset: number
+  ): Promise<readonly LoginAttemptView[]> {
+    const result = await this.pool.query<LoginAttemptRow>(
+      `SELECT id, ip, user_agent, source, success, created_at
+         FROM login_attempts WHERE user_id = $1
+        ORDER BY created_at DESC, id DESC LIMIT $2 OFFSET $3`,
+      [userId, clampLimit(limit), Math.max(0, Math.trunc(offset))]
+    );
+    return result.rows.map(rowToLoginAttempt);
+  }
+
+  async countPlayerLoginAttempts(userId: string): Promise<LoginAttemptCounts> {
+    const result = await this.pool.query<{ total: string | number; failed: string | number | null }>(
+      `SELECT COUNT(*) AS total,
+              SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) AS failed
+         FROM login_attempts WHERE user_id = $1`,
+      [userId]
+    );
+    const row = result.rows[0];
+    return { total: Number(row?.total ?? 0), failed: Number(row?.failed ?? 0) };
+  }
+
   // --- AdminStore (admin-panel-plan.md, Fāze 0) ---
 
   async createAdminSession(record: AdminSessionRecord): Promise<void> {
@@ -1357,6 +1419,51 @@ function rowToAdminAudit(row: AdminAuditRow): AdminAuditEntry {
     ip: row.ip ?? undefined,
     createdAt: Number(row.created_at)
   };
+}
+
+interface AdminPlayerSearchRow {
+  readonly id: string;
+  readonly username: string;
+  readonly email: string | null;
+  readonly avatar: string;
+  readonly created_at: number | string;
+  readonly last_login_at: number | string | null;
+}
+
+function rowToAdminPlayer(row: AdminPlayerSearchRow): AdminPlayerRow {
+  return {
+    id: row.id,
+    username: row.username,
+    email: row.email ?? undefined,
+    avatar: row.avatar,
+    createdAt: Number(row.created_at),
+    lastLoginAt: row.last_login_at === null ? undefined : Number(row.last_login_at)
+  };
+}
+
+interface LoginAttemptRow {
+  readonly id: string;
+  readonly ip: string | null;
+  readonly user_agent: string | null;
+  readonly source: string;
+  readonly success: number | string;
+  readonly created_at: number | string;
+}
+
+function rowToLoginAttempt(row: LoginAttemptRow): LoginAttemptView {
+  return {
+    id: row.id,
+    ip: row.ip ?? undefined,
+    userAgent: row.user_agent ?? undefined,
+    source: row.source,
+    success: Number(row.success) !== 0,
+    createdAt: Number(row.created_at)
+  };
+}
+
+/** Aizsargā LIKE meklēšanas burtus (`\` `%` `_`) ar `\` (lieto ar `ESCAPE '\'`). */
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/gu, (ch) => `\\${ch}`);
 }
 
 /**

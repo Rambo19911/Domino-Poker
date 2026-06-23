@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { AdminAuditService } from "../../src/admin/AdminAuditService.js";
 import { AdminAuthService } from "../../src/admin/AdminAuthService.js";
+import { AdminPlayerService } from "../../src/admin/AdminPlayerService.js";
 import { createAdminHandler } from "../../src/admin/adminRoutes.js";
 import type { EmailLocale, EmailSender } from "../../src/auth/EmailSender.js";
 import { hashPassword } from "../../src/auth/passwords.js";
@@ -50,6 +51,7 @@ describe("admin HTTP routes (integration)", () => {
       adminHandler: createAdminHandler({
         adminAuth,
         audit,
+        players: new AdminPlayerService(storage),
         webOrigins: [ORIGIN],
         clock: () => nowMs,
         dev: true,
@@ -166,6 +168,54 @@ describe("admin HTTP routes (integration)", () => {
     expect((await fetch(`${base}/admin/audit`)).status).toBe(401);
   });
 
+  it("lists/searches players (guarded) and 401 without a session", async () => {
+    await seedPlayer(storage, { id: "p-1", username: "Alice", email: "alice@example.com", lastLoginAt: 500 });
+    await seedPlayer(storage, { id: "p-2", username: "Bob" });
+    // Guard.
+    expect((await fetch(`${base}/admin/players`)).status).toBe(401);
+    const { cookieHeader } = await signIn();
+    const all = await fetch(`${base}/admin/players`, { headers: { cookie: cookieHeader } });
+    expect(all.status).toBe(200);
+    const allBody = (await all.json()) as { players: Array<{ id: string }> };
+    expect(allBody.players.map((p) => p.id)).toContain("p-1");
+    // Search by name.
+    const search = await fetch(`${base}/admin/players?q=alice`, { headers: { cookie: cookieHeader } });
+    const searchBody = (await search.json()) as { players: Array<{ id: string }> };
+    expect(searchBody.players.map((p) => p.id)).toEqual(["p-1"]);
+  });
+
+  it("returns a player overview and 404 for an unknown id", async () => {
+    await seedPlayer(storage, { id: "p-1", username: "Alice", email: "alice@example.com", lastLoginAt: 500 });
+    const { cookieHeader } = await signIn();
+    const res = await fetch(`${base}/admin/players/p-1`, { headers: { cookie: cookieHeader } });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      account: { id: string; email?: string };
+      balance: number;
+      logins: { total: number };
+    };
+    expect(body.account.id).toBe("p-1");
+    expect(body.account.email).toBe("alice@example.com");
+    expect(typeof body.balance).toBe("number");
+    expect(body.logins.total).toBeGreaterThanOrEqual(1);
+
+    const missing = await fetch(`${base}/admin/players/nope`, { headers: { cookie: cookieHeader } });
+    expect(missing.status).toBe(404);
+  });
+
+  it("returns paginated player login history", async () => {
+    await seedPlayer(storage, { id: "p-1", username: "Alice" });
+    await storage.appendLoginAttempt({
+      id: "x1", userId: "p-1", usernameTried: "Alice", ip: "9.9.9.9", source: "password", success: false, createdAt: 700
+    });
+    const { cookieHeader } = await signIn();
+    const res = await fetch(`${base}/admin/players/p-1/logins?limit=10`, { headers: { cookie: cookieHeader } });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { total: number; failed: number; entries: Array<{ success: boolean }> };
+    expect(body.total).toBeGreaterThanOrEqual(1);
+    expect(body.entries.length).toBeGreaterThanOrEqual(1);
+  });
+
   it("records a security audit entry for a failed 2FA attempt", async () => {
     await post("/admin/login", { password: PASSWORD });
     const bad = await post("/admin/verify", { code: "000000" });
@@ -178,6 +228,34 @@ describe("admin HTTP routes (integration)", () => {
     }
   });
 });
+
+/** Izveido testa spēlētāju (kontu + opcionāli vienu veiksmīgu login last-login kārtošanai). */
+async function seedPlayer(
+  storage: SqliteStorage,
+  opts: { id: string; username: string; email?: string; lastLoginAt?: number }
+): Promise<void> {
+  await storage.createUser({
+    id: opts.id,
+    username: opts.username,
+    usernameNorm: opts.username.toLowerCase(),
+    email: opts.email,
+    emailNorm: opts.email?.toLowerCase(),
+    passwordHash: "scrypt$test",
+    avatar: "default",
+    createdAt: 1,
+    updatedAt: 1
+  });
+  if (opts.lastLoginAt !== undefined) {
+    await storage.appendLoginAttempt({
+      id: `seed-login-${opts.id}`,
+      userId: opts.id,
+      usernameTried: opts.username,
+      source: "password",
+      success: true,
+      createdAt: opts.lastLoginAt
+    });
+  }
+}
 
 /** Izvelk sīkdatnes vērtību no `Set-Cookie` masīva pēc nosaukuma. */
 function cookieValue(setCookies: readonly string[], name: string): string | undefined {

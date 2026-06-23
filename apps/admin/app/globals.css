@@ -135,3 +135,74 @@ code {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+h2 {
+  font-size: 16px;
+  margin: 0 0 12px;
+}
+
+.navlinks {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.navlinks a {
+  font-size: 14px;
+}
+
+.panel + .panel {
+  margin-top: 18px;
+}
+
+.searchbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.searchbar input {
+  flex: 1;
+}
+
+.searchbar button {
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 8px 16px;
+  margin: 0;
+}
+
+.kv dt {
+  color: var(--muted);
+}
+
+.kv dd {
+  margin: 0;
+}
+
+.rowDanger td {
+  background: rgba(255, 93, 93, 0.08);
+}
+
+.ua {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.pager button {
+  margin-top: 0;
+}

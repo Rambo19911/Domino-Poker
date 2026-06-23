@@ -36,9 +36,12 @@ import {
   type AdminAuditEntry,
   type AdminLoginCodeConsumeResult,
   type AdminLoginCodeRecord,
+  type AdminPlayerRow,
   type AdminSessionRecord,
   type AdminStore,
-  type LoginAttemptRecord
+  type LoginAttemptCounts,
+  type LoginAttemptRecord,
+  type LoginAttemptView
 } from "../admin/AdminStore.js";
 import type { ApplyLedgerResult, CoinStore, LedgerEntryInput } from "./CoinStore.js";
 import {
@@ -742,6 +745,69 @@ export class SqliteStorage
     return row?.language;
   }
 
+  // --- AdminStore: spēlētāju lasīšana (Fāze 1) ---
+
+  async searchPlayers(
+    query: string | undefined,
+    limit: number,
+    offset: number
+  ): Promise<readonly AdminPlayerRow[]> {
+    const lim = clampLimit(limit);
+    const off = Math.max(0, Math.trunc(offset));
+    // Pēdējā VEIKSMĪGĀ pieslēgšanās (apakšvaicājums). ORDER BY lieto output aliasu kā ATSEVIŠĶU
+    // terminu ar `DESC NULLS LAST` (nekad-pieslēgušies beigās) — validi UN identiski SQLite+PG.
+    // (NElietot `last_login_at IS NULL` — PG nepieņem aliasu izteiksmes iekšienē; SQLite gan.)
+    const base =
+      `SELECT u.id, u.username, u.email, u.avatar, u.created_at,
+              (SELECT MAX(la.created_at) FROM login_attempts la
+                WHERE la.user_id = u.id AND la.success = 1) AS last_login_at
+         FROM users u`;
+    const order = `ORDER BY last_login_at DESC NULLS LAST, u.created_at DESC`;
+    const trimmed = query?.trim();
+    let rows: AdminPlayerSearchRow[];
+    if (trimmed === undefined || trimmed === "") {
+      rows = this.db.prepare(`${base} ${order} LIMIT ? OFFSET ?`).all(lim, off) as unknown as AdminPlayerSearchRow[];
+    } else {
+      const like = `%${escapeLike(trimmed.toLowerCase())}%`;
+      rows = this.db
+        .prepare(
+          `${base}
+            WHERE u.id = ?
+               OR u.username_norm LIKE ? ESCAPE '\\'
+               OR (u.email_norm IS NOT NULL AND u.email_norm LIKE ? ESCAPE '\\')
+            ${order} LIMIT ? OFFSET ?`
+        )
+        .all(trimmed, like, like, lim, off) as unknown as AdminPlayerSearchRow[];
+    }
+    return rows.map(rowToAdminPlayer);
+  }
+
+  async getPlayerLoginHistory(
+    userId: string,
+    limit: number,
+    offset: number
+  ): Promise<readonly LoginAttemptView[]> {
+    const rows = this.db
+      .prepare(
+        `SELECT id, ip, user_agent, source, success, created_at
+           FROM login_attempts WHERE user_id = ?
+          ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`
+      )
+      .all(userId, clampLimit(limit), Math.max(0, Math.trunc(offset))) as unknown as LoginAttemptRow[];
+    return rows.map(rowToLoginAttempt);
+  }
+
+  async countPlayerLoginAttempts(userId: string): Promise<LoginAttemptCounts> {
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS total,
+                SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) AS failed
+           FROM login_attempts WHERE user_id = ?`
+      )
+      .get(userId) as { total: number | bigint; failed: number | bigint | null } | undefined;
+    return { total: Number(row?.total ?? 0), failed: Number(row?.failed ?? 0) };
+  }
+
   // --- AdminStore (admin-panel-plan.md, Fāze 0) ---
 
   async createAdminSession(record: AdminSessionRecord): Promise<void> {
@@ -1129,6 +1195,51 @@ function rowToAdminAudit(row: AdminAuditRow): AdminAuditEntry {
     ip: row.ip ?? undefined,
     createdAt: Number(row.created_at)
   };
+}
+
+interface AdminPlayerSearchRow {
+  readonly id: string;
+  readonly username: string;
+  readonly email: string | null;
+  readonly avatar: string;
+  readonly created_at: number | bigint;
+  readonly last_login_at: number | bigint | null;
+}
+
+function rowToAdminPlayer(row: AdminPlayerSearchRow): AdminPlayerRow {
+  return {
+    id: row.id,
+    username: row.username,
+    email: row.email ?? undefined,
+    avatar: row.avatar,
+    createdAt: Number(row.created_at),
+    lastLoginAt: row.last_login_at === null ? undefined : Number(row.last_login_at)
+  };
+}
+
+interface LoginAttemptRow {
+  readonly id: string;
+  readonly ip: string | null;
+  readonly user_agent: string | null;
+  readonly source: string;
+  readonly success: number | bigint;
+  readonly created_at: number | bigint;
+}
+
+function rowToLoginAttempt(row: LoginAttemptRow): LoginAttemptView {
+  return {
+    id: row.id,
+    ip: row.ip ?? undefined,
+    userAgent: row.user_agent ?? undefined,
+    source: row.source,
+    success: Number(row.success) !== 0,
+    createdAt: Number(row.created_at)
+  };
+}
+
+/** Aizsargā LIKE meklēšanas burtus (`\` `%` `_`) ar `\` (lieto ar `ESCAPE '\'`). */
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/gu, (ch) => `\\${ch}`);
 }
 
 /**

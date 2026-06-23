@@ -88,3 +88,76 @@ export async function apiAudit(limit = 50, offset = 0): Promise<readonly AuditEn
   const body = (await res.json()) as { entries?: readonly AuditEntry[] };
   return body.entries ?? [];
 }
+
+export interface PlayerRow {
+  readonly id: string;
+  readonly username: string;
+  readonly email?: string;
+  readonly avatar: string;
+  readonly createdAt: number;
+  readonly lastLoginAt?: number;
+}
+
+export interface LoginAttempt {
+  readonly id: string;
+  readonly ip?: string;
+  readonly userAgent?: string;
+  readonly source: string;
+  readonly success: boolean;
+  readonly createdAt: number;
+}
+
+export interface PlayerOverview {
+  readonly account: {
+    readonly id: string;
+    readonly username: string;
+    readonly email?: string;
+    readonly avatar: string;
+    readonly createdAt: number;
+    readonly updatedAt: number;
+  };
+  readonly balance: number;
+  readonly stats: { readonly wins: number; readonly losses: number; readonly gamesPlayed: number } | null;
+  readonly logins: { readonly total: number; readonly failed: number; readonly recent: readonly LoginAttempt[] };
+}
+
+export interface LoginHistoryPage {
+  readonly total: number;
+  readonly failed: number;
+  readonly entries: readonly LoginAttempt[];
+}
+
+/** Spēlētāju meklēšana (ID/vārds/e-pasts), kārtots pēc pēdējās pieslēgšanās. */
+export async function apiPlayers(query: string, limit = 25, offset = 0): Promise<readonly PlayerRow[]> {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (query.trim() !== "") {
+    params.set("q", query.trim());
+  }
+  const res = await request(`/admin/players?${params.toString()}`, "GET");
+  if (!res.ok) {
+    return [];
+  }
+  const body = (await res.json()) as { players?: readonly PlayerRow[] };
+  return body.players ?? [];
+}
+
+/** Viena spēlētāja profila pārskats vai `undefined`, ja nav atrasts. */
+export async function apiPlayerOverview(id: string): Promise<PlayerOverview | undefined> {
+  const res = await request(`/admin/players/${encodeURIComponent(id)}`, "GET");
+  if (!res.ok) {
+    return undefined;
+  }
+  return (await res.json()) as PlayerOverview;
+}
+
+/** Spēlētāja login vēstures lapa. */
+export async function apiPlayerLogins(id: string, limit = 25, offset = 0): Promise<LoginHistoryPage> {
+  const res = await request(
+    `/admin/players/${encodeURIComponent(id)}/logins?limit=${limit}&offset=${offset}`,
+    "GET"
+  );
+  if (!res.ok) {
+    return { total: 0, failed: 0, entries: [] };
+  }
+  return (await res.json()) as LoginHistoryPage;
+}

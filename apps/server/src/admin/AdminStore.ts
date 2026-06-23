@@ -74,7 +74,46 @@ export interface LoginAttemptRecord {
   readonly createdAt: number;
 }
 
+/** Spēlētāja kopsavilkums admin meklēšanas/saraksta skatam (Fāze 1.1). */
+export interface AdminPlayerRow {
+  readonly id: string;
+  readonly username: string;
+  readonly email?: string | undefined;
+  /** Avatar id (`avatar-NN` vai `custom`). */
+  readonly avatar: string;
+  readonly createdAt: number;
+  /** Pēdējās VEIKSMĪGĀS pieslēgšanās laiks (ms) vai `undefined`, ja nekad. */
+  readonly lastLoginAt?: number | undefined;
+}
+
+/** Viens login mēģinājums admin login-vēstures skatam (Fāze 1.3). */
+export interface LoginAttemptView {
+  readonly id: string;
+  readonly ip?: string | undefined;
+  readonly userAgent?: string | undefined;
+  readonly source: string;
+  readonly success: boolean;
+  readonly createdAt: number;
+}
+
+/** Login mēģinājumu kopskaiti spēlētājam (kopā + neveiksmes; aizdomīguma signāls). */
+export interface LoginAttemptCounts {
+  readonly total: number;
+  readonly failed: number;
+}
+
 export interface AdminStore {
+  // --- Spēlētāju lasīšana (Fāze 1) ---
+  /**
+   * Meklē spēlētājus pēc ID (precīzs) / display name / e-pasta (LIKE, reģistr-nejutīgs),
+   * kārtots pēc pēdējās veiksmīgās pieslēgšanās (jaunākā pirmā; nekad-pieslēgušies beigās),
+   * tad pēc izveides laika. `query` `undefined`/tukšs → visi (saraksta noklusējums). Lapošana.
+   */
+  searchPlayers(query: string | undefined, limit: number, offset: number): Promise<readonly AdminPlayerRow[]>;
+  /** Spēlētāja login mēģinājumu vēsture (jaunākie pirmie), ar lapošanu. */
+  getPlayerLoginHistory(userId: string, limit: number, offset: number): Promise<readonly LoginAttemptView[]>;
+  /** Login mēģinājumu kopskaiti spēlētājam (kopā + neveiksmes). */
+  countPlayerLoginAttempts(userId: string): Promise<LoginAttemptCounts>;
   // --- Admin sesijas ---
   createAdminSession(record: AdminSessionRecord): Promise<void>;
   /** Sesijas ieraksts pēc token haša (NEfiltrē derīgumu — to pārbauda izsaukuma vieta). */

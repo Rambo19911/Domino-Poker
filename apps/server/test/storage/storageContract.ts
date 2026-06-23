@@ -535,6 +535,52 @@ export function runStoragePortContract(label: string, setup: ContractSetup): voi
           id: "la-2", usernameTried: "ghost", source: "password", success: false, createdAt: 999
         });
       });
+
+      it("searches players by id / display name / email and sorts by last successful login", async () => {
+        expect(await storage.createUser(makeUser({ id: "u-alice", username: "Alice", usernameNorm: "alice", email: "alice@example.com", emailNorm: "alice@example.com", createdAt: 10 }))).toBe("created");
+        expect(await storage.createUser(makeUser({ id: "u-bob", username: "Bob", usernameNorm: "bob", email: "bob@test.lv", emailNorm: "bob@test.lv", createdAt: 20 }))).toBe("created");
+        expect(await storage.createUser(makeUser({ id: "u-carol", username: "Carol", usernameNorm: "carol", createdAt: 30 }))).toBe("created");
+        // Last successful logins: bob @300 (newest), alice @100; carol never.
+        await storage.appendLoginAttempt({ id: "a1", userId: "u-alice", usernameTried: "Alice", source: "password", success: true, createdAt: 100 });
+        await storage.appendLoginAttempt({ id: "a2", userId: "u-bob", usernameTried: "Bob", source: "password", success: true, createdAt: 300 });
+        await storage.appendLoginAttempt({ id: "a3", userId: "u-bob", usernameTried: "Bob", source: "password", success: false, createdAt: 400 });
+
+        // No query → all, sorted by last-login desc (bob, alice), never-logged last (carol).
+        const all = await storage.searchPlayers(undefined, 10, 0);
+        expect(all.map((p) => p.id)).toEqual(["u-bob", "u-alice", "u-carol"]);
+        expect(all.find((p) => p.id === "u-bob")?.lastLoginAt).toBe(300);
+        expect(all.find((p) => p.id === "u-carol")?.lastLoginAt).toBeUndefined();
+
+        // Search by exact id.
+        expect((await storage.searchPlayers("u-carol", 10, 0)).map((p) => p.id)).toEqual(["u-carol"]);
+        // Search by display name (case-insensitive substring).
+        expect((await storage.searchPlayers("ali", 10, 0)).map((p) => p.id)).toEqual(["u-alice"]);
+        // Search by email substring.
+        expect((await storage.searchPlayers("test.lv", 10, 0)).map((p) => p.id)).toEqual(["u-bob"]);
+        // No match → empty.
+        expect(await storage.searchPlayers("zzz-nope", 10, 0)).toEqual([]);
+      });
+
+      it("returns paginated login history (newest first) and total/failed counts", async () => {
+        expect(await storage.createUser(makeUser())).toBe("created");
+        await storage.appendLoginAttempt({ id: "h1", userId: "user-1", usernameTried: "Rihards", ip: "1.1.1.1", userAgent: "UA1", source: "password", success: true, createdAt: 100 });
+        await storage.appendLoginAttempt({ id: "h2", userId: "user-1", usernameTried: "Rihards", ip: "2.2.2.2", source: "password", success: false, createdAt: 200 });
+        await storage.appendLoginAttempt({ id: "h3", userId: "user-1", usernameTried: "Rihards", source: "password", success: false, createdAt: 300 });
+
+        const counts = await storage.countPlayerLoginAttempts("user-1");
+        expect(counts).toEqual({ total: 3, failed: 2 });
+
+        const page1 = await storage.getPlayerLoginHistory("user-1", 2, 0);
+        expect(page1.map((e) => e.id)).toEqual(["h3", "h2"]); // newest first
+        expect(page1[1]).toMatchObject({ id: "h2", ip: "2.2.2.2", success: false });
+        const page2 = await storage.getPlayerLoginHistory("user-1", 2, 2);
+        expect(page2.map((e) => e.id)).toEqual(["h1"]);
+        expect(page2[0]).toMatchObject({ ip: "1.1.1.1", userAgent: "UA1", success: true });
+
+        // No attempts → zeroes / empty.
+        expect(await storage.countPlayerLoginAttempts("nobody")).toEqual({ total: 0, failed: 0 });
+        expect(await storage.getPlayerLoginHistory("nobody", 10, 0)).toEqual([]);
+      });
     });
   });
 }

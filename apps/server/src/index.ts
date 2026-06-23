@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { AdminAuditService } from "./admin/AdminAuditService.js";
 import { AdminAuthService } from "./admin/AdminAuthService.js";
+import { AdminPlayerService } from "./admin/AdminPlayerService.js";
 import { isAdminStore } from "./admin/AdminStore.js";
 import { createAdminHandler } from "./admin/adminRoutes.js";
 import { AuthService } from "./auth/AuthService.js";
@@ -95,6 +96,12 @@ const adminAuth =
       })
     : undefined;
 const adminAudit = isAdminStore(storage) ? new AdminAuditService(storage, clock) : undefined;
+// Admin spēlētāju lasīšanas serviss (Fāze 1): komponē meklēšanu/profilu/login-vēsturi no
+// AuthStore + CoinStore + AdminStore (visi backendi implementē visus).
+const adminPlayers =
+  isAdminStore(storage) && isAuthStore(storage) && isCoinStore(storage)
+    ? new AdminPlayerService(storage)
+    : undefined;
 // Fāze: padziļinātā spēlētāja statistika. Abas glabātuves implementē PlayerStatsStore.
 const playerStats = isPlayerStatsStore(storage)
   ? new PlayerStatsService({ store: storage })
@@ -393,11 +400,12 @@ const server = createHealthHttpServer({
       }
     : {}),
   // Admin panelis (`/admin/*`) — tikai ja admin iespējots (parole + e-pasts + admin-store).
-  ...(adminAuth && adminAudit
+  ...(adminAuth && adminAudit && adminPlayers
     ? {
         adminHandler: createAdminHandler({
           adminAuth,
           audit: adminAudit,
+          players: adminPlayers,
           webOrigins: config.admin.webOrigins,
           clock,
           dev: config.nodeEnv !== "production",

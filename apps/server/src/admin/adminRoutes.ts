@@ -7,6 +7,7 @@ import { readJsonBody } from "../http/readJsonBody.js";
 import { RateLimiter } from "../http/rateLimiter.js";
 import type { AdminAuthService } from "./AdminAuthService.js";
 import type { AdminAuditService } from "./AdminAuditService.js";
+import type { AdminPlayerService } from "./AdminPlayerService.js";
 import {
   ADMIN_CSRF_COOKIE,
   ADMIN_CSRF_HEADER,
@@ -52,11 +53,18 @@ export type AdminHandler = (
 export interface AdminRoutesOptions {
   readonly adminAuth: AdminAuthService;
   readonly audit: AdminAuditService;
+  readonly players: AdminPlayerService;
   readonly webOrigins: readonly string[];
   readonly clock: () => number;
   readonly dev: boolean;
   readonly trustProxy: boolean;
 }
+
+/** Spēlētāju saraksta/login lapas drošie izmēri. */
+const PLAYERS_MAX_LIMIT = 100;
+const PLAYERS_DEFAULT_LIMIT = 25;
+const LOGINS_MAX_LIMIT = 100;
+const LOGINS_DEFAULT_LIMIT = 25;
 
 export function createAdminHandler(options: AdminRoutesOptions): AdminHandler {
   const ipLimiter = new RateLimiter(LOGIN_RATE_LIMIT, RATE_WINDOW_MS, options.clock);
@@ -96,6 +104,20 @@ export function createAdminHandler(options: AdminRoutesOptions): AdminHandler {
       }
       if (path === "/admin/audit" && request.method === "GET") {
         await handleAudit(request, response, options);
+        return true;
+      }
+      if (path === "/admin/players" && request.method === "GET") {
+        await handlePlayersSearch(request, response, options);
+        return true;
+      }
+      const playerMatch = /^\/admin\/players\/([^/]+)(\/logins)?$/u.exec(path);
+      if (playerMatch && request.method === "GET") {
+        const userId = decodeURIComponent(playerMatch[1]!);
+        if (playerMatch[2] === "/logins") {
+          await handlePlayerLogins(request, response, options, userId);
+        } else {
+          await handlePlayerOverview(request, response, options, userId);
+        }
         return true;
       }
       writeJson(response, 404, { error: "not_found" });
@@ -238,6 +260,62 @@ async function handleAudit(
   const offset = clampInt(url.searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
   const entries = await options.audit.list(limit, offset);
   writeJson(response, 200, { entries });
+}
+
+/** GET /admin/players?q=&limit=&offset= — meklēšana (Fāze 1.1). Lasīšana, bez CSRF. */
+async function handlePlayersSearch(
+  request: IncomingMessage,
+  response: ServerResponse,
+  options: AdminRoutesOptions
+): Promise<void> {
+  const session = await requireAdmin(request, response, options, { requireCsrf: false });
+  if (!session) {
+    return;
+  }
+  const url = new URL(request.url ?? "/", "http://localhost");
+  const rawQuery = url.searchParams.get("q") ?? undefined;
+  const query = rawQuery !== undefined && rawQuery.trim() !== "" ? rawQuery.slice(0, 200) : undefined;
+  const limit = clampInt(url.searchParams.get("limit"), PLAYERS_DEFAULT_LIMIT, 1, PLAYERS_MAX_LIMIT);
+  const offset = clampInt(url.searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
+  const players = await options.players.search(query, limit, offset);
+  writeJson(response, 200, { players });
+}
+
+/** GET /admin/players/:id — profila pārskats (Fāze 1.2). */
+async function handlePlayerOverview(
+  request: IncomingMessage,
+  response: ServerResponse,
+  options: AdminRoutesOptions,
+  userId: string
+): Promise<void> {
+  const session = await requireAdmin(request, response, options, { requireCsrf: false });
+  if (!session) {
+    return;
+  }
+  const overview = await options.players.getOverview(userId);
+  if (!overview) {
+    writeJson(response, 404, { error: "player_not_found" });
+    return;
+  }
+  writeJson(response, 200, overview);
+}
+
+/** GET /admin/players/:id/logins?limit=&offset= — login vēsture (Fāze 1.3). */
+async function handlePlayerLogins(
+  request: IncomingMessage,
+  response: ServerResponse,
+  options: AdminRoutesOptions,
+  userId: string
+): Promise<void> {
+  const session = await requireAdmin(request, response, options, { requireCsrf: false });
+  if (!session) {
+    return;
+  }
+  const url = new URL(request.url ?? "/", "http://localhost");
+  const limit = clampInt(url.searchParams.get("limit"), LOGINS_DEFAULT_LIMIT, 1, LOGINS_MAX_LIMIT);
+  const offset = clampInt(url.searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
+  const page = await options.players.getLoginHistory(userId, limit, offset);
+  writeJson(response, 200, page);
 }
 
 /** Resolved admin sesija guard izsaukumam (raw tokens + konteksts audit ierakstiem). */
