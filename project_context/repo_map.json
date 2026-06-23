@@ -769,7 +769,7 @@
   {
     "path": "apps/server/src/admin/AdminStore.ts",
     "type": "service",
-    "purpose": "Admin panel storage capability (separate from AuthStore/CoinStore), implemented by both SqliteStorage and PostgresStorage. Methods for admin sessions (create/get/touch/revoke/deleteExpired), the singleton OTP login code (create=atomic upsert, consume=atomic validate+attempts), audit log (append/list), and player login_attempts (append). Exports ADMIN_LOGIN_CODE_ID and the isAdminStore guard.",
+    "purpose": "Admin panel storage capability (separate from AuthStore/CoinStore), implemented by both SqliteStorage and PostgresStorage. Methods for admin sessions (create/get/touch/revoke/deleteExpired), the singleton OTP login code (create=atomic upsert, consume=atomic validate+attempts), audit log (append/list), player login_attempts (append), and Phase 1 player reads (searchPlayers by id/name/email sorted by last successful login, getPlayerLoginHistory, countPlayerLoginAttempts). Exports ADMIN_LOGIN_CODE_ID and the isAdminStore guard.",
     "importance": "high",
     "related_files": [
       "apps/server/src/storage/schema.ts",
@@ -804,13 +804,49 @@
   {
     "path": "apps/server/src/admin/adminRoutes.ts",
     "type": "route",
-    "purpose": "Admin HTTP routes (/admin/login|verify|logout|session|audit) + requireAdmin guard. Session cookie is HttpOnly+Secure+SameSite=Strict; CSRF is double-submit (X-CSRF-Token header must equal admin_csrf cookie) for mutating routes. Per-IP + per-identity rate limit on login/verify; CORS with credentials for ADMIN_WEB_ORIGIN. Mounted only when admin is enabled.",
+    "purpose": "Admin HTTP routes: auth (/admin/login|verify|logout|session|audit) + Phase 1 player reads (GET /admin/players search, /admin/players/:id overview, /admin/players/:id/logins paginated). requireAdmin guard on all; session cookie HttpOnly+Secure+SameSite=Strict; CSRF double-submit (X-CSRF-Token == admin_csrf cookie) on mutating routes (reads are GET, no CSRF). Per-IP + per-identity rate limit on login/verify; CORS with credentials for ADMIN_WEB_ORIGIN. Mounted only when admin is enabled.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/admin/AdminAuthService.ts",
       "apps/server/src/admin/AdminAuditService.ts",
+      "apps/server/src/admin/AdminPlayerService.ts",
       "apps/server/src/admin/cookies.ts",
       "apps/server/src/httpServer.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/admin/AdminPlayerService.ts",
+    "type": "service",
+    "purpose": "Admin player read service (Phase 1). Composes the player profile overview (account + email + avatar + coin balance + MP user_stats + login summary) from AuthStore + CoinStore + AdminStore via Promise.all; also exposes search and paginated login history. Read-only; mutations (Phase 2) go through separate audited paths.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/admin/AdminStore.ts",
+      "apps/server/src/auth/AuthStore.ts",
+      "apps/server/src/storage/CoinStore.ts",
+      "apps/server/src/admin/adminRoutes.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/admin/app/players/page.tsx",
+    "type": "ui",
+    "purpose": "Admin Players search + list (Phase 1.1): session-guarded; search box (id/name/email) and a table linking to each player, sorted by last successful login (server-side).",
+    "importance": "high",
+    "related_files": [
+      "apps/admin/lib/api.ts",
+      "apps/admin/app/players/[id]/page.tsx"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/admin/app/players/[id]/page.tsx",
+    "type": "ui",
+    "purpose": "Admin player profile (Phase 1.2/1.3): session-guarded; shows account info, email, avatar, coin balance, MP stats, and a paginated login history with failed attempts highlighted (suspicious signal).",
+    "importance": "high",
+    "related_files": [
+      "apps/admin/lib/api.ts",
+      "apps/server/src/admin/AdminPlayerService.ts"
     ],
     "confidence": "high"
   },

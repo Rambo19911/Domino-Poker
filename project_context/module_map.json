@@ -740,16 +740,19 @@
   {
     "name": "Admin Panel",
     "folder": "apps/server/src/admin + apps/admin",
-    "purpose": "Separate Game Manager admin portal (PlayFab/Azure style, reduced scope), English-only. Phase 0 (security spine) shipped: see docs/TODO/admin-panel-plan.md. Fully separate auth from player auth: single admin (owner), .env scrypt password + Resend email OTP 2FA, session in HttpOnly+Secure+SameSite=Strict cookie + CSRF double-submit. Server module apps/server/src/admin/ (AdminStore capability, AdminAuthService, AdminAuditService, adminRoutes /admin/login|verify|logout|session|audit + requireAdmin guard, cookies); apps/admin is a Next.js app on port 3001 (login password->OTP + Audit History UI).",
+    "purpose": "Separate Game Manager admin portal (PlayFab/Azure style, reduced scope), English-only. Phases 0-1 shipped: see docs/TODO/admin-panel-plan.md. Fully separate auth from player auth: single admin (owner), .env scrypt password + Resend email OTP 2FA, session in HttpOnly+Secure+SameSite=Strict cookie + CSRF double-submit. Server module apps/server/src/admin/ (AdminStore capability, AdminAuthService, AdminAuditService, AdminPlayerService, adminRoutes /admin/login|verify|logout|session|audit + Phase 1 player reads /admin/players[/:id[/logins]] + requireAdmin guard, cookies); apps/admin is a Next.js app on port 3001 (login password->OTP, Audit History, Players search + profile + login history).",
     "main_files": [
       "apps/server/src/admin/AdminStore.ts",
       "apps/server/src/admin/AdminAuthService.ts",
       "apps/server/src/admin/AdminAuditService.ts",
+      "apps/server/src/admin/AdminPlayerService.ts",
       "apps/server/src/admin/adminRoutes.ts",
       "apps/server/src/admin/cookies.ts",
       "apps/server/src/storage/schema.ts",
       "apps/admin/app/page.tsx",
       "apps/admin/app/dashboard/page.tsx",
+      "apps/admin/app/players/page.tsx",
+      "apps/admin/app/players/[id]/page.tsx",
       "apps/admin/lib/api.ts"
     ],
     "depends_on": [
@@ -768,7 +771,8 @@
       "CSRF double-submit: mutating routes require X-CSRF-Token header == admin_csrf cookie (csrf cookie is NOT HttpOnly so the SPA can read it). Session cookie Secure flag is off in dev (http), on in prod.",
       "login_attempts is recorded via authRoutes.onLoginAttempt hook (fire-and-forget) wired in index.ts only when storage isAdminStore; the player AuthService stays transport-agnostic (no IP).",
       "apps/admin is a root workspace + CI build; deploy (domino-admin systemd + Caddy admin subdomain, D2) is NOT done yet. Owner must set ADMIN_PASSWORD_HASH (+ Resend) in VPS .env before use.",
-      "Phases 1-4 (player read/write, bans, moderation, analytics) are NOT implemented yet."
+      "Phase 1 player reads: searchPlayers sorts by last successful login via a correlated MAX(login_attempts.created_at) subquery; ORDER BY MUST use `last_login_at DESC NULLS LAST` (a standalone aliased term) — the `<alias> IS NULL` expression form is invalid in PostgreSQL though SQLite tolerates it (dialect-parity trap). LIKE uses ESCAPE '\\' + escapeLike over the already-lowercased username_norm/email_norm. Read routes are GET → requireAdmin without CSRF.",
+      "Phases 2-4 (player write, bans, moderation, analytics) are NOT implemented yet."
     ],
     "confidence": "high"
   }
