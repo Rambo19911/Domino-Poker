@@ -2,6 +2,8 @@ import type { AddressInfo } from "node:net";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { STARTING_COINS } from "@domino-poker/shared";
+
 import { AdminAuditService } from "../../src/admin/AdminAuditService.js";
 import { AdminAuthService } from "../../src/admin/AdminAuthService.js";
 import { AdminPlayerService } from "../../src/admin/AdminPlayerService.js";
@@ -10,6 +12,7 @@ import type { EmailLocale, EmailSender } from "../../src/auth/EmailSender.js";
 import { hashPassword } from "../../src/auth/passwords.js";
 import { createHealthHttpServer } from "../../src/httpServer.js";
 import { SqliteStorage } from "../../src/storage/SqliteStorage.js";
+import { WalletService } from "../../src/wallet/WalletService.js";
 
 const ORIGIN = "http://localhost:3001";
 const PASSWORD = "correct-horse-battery";
@@ -51,7 +54,7 @@ describe("admin HTTP routes (integration)", () => {
       adminHandler: createAdminHandler({
         adminAuth,
         audit,
-        players: new AdminPlayerService(storage),
+        players: new AdminPlayerService(storage, new WalletService({ coins: storage, clock: () => nowMs })),
         webOrigins: [ORIGIN],
         clock: () => nowMs,
         dev: true,
@@ -196,7 +199,9 @@ describe("admin HTTP routes (integration)", () => {
     };
     expect(body.account.id).toBe("p-1");
     expect(body.account.email).toBe("alice@example.com");
-    expect(typeof body.balance).toBe("number");
+    // P2: bilance nāk caur WalletService.getBalance (repair-on-read) → seed kontam bez maka
+    // rindas tiek backfillots starta bonuss, tāpēc admin redz STARTING_COINS, nevis 0.
+    expect(body.balance).toBe(STARTING_COINS);
     expect(body.logins.total).toBeGreaterThanOrEqual(1);
 
     const missing = await fetch(`${base}/admin/players/nope`, { headers: { cookie: cookieHeader } });

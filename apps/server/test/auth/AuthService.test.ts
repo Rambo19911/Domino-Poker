@@ -49,10 +49,14 @@ describe("AuthService (with SqliteStorage)", () => {
 
     const ok = await auth.login({ username: "alice", password: "secret123" });
     expect(ok.ok).toBe(true);
+    const aliceId = ok.ok ? ok.user.id : "";
 
+    // Wrong password for a KNOWN username → invalid, but exposes the userId INTERNALLY
+    // (for login_attempts audit / suspicious-attempt highlighting, Phase 1.3).
     const wrongPassword = await auth.login({ username: "Alice", password: "nope" });
-    expect(wrongPassword).toEqual({ ok: false, error: "invalid_credentials" });
+    expect(wrongPassword).toEqual({ ok: false, error: "invalid_credentials", userId: aliceId });
 
+    // Unknown username → no userId (account does not exist).
     const unknownUser = await auth.login({ username: "ghost", password: "secret123" });
     expect(unknownUser).toEqual({ ok: false, error: "invalid_credentials" });
   });

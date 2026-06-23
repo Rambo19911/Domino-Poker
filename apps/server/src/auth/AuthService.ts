@@ -68,7 +68,16 @@ export type RegisterResult =
 
 export type LoginResult =
   | { readonly ok: true; readonly token: string; readonly user: SelfUser }
-  | { readonly ok: false; readonly error: "invalid_credentials" };
+  | {
+      readonly ok: false;
+      readonly error: "invalid_credentials";
+      /**
+       * Mēģinātā konta id, JA lietotājvārds eksistēja (parole bija nepareiza). SERVERA-
+       * IEKŠĒJAI lietošanai (login_attempts audits) — NEKAD nesūta HTTP atbildē (enumerācija).
+       * `undefined`, ja lietotājvārds neeksistē (nezināms konts).
+       */
+      readonly userId?: string | undefined;
+    };
 
 export type UpdateProfileResult =
   | { readonly ok: true; readonly user: SelfUser }
@@ -159,7 +168,9 @@ export class AuthService {
     }
     const valid = await verifyPassword(input.password, user.passwordHash);
     if (!valid) {
-      return { ok: false, error: "invalid_credentials" };
+      // Lietotājvārds eksistēja, parole nepareiza → atklājam userId IEKŠĒJI (login audits),
+      // bet HTTP slānis atbild ģeneriski (enumerācijas novēršana).
+      return { ok: false, error: "invalid_credentials", userId: user.id };
     }
     const token = await this.issueToken(user.id, this.clock());
     return { ok: true, token, user: toSelfUser(user) };

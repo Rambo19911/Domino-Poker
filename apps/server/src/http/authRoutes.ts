@@ -281,7 +281,10 @@ async function handleLogin(
       : undefined;
   onLoginAttempt?.({
     usernameTried: parsed.data.username.trim(),
-    userId: result.ok ? result.user.id : undefined,
+    // Veiksmē → pieslēgtā lietotāja id; neveiksmē → mēģinātā konta id, JA lietotājvārds
+    // eksistēja (citādi undefined). Tā "pareizs username, nepareiza parole" mēģinājumi
+    // parādās konkrētā spēlētāja login vēsturē (aizdomīguma signāls, Fāze 1.3).
+    userId: result.ok ? result.user.id : result.userId,
     ip,
     userAgent,
     success: result.ok

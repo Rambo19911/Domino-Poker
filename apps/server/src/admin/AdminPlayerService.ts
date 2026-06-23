@@ -1,16 +1,21 @@
 import type { AuthStore } from "../auth/AuthStore.js";
-import type { CoinStore } from "../storage/CoinStore.js";
+import type { WalletService } from "../wallet/WalletService.js";
 import type { AdminPlayerRow, AdminStore, LoginAttemptView } from "./AdminStore.js";
 
 /**
  * Admin spēlētāju lasīšanas serviss (Fāze 1). Komponē spēlētāja profila pārskatu no
- * esošajām glabātuves spējām (AuthStore konts + statistika, CoinStore bilance, AdminStore
- * login vēsture) — analogi `PlayerStatsService.getStats`. Tikai LASĪŠANA; mutācijas (Fāze 2)
+ * esošajām spējām (AuthStore konts + statistika, AdminStore login vēsture) un bilanci no
+ * `WalletService` — analogi `PlayerStatsService.getStats`. Tikai LASĪŠANA; mutācijas (Fāze 2)
  * iet caur atsevišķiem ceļiem ar audit.
+ *
+ * **Bilance caur `WalletService`, NE tieši `CoinStore`:** `WalletService.getBalance` ir
+ * repair-on-read (idempotenti backfillo starta bonusu veciem kontiem), tāpēc admin redz TO
+ * PAŠU bilanci, ko spēlētājs redz `/auth/me`. Tiešs `CoinStore.getBalance` atgrieztu 0 kontiem
+ * bez maka rindas (maldinoši).
  */
 
 /** Glabātuve, kas atbalsta admin spēlētāju lasīšanu (visi backendi implementē visus). */
-export type AdminPlayerStore = AuthStore & CoinStore & AdminStore;
+export type AdminPlayerStore = AuthStore & AdminStore;
 
 /** Spēlētāja konta pamatinformācija admin profila pārskatam (sadaļa 3). */
 export interface AdminPlayerAccount {
@@ -49,7 +54,10 @@ export interface AdminLoginHistoryPage {
 const OVERVIEW_LOGIN_LIMIT = 10;
 
 export class AdminPlayerService {
-  constructor(private readonly store: AdminPlayerStore) {}
+  constructor(
+    private readonly store: AdminPlayerStore,
+    private readonly wallet: WalletService
+  ) {}
 
   /** Meklē spēlētājus (ID/vārds/e-pasts), kārtots pēc pēdējās pieslēgšanās. */
   async search(query: string | undefined, limit: number, offset: number): Promise<readonly AdminPlayerRow[]> {
@@ -63,7 +71,7 @@ export class AdminPlayerService {
       return undefined;
     }
     const [balance, stats, counts, recent] = await Promise.all([
-      this.store.getBalance(userId),
+      this.wallet.getBalance(userId),
       this.store.getUserStats(userId),
       this.store.countPlayerLoginAttempts(userId),
       this.store.getPlayerLoginHistory(userId, OVERVIEW_LOGIN_LIMIT, 0)

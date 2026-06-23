@@ -97,10 +97,10 @@ const adminAuth =
     : undefined;
 const adminAudit = isAdminStore(storage) ? new AdminAuditService(storage, clock) : undefined;
 // Admin spēlētāju lasīšanas serviss (Fāze 1): komponē meklēšanu/profilu/login-vēsturi no
-// AuthStore + CoinStore + AdminStore (visi backendi implementē visus).
+// AuthStore + AdminStore; bilance caur WalletService (repair-on-read, NE tiešs CoinStore).
 const adminPlayers =
-  isAdminStore(storage) && isAuthStore(storage) && isCoinStore(storage)
-    ? new AdminPlayerService(storage)
+  isAdminStore(storage) && isAuthStore(storage) && wallet
+    ? new AdminPlayerService(storage, wallet)
     : undefined;
 // Fāze: padziļinātā spēlētāja statistika. Abas glabātuves implementē PlayerStatsStore.
 const playerStats = isPlayerStatsStore(storage)
