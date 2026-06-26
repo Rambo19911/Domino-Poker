@@ -19,7 +19,7 @@ import { IconButton } from "../ui/IconButton";
 import { TextField } from "../ui/TextField";
 import { StatisticsPanel } from "./StatisticsPanel";
 import type { AuthStatus } from "../../lib/auth/useAuthUser";
-import type { AppStrings } from "../../lib/i18n";
+import { emailLocale, type AppStrings, type Locale } from "../../lib/i18n";
 import { readLocalStorage, removeLocalStorage, writeLocalStorage } from "../../lib/safeStorage";
 import {
   applyTheme,
@@ -35,8 +35,8 @@ type Tab = "login" | "register" | "profile" | "personalization" | "statistics" |
 
 export interface AuthDialogProps {
   readonly labels: AppStrings;
-  /** Pašreizējā valoda — padota paroles atjaunošanas e-pasta sūtīšanai. */
-  readonly locale: "lv" | "en";
+  /** Pašreizējā valoda — padota paroles atjaunošanas e-pasta sūtīšanai (sašaurināta uz LV/EN). */
+  readonly locale: Locale;
   readonly status: AuthStatus;
   readonly user: AuthUser | null;
   readonly register: (input: RegisterInput) => Promise<AuthResult<TokenUser>>;
@@ -556,7 +556,7 @@ function ForgotPasswordForm({
   onBack
 }: {
   readonly labels: AppStrings;
-  readonly locale: "lv" | "en";
+  readonly locale: Locale;
   readonly playClick?: (() => void) | undefined;
   readonly onBack: () => void;
 }) {
@@ -587,7 +587,7 @@ function ForgotPasswordForm({
         playClick?.();
         setBusy(true);
         setError(null);
-        const result = await apiForgotPassword(email.trim(), locale);
+        const result = await apiForgotPassword(email.trim(), emailLocale(locale));
         setBusy(false);
         if (result.ok) {
           setSent(true); // ģeneriska atbilde — neatklājam konta esamību

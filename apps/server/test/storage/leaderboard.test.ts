@@ -136,6 +136,17 @@ describe("leaderboard (SqliteStorage)", () => {
     expect(await storage.getUserLanguage("lina")).toBe("en");
   });
 
+  // Migrācija 0013 noņēma rigid `CHECK (language IN ('en','lv'))`, tāpēc 19 jaunās
+  // valodas saglabājas (bez tā šis INSERT mestu CHECK pārkāpumu). Validāciju tagad
+  // veic Zod `GAME_LANGUAGES` robežslānī, NE DB.
+  it("persists a non-en/lv language after the 0013 CHECK relaxation", async () => {
+    await seed(storage, "otto", 3, 1);
+
+    await storage.setUserLanguage("otto", "de", 7000);
+    expect(await storage.getUserLanguage("otto")).toBe("de");
+    expect((await storage.getLeaderboard(100, 1))[0]?.language).toBe("de");
+  });
+
   it("honours the limit argument", async () => {
     await seed(storage, "x1", 9, 1);
     await seed(storage, "x2", 8, 2);

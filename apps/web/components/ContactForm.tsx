@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { apiContact } from "../lib/contact/contactApi";
-import type { AppStrings, Locale } from "../lib/i18n";
+import { emailLocale, type AppStrings, type Locale } from "../lib/i18n";
 
 /** Klienta validācija (atspoguļo serveri): e-pasta formāts + ziņas garums 10..2000. */
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/u;
@@ -44,7 +44,7 @@ export function ContactForm({
 
     setStatus("sending");
     setErrorText("");
-    const result = await apiContact(trimmedEmail, trimmedMessage, locale);
+    const result = await apiContact(trimmedEmail, trimmedMessage, emailLocale(locale));
     if (result.ok) {
       setStatus("sent");
       setEmail("");

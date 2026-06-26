@@ -492,6 +492,57 @@ function chatModerationSchema(t: DialectTypes): string {
 }
 
 /**
+ * 0013: atver `user_preferences.language` ceļu daudzvalodu atbalstam (no 2 → 21 valodai).
+ * NOŅEM rigid `CHECK (language IN ('en','lv'))` (0006); valodu turpmāk validē DOMĒNA slānī
+ * ar autoritatīvo Zod enum (`GAME_LANGUAGES` no `@domino-poker/shared`), ko `authRoutes`
+ * `languageSchema` enforcē — viens avots, jaunu valodu pievieno bez shēmas migrācijas (tieši
+ * tāpat kā `coin_ledger.reason`, 0010). Tehnika identiska 0010 (vienīgā cita vieta ar
+ * dialekta atšķirību, NE tikai tipu):
+ *   - PG: `ALTER TABLE ... DROP CONSTRAINT` viena statement. Inline kolonnas CHECK nosaukumu
+ *     PG ģenerē pati; NEpaļaujamies uz auto-nosaukumu — atrodam dinamiski `pg_constraint`
+ *     (contype='c', def satur `language`; PG pārraksta `IN (...)` → `= ANY (ARRAY[...])`,
+ *     tāpēc meklējam pēc `%language%`). Idempotents (nav → no-op), atomisks.
+ *   - SQLite: `node:sqlite` nav `DROP CONSTRAINT` → tabulas PĀRBŪVE, IETĪTA
+ *     `BEGIN IMMEDIATE; ... COMMIT;` (atomiska, idempotenta). Saglabā PK + FK CASCADE +
+ *     DEFAULT 'en'; noņem TIKAI `language` CHECK. `user_preferences` ir bērns (referencē
+ *     `users`); neviena tabula nereferencē to, tāpēc DROP+RENAME ar `foreign_keys=ON` ir drošs.
+ * Loģiskais rezultāts IDENTISKS abiem dialektiem: `user_preferences` bez `language` CHECK.
+ */
+function userPreferencesLanguageOpenSchema(t: DialectTypes, dialect: SchemaDialect): string {
+  if (dialect === "pg") {
+    return `
+  DO $$
+  DECLARE
+    cname text;
+  BEGIN
+    SELECT con.conname INTO cname
+    FROM pg_constraint con
+    WHERE con.conrelid = 'user_preferences'::regclass
+      AND con.contype = 'c'
+      AND pg_get_constraintdef(con.oid) ILIKE '%language%';
+    IF cname IS NOT NULL THEN
+      EXECUTE format('ALTER TABLE user_preferences DROP CONSTRAINT %I', cname);
+    END IF;
+  END $$;
+`;
+  }
+  return `
+  BEGIN IMMEDIATE;
+  DROP TABLE IF EXISTS user_preferences_rebuild;
+  CREATE TABLE user_preferences_rebuild (
+    user_id    TEXT PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
+    language   TEXT NOT NULL DEFAULT 'en',
+    updated_at ${t.bigint} NOT NULL DEFAULT 0
+  );
+  INSERT INTO user_preferences_rebuild (user_id, language, updated_at)
+    SELECT user_id, language, updated_at FROM user_preferences;
+  DROP TABLE user_preferences;
+  ALTER TABLE user_preferences_rebuild RENAME TO user_preferences;
+  COMMIT;
+`;
+}
+
+/**
  * Renderē sakārtoto migrāciju sarakstu dotajam dialektam. ID un secība ir
  * STABILA un identiska abiem dialektiem (versionēšanas paritāte); atšķiras tikai
  * kolonnu tipi un PG-only tabulu klātbūtne (tikai 0001).
@@ -512,6 +563,10 @@ export function buildMigrations(dialect: SchemaDialect): readonly SchemaMigratio
     { id: "0009_admin", up: adminSchema(t) },
     { id: "0010_coin_ledger_open_reason", up: coinLedgerOpenReasonSchema(t, dialect) },
     { id: "0011_bans", up: bansSchema(t) },
-    { id: "0012_chat_blocked_words", up: chatModerationSchema(t) }
+    { id: "0012_chat_blocked_words", up: chatModerationSchema(t) },
+    {
+      id: "0013_user_preferences_language_open",
+      up: userPreferencesLanguageOpenSchema(t, dialect)
+    }
   ];
 }

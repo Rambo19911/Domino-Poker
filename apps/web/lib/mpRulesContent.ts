@@ -316,7 +316,52 @@ const lv: MpRulesDoc = {
   ]
 };
 
-export const mpRulesContent: Readonly<Record<string, MpRulesDoc>> = { en, lv };
+// Pārējās 19 valodas dzīvo atsevišķos failos (`locales/mpRules/*`), lai šis fails
+// nepaliek par god-file un katra valoda ir neatkarīgi rediģējama. en/lv paliek inline
+// (vēsturiski + testu atsauces). Trūkstoša valoda grimst uz `en` (sk. `getMpRulesDoc`).
+import { mpRulesEt } from "./locales/mpRules/et";
+import { mpRulesLt } from "./locales/mpRules/lt";
+import { mpRulesPl } from "./locales/mpRules/pl";
+import { mpRulesDe } from "./locales/mpRules/de";
+import { mpRulesFr } from "./locales/mpRules/fr";
+import { mpRulesEs } from "./locales/mpRules/es";
+import { mpRulesSv } from "./locales/mpRules/sv";
+import { mpRulesNo } from "./locales/mpRules/no";
+import { mpRulesFi } from "./locales/mpRules/fi";
+import { mpRulesDa } from "./locales/mpRules/da";
+import { mpRulesIt } from "./locales/mpRules/it";
+import { mpRulesNl } from "./locales/mpRules/nl";
+import { mpRulesCs } from "./locales/mpRules/cs";
+import { mpRulesUk } from "./locales/mpRules/uk";
+import { mpRulesRo } from "./locales/mpRules/ro";
+import { mpRulesPt } from "./locales/mpRules/pt";
+import { mpRulesSk } from "./locales/mpRules/sk";
+import { mpRulesHu } from "./locales/mpRules/hu";
+import { mpRulesBe } from "./locales/mpRules/be";
+
+export const mpRulesContent: Readonly<Record<string, MpRulesDoc>> = {
+  en,
+  lv,
+  et: mpRulesEt,
+  lt: mpRulesLt,
+  pl: mpRulesPl,
+  de: mpRulesDe,
+  fr: mpRulesFr,
+  es: mpRulesEs,
+  sv: mpRulesSv,
+  no: mpRulesNo,
+  fi: mpRulesFi,
+  da: mpRulesDa,
+  it: mpRulesIt,
+  nl: mpRulesNl,
+  cs: mpRulesCs,
+  uk: mpRulesUk,
+  ro: mpRulesRo,
+  pt: mpRulesPt,
+  sk: mpRulesSk,
+  hu: mpRulesHu,
+  be: mpRulesBe
+};
 
 export function getMpRulesDoc(localeCode: string): MpRulesDoc {
   return mpRulesContent[localeCode] ?? en;

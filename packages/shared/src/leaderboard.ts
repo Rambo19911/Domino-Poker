@@ -12,10 +12,34 @@
 
 /**
  * Atbalstītās spēles valodas — VIENS avots gan tipam, gan izpildlaika validācijai
- * (F3 Zod `z.enum(GAME_LANGUAGES)`). DB `CHECK (language IN ('en','lv'))`
- * (`schema.ts` `user_preferences`) jātur sinhroni ar šo sarakstu.
+ * (F3 Zod `z.enum(GAME_LANGUAGES)`). DB rigid `CHECK (language IN ('en','lv'))`
+ * (`schema.ts` `user_preferences`, 0006) tika NOŅEMTS migrācijā `0013`, tāpēc
+ * valodu turpmāk validē TIKAI šis Zod enum (kā `coin_ledger.reason`, 0010) — jaunu
+ * valodu pievieno šeit, bez shēmas migrācijas.
  */
-export const GAME_LANGUAGES = ["en", "lv"] as const;
+export const GAME_LANGUAGES = [
+  "en",
+  "lv",
+  "et",
+  "lt",
+  "pl",
+  "de",
+  "fr",
+  "es",
+  "sv",
+  "no",
+  "fi",
+  "da",
+  "it",
+  "nl",
+  "cs",
+  "uk",
+  "ro",
+  "pt",
+  "sk",
+  "hu",
+  "be"
+] as const;
 
 /** Atbalstītā spēles valoda (protokola vērtība; atvasināta no `GAME_LANGUAGES`). */
 export type GameLanguage = (typeof GAME_LANGUAGES)[number];

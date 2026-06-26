@@ -279,12 +279,13 @@ describe("SqliteStorage schema version tracking", () => {
       "0009_admin",
       "0010_coin_ledger_open_reason",
       "0011_bans",
-      "0012_chat_blocked_words"
+      "0012_chat_blocked_words",
+      "0013_user_preferences_language_open"
     ]);
 
     // Reopen: nepiemēro neko atkārtoti (joprojām tieši tās pašas rindas).
     const second = new SqliteStorage({ filename: tmpFile });
     await second.close();
-    expect(recordedMigrations()).toHaveLength(12);
+    expect(recordedMigrations()).toHaveLength(13);
   });
 });

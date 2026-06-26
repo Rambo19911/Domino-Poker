@@ -1,6 +1,6 @@
 # AI Working Rules
 
-Last refreshed: 2026-06-22.
+Last refreshed: 2026-06-26.
 
 ## Before Major Edits
 
@@ -188,6 +188,9 @@ Read these before changing shell routing, lobby, single-player UI, multiplayer U
 - `apps/web/lib/i18n.ts`
 - `apps/web/lib/locales/en.ts`
 - `apps/web/lib/locales/lv.ts`
+- `apps/web/lib/locales/*.ts`
+- `apps/web/lib/locales/mpRules/*.ts`
+- `packages/shared/src/leaderboard.ts`
 - `apps/web/lib/safeStorage.ts`
 - `apps/web/lib/useAudioSettings.ts`
 - relevant CSS partials under `apps/web/styles/`
@@ -199,6 +202,8 @@ Care points:
 - Swappable per-screen SVG backgrounds + per-screen palette accents (v3.1–3.2): the 4 main screens each draw a swappable SVG background asset (`public/assets/backgrounds/{lobby,mp-lobby,sp-room,mp-room}.svg`) via the `--bg-lobby` / `--bg-mp-lobby` / `--bg-sp-room` / `--bg-mp-room` tokens, applied as `background: var(--bg-*) center/cover no-repeat, var(--overlay)` on `.lobbyShell` (LobbyScreen), `.mpLobby` (MultiplayerLobby), `.gameShell.spRoomBg` (DominoPokerGame), `.gameShell.mpRoomBg` (MpGameTable). Replace/repoint the SVG to reskin a screen with NO code change; bg colors are baked INTO the SVG (not token-recolored). Because each SVG has a distinct palette, each screen root ALSO overrides the thematic chrome token set to match its bg — `--primary`(+rgb), `--surface`(+rgb), `--surface-floating`(+rgb), `--felt`(+rgb), and (lobby only) `--wheel-arc-top/bottom-rgb` — in a dedicated "per-screen palette" section of `tokens.css` (these literals stay centralized there, NOT in feature partials). Accents: lobby teal, mp-lobby violet, mp-room ruby, sp-room teal. This per-container scope is ORTHOGONAL to `[data-theme]` (which overrides `:root`). Each scope re-pins `--coin`/`--coin-rgb` to gold so money/economy UI stays gold everywhere with its GIF icon. Dialogs INHERIT the screen accent (rendered inline via `Dialog.tsx`, not portaled). Kept universal (NOT per-screen): functional signals — green (`--success`/`--positive`/`--online`/`--accent-green`/`--background`: your-turn, connected, matched) and red (`--error`/`--danger`) — and graphics (domino tiles/`--domino-*`, logo, GIFs). A dedicated `--felt`/`--felt-rgb` token (default = `--background` green) backs the table-felt radial (`.table`, `.mpmTable` use `var(--felt)`), decoupling the recolored felt from `--background`, which stays the green your-turn ring / `.positive` / hidden-tile-back graphic.
 - Use `Dialog`/`useDialogFocus` for modal semantics and focus behavior.
 - Keep user-facing strings in locale files and pass labels through props.
+- Supported UI/account languages currently total 21. Keep `apps/web/lib/i18n.ts` `appStrings`, the visible `locales` selector, flat `apps/web/lib/locales/*.ts`, `apps/web/lib/mpRulesContent.ts`, `apps/web/lib/locales/mpRules/*.ts`, and shared `GAME_LANGUAGES` in `packages/shared/src/leaderboard.ts` aligned. The DB no longer enforces an en/lv language CHECK after migration `0013_user_preferences_language_open`; server Zod validation is authoritative.
+- System emails are still only LV/EN. When a 21-locale UI choice reaches password reset or contact email flows, use `emailLocale()` to narrow non-LV locales to EN before calling the email route.
 - Use `safeStorage` wrappers for localStorage/sessionStorage.
 - `AppShell` owns locale, screen routing, auth state, audio, selected round count, session restore, and reset-token routing.
 - Multiplayer UI sends intents only. Do not add authoritative move acceptance/rejection to the browser.
@@ -225,7 +230,7 @@ Care points:
 
 ### Gold-Coin Economy
 
-Read these before changing the virtual gold-coin currency (balances, ledger, signup bonus, single-player rewards, or — later — multiplayer paid rooms):
+Read these before changing the virtual gold-coin currency (balances, ledger, signup bonus, single-player rewards, or multiplayer paid rooms):
 
 - `packages/shared/src/economy.ts` (single source of amounts/splits)
 - `apps/server/src/storage/CoinStore.ts`, `apps/server/src/storage/schema.ts` (0007_coin_wallet)
@@ -245,7 +250,7 @@ Care points:
 - Anonymous play has no wallet and earns nothing. Registration grants the signup bonus; `WalletService.getBalance` is repair-on-read so `/auth/me` and `WELCOME` also backfill existing accounts idempotently.
 - `httpServer.ts` chains handlers `/sp/*` → `/stats` → auth (first to return `true` wins); raw-HTTP helpers are shared via `http/httpUtils.ts` (do not re-copy them).
 - On reward/charge errors, favor under-credit over over-credit (the SP token is consumed before the DB credit by design).
-- Multiplayer paid rooms (entry fee + pot, 70/30 payout to top-2 registered humans) are PLANNED (Phase 3) and NOT built yet; see `docs/TODO/gold-coins-plan.md` (local/ignored).
+- Multiplayer paid rooms (entry fee + pot, 70/30 payout to top-2 registered humans) are built server-side and surfaced in the web UI. Keep money rules in `WalletService` / `MatchPayoutService` / `packages/shared/src/economy.ts`; web code only displays balances, validates obvious client form constraints, and sends intents.
 
 ### Deep Player Statistics
 
@@ -274,7 +279,7 @@ Care points:
 - Session cookie is `HttpOnly`+`Secure`+`SameSite=Strict`; CSRF is double-submit (`X-CSRF-Token` header must equal the readable `admin_csrf` cookie) on mutating routes. `Secure` is off in dev (http) only.
 - AUDIT INVARIANT: every authenticated admin ACTION (+ session lifecycle + `admin.verify_failed`) writes an `AdminAuditService.record` row; Phase 1+ data mutations must record `before/after` diffs. 2FA auth-mechanism internal state (OTP creation, attempts) is deliberately not audited.
 - `login_attempts` is recorded via the `authRoutes.onLoginAttempt` hook (fire-and-forget; the transport layer supplies the IP so `AuthService` stays transport-agnostic). Never log the password/tokens.
-- Migration `0009_admin` follows `schema.ts` append-only rules. `apps/admin` is a root workspace + CI build; its deploy (own subdomain + Caddy + `domino-admin` systemd) is NOT configured yet — the owner must set `ADMIN_PASSWORD_HASH` (scrypt) + Resend in the VPS `.env` before the panel works.
+- Migration `0009_admin` follows `schema.ts` append-only rules. `apps/admin` is a root workspace + CI build and has a production deploy path through its own subdomain, Caddy routing, and `domino-admin` systemd. Routes still mount only when `ADMIN_PASSWORD_HASH`, an email sender, and the required storage capabilities are configured.
 
 ## Commands
 
@@ -318,7 +323,7 @@ Important ordering:
 - `WEB_ORIGIN`, `RESEND_API_KEY`, `EMAIL_FROM`, and `APP_BASE_URL` are read by `apps/server/src/config.ts`; verify `.env.example` when changing auth CORS or password-reset email behavior because those examples can drift.
 - `TRANSLATE_ENABLED`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_APPLICATION_CREDENTIALS`, and `TRANSLATE_*` limits are read by `apps/server/src/config.ts` for optional MP chat translation. Service account JSON files must stay outside source control.
 - Reverse proxies must route `/ws`, `/auth/*`, `/sp/*`, `/stats`, `/contact`, `/chat/translate`, and (when the admin panel is enabled) `/admin/*` to the server port. Enable `TRUST_PROXY=true` only behind a trusted proxy that controls `X-Forwarded-For`.
-- Admin panel env (when enabled): `ADMIN_PASSWORD_HASH` (scrypt, format like `auth/passwords.ts`), `ADMIN_EMAIL` (2FA OTP recipient; default owner), `ADMIN_WEB_ORIGIN` (admin web CORS). Reuses `RESEND_API_KEY` / `EMAIL_FROM`. The admin web (`apps/admin`) should get its own subdomain (deploy not configured yet).
+- Admin panel env (when enabled): `ADMIN_PASSWORD_HASH` (scrypt, format like `auth/passwords.ts`), `ADMIN_EMAIL` (2FA OTP recipient; default owner), `ADMIN_WEB_ORIGIN` (admin web CORS). Reuses `RESEND_API_KEY` / `EMAIL_FROM`. The production admin web uses its own subdomain and routes `/admin/*` plus `/auth/avatar/*` to the server.
 - `TRICK_PAUSE_MS` must remain aligned with the web client's completed-trick freeze (`apps/web/lib/mp/useTrickFreeze.ts`); config rejects values below 1500 ms.
 - `data/*.sqlite`, `data/*.sqlite-wal`, and `data/*.sqlite-shm` are ignored runtime files.
 - `logs/` is ignored. MP action logging is opt-in through `MP_ACTION_LOG=1`.

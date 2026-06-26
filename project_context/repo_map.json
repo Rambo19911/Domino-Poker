@@ -252,7 +252,7 @@
   {
     "path": "apps/web/components/ContactForm.tsx",
     "type": "ui",
-    "purpose": "Bilingual contact form in the Settings -> About panel: email + message + submit, client-side validation mirroring the server (email regex + 10..2000 chars), POST /contact via contactApi, and localized idle/sending/sent/error status (incl. 429 rate-limit). No auth required.",
+    "purpose": "Localized contact form in the Settings -> About panel: email + message + submit, client-side validation mirroring the server (email regex + 10..2000 chars), POST /contact via contactApi, and localized idle/sending/sent/error status (incl. 429 rate-limit). No auth required. Narrows the current 21-locale UI language to LV/EN email locale via `emailLocale()`.",
     "importance": "medium",
     "related_files": [
       "apps/web/lib/contact/contactApi.ts",
@@ -568,7 +568,7 @@
   {
     "path": "apps/web/lib/auth/authApi.ts",
     "type": "service",
-    "purpose": "Client HTTP API wrapper for optional account auth, profile, password reset, avatar upload, account language, and `balance` in the /auth/me response. Exports requestJson/jsonInit reused by the SP reward client.",
+    "purpose": "Client HTTP API wrapper for optional account auth, profile, password reset, avatar upload, account language (`GameLanguage`), and `balance` in the /auth/me response. Exports requestJson/jsonInit reused by the SP reward client. Password-reset email locale remains LV/EN.",
     "importance": "high",
     "related_files": [
       "apps/server/src/http/authRoutes.ts",
@@ -579,7 +579,7 @@
   {
     "path": "apps/web/lib/auth/useAuthUser.ts",
     "type": "service",
-    "purpose": "Client auth-token state, profile loading, logout, refresh, avatar upload, account language, and gold-coin balance state (from /auth/me; optimistic STARTING_COINS on register).",
+    "purpose": "Client auth-token state, profile loading, logout, refresh, avatar upload, account language (`GameLanguage`, now 21 UI locales), and gold-coin balance state (from /auth/me; optimistic STARTING_COINS on register).",
     "importance": "high",
     "related_files": [
       "apps/web/lib/safeStorage.ts",
@@ -601,11 +601,35 @@
   {
     "path": "apps/web/lib/i18n.ts",
     "type": "utility",
-    "purpose": "Locale registry and helpers for English/Latvian UI strings.",
+    "purpose": "Locale registry and helpers for the 21 supported UI locales. Owns `appStrings`, the visible `locales` selector list, `Locale`, `isLocale()`, and `emailLocale()` (maps any non-LV UI locale to EN for system emails). Must stay aligned with shared `GAME_LANGUAGES`.",
     "importance": "high",
     "related_files": [
       "apps/web/lib/locales/en.ts",
-      "apps/web/lib/locales/lv.ts"
+      "apps/web/lib/locales/lv.ts",
+      "apps/web/lib/locales/mpRules/",
+      "packages/shared/src/leaderboard.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/locales/*.ts",
+    "type": "data",
+    "purpose": "Flat UI string catalogs for all 21 supported locales. Every locale file must match the English key set through the `AppStrings` contract; `localeCode` must match the filename and shared language code.",
+    "importance": "high",
+    "related_files": [
+      "apps/web/lib/i18n.ts",
+      "packages/shared/src/leaderboard.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/locales/mpRules/*.ts",
+    "type": "data",
+    "purpose": "Structured multiplayer-rules documents for the 19 added non-en/lv locales. Kept outside the flat `AppStrings` catalog because MP rules are sections, paragraphs, and lists rather than simple strings.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/lib/mpRulesContent.ts",
+      "apps/web/components/mp/MpLobbyDialogs.tsx"
     ],
     "confidence": "high"
   },
@@ -1057,7 +1081,7 @@
   {
     "path": "apps/server/src/storage/schema.ts",
     "type": "database",
-    "purpose": "Single DDL source for SQLite/PostgreSQL migration rendering: auth, stats, password reset, custom avatars, user_preferences, the gold-coin wallet (0007), deep player stats (0008_player_game_results), the admin panel (0009_admin: admin_sessions, admin_login_codes [singleton id row for the OTP], admin_audit_log, login_attempts), 0010_coin_ledger_open_reason (drops coin_ledger.reason CHECK; reason now enforced by the TS LedgerReason union), 0011_bans (account/IP bans), 0012_chat_blocked_words (chat moderation), and PG-only multi-instance tables. Migrations are append-only; identical CHECK/FK/types across both dialects.",
+    "purpose": "Single DDL source for SQLite/PostgreSQL migration rendering: auth, stats, password reset, custom avatars, user_preferences, the gold-coin wallet (0007), deep player stats (0008_player_game_results), the admin panel (0009_admin: admin_sessions, admin_login_codes [singleton id row for the OTP], admin_audit_log, login_attempts), 0010_coin_ledger_open_reason (drops coin_ledger.reason CHECK; reason now enforced by the TS LedgerReason union), 0011_bans (account/IP bans), 0012_chat_blocked_words (chat moderation), 0013_user_preferences_language_open (drops/rebuilds the old en/lv language CHECK so `GAME_LANGUAGES` is authoritative for 21 locales), and PG-only multi-instance tables. Migrations are append-only; preserve dialect parity.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/storage/migrations.ts",
@@ -1353,7 +1377,7 @@
   {
     "path": "packages/shared/src/leaderboard.ts",
     "type": "model",
-    "purpose": "Global leaderboard protocol + domain: authoritative rank->badge mapping (rankToBadge / RankBadgeId asset ids), GameLanguage list, and the LeaderboardEntry / LeaderboardSelf / LeaderboardResponse DTOs (no internal userId — privacy).",
+    "purpose": "Global leaderboard protocol + domain: authoritative rank->badge mapping (rankToBadge / RankBadgeId asset ids), `GAME_LANGUAGES` / `GameLanguage` list for the 21 supported UI/account languages, and the LeaderboardEntry / LeaderboardSelf / LeaderboardResponse DTOs (no internal userId — privacy).",
     "importance": "high",
     "related_files": [
       "apps/server/src/leaderboard/LeaderboardService.ts",
@@ -1763,10 +1787,11 @@
   {
     "path": "apps/web/components/RulesDialog.tsx",
     "type": "ui",
-    "purpose": "Localized rules dialog rendered from shared rules content.",
+    "purpose": "Localized single-player rules dialog rendered from flat `AppStrings` rules keys.",
     "importance": "medium",
     "related_files": [
       "apps/web/lib/mpRulesContent.ts",
+      "apps/web/lib/locales/*.ts",
       "apps/web/components/Dialog.tsx"
     ],
     "confidence": "high"

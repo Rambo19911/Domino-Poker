@@ -67,7 +67,7 @@
   {
     "name": "Shared Protocol",
     "folder": "packages/shared",
-    "purpose": "Public protocol and DTO package for server/client communication, room DTOs, protocol versioning, errors, avatar catalog, and account title helpers.",
+    "purpose": "Public protocol and DTO package for server/client communication, room DTOs, protocol versioning, errors, avatar catalog, account title helpers, leaderboard DTOs, and the authoritative `GAME_LANGUAGES` runtime/type list.",
     "main_files": [
       "packages/shared/src/index.ts",
       "packages/shared/src/protocolVersion.ts",
@@ -92,6 +92,7 @@
       "clientMessages.ts is an external input boundary; keep Zod validation and max lengths strict.",
       "serverEvents.ts imports core MP event/snapshot types, so shared is protocol-facing but not fully domain-neutral.",
       "Changing room/event/message contracts requires server, web, load-test, and shared tests.",
+      "Keep `GAME_LANGUAGES` aligned with `apps/web/lib/i18n.ts`; server account-language validation uses this enum, while DB migration 0013 deliberately removed the old en/lv CHECK.",
       "serverEvents.ts also carries fanout/event-bus contracts used by ServerEventBus/PostgresEventBus."
     ],
     "confidence": "high"
@@ -99,7 +100,7 @@
   {
     "name": "Web App",
     "folder": "apps/web",
-    "purpose": "Next.js browser app for single-player, multiplayer lobby/table, MP lobby chat emoji and translation UI, optional account UI, localization, audio, responsive desktop/mobile layouts, UI primitives, PWA registration/install prompt, version display, and token-driven styling.",
+    "purpose": "Next.js browser app for single-player, multiplayer lobby/table, MP lobby chat emoji and translation UI, optional account UI, 21-locale localization, audio, responsive desktop/mobile layouts, UI primitives, PWA registration/install prompt, version display, and token-driven styling.",
     "main_files": [
       "apps/web/app/page.tsx",
       "apps/web/app/layout.tsx",
@@ -128,6 +129,10 @@
       "apps/web/lib/auth/authApi.ts",
       "apps/web/lib/auth/useAuthUser.ts",
       "apps/web/lib/i18n.ts",
+      "apps/web/lib/locales/en.ts",
+      "apps/web/lib/locales/lv.ts",
+      "apps/web/lib/locales/mpRules/",
+      "apps/web/lib/mpRulesContent.ts",
       "apps/web/lib/safeStorage.ts",
       "apps/web/styles/tokens.css",
       "apps/web/next.config.ts",
@@ -171,8 +176,9 @@
       "DominoPokerGame owns substantial single-player application workflow around core state.",
       "CSS entry globals.css is import-only; feature CSS belongs under apps/web/styles.",
       "PWA/service-worker cache can hide asset/UI changes during manual checks.",
-      "UI text should flow through localization files and passed labels.",
-      "MP chat translation targets `labels.localeCode`, so future locales should not require changing the translation API contract.",
+      "UI text should flow through localization files and passed labels. Flat UI strings live in `lib/locales/*.ts` and must satisfy `AppStrings`; MP rules docs for the 19 added locales live in `lib/locales/mpRules/*` and are selected from `mpRulesContent.ts`.",
+      "The 21 UI locales must stay aligned across `appStrings`, the visible `locales` selector, `packages/shared/src/leaderboard.ts` `GAME_LANGUAGES`, and `mpRulesContent`. System emails intentionally stay LV/EN through `emailLocale()`.",
+      "MP chat translation targets `labels.localeCode`, so new locales normally do not require changing the translation API contract.",
       "gameTableView.ts may derive playable-tile hints from core, but multiplayer acceptance/rejection remains server-authoritative.",
       "Theme/PWA/version changes cross `VERSION`, `next.config.ts`, `tokens.css`, `sw.js`, and deploy behavior.",
       "Desktop/mobile multiplayer table split requires checking both MpDesktopTable and MpMobileTable before layout changes."
@@ -295,7 +301,7 @@
       "Server Gateway And Sessions"
     ],
     "risks": [
-      "schema.ts is the single DDL source for both SQLite and PostgreSQL (latest is 0012_chat_blocked_words; then 0011_bans, 0010_coin_ledger_open_reason). Most migrations are CREATE ... IF NOT EXISTS, but 0010 is dialect-branched: PG drops a constraint via a pg_constraint DO block, SQLite rebuilds coin_ledger inside BEGIN IMMEDIATE/COMMIT.",
+      "schema.ts is the single DDL source for both SQLite and PostgreSQL (latest is 0013_user_preferences_language_open; then 0012_chat_blocked_words, 0011_bans, 0010_coin_ledger_open_reason). Most migrations are CREATE ... IF NOT EXISTS, but 0010 AND 0013 are dialect-branched: PG drops a constraint via a pg_constraint DO block, SQLite rebuilds the table inside BEGIN IMMEDIATE/COMMIT. 0013 relaxes the user_preferences.language CHECK (2 langs -> 21) so language is validated only by the Zod GAME_LANGUAGES enum (like coin_ledger.reason).",
       "Migration IDs are production identity; append new migrations only at the end.",
       "SQLite migrate() runs each migration `up` via db.exec WITHOUT a surrounding transaction (node:sqlite exec auto-commits per statement); a multi-step migration that must be atomic (e.g. a table rebuild) MUST wrap itself in BEGIN IMMEDIATE/COMMIT. PG sends each `up` as one multi-statement simple-query = one implicit transaction (already atomic).",
       "StoragePort behavior should be covered by the shared storage contract tests.",
@@ -310,7 +316,7 @@
   {
     "name": "Web Auth Client",
     "folder": "apps/web/lib/auth",
-    "purpose": "Browser-side account integration: HTTP API calls, auth token state, profile refresh, avatar URL resolution/upload preparation, and localized title labels.",
+    "purpose": "Browser-side account integration: HTTP API calls, auth token state, profile refresh, persisted account language, avatar URL resolution/upload preparation, and localized title labels.",
     "main_files": [
       "apps/web/lib/auth/authApi.ts",
       "apps/web/lib/auth/useAuthUser.ts",
@@ -331,7 +337,8 @@
     "risks": [
       "Auth tokens live in browser storage; use safeStorage and never put tokens into URLs.",
       "Avatar upload is intentionally client-side resized/compressed before POST.",
-      "Reset password token is read from URL hash and immediately removed from location."
+      "Reset password token is read from URL hash and immediately removed from location.",
+      "Account language uses shared `GameLanguage`; password reset and contact emails accept only LV/EN, so callers must narrow via `emailLocale()` before hitting email routes."
     ],
     "confidence": "high"
   },
@@ -644,7 +651,7 @@
   {
     "name": "Coin Economy (Gold)",
     "folder": ".",
-    "purpose": "Cross-cutting virtual gold-coin currency on top of the optional account system. Server-authoritative: per-account balance + append-only ledger in the DB, a wallet application layer, single-player win rewards gated by a server-issued one-time token, balance surfaced to the web, multiplayer paid rooms (host-set entry fee, prize pot split 70/30 to the top-2 registered humans) shipped server-side (Phase 3), the paid-room web UI (Phase 4: fee input gated to logged-in hosts, coin badges in room lists, table pot, live WALLET_UPDATED balance), and the rules/i18n (Phase 5: gold-coin section in the main RulesDialog + a paid-room section in the MP rules, both en/lv, TS-enforced parity; reduced-motion audited). Anonymous play has no wallet, cannot join paid rooms, and earns nothing. Phase 6 (test/docs sweep) remains.",
+    "purpose": "Cross-cutting virtual gold-coin currency on top of the optional account system. Server-authoritative: per-account balance + append-only ledger in the DB, a wallet application layer, single-player win rewards gated by a server-issued one-time token, balance surfaced to the web, multiplayer paid rooms (host-set entry fee, prize pot split 70/30 to the top-2 registered humans) shipped server-side (Phase 3), the paid-room web UI (Phase 4: fee input gated to logged-in hosts, coin badges in room lists, table pot, live WALLET_UPDATED balance), and rules/i18n coverage across all 21 UI locales (flat strings via `AppStrings`, MP paid-room docs via `mpRulesContent` + `locales/mpRules/*`). Anonymous play has no wallet, cannot join paid rooms, and earns nothing.",
     "main_files": [
       "packages/shared/src/economy.ts",
       "apps/server/src/storage/CoinStore.ts",
@@ -668,6 +675,7 @@
       "apps/web/lib/mpRulesContent.ts",
       "apps/web/lib/locales/en.ts",
       "apps/web/lib/locales/lv.ts",
+      "apps/web/lib/locales/mpRules/",
       "apps/web/styles/coin.css"
     ],
     "depends_on": [
@@ -741,7 +749,7 @@
   {
     "name": "Admin Panel",
     "folder": "apps/server/src/admin + apps/admin",
-    "purpose": "Separate Game Manager admin portal (PlayFab/Azure style, reduced scope), English-only. Phases 0-4 COMPLETE (only D2 deploy remains): see docs/TODO/admin-panel-plan.md + docs/TODO/admin-api.md. Phase 4A added read-only analytics (AdminAnalyticsService: overview/activity[.csv]/segments/leaderboard over existing tables, no new migration) and Phase 4B added governance (AdminPlayerGovernanceService: full allowlisted JSON export + D5 hard-delete = scrub matches.players_json + anonymize login_attempts PII + FK cascade, with a pre-delete snapshot saved to the audit log as the backup). Phase 3 added bans (BanService: migration 0011_bans, enforced at login + HTTP token revoke + WS handshake hard-reject + WS-upgrade IP-ban + live disconnect) and chat moderation (ChatModerationService: migration 0012_chat_blocked_words, in-memory blocked-word filter in LobbyChat + admin chat announcement). Earlier: Fully separate auth from player auth: single admin (owner), .env scrypt password + Resend email OTP 2FA, session in HttpOnly+Secure+SameSite=Strict cookie + CSRF double-submit. Server module apps/server/src/admin/ (AdminStore capability, AdminAuthService, AdminAuditService, AdminPlayerService read-only, AdminPlayerWriteService write ops, adminRoutes /admin/login|verify|logout|session|audit + Phase 1 player reads /admin/players[/:id[/logins]] + Phase 2 player writes (PATCH /admin/players/:id account, PATCH .../stats, POST .../coins, POST .../reset-password hard, POST .../send-reset-email soft) + requireAdmin guard, cookies); apps/admin is a Next.js app on port 3001 (login password->OTP, Audit History, Players search + profile + login history + management forms). Phase 2 also added migration 0010_coin_ledger_open_reason (D6: drops coin_ledger.reason CHECK; reason now enforced by the TS LedgerReason union) and AuthStore admin write methods (adminUpdateAccount/adminSetUserStats/adminInvalidateCredentials) + WalletService.adminAdjust. Phase 4A.2 (D4) added country/platform analytics segments: AdminStore.successfulLoginUserIps/successfulLoginUserAgents return DISTINCT (user,ip)/(user,user_agent) pairs over successful logins (no new migration; ip/user_agent already on login_attempts), and AdminAnalyticsService buckets DISTINCT users per country/platform (Set<userId>, so one user from two IPs in one country counts once). Country derived at read time via CountryResolver port (GeoipCountryResolver wraps geoip-lite, isolated behind the port + loaded via createRequire only when admin enabled); platform via classifyPlatform pure fn (mobile/desktop/other). Raw IP/UA never leave the service; geoTruncated flags partial counts at the distinct-pair cap.",
+    "purpose": "Separate Game Manager admin portal (PlayFab/Azure style, reduced scope), English-only. Phases 0-4 COMPLETE and D2 deployed at https://admin.domino-poker.com: see docs/TODO/admin-panel-plan.md + docs/TODO/admin-api.md. Phase 4A added read-only analytics (AdminAnalyticsService: overview/activity[.csv]/segments/leaderboard over existing tables, no new migration) and Phase 4B added governance (AdminPlayerGovernanceService: full allowlisted JSON export + D5 hard-delete = scrub matches.players_json + anonymize login_attempts PII + FK cascade, with a pre-delete snapshot saved to the audit log as the backup). Phase 3 added bans (BanService: migration 0011_bans, enforced at login + HTTP token revoke + WS handshake hard-reject + WS-upgrade IP-ban + live disconnect) and chat moderation (ChatModerationService: migration 0012_chat_blocked_words, in-memory blocked-word filter in LobbyChat + admin chat announcement). Earlier: Fully separate auth from player auth: single admin (owner), .env scrypt password + Resend email OTP 2FA, session in HttpOnly+Secure+SameSite=Strict cookie + CSRF double-submit. Server module apps/server/src/admin/ (AdminStore capability, AdminAuthService, AdminAuditService, AdminPlayerService read-only, AdminPlayerWriteService write ops, adminRoutes /admin/login|verify|logout|session|audit + Phase 1 player reads /admin/players[/:id[/logins]] + Phase 2 player writes (PATCH /admin/players/:id account, PATCH .../stats, POST .../coins, POST .../reset-password hard, POST .../send-reset-email soft) + requireAdmin guard, cookies); apps/admin is a Next.js app on port 3001 (login password->OTP, Audit History, Players search + profile + login history + management forms). Phase 2 also added migration 0010_coin_ledger_open_reason (D6: drops coin_ledger.reason CHECK; reason now enforced by the TS LedgerReason union) and AuthStore admin write methods (adminUpdateAccount/adminSetUserStats/adminInvalidateCredentials) + WalletService.adminAdjust. Phase 4A.2 (D4) added country/platform analytics segments: AdminStore.successfulLoginUserIps/successfulLoginUserAgents return DISTINCT (user,ip)/(user,user_agent) pairs over successful logins (no new migration; ip/user_agent already on login_attempts), and AdminAnalyticsService buckets DISTINCT users per country/platform (Set<userId>, so one user from two IPs in one country counts once). Country derived at read time via CountryResolver port (GeoipCountryResolver wraps geoip-lite, isolated behind the port + loaded via createRequire only when admin enabled); platform via classifyPlatform pure fn (mobile/desktop/other). Raw IP/UA never leave the service; geoTruncated flags partial counts at the distinct-pair cap.",
     "main_files": [
       "apps/server/src/admin/AdminStore.ts",
       "apps/server/src/admin/AdminAuthService.ts",
@@ -787,7 +795,7 @@
       "EVERY admin mutation must write an AdminAuditService.record row (Codex invariant); covered by adminRoutes.integration test.",
       "CSRF double-submit: mutating routes require X-CSRF-Token header == admin_csrf cookie (csrf cookie is NOT HttpOnly so the SPA can read it). Session cookie Secure flag is off in dev (http), on in prod.",
       "login_attempts is recorded via authRoutes.onLoginAttempt hook (fire-and-forget) wired in index.ts only when storage isAdminStore; the player AuthService stays transport-agnostic (no IP).",
-      "apps/admin is a root workspace + CI build; deploy (domino-admin systemd + Caddy admin subdomain, D2) is NOT done yet. Owner must set ADMIN_PASSWORD_HASH (+ Resend) in VPS .env before use.",
+      "apps/admin is a root workspace + CI build and has a production deploy path through domino-admin systemd + the Caddy admin subdomain. ADMIN_* and Resend env still gate whether routes mount.",
       "Phase 1 player reads: searchPlayers sorts by last successful login via a correlated MAX(login_attempts.created_at) subquery; ORDER BY MUST use `last_login_at DESC NULLS LAST` (a standalone aliased term) — the `<alias> IS NULL` expression form is invalid in PostgreSQL though SQLite tolerates it (dialect-parity trap). LIKE uses ESCAPE '\\' + escapeLike over the already-lowercased username_norm/email_norm. Read routes are GET → requireAdmin without CSRF.",
       "Phase 2 player writes (AdminPlayerWriteService): audit lives IN the service (every mutation records its own AdminAuditService row → 'no mutation without audit' is structural), NOT in routes; coins audit ONLY when the ledger actually changed (applied=true) so idempotent retries don't double-audit. Mutation + audit are two separate writes (not one cross-capability tx) — coverage, not atomicity (accepted for a single-admin panel). Coin adjust is idempotent by a client-or-server adjustmentId (ledger ref), minBalance 0 (no negative balance). Stats correction SETS the user_stats aggregate (games=wins+losses), per-game player_game_results untouched (D3). Hard password reset sends the email BEFORE invalidating the password/sessions (never lock a user out); editing email also deletes unused reset tokens (old-email recovery risk). All mutating routes require CSRF; CORS Allow-Methods includes PATCH.",
       "Migration 0010_coin_ledger_open_reason (D6) drops the coin_ledger.reason CHECK enum so new reasons (admin_adjust, ...) need no per-reason migration; reason is now enforced ONLY by the TS CoinStore.LedgerReason union (WalletService). PG drops the constraint via a dynamic pg_constraint lookup (DO block matching the check def on `reason` — NOT the auto-generated name, and robust to PG rewriting IN→= ANY(ARRAY)). SQLite has no DROP CONSTRAINT so it rebuilds the table wrapped in BEGIN IMMEDIATE/COMMIT (migrate()'s exec is not auto-transactional); the rebuild keeps the delta<>0 CHECK + FK CASCADE + idempotency UNIQUE index. Verified on real PG (docker) + a targeted SQLite rebuild test (data/FK/index preservation + idempotent re-run).",
@@ -795,7 +803,7 @@
       "Phase 3.2 chat moderation (ChatModerationService, migration 0012_chat_blocked_words): an admin-editable blocked-word list is hydrated into memory at startup (NO per-chat-message DB read) and LobbyChat.submit replaces matches with **** via a whole-word UNICODE lookaround `(?<![\\p{L}\\p{N}])word(?![\\p{L}\\p{N}])` (so Latvian ā/č/ē match, not ASCII \\b); words are normalized trim+lowercase+NFC, AND filter() normalizes the input text to NFC before matching so a word blocked in NFC is also caught when typed in the visually-identical decomposed (NFD) form. Known bypasses (zero-width, homoglyphs, inserted punctuation, leetspeak, inflections) are accepted+documented for this minimal first pass. LobbyChat.announce posts an 'Admin'-authored message (no rate-limit, no filter); index.ts wires onAnnounce → chat.announce + gatewayHolder.current.broadcast(CHAT_MESSAGE) — single-VPS (other PG-fanout instances get the broadcast event but not the local history entry). Routes: GET/POST /admin/chat/blocked-words, DELETE /admin/chat/blocked-words/:word, POST /admin/chat/announce (CSRF; CORS Allow-Methods now includes DELETE). Admin UI: /bans (list/revoke/ip-ban) + /moderation (blocked-word chips + announce).",
       "Phase 4A analytics (AdminAnalyticsService) is READ-ONLY aggregates over existing tables (NO new migration): overview (totalUsers/new+active 7d/30d/matches/sumCoinBalances/activeBans), daily activity by UTC epoch-day (created_at/86400000 integer division — identical SQLite/PG; activity(days) returns EXACTLY N calendar days incl. today), segments (new/inactive=no successful login since/suspicious=>=5 failed logins, capped 50), and a read-only leaderboard view + config. Routes are GET guard-only; CSV via Content-Disposition. Labels are honest: 'active' = successful-login active users, 'coins' = materialized coin_balances (rows exist only after first getBalance).",
       "Phase 4B governance (AdminPlayerGovernanceService, D5): exportPlayer builds an explicit ALLOWLIST AdminPlayerExport DTO (NEVER password_hash / token hashes) with COMPLETE no-limit reads (exportUserLedger/LoginHistory/Bans). Hard-delete order (non-transactional, snapshot-first): gather full snapshot → audit player.delete with the snapshot in diff_json (the owner-accepted backup; admin_audit_log is the deliberate exception where pre-delete PII is retained) → StoragePort.anonymizeUserInMatches (scrubSeats in storage/matchAnonymize.ts DELETES userId+clientId from matches.players_json — NOT null, so it stays `string | undefined`; keeps seatIndex/corePlayerId/kind/displayId; idempotent; finds rows via players_json[::text] LIKE '%'||user.id||'%', userId is a randomUUID so no wildcard escaping) → AuthStore.hardDeleteUser (FK CASCADE removes dependents; FIRST anonymizes login_attempts PII — username_tried='[deleted]', ip/user_agent NULL — so no identity survives outside the audit snapshot; the row stays for global aggregates with user_id NULL). A failing audit aborts the delete (user survives). GET /admin/players/:id/export is guarded + per-IP rate-limited (20/15min) + Cache-Control:no-store + audited (player.export). DELETE /admin/players/:id requires CSRF. Admin UI /analytics page + a danger-zone (export + type-the-name delete) on the player page. match_events are NOT touched (core playerId only).",
-      "Admin panel is FUNCTIONALLY COMPLETE (Phases 0-4); only the D2 deploy (domino-admin systemd + Caddy admin subdomain) remains."
+      "Admin panel is FUNCTIONALLY COMPLETE (Phases 0-4) and D2 deployed; future work should treat it as a live production surface."
     ],
     "confidence": "high"
   }

@@ -14,7 +14,8 @@ const EXPECTED_IDS = [
   "0009_admin",
   "0010_coin_ledger_open_reason",
   "0011_bans",
-  "0012_chat_blocked_words"
+  "0012_chat_blocked_words",
+  "0013_user_preferences_language_open"
 ];
 
 const SHARED_TABLES = [
