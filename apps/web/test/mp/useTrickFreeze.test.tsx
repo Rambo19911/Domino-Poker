@@ -68,4 +68,23 @@ describe("useTrickFreeze (client trick-completion hold)", () => {
     act(() => rerender({ table: { completedTrickCount: 2, lastCompletedTrick: completed, trick: liveTrick } }));
     expect(result.current.frozen).toBe(false);
   });
+
+  it("never yields an empty displayTrick on the completion render (no remount/reload flash)", () => {
+    // Reģistrē KATRU rendera `displayTrick` garumu, t.sk. starprenderi. Bez sinhronā
+    // iesaldējuma triku-pabeidzošais renderis dotu `[]` (frozenTrick vēl null) → `.playedWrap`
+    // pazustu → visi kauliņi montētos no jauna ("pārlādes" efekts MP galdā).
+    const lengths: number[] = [];
+    const { rerender } = renderHook(
+      ({ table }: { table: Input }) => {
+        const r = useTrickFreeze(table);
+        lengths.push(r.displayTrick.length);
+        return r;
+      },
+      { initialProps: { table: { completedTrickCount: 0, lastCompletedTrick: undefined, trick: liveTrick } as Input } }
+    );
+    lengths.length = 0; // ignorē sākotnējos mount renderus
+    act(() => rerender({ table: { completedTrickCount: 1, lastCompletedTrick: completed, trick: [] } }));
+    expect(lengths).not.toContain(0); // nekad netukšojas → 3 esošie kauliņi paliek mountēti
+    expect(lengths.every((n) => n === completed.length)).toBe(true);
+  });
 });

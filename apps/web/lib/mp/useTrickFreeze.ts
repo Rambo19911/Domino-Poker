@@ -31,10 +31,21 @@ export function useTrickFreeze(table: TrickFreezeInput): TrickFreeze {
   const prevCompletedRef = useRef(table.completedTrickCount);
   const freezeTimerRef = useRef<number | undefined>(undefined);
 
-  // useLayoutEffect (NEVIS useEffect): pabeigtais triks jāiesaldē PIRMS paint. Uz triku-
-  // pabeidzošā (4.) kauliņa snapshot `trick=[]`, tāpēc ar pasīvo efektu viens paint rādītu
-  // tukšu galdu, un kauliņa skaņa (pasīvs efekts pēc paint) varētu apsteigt vizuālo kauliņu.
-  // Layout-efekts uzstāda `frozenTrick` pirms paint → kauliņš redzams ≤ skaņa.
+  // SINHRONS iesaldējums JAU triku-pabeidzošajā renderī. Tajā renderī
+  // `completedTrickCount` jau pieaudzis, BET `frozenTrick` (state) vēl null (to uzstāda
+  // layout-efekts PĒC rendera). Bez šī atvasinājuma šis renderis rādītu `table.trick=[]`
+  // → `.playedWrap` uz vienu commit pazustu → nākamajā renderī (no setFrozenTrick) VISI
+  // kauliņi montētos no jauna un atkārtotu `playedTileEnter` ("pārlādes" efekts MP galdā).
+  // Atvasinot iesaldēto triku jau šeit, pirmie 3 kauliņi paliek mountēti un tikai 4.
+  // animējas. (prevCompletedRef tiek atjaunināts layout-efektā, NE renderī.)
+  const justCompleted =
+    table.completedTrickCount > prevCompletedRef.current && table.lastCompletedTrick
+      ? table.lastCompletedTrick
+      : null;
+
+  // useLayoutEffect (NEVIS useEffect): nostiprina `frozenTrick` state + palaiž 1500ms
+  // taimeri PIRMS paint (vizuālo pabeigtā trika rādīšanu jau garantē `justCompleted`
+  // augšā; šis tikai notur to pēc nākamajiem snapshotiem un sakārto skaņas secību).
   useLayoutEffect(() => {
     if (table.completedTrickCount > prevCompletedRef.current && table.lastCompletedTrick) {
       setFrozenTrick(table.lastCompletedTrick);
@@ -50,7 +61,7 @@ export function useTrickFreeze(table: TrickFreezeInput): TrickFreeze {
     };
   }, []);
 
-  const frozen = frozenTrick !== null;
-  const displayTrick = frozen && frozenTrick ? frozenTrick : table.trick;
+  const frozen = frozenTrick !== null || justCompleted !== null;
+  const displayTrick = frozenTrick ?? justCompleted ?? table.trick;
   return { frozen, displayTrick };
 }

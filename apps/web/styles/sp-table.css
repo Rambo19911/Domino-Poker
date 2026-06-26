@@ -89,9 +89,15 @@
   font-size: 12px;
 }
 
+/* Lead-info etiķete IZŅEMTA no plūsmas (absolūta), lai tās parādīšanās/pazušana
+   (piem. kad 4. kauliņš pabeidz triku → triks sasalst → etiķete pazūd) NEPĀRBĪDA
+   kauliņu rindu. `.playedWrap` tā vienmēr paliek centrēta galda vidū. */
 .trickInfo {
+  position: absolute;
+  top: 84px;
+  left: 50%;
+  transform: translateX(-50%);
   display: inline-block;
-  margin-bottom: 12px;
   padding: 8px 16px;
   border: 2px solid var(--text-primary);
   border-radius: 20px;
@@ -99,6 +105,7 @@
   color: var(--text-primary);
   font-size: 16px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .trickInfo.danger {
