@@ -16,6 +16,7 @@ import { getMpRulesDoc } from "../../lib/mpRulesContent";
 import type { AudioSettings } from "../../lib/useAudioSettings";
 import { CoinGif } from "../CoinGif";
 import { Dialog } from "../Dialog";
+import { Presence } from "../usePresence";
 import { HelpIcon } from "../RulesDialog";
 import { IconButton } from "../ui/IconButton";
 
@@ -67,16 +68,16 @@ export function MpLobbyDialogs({
 }) {
   return (
     <>
-      {isDeleteRoomOpen ? (
+      <Presence open={isDeleteRoomOpen}>
         <DeleteRoomDialog
           isConnected={isConnected}
           labels={t}
           onCancel={onCancelDeleteRoom}
           onConfirm={onConfirmDeleteRoom}
         />
-      ) : null}
+      </Presence>
 
-      {isCreateOpen ? (
+      <Presence open={isCreateOpen}>
         <CreateRoomDialog
           isConnected={isConnected}
           hostBalance={hostBalance}
@@ -84,20 +85,20 @@ export function MpLobbyDialogs({
           onCancel={onCancelCreate}
           onCreate={onCreate}
         />
-      ) : null}
+      </Presence>
 
-      {isJoinCodeOpen ? (
+      <Presence open={isJoinCodeOpen}>
         <JoinCodeDialog
           isConnected={isConnected}
           labels={t}
           onCancel={onCancelJoin}
           onJoin={onJoin}
         />
-      ) : null}
+      </Presence>
 
-      {isRulesOpen ? (
+      <Presence open={isRulesOpen}>
         <MultiplayerRulesDialog audio={audio} labels={t} onClose={onCloseRules} />
-      ) : null}
+      </Presence>
     </>
   );
 }

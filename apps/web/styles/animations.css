@@ -21,14 +21,46 @@
   }
 }
 
-@keyframes dialogIn {
+/* Centralizēta dialogu parādīšanās/pazušana (caur Dialog.tsx + Presence ietinēju).
+   Tikai `opacity`+`transform` — glass `backdrop-filter` paliek neanimēts (mobilā FPS).
+   Izeja īsāka un ar `--ease-exit`, lai aizvēršanās justos atsaucīga. */
+@keyframes backdropIn {
   from {
     opacity: 0;
-    transform: scale(0.8);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+  }
+}
+
+@keyframes backdropOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes dialogPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dialogPanelOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
   }
 }
 

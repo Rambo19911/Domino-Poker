@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useContext, useEffect, type ReactNode } from "react";
 import { useDialogFocus } from "./useDialogFocus";
+import { PresenceContext } from "./usePresence";
 
 export function Dialog({
   ariaLabelledBy,
@@ -19,6 +20,8 @@ export function Dialog({
   readonly transparent?: boolean;
 }) {
   const dialogRef = useDialogFocus<HTMLElement>(onEscape);
+  // "open" pēc noklusējuma (bez `Presence` ietinēja); "closing" palaiž izejas CSS.
+  const presenceStatus = useContext(PresenceContext);
 
   useEffect(() => {
     if (!resetScrollOnMount) return undefined;
@@ -34,7 +37,10 @@ export function Dialog({
   }, [dialogRef, resetScrollOnMount]);
 
   return (
-    <div className={`modalBackdrop ${transparent ? "transparentBackdrop" : ""}`}>
+    <div
+      className={`modalBackdrop ${transparent ? "transparentBackdrop" : ""}`}
+      data-state={presenceStatus}
+    >
       {/* Ietinējs proporcionālai mērogošanai mobilajā (desktopā display:contents — bez ietekmes). */}
       <div className="modalScale">
         {/* Glass tēma centralizēta ŠEIT — VISI dialogi to saņem konsekventi (Fāze 4);
@@ -46,6 +52,10 @@ export function Dialog({
           aria-modal="true"
           aria-labelledby={ariaLabelledBy}
           tabIndex={-1}
+          // Izejas laikā padara dialogu pilnībā neinteraktīvu (arī tastatūrai —
+          // `pointer-events:none` bloķē tikai peli), lai Enter/Space uz vēl
+          // fokusētas pogas nedubultotu kritisku darbību (bid/number/turpināt).
+          inert={presenceStatus === "closing"}
         >
           {children}
         </section>

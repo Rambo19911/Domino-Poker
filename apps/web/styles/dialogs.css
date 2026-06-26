@@ -6,6 +6,30 @@
   place-items: center;
   padding: 20px;
   background: rgb(var(--shadow-rgb) / 0.45);
+  animation: backdropIn var(--motion-base) var(--ease-standard) both;
+}
+
+/* Panelis (jebkurš dialoga `section[role="dialog"]`) ienāk maigi. Mērķis ir PANELIS,
+   nevis `.modalScale` — tas ir display:contents desktopā un nes centrēšanas transform
+   mobilajā, tāpēc to nedrīkst animēt.
+
+   `backwards` (NE `both`): pēc ienākšanas panelis atgriežas bāzes stāvoklī (transform:
+   none). `both` atstātu paliekošu `transform: scale(1)` matricu → pastāvīgs kompozīcijas
+   slānis, uz kura `backdrop-filter` (glass) sub-pikseļu līmenī mirgo (augšmalas
+   "raustīšanās"). `to`-kadrs vizuāli == bāze, tāpēc beigās nav lēciena. */
+.modalBackdrop section[role="dialog"] {
+  animation: dialogPanelIn var(--motion-slow) var(--ease-standard) backwards;
+}
+
+/* Izeja (Presence "closing" fāze): backdrop un panelis aizpeld; bloķē klikšķus. */
+.modalBackdrop[data-state="closing"] {
+  pointer-events: none;
+  animation: backdropOut var(--motion-base) var(--ease-exit) both;
+}
+
+.modalBackdrop[data-state="closing"] section[role="dialog"] {
+  pointer-events: none;
+  animation: dialogPanelOut var(--motion-base) var(--ease-exit) both;
 }
 
 /* Glass dialogiem — vieglāks scrim (ne aptumšots līdz melnam), lai dialoga PAŠA
@@ -32,7 +56,6 @@
   border: 2px solid var(--primary);
   border-radius: var(--radius-xl);
   background: rgb(var(--overlay-rgb) / 0.8);
-  animation: dialogIn 300ms ease-out both;
 }
 
 /* Bid dialogs saņem centralizēto glass virsmu (caur Dialog.tsx), bet PATUR savu
@@ -286,6 +309,26 @@
   border: 0;
   border-radius: var(--radius-lg);
   font-weight: 700;
+  transition:
+    transform var(--motion-fast) var(--ease-standard),
+    filter var(--motion-base) var(--ease-standard),
+    background var(--motion-base) var(--ease-standard);
+}
+
+/* Maiga press/hover atsauce (tikai transform/filter; reduced-motion to aptur). */
+.primaryButton:hover:not(:disabled),
+.dangerButton:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.textButton:hover:not(:disabled) {
+  background: rgb(var(--primary-rgb) / 0.12);
+}
+
+.primaryButton:active:not(:disabled),
+.dangerButton:active:not(:disabled),
+.textButton:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .primaryButton {

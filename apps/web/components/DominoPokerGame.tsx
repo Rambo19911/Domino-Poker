@@ -31,6 +31,7 @@ import {
 } from "./GameDialogs";
 import { InfoPanel } from "./InfoPanel";
 import { PlayerSeat } from "./PlayerSeat";
+import { Presence } from "./usePresence";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
 import { SpMobileTable } from "./SpMobileTable";
 import { IconButton } from "./ui/IconButton";
@@ -503,33 +504,33 @@ export function DominoPokerGame({
       </div>
       ) : null}
 
-      {gameState.phase === "bidding" && currentPlayer && !currentPlayer.isAI ? (
+      <Presence open={gameState.phase === "bidding" && !!currentPlayer && !currentPlayer.isAI}>
         <BidDialog labels={labels} onBid={makeHumanBid} />
-      ) : null}
+      </Presence>
 
-      {showRulesDialog ? (
+      <Presence open={showRulesDialog}>
         <RulesDialog
           audio={audio}
           labels={labels}
           onClose={() => setShowRulesDialog(false)}
         />
-      ) : null}
+      </Presence>
 
-      {pendingNumberTile ? (
+      <Presence open={!!pendingNumberTile}>
         <NumberDialog
-          tile={pendingNumberTile}
+          tile={pendingNumberTile!}
           audio={audio}
           labels={labels}
           onCancel={() => setPendingNumberTile(null)}
           onChoose={(number) => {
             const tile = pendingNumberTile;
             setPendingNumberTile(null);
-            commitTile(tile, number);
+            if (tile) commitTile(tile, number);
           }}
         />
-      ) : null}
+      </Presence>
 
-      {showRoundSummary && gameState.phase === "roundEnd" ? (
+      <Presence open={showRoundSummary && gameState.phase === "roundEnd"}>
         <RoundSummaryDialog
           gameState={gameState}
           audio={audio}
@@ -539,9 +540,9 @@ export function DominoPokerGame({
             setGameState((latest) => startNextRound(latest));
           }}
         />
-      ) : null}
+      </Presence>
 
-      {showGameEnd && gameState.phase === "gameEnd" ? (
+      <Presence open={showGameEnd && gameState.phase === "gameEnd"}>
         <GameEndDialog
           gameState={gameState}
           audio={audio}
@@ -549,16 +550,16 @@ export function DominoPokerGame({
           spAward={spAward ?? null}
           onClose={returnToLobby}
         />
-      ) : null}
+      </Presence>
 
-      {showExitDialog ? (
+      <Presence open={showExitDialog}>
         <ExitDialog
           audio={audio}
           labels={labels}
           onCancel={() => setShowExitDialog(false)}
           onExit={returnToLobby}
         />
-      ) : null}
+      </Presence>
     </main>
   );
 }

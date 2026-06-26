@@ -12,6 +12,7 @@ import { LeaderboardDialog, TrophyIcon } from "./LeaderboardDialog";
 import { CoinGif } from "./CoinGif";
 import { CompactLobbyPanel, LobbyWheel } from "./LobbyWheel";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
+import { Presence } from "./usePresence";
 import { IconButton } from "./ui/IconButton";
 
 import { SP_REWARDS } from "@domino-poker/shared";
@@ -171,7 +172,7 @@ export function LobbyScreen({
         />
       </section>
 
-      {settingsOpen ? (
+      <Presence open={settingsOpen}>
         <SettingsDialog
           audio={audio}
           labels={t}
@@ -181,24 +182,24 @@ export function LobbyScreen({
           onClose={() => setSettingsOpen(false)}
           onLocaleChange={onLocaleChange}
         />
-      ) : null}
+      </Presence>
 
-      {rulesOpen ? (
+      <Presence open={rulesOpen}>
         <RulesDialog
           audio={audio}
           labels={t}
           onClose={() => setRulesOpen(false)}
         />
-      ) : null}
+      </Presence>
 
-      {leaderboardOpen ? (
+      <Presence open={leaderboardOpen}>
         <LeaderboardDialog
           audio={audio}
           labels={t}
           getToken={auth.getToken}
           onClose={() => setLeaderboardOpen(false)}
         />
-      ) : null}
+      </Presence>
 
       {/* PWA instalēšanas piedāvājums — tikai galvenajā lobby, nekad spēles laikā.
           Paslēpts, kamēr atvērts kāds dialogs (banneris ir virs modālā fona slāņa
@@ -207,7 +208,7 @@ export function LobbyScreen({
         <InstallPrompt labels={t} />
       ) : null}
 
-      {authOpen ? (
+      <Presence open={authOpen}>
         <AuthDialog
           labels={t}
           locale={locale}
@@ -222,7 +223,7 @@ export function LobbyScreen({
           playClick={() => audio.play("uiClick")}
           onClose={() => setAuthOpen(false)}
         />
-      ) : null}
+      </Presence>
     </main>
   );
 }

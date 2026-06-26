@@ -12,6 +12,7 @@ import type { AudioSettings } from "../../lib/useAudioSettings";
 import { CoinGif } from "../CoinGif";
 import { BidDialog, ExitDialog, NumberDialog } from "../GameDialogs";
 import { Dialog } from "../Dialog";
+import { Presence } from "../usePresence";
 import { WinnerGif } from "../WinnerGif";
 import { RulesDialog } from "../RulesDialog";
 import { ConnectionBanner } from "./ConnectionBanner";
@@ -156,7 +157,7 @@ export function MpGameTable({
         <ConnectionBanner status={view.connection} labels={t} />
       </div>
 
-      {table.turnAction === "bid" && interactive ? (
+      <Presence open={table.turnAction === "bid" && interactive}>
         <BidDialog
           labels={t}
           onBid={(bid) => {
@@ -164,23 +165,23 @@ export function MpGameTable({
             onSubmitBid(bid);
           }}
         />
-      ) : null}
+      </Presence>
 
-      {pendingNumberTile ? (
+      <Presence open={!!pendingNumberTile}>
         <NumberDialog
-          tile={pendingNumberTile}
+          tile={pendingNumberTile!}
           audio={audio}
           labels={t}
           onCancel={() => setPendingNumberTile(null)}
           onChoose={(declaredNumber) => {
             const tile = pendingNumberTile;
             setPendingNumberTile(null);
-            onSubmitMove({ tile, declaredNumber });
+            if (tile) onSubmitMove({ tile, declaredNumber });
           }}
         />
-      ) : null}
+      </Presence>
 
-      {table.phase === "gameEnd" ? (
+      <Presence open={table.phase === "gameEnd"}>
         <MpGameEndDialog
           audio={audio}
           labels={t}
@@ -188,20 +189,20 @@ export function MpGameTable({
           coinsWon={view.coinsWon}
           onClose={onLeaveFinishedGame}
         />
-      ) : null}
+      </Presence>
 
-      {showRulesDialog ? (
+      <Presence open={showRulesDialog}>
         <RulesDialog audio={audio} labels={t} onClose={() => setShowRulesDialog(false)} />
-      ) : null}
+      </Presence>
 
-      {showExitDialog ? (
+      <Presence open={showExitDialog}>
         <ExitDialog
           audio={audio}
           labels={t}
           onCancel={() => setShowExitDialog(false)}
           onExit={onExitToLobby}
         />
-      ) : null}
+      </Presence>
     </main>
   );
 }

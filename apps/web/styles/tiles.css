@@ -6,6 +6,10 @@
   border-radius: var(--radius-sm);
   background: transparent;
   animation: tileDealIn 600ms ease-out both;
+  /* Maiga hover/press atsauce — hover scale jau bija, bet bez pārejas pielēca uzreiz. */
+  transition:
+    transform var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard);
 }
 
 .humanTileButton:disabled {
@@ -26,6 +30,12 @@
 .humanTileButton.valid:hover {
   transform: scale(1.1);
   box-shadow: 0 0 20px 3px rgb(var(--primary-rgb) / 0.6);
+}
+
+/* Press — PĒC :hover (vienāda specifika), lai nospiežot uzvar press, ne hover.
+   Skārienam (bez hover) :active strādā atsevišķi. */
+.humanTileButton.valid:active {
+  transform: scale(1.04);
 }
 
 .dominoTile {
