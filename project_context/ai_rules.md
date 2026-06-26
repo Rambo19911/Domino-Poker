@@ -259,7 +259,7 @@ Registered-user bid accuracy + placement distributions (NOT a competitive leader
 
 ### Admin Panel (Game Manager)
 
-Separate admin portal (PlayFab/Azure style, reduced scope), English-only. Phase 0 (security spine) is built; Phases 1-4 are NOT. Full plan: `docs/TODO/admin-panel-plan.md` (local/ignored). Read these before touching the admin panel:
+Separate admin portal (PlayFab/Azure style, reduced scope), English-only. Phases 0-4 are built (security spine, player read/write, bans + chat moderation, read-only analytics incl. D4 country/platform segments, governance export + hard-delete); only the D2 deploy (admin systemd + Caddy subdomain) remains. Full plan: `docs/TODO/admin-panel-plan.md` (local/ignored). Read these before touching the admin panel:
 
 - server module: `apps/server/src/admin/AdminStore.ts` (storage capability), `AdminAuthService.ts` (password + OTP 2FA + sessions), `AdminAuditService.ts` (audit log), `adminRoutes.ts` (`/admin/*` + `requireAdmin` guard), `cookies.ts`
 - wiring: `apps/server/src/config.ts` (`AdminConfig`), `index.ts` (admin construction + `onLoginAttempt` → `login_attempts`), `httpServer.ts` (handler chain), `http/authRoutes.ts` (`onLoginAttempt` hook), `auth/EmailSender.ts` (`sendAdminLoginCode`), `auth/passwords.ts` (reused scrypt), `storage/schema.ts` (migration `0009_admin`), `storage/SqliteStorage.ts` + `PostgresStorage.ts` (AdminStore impl)
@@ -311,7 +311,7 @@ Important ordering:
 ## Environment And Runtime Data
 
 - Server config comes from env and `.env` through `apps/server/src/config.ts`.
-- Node runtime is strict: `.nvmrc` and `.node-version` pin Node 24; `package.json` requires `>=22.5.0`; `.npmrc` has `engine-strict=true`.
+- Node runtime is strict: `.nvmrc` and `.node-version` pin Node 24; `package.json` requires `>=24.0.0` (geoip-lite needs >=24; node:sqlite needs >=22.5); `.npmrc` has `engine-strict=true`.
 - `DATABASE_URL` accepts SQLite file paths, `:memory:`, `file:` paths, or PostgreSQL URLs.
 - CI PostgreSQL integration uses `postgres:17-alpine`; normal local `npm run test` skips DB integration without `TEST_POSTGRES_DATABASE_URL`.
 - `.env` and `.env.*` are ignored except `.env.example`.

@@ -11,7 +11,10 @@ const EXPECTED_IDS = [
   "0006_user_preferences",
   "0007_coin_wallet",
   "0008_player_game_results",
-  "0009_admin"
+  "0009_admin",
+  "0010_coin_ledger_open_reason",
+  "0011_bans",
+  "0012_chat_blocked_words"
 ];
 
 const SHARED_TABLES = [
@@ -32,7 +35,9 @@ const SHARED_TABLES = [
   "admin_sessions",
   "admin_login_codes",
   "admin_audit_log",
-  "login_attempts"
+  "login_attempts",
+  "bans",
+  "chat_blocked_words"
 ];
 
 const PG_ONLY_TABLES = ["player_sessions", "room_leases", "server_event_fanout"];

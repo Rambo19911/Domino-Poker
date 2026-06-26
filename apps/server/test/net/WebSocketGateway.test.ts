@@ -1,5 +1,5 @@
 import { DISPLAY_ID_PATTERN } from "../../src/identity/DisplayIdRegistry.js";
-import type { ServerEvent } from "@domino-poker/shared";
+import { titleForWins, type ServerEvent } from "@domino-poker/shared";
 import { describe, expect, it, vi } from "vitest";
 
 import { LobbyChat } from "../../src/chat/LobbyChat.js";
@@ -7,7 +7,7 @@ import { DisplayIdRegistry } from "../../src/identity/DisplayIdRegistry.js";
 import type { GatewayConnection } from "../../src/net/GatewayConnection.js";
 import { CoreMessageRouter } from "../../src/net/messageRouter.js";
 import type { ServerEventBus, ServerEventFanoutMessage } from "../../src/net/ServerEventBus.js";
-import { WebSocketGateway } from "../../src/net/WebSocketGateway.js";
+import { WebSocketGateway, type ResolvedAuthInfo } from "../../src/net/WebSocketGateway.js";
 import { RoomManager } from "../../src/rooms/RoomManager.js";
 
 class FakeConnection implements GatewayConnection {
@@ -488,5 +488,86 @@ describe("LOBBY_STATE debounce (Phase 11)", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("WebSocketGateway ban enforcement (Phase 3.1, D1)", () => {
+  function makeAuthGateway(opts: {
+    resolveAuth: (token: string) => Promise<ResolvedAuthInfo | undefined>;
+    isUserBanned?: (userId: string) => Promise<boolean>;
+  }): WebSocketGateway {
+    const displayIds = new DisplayIdRegistry();
+    const rooms = new RoomManager({ clock: () => FIXED_NOW, displayIds });
+    const chat = new LobbyChat({ clock: () => FIXED_NOW });
+    return new WebSocketGateway({
+      clock: () => FIXED_NOW,
+      displayIds,
+      router: new CoreMessageRouter({ rooms, chat }),
+      createSessionId: () => "session-1",
+      createReconnectToken: () => "token-1",
+      resolveAuth: opts.resolveAuth,
+      ...(opts.isUserBanned ? { isUserBanned: opts.isUserBanned } : {})
+    });
+  }
+
+  const authInfo = (userId: string): ResolvedAuthInfo => ({
+    userId,
+    username: "Alice",
+    avatar: "avatar-01",
+    title: titleForWins(0)
+  });
+
+  /** Macrotask flush: ļauj async resolveAuth + ban pārbaudes ķēdei pilnībā nostrādāt. */
+  const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+
+  it("hard-rejects an authenticated handshake for a banned account (NOT a silent anon downgrade)", async () => {
+    const gateway = makeAuthGateway({
+      resolveAuth: async (token) => (token === "good" ? authInfo("u1") : undefined),
+      isUserBanned: async (id) => id === "u1"
+    });
+    const conn = new FakeConnection("c1");
+    gateway.open(conn);
+    gateway.message(conn, hello({ authToken: "good" }));
+    await flush();
+    expect(conn.isClosed).toBe(true);
+    expect(conn.closedCode).toBe(4004); // sessionRejected
+    expect(conn.sent.some((e) => e.type === "ERROR" && e.code === "FORBIDDEN")).toBe(true);
+    // WELCOME NETIKA sūtīts (banots nepabeidz handshake), nav online sesijas.
+    expect(conn.sent.some((e) => e.type === "WELCOME")).toBe(false);
+    expect(gateway.onlineCount()).toBe(0);
+  });
+
+  it("lets an authenticated non-banned handshake complete normally", async () => {
+    const gateway = makeAuthGateway({
+      resolveAuth: async () => authInfo("u2"),
+      isUserBanned: async () => false
+    });
+    const conn = new FakeConnection("c1");
+    gateway.open(conn);
+    gateway.message(conn, hello({ authToken: "good" }));
+    await flush();
+    expect(conn.isClosed).toBe(false);
+    expect(conn.sent.some((e) => e.type === "WELCOME")).toBe(true);
+    expect(gateway.onlineCount()).toBe(1);
+  });
+
+  it("disconnectUser tears down a live authenticated session for the banned user only", async () => {
+    const gateway = makeAuthGateway({
+      resolveAuth: async () => authInfo("u3"),
+      isUserBanned: async () => false
+    });
+    const conn = new FakeConnection("c1");
+    gateway.open(conn);
+    gateway.message(conn, hello({ authToken: "good" }));
+    await flush();
+    expect(conn.isClosed).toBe(false);
+    // Cits userId → neaiztiek šo savienojumu.
+    gateway.disconnectUser("someone-else", "banned");
+    expect(conn.isClosed).toBe(false);
+    // Banotā userId → atvieno + FORBIDDEN.
+    gateway.disconnectUser("u3", "You have been banned.");
+    expect(conn.isClosed).toBe(true);
+    expect(conn.sent.some((e) => e.type === "ERROR" && e.code === "FORBIDDEN")).toBe(true);
+    expect(gateway.onlineCount()).toBe(0);
   });
 });

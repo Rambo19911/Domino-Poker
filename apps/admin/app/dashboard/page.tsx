@@ -54,6 +54,9 @@ export default function DashboardPage() {
         </div>
         <nav className="navlinks">
           <Link href="/players">Players</Link>
+          <Link href="/bans">Bans</Link>
+          <Link href="/moderation">Moderation</Link>
+          <Link href="/analytics">Analytics</Link>
           <button className="secondary" type="button" onClick={() => void signOut()}>
             Sign out
           </button>

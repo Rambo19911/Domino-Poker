@@ -66,6 +66,18 @@ export type RegisterResult =
   | { readonly ok: true; readonly token: string; readonly user: SelfUser }
   | { readonly ok: false; readonly error: "username_taken" | "email_taken" };
 
+/**
+ * Bana informācija, ko `AuthService` atgriež bloķētam login (Fāze 3.1). Apzināti MINIMĀLA
+ * un LOKĀLA (NE `AdminStore.BanRecord` imports) — auth slānis paliek atsaistīts no admin
+ * moduļa; `index.ts` injicē `banChecker`, kas atgriež šo formu.
+ */
+export interface BanInfo {
+  readonly reason: string;
+  readonly durationLabel: string;
+  /** ms vai `undefined` (permanent). */
+  readonly expiresAt?: number | undefined;
+}
+
 export type LoginResult =
   | { readonly ok: true; readonly token: string; readonly user: SelfUser }
   | {
@@ -77,11 +89,26 @@ export type LoginResult =
        * `undefined`, ja lietotājvārds neeksistē (nezināms konts).
        */
       readonly userId?: string | undefined;
+    }
+  | {
+      readonly ok: false;
+      readonly error: "banned";
+      /** Bloķētā konta id (login_attempts audits). */
+      readonly userId: string;
+      readonly ban: BanInfo;
     };
 
 export type UpdateProfileResult =
   | { readonly ok: true; readonly user: SelfUser }
   | { readonly ok: false; readonly error: "username_taken" | "invalid_avatar" | "not_found" };
+
+/**
+ * Admin paroles-atjaunošanas rezultāts (Fāze 2.1). `sent` = e-pasts nosūtīts (un cietajā
+ * variantā parole/sesijas anulētas); `no_email` = kontam nav e-pasta; `disabled` = sender
+ * nav konfigurēts; `email_failed` = piegāde neizdevās (cietajā variantā mutācija NENOTIKA);
+ * `not_found` = konts neeksistē.
+ */
+export type AdminResetResult = "sent" | "no_email" | "disabled" | "email_failed" | "not_found";
 
 export interface AuthServiceOptions {
   readonly store: AuthStore;
@@ -94,6 +121,12 @@ export interface AuthServiceOptions {
   readonly appBaseUrl?: string | undefined;
   /** Reset tokena TTL (testiem). Noklusējums 1h. */
   readonly resetTtlMs?: number;
+  /**
+   * Bana pārbaude (Fāze 3.1, D1): ja dots, `login` pēc paroles pārbaudes PIRMS token
+   * izdošanas pārbauda, vai konts banots → atgriež `{ok:false,error:"banned"}` (tokens
+   * NETIEK izsniegts). `undefined` = banu nav (vai funkcija atspējota). Injicē `index.ts`.
+   */
+  readonly banChecker?: ((userId: string) => Promise<BanInfo | undefined>) | undefined;
 }
 
 /**
@@ -109,6 +142,7 @@ export class AuthService {
   private readonly emailSender: EmailSender | undefined;
   private readonly appBaseUrl: string;
   private readonly resetTtlMs: number;
+  private readonly banChecker: ((userId: string) => Promise<BanInfo | undefined>) | undefined;
   /** Kešots dummy hašs login timing-uzbrukuma mazināšanai (lietotājs nav atrasts). */
   private dummyHash: Promise<string> | undefined;
 
@@ -119,6 +153,7 @@ export class AuthService {
     this.emailSender = options.emailSender;
     this.appBaseUrl = options.appBaseUrl ?? "";
     this.resetTtlMs = options.resetTtlMs ?? RESET_TTL_MS;
+    this.banChecker = options.banChecker;
   }
 
   async register(input: RegisterInput): Promise<RegisterResult> {
@@ -172,7 +207,25 @@ export class AuthService {
       // bet HTTP slānis atbild ģeneriski (enumerācijas novēršana).
       return { ok: false, error: "invalid_credentials", userId: user.id };
     }
+    // Bana pārbaude (D1(a)): pēc paroles pārbaudes, PIRMS token izdošanas — banots konts
+    // nesaņem jaunu sesiju (ātrais ceļš jau-banotam). Pārbaude tikai šeit (NE katrai HTTP ziņai).
+    if (this.banChecker) {
+      const ban = await this.banChecker(user.id);
+      if (ban) {
+        return { ok: false, error: "banned", userId: user.id, ban };
+      }
+    }
     const token = await this.issueToken(user.id, this.clock());
+    // ATKĀRTOTA bana pārbaude PĒC token izdošanas (Codex): aizver login↔ban sacensību — ja
+    // bans persistēja + iztīrīja tokenus STARP pirmo pārbaudi un izdošanu, tikko izdotais tokens
+    // pārdzīvotu (resolveToken nepārbauda banu katrā pieprasījumā). Šeit to noķeram un atsaucam.
+    if (this.banChecker) {
+      const ban = await this.banChecker(user.id);
+      if (ban) {
+        await this.store.deleteAuthToken(hashToken(token));
+        return { ok: false, error: "banned", userId: user.id, ban };
+      }
+    }
     return { ok: true, token, user: toSelfUser(user) };
   }
 
@@ -303,24 +356,96 @@ export class AuthService {
     if (!user || user.email === undefined) {
       return; // nav konta / nav e-pasta → klusi (enumeration novēršana)
     }
-    const now = this.clock();
-    // Invalidē iepriekšējos neizmantotos tokenus (samazina aktīvo tokenu skaitu).
-    await this.store.deleteUnusedPasswordResetTokens(user.id);
-    const token = randomBytes(TOKEN_BYTES).toString("base64url");
-    await this.store.createPasswordResetToken({
-      tokenHash: hashToken(token),
-      userId: user.id,
-      createdAt: now,
-      expiresAt: now + this.resetTtlMs
-    });
-    // Tokenu nododam URL hash daļā (#) — tas nenonāk servera/proxy logos un Referer.
-    const resetUrl = `${this.appBaseUrl}/#reset=${token}`;
+    const resetUrl = await this.prepareResetUrl(user.id);
     try {
       await sender.sendPasswordReset(user.email, resetUrl, locale);
     } catch (error) {
       // NEKAD nelogojam raw tokenu; piegādes kļūme neatklāj konta esamību klientam.
       console.error("[auth] password reset email delivery failed:", error);
     }
+  }
+
+  /**
+   * Admin "mīkstā" paroles atjaunošana (Fāze 2.1): nosūta lietotājam standarta reset
+   * e-pastu. Vecā parole/sesijas paliek derīgas, līdz lietotājs pats izvēlas jaunu paroli.
+   * Atšķirībā no `requestPasswordReset` (klusa enumerācijas dēļ), admin saņem skaidru
+   * rezultātu (autentificēts admin — enumerācija nav drauds).
+   */
+  async adminSendResetEmail(userId: string, locale: EmailLocale): Promise<AdminResetResult> {
+    const sender = this.emailSender;
+    if (!sender) {
+      return "disabled";
+    }
+    const user = await this.store.getUserById(userId);
+    if (!user) {
+      return "not_found";
+    }
+    if (user.email === undefined) {
+      return "no_email";
+    }
+    const resetUrl = await this.prepareResetUrl(user.id);
+    try {
+      await sender.sendPasswordReset(user.email, resetUrl, locale);
+    } catch (error) {
+      console.error("[auth] admin reset email delivery failed:", error);
+      // NEatstāj aktīvu, NEpiegādātu reset tokenu pie kļūmes (Codex) — iztīra, tāpat kā
+      // cietais ceļš. Neto rezultāts: lietotāja neizmantotie reset tokeni notīrīti (droši).
+      await this.store.deleteUnusedPasswordResetTokens(user.id);
+      return "email_failed";
+    }
+    return "sent";
+  }
+
+  /**
+   * Admin "cietā" paroles atjaunošana (Fāze 2.1): anulē pašreizējo paroli (neizmantojams
+   * hash) + atsauc VISAS sesijas (piespiedu izlogošana) + nosūta reset e-pastu. Drošības
+   * sargs (Codex): mutācija notiek TIKAI pēc VEIKSMĪGAS e-pasta piegādes — ja sender nav
+   * konfigurēts (`disabled`), nav e-pasta (`no_email`) vai piegāde neizdodas (`email_failed`),
+   * paroli/sesijas NEAIZSKAR, lai NEKAD neatstātu lietotāju bez atjaunošanas kanāla.
+   */
+  async adminForcePasswordReset(userId: string, locale: EmailLocale): Promise<AdminResetResult> {
+    const sender = this.emailSender;
+    if (!sender) {
+      return "disabled";
+    }
+    const user = await this.store.getUserById(userId);
+    if (!user) {
+      return "not_found";
+    }
+    if (user.email === undefined) {
+      return "no_email";
+    }
+    const resetUrl = await this.prepareResetUrl(user.id);
+    try {
+      await sender.sendPasswordReset(user.email, resetUrl, locale);
+    } catch (error) {
+      console.error("[auth] admin force-reset email delivery failed:", error);
+      // Atritina tikko izveidoto (nepiegādāto) tokenu; paroli/sesijas NEAIZSKAR.
+      await this.store.deleteUnusedPasswordResetTokens(user.id);
+      return "email_failed";
+    }
+    // Tikai PĒC veiksmīgas piegādes: anulē paroli + atsauc sesijas. Reset tokens (tikko
+    // izsniegtais) APZINĀTI pārdzīvo — lietotājs to izmanto, lai uzstādītu jaunu paroli.
+    const unusableHash = await hashPassword(randomBytes(TOKEN_BYTES).toString("base64url"));
+    await this.store.adminInvalidateCredentials(user.id, unusableHash, this.clock());
+    return "sent";
+  }
+
+  /**
+   * Izveido vienreizēju reset tokenu lietotājam un atgriež reset URL. Invalidē iepriekšējos
+   * neizmantotos tokenus. Tokenu nodod URL hash daļā (#) — nenonāk servera/proxy logos / Referer.
+   */
+  private async prepareResetUrl(userId: string): Promise<string> {
+    const now = this.clock();
+    await this.store.deleteUnusedPasswordResetTokens(userId);
+    const token = randomBytes(TOKEN_BYTES).toString("base64url");
+    await this.store.createPasswordResetToken({
+      tokenHash: hashToken(token),
+      userId,
+      createdAt: now,
+      expiresAt: now + this.resetTtlMs
+    });
+    return `${this.appBaseUrl}/#reset=${token}`;
   }
 
   /**

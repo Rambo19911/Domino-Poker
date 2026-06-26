@@ -13,9 +13,16 @@ import {
   type AdminPlayerRow,
   type AdminSessionRecord,
   type AdminStore,
+  type BanRecord,
+  type DailyCount,
+  type LedgerEntryView,
   type LoginAttemptCounts,
   type LoginAttemptRecord,
-  type LoginAttemptView
+  type LoginAttemptView,
+  type LoginUserAgent,
+  type LoginUserIp,
+  type SegmentPlayer,
+  type SuspiciousPlayer
 } from "../admin/AdminStore.js";
 
 import type {
@@ -31,6 +38,7 @@ import type {
   UserStatsRecord
 } from "./StoragePort.js";
 import type { ApplyLedgerResult, CoinStore, LedgerEntryInput } from "./CoinStore.js";
+import { scrubSeats } from "./matchAnonymize.js";
 import {
   assertValidGameResult,
   type GameResultRecord,
@@ -47,6 +55,8 @@ import type {
 } from "../sessions/DurableSessionStore.js";
 import type {
   AccountLanguage,
+  AdminAccountUpdate,
+  AdminUpdateAccountResult,
   AuthStore,
   AuthTokenRecord,
   CreateUserResult,
@@ -219,6 +229,26 @@ export class PostgresStorage
       winnerPlayerId: row.winner_player_id ?? undefined,
       eventCount: Number(row.event_count)
     }));
+  }
+
+  async anonymizeUserInMatches(userId: string): Promise<number> {
+    // `userId` ir randomUUID → drošs `::text LIKE` bez wildcardiem. JSONB tiek auto-parsēts lasot.
+    const candidates = await this.pool.query<{ match_id: string; players_json: unknown }>(
+      `SELECT match_id, players_json FROM matches WHERE players_json::text LIKE '%' || $1 || '%'`,
+      [userId]
+    );
+    let changed = 0;
+    for (const row of candidates.rows) {
+      const scrubbed = scrubSeats(row.players_json, userId);
+      if (scrubbed !== undefined) {
+        await this.pool.query(`UPDATE matches SET players_json = $1::jsonb WHERE match_id = $2`, [
+          JSON.stringify(scrubbed),
+          row.match_id
+        ]);
+        changed += 1;
+      }
+    }
+    return changed;
   }
 
   async savePlayerStats(stats: PlayerStatsRecord): Promise<void> {
@@ -542,6 +572,78 @@ export class PostgresStorage
     }
   }
 
+  async adminUpdateAccount(
+    id: string,
+    update: AdminAccountUpdate
+  ): Promise<AdminUpdateAccountResult> {
+    try {
+      // CTE = atomiski: pārslēdzoties uz preset (NE 'custom'), dzēš orphan custom blob (kā
+      // player-side `updateUserProfile`), citādi eksports rādītu `hasCustomAvatar:true` (Codex).
+      const result = await this.pool.query(
+        `WITH upd AS (
+           UPDATE users
+              SET username = $1, username_norm = $2, email = $3, email_norm = $4,
+                  avatar = $5, updated_at = $6
+            WHERE id = $7
+          RETURNING id
+         ), del AS (
+           DELETE FROM user_avatars
+            WHERE user_id IN (SELECT id FROM upd) AND $5 <> 'custom'
+         )
+         SELECT id FROM upd`,
+        [
+          update.username,
+          update.usernameNorm,
+          update.email ?? null,
+          update.emailNorm ?? null,
+          update.avatar,
+          update.updatedAt,
+          id
+        ]
+      );
+      return (result.rowCount ?? 0) > 0 ? "updated" : "not_found";
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        return "conflict";
+      }
+      throw error;
+    }
+  }
+
+  async adminSetUserStats(
+    userId: string,
+    stats: { readonly gamesPlayed: number; readonly wins: number; readonly losses: number },
+    updatedAt: number
+  ): Promise<void> {
+    // SET (NE inkrements): pārraksta agregātu uz admin doto vērtību (D3 korekcija).
+    await this.pool.query(
+      `INSERT INTO user_stats (user_id, games_played, wins, losses, updated_at)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT(user_id) DO UPDATE SET
+         games_played = excluded.games_played,
+         wins         = excluded.wins,
+         losses       = excluded.losses,
+         updated_at   = excluded.updated_at`,
+      [userId, stats.gamesPlayed, stats.wins, stats.losses, updatedAt]
+    );
+  }
+
+  async adminInvalidateCredentials(
+    userId: string,
+    newPasswordHash: string,
+    now: number
+  ): Promise<void> {
+    // Atomiski VIENĀ statement (CTE): nomaina paroli UN dzēš visus auth tokenus
+    // (piespiedu izlogošana visur). Implicītā transakcija = abas vai neviena.
+    await this.pool.query(
+      `WITH pw AS (
+         UPDATE users SET password_hash = $2, updated_at = $3 WHERE id = $1 RETURNING id
+       )
+       DELETE FROM auth_tokens WHERE user_id IN (SELECT id FROM pw)`,
+      [userId, newPasswordHash, now]
+    );
+  }
+
   async createAuthToken(record: AuthTokenRecord): Promise<void> {
     await this.pool.query(
       `INSERT INTO auth_tokens (token_hash, user_id, created_at, last_used_at, expires_at)
@@ -578,6 +680,22 @@ export class PostgresStorage
 
   async deleteAuthToken(tokenHash: string): Promise<void> {
     await this.pool.query(`DELETE FROM auth_tokens WHERE token_hash = $1`, [tokenHash]);
+  }
+
+  async deleteUserAuthTokens(userId: string): Promise<void> {
+    await this.pool.query(`DELETE FROM auth_tokens WHERE user_id = $1`, [userId]);
+  }
+
+  async hardDeleteUser(userId: string): Promise<boolean> {
+    // PIRMS dzēšanas anonimizē piesaistītās login_attempts rindas (FK SET NULL anulē tikai
+    // user_id, bet username_tried/ip/user_agent saglabātu PII — Codex/D5). Tad DELETE users.
+    await this.pool.query(
+      `UPDATE login_attempts SET username_tried = '[deleted]', ip = NULL, user_agent = NULL
+         WHERE user_id = $1`,
+      [userId]
+    );
+    const result = await this.pool.query(`DELETE FROM users WHERE id = $1`, [userId]);
+    return (result.rowCount ?? 0) > 0;
   }
 
   async deleteExpiredAuthTokens(now: number): Promise<void> {
@@ -1155,6 +1273,244 @@ export class PostgresStorage
     );
   }
 
+  async createBan(record: BanRecord): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO bans
+         (id, user_id, ip, reason, kind, duration_label, expires_at, created_at, revoked_at, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [
+        record.id,
+        record.userId ?? null,
+        record.ip ?? null,
+        record.reason,
+        record.kind,
+        record.durationLabel,
+        record.expiresAt ?? null,
+        record.createdAt,
+        record.revokedAt ?? null,
+        record.createdBy
+      ]
+    );
+  }
+
+  async listBans(limit: number, offset: number): Promise<readonly BanRecord[]> {
+    const result = await this.pool.query<BanRow>(
+      `${BAN_SELECT} ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+    return result.rows.map(rowToBan);
+  }
+
+  async getBanById(id: string): Promise<BanRecord | undefined> {
+    const result = await this.pool.query<BanRow>(`${BAN_SELECT} WHERE id = $1`, [id]);
+    return result.rows[0] ? rowToBan(result.rows[0]) : undefined;
+  }
+
+  async revokeBan(id: string, now: number): Promise<boolean> {
+    // Atsauc TIKAI aktīvu banu (nav atsaukts UN nav beidzies); jau-beidzies → `false` (not_active).
+    const result = await this.pool.query(
+      `UPDATE bans SET revoked_at = $1
+         WHERE id = $2 AND revoked_at IS NULL AND (kind = 'permanent' OR expires_at > $1)`,
+      [now, id]
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async findActiveUserBan(userId: string, now: number): Promise<BanRecord | undefined> {
+    const result = await this.pool.query<BanRow>(
+      `${BAN_SELECT} WHERE user_id = $1 AND ${banActiveClause("$2")} ORDER BY created_at DESC LIMIT 1`,
+      [userId, now]
+    );
+    return result.rows[0] ? rowToBan(result.rows[0]) : undefined;
+  }
+
+  async findActiveIpBan(ip: string, now: number): Promise<BanRecord | undefined> {
+    const result = await this.pool.query<BanRow>(
+      `${BAN_SELECT} WHERE ip = $1 AND ${banActiveClause("$2")} ORDER BY created_at DESC LIMIT 1`,
+      [ip, now]
+    );
+    return result.rows[0] ? rowToBan(result.rows[0]) : undefined;
+  }
+
+  async addBlockedWord(word: string, now: number): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO chat_blocked_words (word, created_at) VALUES ($1, $2)
+       ON CONFLICT (word) DO NOTHING`,
+      [word, now]
+    );
+  }
+
+  async removeBlockedWord(word: string): Promise<void> {
+    await this.pool.query(`DELETE FROM chat_blocked_words WHERE word = $1`, [word]);
+  }
+
+  async listBlockedWords(): Promise<readonly string[]> {
+    const result = await this.pool.query<{ word: string }>(
+      `SELECT word FROM chat_blocked_words ORDER BY word ASC`
+    );
+    return result.rows.map((r) => r.word);
+  }
+
+  // --- Analītika (Fāze 4A) ---
+
+  private async scalar(sql: string, params: Array<string | number> = []): Promise<number> {
+    const result = await this.pool.query<{ v: string | number }>(sql, params);
+    return result.rows[0] ? Number(result.rows[0].v) : 0;
+  }
+
+  async countUsers(): Promise<number> {
+    return this.scalar(`SELECT COUNT(*) AS v FROM users`);
+  }
+
+  async countNewUsers(sinceMs: number): Promise<number> {
+    return this.scalar(`SELECT COUNT(*) AS v FROM users WHERE created_at >= $1`, [sinceMs]);
+  }
+
+  async countActiveUsers(sinceMs: number): Promise<number> {
+    return this.scalar(
+      `SELECT COUNT(DISTINCT user_id) AS v FROM login_attempts
+         WHERE success = 1 AND user_id IS NOT NULL AND created_at >= $1`,
+      [sinceMs]
+    );
+  }
+
+  async countMatches(): Promise<number> {
+    return this.scalar(`SELECT COUNT(*) AS v FROM matches`);
+  }
+
+  async sumCoinBalances(): Promise<number> {
+    return this.scalar(`SELECT COALESCE(SUM(balance), 0) AS v FROM coin_balances`);
+  }
+
+  async countActiveBans(now: number): Promise<number> {
+    return this.scalar(`SELECT COUNT(*) AS v FROM bans WHERE ${banActiveClause("$1")}`, [now]);
+  }
+
+  private async dailyCounts(sql: string, sinceMs: number): Promise<readonly DailyCount[]> {
+    const result = await this.pool.query<{ day: string | number; c: string | number }>(sql, [sinceMs]);
+    return result.rows.map((r) => ({ day: Number(r.day), count: Number(r.c) }));
+  }
+
+  async dailyRegistrations(sinceMs: number): Promise<readonly DailyCount[]> {
+    return this.dailyCounts(
+      `SELECT created_at / 86400000 AS day, COUNT(*) AS c FROM users
+         WHERE created_at >= $1 GROUP BY day ORDER BY day ASC`,
+      sinceMs
+    );
+  }
+
+  async dailyLogins(sinceMs: number): Promise<readonly DailyCount[]> {
+    return this.dailyCounts(
+      `SELECT created_at / 86400000 AS day, COUNT(*) AS c FROM login_attempts
+         WHERE success = 1 AND created_at >= $1 GROUP BY day ORDER BY day ASC`,
+      sinceMs
+    );
+  }
+
+  // --- Segmenti (Fāze 4A.2) ---
+
+  async listNewPlayers(sinceMs: number, limit: number): Promise<readonly SegmentPlayer[]> {
+    const result = await this.pool.query<SegmentPlayerRow>(
+      `SELECT id, username, created_at FROM users
+         WHERE created_at >= $1 ORDER BY created_at DESC LIMIT $2`,
+      [sinceMs, clampLimit(limit)]
+    );
+    return result.rows.map(rowToSegmentPlayer);
+  }
+
+  async listInactivePlayers(beforeMs: number, limit: number): Promise<readonly SegmentPlayer[]> {
+    const result = await this.pool.query<SegmentPlayerRow>(
+      `SELECT id, username, created_at FROM users u
+         WHERE NOT EXISTS (
+           SELECT 1 FROM login_attempts la
+            WHERE la.user_id = u.id AND la.success = 1 AND la.created_at >= $1
+         )
+         ORDER BY created_at ASC LIMIT $2`,
+      [beforeMs, clampLimit(limit)]
+    );
+    return result.rows.map(rowToSegmentPlayer);
+  }
+
+  async listSuspiciousPlayers(
+    sinceMs: number,
+    minFailed: number,
+    limit: number
+  ): Promise<readonly SuspiciousPlayer[]> {
+    const result = await this.pool.query<{ id: string; username: string; failed: string | number }>(
+      `SELECT u.id, u.username, COUNT(*) AS failed
+         FROM login_attempts la JOIN users u ON u.id = la.user_id
+        WHERE la.success = 0 AND la.created_at >= $1
+        GROUP BY u.id, u.username HAVING COUNT(*) >= $2
+        ORDER BY failed DESC LIMIT $3`,
+      [sinceMs, minFailed, clampLimit(limit)]
+    );
+    return result.rows.map((r) => ({
+      id: r.id,
+      username: r.username,
+      failedAttempts: Number(r.failed)
+    }));
+  }
+
+  async successfulLoginUserIps(sinceMs: number, limit: number): Promise<readonly LoginUserIp[]> {
+    const result = await this.pool.query<{ user_id: string; ip: string }>(
+      `SELECT DISTINCT user_id, ip FROM login_attempts
+         WHERE success = 1 AND user_id IS NOT NULL AND ip IS NOT NULL AND created_at >= $1
+         ORDER BY user_id, ip LIMIT $2`,
+      [sinceMs, clampGeoLimit(limit)]
+    );
+    return result.rows.map((r) => ({ userId: r.user_id, ip: r.ip }));
+  }
+
+  async successfulLoginUserAgents(sinceMs: number, limit: number): Promise<readonly LoginUserAgent[]> {
+    const result = await this.pool.query<{ user_id: string; user_agent: string | null }>(
+      `SELECT DISTINCT user_id, user_agent FROM login_attempts
+         WHERE success = 1 AND user_id IS NOT NULL AND created_at >= $1
+         ORDER BY user_id, user_agent LIMIT $2`,
+      [sinceMs, clampGeoLimit(limit)]
+    );
+    return result.rows.map((r) => ({ userId: r.user_id, userAgent: r.user_agent ?? undefined }));
+  }
+
+  // --- Eksports (Fāze 4B.2; pilns, bez limita) ---
+
+  async exportUserLedger(userId: string): Promise<readonly LedgerEntryView[]> {
+    const result = await this.pool.query<{
+      id: string;
+      delta: string | number;
+      reason: string;
+      ref: string;
+      created_at: string | number;
+    }>(
+      `SELECT id, delta, reason, ref, created_at FROM coin_ledger
+         WHERE user_id = $1 ORDER BY created_at DESC`,
+      [userId]
+    );
+    return result.rows.map((r) => ({
+      id: r.id,
+      delta: Number(r.delta),
+      reason: r.reason,
+      ref: r.ref,
+      createdAt: Number(r.created_at)
+    }));
+  }
+
+  async exportUserLoginHistory(userId: string): Promise<readonly LoginAttemptView[]> {
+    const result = await this.pool.query<LoginAttemptRow>(
+      `SELECT id, ip, user_agent, source, success, created_at FROM login_attempts
+         WHERE user_id = $1 ORDER BY created_at DESC`,
+      [userId]
+    );
+    return result.rows.map(rowToLoginAttempt);
+  }
+
+  async exportUserBans(userId: string): Promise<readonly BanRecord[]> {
+    const result = await this.pool.query<BanRow>(
+      `${BAN_SELECT} WHERE user_id = $1 ORDER BY created_at DESC`,
+      [userId]
+    );
+    return result.rows.map(rowToBan);
+  }
+
   async close(): Promise<void> {
     await this.pool.end();
   }
@@ -1240,6 +1596,14 @@ function clampLimit(limit: number): number {
     return 1;
   }
   return Math.max(1, Math.min(1000, Math.floor(limit)));
+}
+
+/** Drošs LIMIT distinct-pāru geo segmentiem (lielāki griesti nekā saraksta `clampLimit`; D4). */
+function clampGeoLimit(limit: number): number {
+  if (!Number.isFinite(limit)) {
+    return 1;
+  }
+  return Math.max(1, Math.min(200_000, Math.floor(limit)));
 }
 
 function rowToRoomLease(row: RoomLeaseRow | undefined): RoomLeaseRecord | undefined {
@@ -1421,6 +1785,41 @@ function rowToAdminAudit(row: AdminAuditRow): AdminAuditEntry {
   };
 }
 
+/** Bana kolonnu saraksts + aktīvuma klauzula (`nowParam` = `now` placeholder, piem. `$2`). */
+const BAN_SELECT = `SELECT id, user_id, ip, reason, kind, duration_label, expires_at,
+  created_at, revoked_at, created_by FROM bans`;
+function banActiveClause(nowParam: string): string {
+  return `revoked_at IS NULL AND (kind = 'permanent' OR expires_at > ${nowParam})`;
+}
+
+interface BanRow extends QueryResultRow {
+  readonly id: string;
+  readonly user_id: string | null;
+  readonly ip: string | null;
+  readonly reason: string;
+  readonly kind: string;
+  readonly duration_label: string;
+  readonly expires_at: string | number | null;
+  readonly created_at: string | number;
+  readonly revoked_at: string | number | null;
+  readonly created_by: string;
+}
+
+function rowToBan(row: BanRow): BanRecord {
+  return {
+    id: row.id,
+    userId: row.user_id ?? undefined,
+    ip: row.ip ?? undefined,
+    reason: row.reason,
+    kind: row.kind as BanRecord["kind"],
+    durationLabel: row.duration_label,
+    expiresAt: row.expires_at === null ? undefined : Number(row.expires_at),
+    createdAt: Number(row.created_at),
+    revokedAt: row.revoked_at === null ? undefined : Number(row.revoked_at),
+    createdBy: row.created_by
+  };
+}
+
 interface AdminPlayerSearchRow {
   readonly id: string;
   readonly username: string;
@@ -1459,6 +1858,16 @@ function rowToLoginAttempt(row: LoginAttemptRow): LoginAttemptView {
     success: Number(row.success) !== 0,
     createdAt: Number(row.created_at)
   };
+}
+
+interface SegmentPlayerRow extends QueryResultRow {
+  readonly id: string;
+  readonly username: string;
+  readonly created_at: number | string;
+}
+
+function rowToSegmentPlayer(row: SegmentPlayerRow): SegmentPlayer {
+  return { id: row.id, username: row.username, createdAt: Number(row.created_at) };
 }
 
 /** Aizsargā LIKE meklēšanas burtus (`\` `%` `_`) ar `\` (lieto ar `ESCAPE '\'`). */

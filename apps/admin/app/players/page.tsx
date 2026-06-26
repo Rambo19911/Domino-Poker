@@ -62,6 +62,9 @@ export default function PlayersPage() {
           <p className="muted">Search by ID, display name, or email.</p>
         </div>
         <nav className="navlinks">
+          <Link href="/bans">Bans</Link>
+          <Link href="/moderation">Moderation</Link>
+          <Link href="/analytics">Analytics</Link>
           <Link href="/dashboard">Audit history</Link>
         </nav>
       </div>

@@ -1043,7 +1043,7 @@
   {
     "path": "apps/server/src/storage/schema.ts",
     "type": "database",
-    "purpose": "Single DDL source for SQLite/PostgreSQL migration rendering: auth, stats, password reset, custom avatars, user_preferences, the gold-coin wallet (0007), deep player stats (0008_player_game_results), the admin panel (0009_admin: admin_sessions, admin_login_codes [singleton id row for the OTP], admin_audit_log, login_attempts), and PG-only multi-instance tables. Migrations are append-only; identical CHECK/FK/types across both dialects.",
+    "purpose": "Single DDL source for SQLite/PostgreSQL migration rendering: auth, stats, password reset, custom avatars, user_preferences, the gold-coin wallet (0007), deep player stats (0008_player_game_results), the admin panel (0009_admin: admin_sessions, admin_login_codes [singleton id row for the OTP], admin_audit_log, login_attempts), 0010_coin_ledger_open_reason (drops coin_ledger.reason CHECK; reason now enforced by the TS LedgerReason union), 0011_bans (account/IP bans), 0012_chat_blocked_words (chat moderation), and PG-only multi-instance tables. Migrations are append-only; identical CHECK/FK/types across both dialects.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/storage/migrations.ts",

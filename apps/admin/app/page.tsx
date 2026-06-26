@@ -7,8 +7,9 @@ import { apiLogin, apiSession, apiVerify } from "@/lib/api";
 
 /**
  * Admin login (sk. docs/TODO/admin-panel-plan.md, Fāze 0). Divsoļu plūsma: parole →
- * e-pasta OTP 2FA. Serveris atbild konstantā formā uz paroli (neatklāj pareizību), tāpēc
- * pēc "Send code" vienmēr rādām koda soli. Veiksmīga verifikācija → dashboard.
+ * e-pasta OTP 2FA. Serveris atbild konstantā formā uz paroli (200 gan pareizai, gan
+ * nepareizai — neatklāj pareizību), tāpēc pie 200 ejam uz koda soli; tikai pie 429/400
+ * (kods NETIKA sūtīts) rādām kļūdu. Veiksmīga verifikācija → dashboard.
  */
 export default function LoginPage() {
   const router = useRouter();
@@ -32,10 +33,15 @@ export default function LoginPage() {
     setBusy(true);
     setError(undefined);
     try {
-      await apiLogin(password);
-      // Konstantas formas atbilde: vienmēr ejam uz koda soli (ja parole bija pareiza,
-      // kods jau aizsūtīts uz admin e-pastu).
-      setStep("code");
+      const ok = await apiLogin(password);
+      if (ok) {
+        // Konstantas formas 200 GAN pareizai, GAN nepareizai parolei (anti-oracle) → ejam
+        // uz koda soli (ja parole bija pareiza, kods jau aizsūtīts). NEatklāj pareizību.
+        setStep("code");
+      } else {
+        // false = 429 rate_limited / 400 invalid_input → kods NETIKA sūtīts, NEpārejam.
+        setError("Could not send a code (rate limited or invalid request). Please wait and try again.");
+      }
     } catch {
       setError("Network error. Try again.");
     } finally {

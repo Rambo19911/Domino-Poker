@@ -59,7 +59,8 @@ label {
   margin: 16px 0 6px;
 }
 
-input {
+input,
+select {
   width: 100%;
   padding: 10px 12px;
   background: #0c1015;
@@ -167,7 +168,20 @@ h2 {
 
 .searchbar button {
   margin-top: 0;
+  width: auto;
   white-space: nowrap;
+}
+
+/* Avatar grafika (player profils): mazs attēls blakus id. */
+.avatarImg {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  vertical-align: middle;
+  margin-right: 10px;
+  object-fit: cover;
 }
 
 .kv {
@@ -205,4 +219,127 @@ h2 {
 
 .pager button {
   margin-top: 0;
+}
+
+/* Phase 2 management forms */
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0 16px;
+}
+
+.ok {
+  color: #4ade80;
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+.btnRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.btnRow button {
+  width: auto;
+  margin-top: 0;
+}
+
+button.danger {
+  width: auto;
+  background: var(--danger);
+  color: #fff;
+}
+
+/* Blocked-word chips (Phase 3.2) */
+.chips {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px 5px 10px;
+  background: #0c1015;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.chip code {
+  color: var(--text);
+}
+
+.chipx {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chipx:hover {
+  color: var(--danger);
+}
+
+/* Analytics (Phase 4A) */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.metric {
+  background: #0c1015;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.metricValue {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.metricLabel {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+h3 {
+  font-size: 14px;
+  margin: 16px 0 6px;
+}
+
+.segment + .segment {
+  margin-top: 4px;
+}
+
+.seglist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.seglist li {
+  font-size: 13px;
 }

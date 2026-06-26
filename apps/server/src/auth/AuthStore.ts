@@ -81,6 +81,25 @@ export interface ProfileUpdate {
 
 export type UpdateProfileResult = "updated" | "username_taken" | "not_found";
 
+/**
+ * Admin konta atjauninājums (Fāze 2.1): pilns sapludināto vērtību kopums (serviss
+ * vispirms ielādē esošo + sapludina iesniegtos laukus). Atšķirībā no spēlētāja
+ * `updateUserProfile`, admin var mainīt arī e-pastu. `'custom'` avatar šeit NETIEK
+ * atbalstīts — admin iestata tikai preset id (serviss validē pirms izsaukuma).
+ */
+export interface AdminAccountUpdate {
+  readonly username: string;
+  readonly usernameNorm: string;
+  /** Jaunais e-pasts (vienmēr ne-NULL pēc admin maiņas; recovery kanāls saglabājas). */
+  readonly email: string | undefined;
+  readonly emailNorm: string | undefined;
+  readonly avatar: string;
+  readonly updatedAt: number;
+}
+
+/** "conflict" = username VAI email aizņemts (serviss atrisina, kurš). */
+export type AdminUpdateAccountResult = "updated" | "conflict" | "not_found";
+
 /** Login tokena ieraksts. Glabā tikai `sha256(token)`, NEKAD raw tokenu. */
 export interface AuthTokenRecord {
   readonly tokenHash: string;
@@ -112,10 +131,44 @@ export interface AuthStore {
   getUserByUsernameNorm(usernameNorm: string): Promise<UserRecord | undefined>;
   getUserByEmailNorm(emailNorm: string): Promise<UserRecord | undefined>;
   updateUserProfile(id: string, update: ProfileUpdate): Promise<UpdateProfileResult>;
+  /**
+   * Admin konta rediģēšana (Fāze 2.1): atomiski iestata username/email/avatar VIENĀ
+   * UPDATE. `"conflict"` pie UNIQUE pārkāpuma (username_norm/email_norm), `"not_found"`,
+   * ja konts neeksistē. Serviss atrisina, kurš lauks konfliktē (kā `register`).
+   */
+  adminUpdateAccount(id: string, update: AdminAccountUpdate): Promise<AdminUpdateAccountResult>;
+  /**
+   * Admin statistikas korekcija (Fāze 2.2, D3): SET (NE inkrements) `user_stats`
+   * agregātu (upsert pēc `userId`). Per-game `player_game_results` NETIEK pārrakstīta.
+   * Izsaucējs vispirms pārliecinās, ka konts eksistē (FK + audit nodoms).
+   */
+  adminSetUserStats(
+    userId: string,
+    stats: { readonly gamesPlayed: number; readonly wins: number; readonly losses: number },
+    updatedAt: number
+  ): Promise<void>;
+  /**
+   * Admin "ciets" paroles reset (Fāze 2.1): atomiski iestata jaunu (neizmantojamu)
+   * `password_hash` UN dzēš VISUS lietotāja auth tokenus (piespiedu izlogošana visur).
+   * Vecā parole pēc tam vairs nestrādā. Reset tokenu/e-pastu pārvalda `AuthService`.
+   */
+  adminInvalidateCredentials(userId: string, newPasswordHash: string, now: number): Promise<void>;
   createAuthToken(record: AuthTokenRecord): Promise<void>;
   getAuthToken(tokenHash: string): Promise<AuthTokenRecord | undefined>;
   touchAuthToken(tokenHash: string, lastUsedAt: number, expiresAt: number): Promise<void>;
   deleteAuthToken(tokenHash: string): Promise<void>;
+  /**
+   * Dzēš VISUS lietotāja auth tokenus (Fāze 3.1 — banots → piespiedu HTTP izlogošana visur).
+   * Atšķirībā no `adminInvalidateCredentials`, paroli NEMAINA (bans, ne reset).
+   */
+  deleteUserAuthTokens(userId: string): Promise<void>;
+  /**
+   * Hard-delete konts (Fāze 4B.2, D5): `DELETE FROM users` ar FK CASCADE noņem stats/wallet/
+   * ledger/results/avatars/prefs/bans/tokenus; `login_attempts.user_id` kļūst NULL (mēģinājuma
+   * vēsture pārdzīvo). `matches`/`match_events` (nav FK) NETIEK aiztikti — tos atsevišķi anonimizē
+   * `StoragePort.anonymizeUserInMatches`. Atgriež `true`, ja konts eksistēja.
+   */
+  hardDeleteUser(userId: string): Promise<boolean>;
   /** Notīra beigušos tokenus (Fāze 5 cleanup). */
   deleteExpiredAuthTokens(now: number): Promise<void>;
   /** Konta MP statistika (Fāze 3) vai `undefined`, ja vēl nav ieskaitītu spēļu. */

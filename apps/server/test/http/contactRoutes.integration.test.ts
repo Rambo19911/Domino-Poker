@@ -25,6 +25,9 @@ class FakeEmailSender implements EmailSender {
   async sendAdminLoginCode(): Promise<void> {
     // nav vajadzīgs šajos testos
   }
+  async sendBanNotice(): Promise<void> {
+    // nav vajadzīgs šajos testos
+  }
 }
 
 describe("contact HTTP route (integration)", () => {

@@ -44,6 +44,15 @@ export interface StoragePort {
   /** Jaunākās partijas (debug / "pēdējo spēļu saraksts"), jaunākās pirmās. */
   listRecentMatches(limit: number): Promise<readonly MatchSummaryRecord[]>;
 
+  /**
+   * Anonimizē dzēstu lietotāju partiju datos (Fāze 4B.2, D5): atrod `matches`, kuru `players_json`
+   * satur `userId`, un NOŅEM (dzēš) `userId` + `clientId` laukus tā sēdvietām (saglabā
+   * `seatIndex/corePlayerId/kind/displayId` replay integritātei). Lauki tiek DZĒSTI (nevis null),
+   * lai atbilstu `string | undefined` tipam un `!== undefined` patērētājiem. Idempotents.
+   * Atgriež skarto partiju skaitu. `match_events` netiek aiztikti (tie glabā core playerId, ne userId).
+   */
+  anonymizeUserInMatches(userId: string): Promise<number>;
+
   /** Saglabā (upsert) spēlētāja statistiku. */
   savePlayerStats(stats: PlayerStatsRecord): Promise<void>;
 

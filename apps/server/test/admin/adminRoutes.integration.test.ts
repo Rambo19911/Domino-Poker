@@ -7,7 +7,13 @@ import { STARTING_COINS } from "@domino-poker/shared";
 import { AdminAuditService } from "../../src/admin/AdminAuditService.js";
 import { AdminAuthService } from "../../src/admin/AdminAuthService.js";
 import { AdminPlayerService } from "../../src/admin/AdminPlayerService.js";
+import { AdminPlayerWriteService } from "../../src/admin/AdminPlayerWriteService.js";
+import { AdminAnalyticsService } from "../../src/admin/AdminAnalyticsService.js";
+import { AdminPlayerGovernanceService } from "../../src/admin/AdminPlayerGovernanceService.js";
+import { BanService } from "../../src/admin/BanService.js";
+import { ChatModerationService } from "../../src/admin/ChatModerationService.js";
 import { createAdminHandler } from "../../src/admin/adminRoutes.js";
+import { AuthService } from "../../src/auth/AuthService.js";
 import type { EmailLocale, EmailSender } from "../../src/auth/EmailSender.js";
 import { hashPassword } from "../../src/auth/passwords.js";
 import { createHealthHttpServer } from "../../src/httpServer.js";
@@ -17,11 +23,18 @@ import { WalletService } from "../../src/wallet/WalletService.js";
 const ORIGIN = "http://localhost:3001";
 const PASSWORD = "correct-horse-battery";
 
-/** Test sender: tver pēdējo nosūtīto admin OTP kodu; var simulēt piegādes kļūmi. */
+/** Test sender: tver pēdējo admin OTP kodu + reset e-pastus; var simulēt piegādes kļūmes. */
 class CapturingEmailSender implements EmailSender {
   lastCode: string | undefined;
   throwOnSend = false;
-  async sendPasswordReset(): Promise<void> {}
+  resetCount = 0;
+  throwOnReset = false;
+  async sendPasswordReset(): Promise<void> {
+    if (this.throwOnReset) {
+      throw new Error("simulated reset email failure");
+    }
+    this.resetCount += 1;
+  }
   async sendContactMessage(_t: string, _r: string, _m: string, _l: EmailLocale): Promise<void> {}
   async sendAdminLoginCode(_to: string, code: string): Promise<void> {
     if (this.throwOnSend) {
@@ -29,6 +42,7 @@ class CapturingEmailSender implements EmailSender {
     }
     this.lastCode = code;
   }
+  async sendBanNotice(_to: string, _r: string, _d: string, _l: EmailLocale): Promise<void> {}
 }
 
 describe("admin HTTP routes (integration)", () => {
@@ -37,9 +51,14 @@ describe("admin HTTP routes (integration)", () => {
   let server: ReturnType<typeof createHealthHttpServer>;
   let base: string;
   let nowMs: number;
+  let bannedDisconnects: string[];
+  let announcements: string[];
+  let chatMod: ChatModerationService;
 
   beforeEach(async () => {
     nowMs = 1_000_000;
+    bannedDisconnects = [];
+    announcements = [];
     storage = new SqliteStorage({ filename: ":memory:" });
     email = new CapturingEmailSender();
     const adminAuth = new AdminAuthService({
@@ -50,11 +69,36 @@ describe("admin HTTP routes (integration)", () => {
       clock: () => nowMs
     });
     const audit = new AdminAuditService(storage, () => nowMs);
+    const wallet = new WalletService({ coins: storage, clock: () => nowMs });
+    const authService = new AuthService({
+      store: storage,
+      clock: () => nowMs,
+      emailSender: email,
+      appBaseUrl: "https://example.com"
+    });
     server = createHealthHttpServer({
       adminHandler: createAdminHandler({
         adminAuth,
         audit,
-        players: new AdminPlayerService(storage, new WalletService({ coins: storage, clock: () => nowMs })),
+        players: new AdminPlayerService(storage, wallet),
+        playerWrites: new AdminPlayerWriteService(storage, wallet, authService, audit, () => nowMs),
+        bans: new BanService({
+          store: storage,
+          audit,
+          clock: () => nowMs,
+          emailSender: email,
+          onUserBanned: (userId) => bannedDisconnects.push(userId)
+        }),
+        chatModeration: (chatMod = new ChatModerationService(storage, audit, () => nowMs)),
+        onAnnounce: (text: string) => {
+          announcements.push(text);
+          return text.trim() !== "";
+        },
+        analytics: new AdminAnalyticsService(storage, () => nowMs, {
+          resolve: (ip) => (ip === undefined ? "Unknown" : "LV")
+        }),
+        governance: new AdminPlayerGovernanceService(storage, wallet, audit, () => nowMs),
+        leaderboardConfig: { minGames: 5, size: 10 },
         webOrigins: [ORIGIN],
         clock: () => nowMs,
         dev: true,
@@ -76,6 +120,24 @@ describe("admin HTTP routes (integration)", () => {
     return fetch(`${base}${path}`, {
       method: "POST",
       headers: { "content-type": "application/json", ...headers },
+      body: JSON.stringify(body)
+    });
+  }
+
+  /** Autentificēts mutējošs pieprasījums (sesija + CSRF header). */
+  function mutate(
+    path: string,
+    method: "POST" | "PATCH",
+    body: unknown,
+    auth: { cookieHeader: string; csrf: string }
+  ): Promise<Response> {
+    return fetch(`${base}${path}`, {
+      method,
+      headers: {
+        "content-type": "application/json",
+        cookie: auth.cookieHeader,
+        "x-csrf-token": auth.csrf
+      },
       body: JSON.stringify(body)
     });
   }
@@ -231,6 +293,408 @@ describe("admin HTTP routes (integration)", () => {
       const body = (await res.json()) as { entries: Array<{ action: string }> };
       expect(body.entries.some((e) => e.action === "admin.verify_failed")).toBe(true);
     }
+  });
+
+  // --- Phase 2: player write operations ---
+
+  const ADJUST_ID = "11111111-1111-4111-8111-111111111111";
+
+  it("2.1 edits an account (display name + email) and writes an audit diff", async () => {
+    await seedPlayer(storage, { id: "p-1", username: "Alice", email: "alice@example.com" });
+    const auth = await signIn();
+    const res = await mutate(
+      "/admin/players/p-1",
+      "PATCH",
+      { displayName: "Alicia", email: "alicia@example.com" },
+      auth
+    );
+    expect(res.status).toBe(200);
+    const user = await storage.getUserById("p-1");
+    expect(user?.username).toBe("Alicia");
+    expect(user?.email).toBe("alicia@example.com");
+    const audit = await fetch(`${base}/admin/audit`, { headers: { cookie: auth.cookieHeader } });
+    const body = (await audit.json()) as { entries: Array<{ action: string }> };
+    expect(body.entries.some((e) => e.action === "player.account.update")).toBe(true);
+  });
+
+  it("2.1 requires CSRF for a mutating PATCH (403 without header)", async () => {
+    await seedPlayer(storage, { id: "p-1", username: "Alice" });
+    const { cookieHeader } = await signIn();
+    const res = await fetch(`${base}/admin/players/p-1`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", cookie: cookieHeader },
+      body: JSON.stringify({ displayName: "Nope" })
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it("2.1 rejects an invalid avatar (400) and an unknown player (404)", async () => {
+    await seedPlayer(storage, { id: "p-1", username: "Alice" });
+    const auth = await signIn();
+    expect((await mutate("/admin/players/p-1", "PATCH", { avatar: "not-real" }, auth)).status).toBe(400);
+    expect((await mutate("/admin/players/ghost", "PATCH", { displayName: "Ghost" }, auth)).status).toBe(404);
+  });
+
+  it("2.2 corrects the stats aggregate with a mandatory reason → audit", async () => {
+    await seedPlayer(storage, { id: "p-1", username: "Alice" });
+    const auth = await signIn();
+    const res = await mutate(
+      "/admin/players/p-1/stats",
+      "PATCH",
+      { wins: 7, losses: 3, reason: "manual correction" },
+      auth
+    );
+    expect(res.status).toBe(200);
+    expect(await storage.getUserStats("p-1")).toMatchObject({ wins: 7, losses: 3, gamesPlayed: 10 });
+    // Iemesls obligāts.
+    expect((await mutate("/admin/players/p-1/stats", "PATCH", { wins: 1, losses: 1, reason: "" }, auth)).status).toBe(400);
+  });
+
+  it("2.3 grants coins (audit) and is idempotent by adjustmentId", async () => {
+    await seedPlayer(storage, { id: "p-1", username: "Alice" });
+    const auth = await signIn();
+    const first = await mutate(
+      "/admin/players/p-1/coins",
+      "POST",
+      { delta: 500, reason: "promo", adjustmentId: ADJUST_ID },
+      auth
+    );
+    expect(first.status).toBe(200);
+    const firstBody = (await first.json()) as { balance: number; applied: boolean };
+    expect(firstBody.applied).toBe(true);
+    expect(firstBody.balance).toBe(STARTING_COINS + 500);
+    // Tas pats adjustmentId → idempotents no-op (applied:false, bilance nemainās).
+    const repeat = await mutate(
+      "/admin/players/p-1/coins",
+      "POST",
+      { delta: 500, reason: "promo", adjustmentId: ADJUST_ID },
+      auth
+    );
+    const repeatBody = (await repeat.json()) as { balance: number; applied: boolean };
+    expect(repeatBody.applied).toBe(false);
+    expect(repeatBody.balance).toBe(STARTING_COINS + 500);
+    const audit = await fetch(`${base}/admin/audit`, { headers: { cookie: auth.cookieHeader } });
+    const body = (await audit.json()) as { entries: Array<{ action: string }> };
+    // TIKAI viena coins audit rinda (idempotents atkārtojums NEauditē).
+    expect(body.entries.filter((e) => e.action === "player.coins.adjust")).toHaveLength(1);
+  });
+
+  it("2.3 rejects an adjustment that would make the balance negative (409)", async () => {
+    await seedPlayer(storage, { id: "p-1", username: "Alice" });
+    const auth = await signIn();
+    const res = await mutate(
+      "/admin/players/p-1/coins",
+      "POST",
+      { delta: -(STARTING_COINS + 1), reason: "overdraw", adjustmentId: ADJUST_ID },
+      auth
+    );
+    expect(res.status).toBe(409);
+    expect((await res.json()) as { error: string }).toEqual({ error: "insufficient_balance" });
+  });
+
+  it("2.1 soft reset sends an email and leaves the password intact", async () => {
+    await seedPlayer(storage, { id: "p-1", username: "Alice", email: "alice@example.com" });
+    const auth = await signIn();
+    email.resetCount = 0;
+    const res = await mutate("/admin/players/p-1/send-reset-email", "POST", {}, auth);
+    expect(res.status).toBe(200);
+    expect(email.resetCount).toBe(1);
+    // Parole NEMAINĪTA (mīkstais variants).
+    expect((await storage.getUserById("p-1"))?.passwordHash).toBe("scrypt$test");
+  });
+
+  it("2.1 soft reset email failure returns 502 and leaves no lingering token (recoverable)", async () => {
+    await seedPlayer(storage, { id: "p-1", username: "Alice", email: "alice@example.com" });
+    const auth = await signIn();
+    email.throwOnReset = true;
+    const failed = await mutate("/admin/players/p-1/send-reset-email", "POST", {}, auth);
+    expect(failed.status).toBe(502);
+    // Atkopjams: piegāde atjaunojas → mīkstais reset atkal strādā (nepiegādātais tokens iztīrīts).
+    email.throwOnReset = false;
+    email.resetCount = 0;
+    const ok = await mutate("/admin/players/p-1/send-reset-email", "POST", {}, auth);
+    expect(ok.status).toBe(200);
+    expect(email.resetCount).toBe(1);
+  });
+
+  it("2.1 hard reset revokes sessions + changes the password after a successful email", async () => {
+    await seedPlayer(storage, { id: "p-1", username: "Alice", email: "alice@example.com" });
+    await storage.createAuthToken({
+      tokenHash: "tok-1".repeat(13).slice(0, 64),
+      userId: "p-1",
+      createdAt: 1,
+      lastUsedAt: 1,
+      expiresAt: 9_000_000_000
+    });
+    const auth = await signIn();
+    const res = await mutate("/admin/players/p-1/reset-password", "POST", {}, auth);
+    expect(res.status).toBe(200);
+    // Parole anulēta (vairs ne `scrypt$test`) + sesija atsaukta.
+    expect((await storage.getUserById("p-1"))?.passwordHash).not.toBe("scrypt$test");
+    expect(await storage.getAuthToken("tok-1".repeat(13).slice(0, 64))).toBeUndefined();
+  });
+
+  it("2.1 hard reset does NOT lock out the user when the email fails (502, no mutation)", async () => {
+    await seedPlayer(storage, { id: "p-1", username: "Alice", email: "alice@example.com" });
+    const tokenHash = "tok-2".repeat(13).slice(0, 64);
+    await storage.createAuthToken({
+      tokenHash,
+      userId: "p-1",
+      createdAt: 1,
+      lastUsedAt: 1,
+      expiresAt: 9_000_000_000
+    });
+    const auth = await signIn();
+    email.throwOnReset = true;
+    const res = await mutate("/admin/players/p-1/reset-password", "POST", {}, auth);
+    expect(res.status).toBe(502);
+    // Drošības sargs: parole + sesija NEAIZSKARTAS (lietotājs nav lockout).
+    expect((await storage.getUserById("p-1"))?.passwordHash).toBe("scrypt$test");
+    expect(await storage.getAuthToken(tokenHash)).toBeDefined();
+  });
+
+  // --- Phase 3.1: bans ---
+
+  it("3.1 bans a player: revokes sessions, fires the disconnect hook, audits, and 409 on re-ban", async () => {
+    await seedPlayer(storage, { id: "p-1", username: "Alice", email: "alice@example.com" });
+    const tokenHash = "ban-tok".repeat(10).slice(0, 64);
+    await storage.createAuthToken({
+      tokenHash,
+      userId: "p-1",
+      createdAt: 1,
+      lastUsedAt: 1,
+      expiresAt: 9_000_000_000
+    });
+    const auth = await signIn();
+    const res = await mutate(
+      "/admin/players/p-1/ban",
+      "POST",
+      { reason: "cheating", kind: "permanent" },
+      auth
+    );
+    expect(res.status).toBe(200);
+    // Izpilde: auth tokeni dzēsti (HTTP piespiedu izlogošana) + disconnect āķis izsaukts.
+    expect(await storage.getAuthToken(tokenHash)).toBeUndefined();
+    expect(bannedDisconnects).toContain("p-1");
+    // Aktīvs bans glabātavā.
+    expect(await storage.findActiveUserBan("p-1", nowMs)).toMatchObject({ userId: "p-1" });
+    // Audit.
+    const audit = await fetch(`${base}/admin/audit`, { headers: { cookie: auth.cookieHeader } });
+    const body = (await audit.json()) as { entries: Array<{ action: string }> };
+    expect(body.entries.some((e) => e.action === "player.ban")).toBe(true);
+    // Atkārtots bans → 409 already_banned.
+    const again = await mutate(
+      "/admin/players/p-1/ban",
+      "POST",
+      { reason: "again", kind: "permanent" },
+      auth
+    );
+    expect(again.status).toBe(409);
+  });
+
+  it("3.1 rejects a temporary ban without durationDays (400) and an unknown player (404)", async () => {
+    await seedPlayer(storage, { id: "p-1", username: "Alice" });
+    const auth = await signIn();
+    expect(
+      (await mutate("/admin/players/p-1/ban", "POST", { reason: "x", kind: "temporary" }, auth)).status
+    ).toBe(400);
+    expect(
+      (await mutate("/admin/players/ghost/ban", "POST", { reason: "x", kind: "permanent" }, auth)).status
+    ).toBe(404);
+  });
+
+  it("3.1 requires CSRF for a ban (403 without header)", async () => {
+    await seedPlayer(storage, { id: "p-1", username: "Alice" });
+    const { cookieHeader } = await signIn();
+    const res = await fetch(`${base}/admin/players/p-1/ban`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: cookieHeader },
+      body: JSON.stringify({ reason: "x", kind: "permanent" })
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it("3.1 ip-bans, lists bans, and revokes by id (with audit)", async () => {
+    const auth = await signIn();
+    const banned = await mutate(
+      "/admin/bans/ip",
+      "POST",
+      { ip: "9.9.9.9", reason: "abuse", kind: "temporary", durationDays: 7 },
+      auth
+    );
+    expect(banned.status).toBe(200);
+    expect(await storage.findActiveIpBan("9.9.9.9", nowMs)).toMatchObject({ ip: "9.9.9.9" });
+    // List.
+    const list = await fetch(`${base}/admin/bans`, { headers: { cookie: auth.cookieHeader } });
+    const listBody = (await list.json()) as { bans: Array<{ id: string; ip?: string }> };
+    const banId = listBody.bans.find((b) => b.ip === "9.9.9.9")?.id;
+    expect(banId).toBeDefined();
+    // Revoke.
+    const revoke = await mutate(`/admin/bans/${banId}/revoke`, "POST", {}, auth);
+    expect(revoke.status).toBe(200);
+    expect(await storage.findActiveIpBan("9.9.9.9", nowMs)).toBeUndefined();
+    // Atkārtots revoke → 409 not_active.
+    expect((await mutate(`/admin/bans/${banId}/revoke`, "POST", {}, auth)).status).toBe(409);
+    // Audit satur ip.ban + ban.revoke.
+    const audit = await fetch(`${base}/admin/audit`, { headers: { cookie: auth.cookieHeader } });
+    const body = (await audit.json()) as { entries: Array<{ action: string }> };
+    expect(body.entries.some((e) => e.action === "ip.ban")).toBe(true);
+    expect(body.entries.some((e) => e.action === "ban.revoke")).toBe(true);
+  });
+
+  it("3.1 rejects a malformed IP at the server boundary (400, not saved)", async () => {
+    const auth = await signIn();
+    const bad = await mutate(
+      "/admin/bans/ip",
+      "POST",
+      { ip: "not-an-ip", reason: "x", kind: "permanent" },
+      auth
+    );
+    expect(bad.status).toBe(400);
+    // Derīgs IPv6 tiek pieņemts.
+    const good = await mutate(
+      "/admin/bans/ip",
+      "POST",
+      { ip: "2001:db8::1", reason: "x", kind: "permanent" },
+      auth
+    );
+    expect(good.status).toBe(200);
+  });
+
+  it("3.1 guards ban routes without a session (401)", async () => {
+    expect((await fetch(`${base}/admin/bans`)).status).toBe(401);
+  });
+
+  // --- Phase 3.2: chat moderation ---
+
+  it("3.2 adds, lists, and removes blocked words (and the filter applies)", async () => {
+    const auth = await signIn();
+    const add = await mutate("/admin/chat/blocked-words", "POST", { word: "BadWord" }, auth);
+    expect(add.status).toBe(200);
+    // Saraksts (normalizēts lowercase).
+    const list = await fetch(`${base}/admin/chat/blocked-words`, { headers: { cookie: auth.cookieHeader } });
+    expect(((await list.json()) as { words: string[] }).words).toContain("badword");
+    // Filtrs (tā pati servisa instance) tagad aizvieto vārdu.
+    expect(chatMod.filter("you are a badword!")).toBe("you are a ****!");
+    // Audit.
+    const audit = await fetch(`${base}/admin/audit`, { headers: { cookie: auth.cookieHeader } });
+    const body = (await audit.json()) as { entries: Array<{ action: string }> };
+    expect(body.entries.some((e) => e.action === "chat.blocked_word.add")).toBe(true);
+    // Remove (DELETE, CSRF).
+    const del = await fetch(`${base}/admin/chat/blocked-words/badword`, {
+      method: "DELETE",
+      headers: { cookie: auth.cookieHeader, "x-csrf-token": auth.csrf }
+    });
+    expect(del.status).toBe(200);
+    expect(chatMod.filter("you are a badword!")).toBe("you are a badword!");
+  });
+
+  it("3.2 posts an admin announcement (broadcast hook + audit) and rejects empty text", async () => {
+    const auth = await signIn();
+    const res = await mutate("/admin/chat/announce", "POST", { text: "Server restart in 5 min" }, auth);
+    expect(res.status).toBe(200);
+    expect(announcements).toContain("Server restart in 5 min");
+    const audit = await fetch(`${base}/admin/audit`, { headers: { cookie: auth.cookieHeader } });
+    const body = (await audit.json()) as { entries: Array<{ action: string }> };
+    expect(body.entries.some((e) => e.action === "chat.announce")).toBe(true);
+    // Tukšs teksts → 400.
+    expect((await mutate("/admin/chat/announce", "POST", { text: "  " }, auth)).status).toBe(400);
+  });
+
+  it("3.2 requires CSRF for blocked-word add and announce", async () => {
+    const { cookieHeader } = await signIn();
+    expect(
+      (
+        await fetch(`${base}/admin/chat/blocked-words`, {
+          method: "POST",
+          headers: { "content-type": "application/json", cookie: cookieHeader },
+          body: JSON.stringify({ word: "x" })
+        })
+      ).status
+    ).toBe(403);
+  });
+
+  // --- Phase 4A: analytics ---
+
+  it("4A returns overview / activity (json + csv) / segments / leaderboard; guards without a session", async () => {
+    await seedPlayer(storage, { id: "p-1", username: "Alice", email: "a@x.co", lastLoginAt: 500 });
+    expect((await fetch(`${base}/admin/analytics/overview`)).status).toBe(401);
+    const auth = await signIn();
+
+    const overview = await fetch(`${base}/admin/analytics/overview`, { headers: { cookie: auth.cookieHeader } });
+    expect(overview.status).toBe(200);
+    expect(((await overview.json()) as { totalUsers: number }).totalUsers).toBeGreaterThanOrEqual(1);
+
+    const activity = await fetch(`${base}/admin/analytics/activity?days=7`, { headers: { cookie: auth.cookieHeader } });
+    expect(activity.status).toBe(200);
+    // Tieši 7 UTC kalendārās dienas (ieskaitot šodienu), tukšās aizpildītas.
+    expect(((await activity.json()) as { days: unknown[] }).days).toHaveLength(7);
+
+    const csv = await fetch(`${base}/admin/analytics/activity.csv?days=7`, { headers: { cookie: auth.cookieHeader } });
+    expect(csv.status).toBe(200);
+    expect(csv.headers.get("content-type")).toMatch(/text\/csv/u);
+    expect(await csv.text()).toContain("date,registrations,logins");
+
+    const segments = await fetch(`${base}/admin/analytics/segments`, { headers: { cookie: auth.cookieHeader } });
+    expect(segments.status).toBe(200);
+    const segmentsBody = (await segments.json()) as Record<string, unknown>;
+    expect(segmentsBody).toHaveProperty("newPlayers");
+    // D4: valsts/platforma + nošķelšanas karogs.
+    expect(segmentsBody).toHaveProperty("countries");
+    expect(segmentsBody).toHaveProperty("platforms");
+    expect(segmentsBody).toHaveProperty("geoTruncated");
+
+    const lb = await fetch(`${base}/admin/analytics/leaderboard`, { headers: { cookie: auth.cookieHeader } });
+    expect(lb.status).toBe(200);
+    expect(((await lb.json()) as { config: { minGames: number } }).config.minGames).toBe(5);
+  });
+
+  // --- Phase 4B: export + delete ---
+
+  it("4B.2 exports full player data (no-store + audit) and 404s for an unknown id", async () => {
+    await seedPlayer(storage, { id: "p-1", username: "Alice", email: "a@x.co" });
+    const auth = await signIn();
+    const res = await fetch(`${base}/admin/players/p-1/export`, { headers: { cookie: auth.cookieHeader } });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    const body = await res.json();
+    // Allowlist: nav paroles hash.
+    expect(JSON.stringify(body)).not.toContain("passwordHash");
+    expect((body as { account: { id: string } }).account.id).toBe("p-1");
+    // Audit player.export.
+    const audit = await fetch(`${base}/admin/audit`, { headers: { cookie: auth.cookieHeader } });
+    const entries = (await audit.json()) as { entries: Array<{ action: string }> };
+    expect(entries.entries.some((e) => e.action === "player.export")).toBe(true);
+
+    expect((await fetch(`${base}/admin/players/ghost/export`, { headers: { cookie: auth.cookieHeader } })).status).toBe(404);
+  });
+
+  it("4B.2 hard-deletes a player (CSRF) with a snapshot audit; 404 after deleted", async () => {
+    await seedPlayer(storage, { id: "p-1", username: "Alice", email: "a@x.co" });
+    const auth = await signIn();
+    // CSRF obligāts.
+    const noCsrf = await fetch(`${base}/admin/players/p-1`, {
+      method: "DELETE",
+      headers: { cookie: auth.cookieHeader }
+    });
+    expect(noCsrf.status).toBe(403);
+    // Ar CSRF → 200, konts pazūd.
+    const ok = await fetch(`${base}/admin/players/p-1`, {
+      method: "DELETE",
+      headers: { cookie: auth.cookieHeader, "x-csrf-token": auth.csrf }
+    });
+    expect(ok.status).toBe(200);
+    expect(await storage.getUserById("p-1")).toBeUndefined();
+    // Audit player.delete ar snapshot (BEZ noslēpumiem).
+    const audit = await fetch(`${base}/admin/audit`, { headers: { cookie: auth.cookieHeader } });
+    const entries = (await audit.json()) as { entries: Array<{ action: string }> };
+    expect(entries.entries.some((e) => e.action === "player.delete")).toBe(true);
+    // Atkārtota dzēšana → 404.
+    const again = await fetch(`${base}/admin/players/p-1`, {
+      method: "DELETE",
+      headers: { cookie: auth.cookieHeader, "x-csrf-token": auth.csrf }
+    });
+    expect(again.status).toBe(404);
   });
 });
 

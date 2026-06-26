@@ -30,6 +30,12 @@ export interface LobbyChatOptions {
    * Blakusefekts — kļūdas tiek apslāpētas, lai glabāšana nesalauztu čatu.
    */
   readonly onMessage?: (message: ChatMessage) => void;
+  /**
+   * Čata moderācija (Fāze 3.2): aizvieto bloķētos vārdus pirms ziņas glabāšanas/izsūtīšanas.
+   * Injicē `ChatModerationService.filter`. `undefined` = bez filtra. Admin paziņojumi (`announce`)
+   * NETIEK filtrēti.
+   */
+  readonly filterText?: (text: string) => string;
 }
 
 const DEFAULT_HISTORY_LIMIT = 50;
@@ -67,6 +73,7 @@ export class LobbyChat {
   private readonly refillMs: number;
   private readonly createMessageId: () => string;
   private readonly onMessage: ((message: ChatMessage) => void) | undefined;
+  private readonly filterText: ((text: string) => string) | undefined;
   private readonly buffer: ChatMessage[] = [];
   private readonly buckets = new Map<string, TokenBucket>();
 
@@ -78,6 +85,7 @@ export class LobbyChat {
     this.refillMs = Math.max(1, options.refillMs ?? DEFAULT_REFILL_MS);
     this.createMessageId = options.createMessageId ?? defaultMessageId;
     this.onMessage = options.onMessage;
+    this.filterText = options.filterText;
   }
 
   /**
@@ -122,7 +130,8 @@ export class LobbyChat {
     const message: ChatMessage = {
       id: this.createMessageId(),
       authorDisplayId,
-      text,
+      // Fāze 3.2: bloķēto vārdu filtrs (pēc validācijas/rate, pirms glabāšanas/izsūtīšanas).
+      text: this.filterText ? this.filterText(text) : text,
       serverNow: now
     };
     this.buffer.push(message);
@@ -139,6 +148,35 @@ export class LobbyChat {
       }
     }
     return { ok: true, message };
+  }
+
+  /**
+   * Admin paziņojums (Fāze 3.2): pievieno čata vēsturei "Admin"-autora ziņu (bez rate-limita,
+   * bez vārdu filtra) un atgriež to izsūtīšanai. Teksta trim + garuma robeža kā parastai ziņai.
+   */
+  announce(rawText: string): ChatMessage | undefined {
+    const text = rawText.trim();
+    if (text === "" || text.length > this.maxLength) {
+      return undefined;
+    }
+    const message: ChatMessage = {
+      id: this.createMessageId(),
+      authorDisplayId: "Admin",
+      text,
+      serverNow: this.clock()
+    };
+    this.buffer.push(message);
+    if (this.buffer.length > this.historyLimit) {
+      this.buffer.splice(0, this.buffer.length - this.historyLimit);
+    }
+    if (this.onMessage) {
+      try {
+        this.onMessage(message);
+      } catch {
+        // best-effort
+      }
+    }
+    return message;
   }
 
   /** Pēdējās (līdz `historyLimit`) ziņas — kopija, lai ārējie to nemainītu. */

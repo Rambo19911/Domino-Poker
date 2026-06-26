@@ -3,9 +3,15 @@ import { randomUUID } from "node:crypto";
 import { AdminAuditService } from "./admin/AdminAuditService.js";
 import { AdminAuthService } from "./admin/AdminAuthService.js";
 import { AdminPlayerService } from "./admin/AdminPlayerService.js";
-import { isAdminStore } from "./admin/AdminStore.js";
+import { AdminPlayerWriteService } from "./admin/AdminPlayerWriteService.js";
+import { AdminAnalyticsService } from "./admin/AdminAnalyticsService.js";
+import { GeoipCountryResolver } from "./admin/geoipCountryResolver.js";
+import { AdminPlayerGovernanceService } from "./admin/AdminPlayerGovernanceService.js";
+import { BanService } from "./admin/BanService.js";
+import { ChatModerationService } from "./admin/ChatModerationService.js";
+import { isAdminStore, type BanRecord } from "./admin/AdminStore.js";
 import { createAdminHandler } from "./admin/adminRoutes.js";
-import { AuthService } from "./auth/AuthService.js";
+import { AuthService, type BanInfo } from "./auth/AuthService.js";
 import { isAuthStore } from "./auth/AuthStore.js";
 import { createEmailSender } from "./auth/EmailSender.js";
 import { ChatTranslationService } from "./chat/ChatTranslationService.js";
@@ -75,8 +81,58 @@ const emailSender = createEmailSender({
   emailFrom: config.email.from,
   nodeEnv: config.nodeEnv
 });
+/** `BanRecord` → `AuthService` `BanInfo` (reason/durationLabel/expiresAt) vai `undefined`. */
+function toBanInfo(ban: BanRecord | undefined): BanInfo | undefined {
+  return ban
+    ? { reason: ban.reason, durationLabel: ban.durationLabel, expiresAt: ban.expiresAt }
+    : undefined;
+}
+
+// Vēlu-saistīts turētājs WS gateway (ban → dzīvo sesiju atvienošanai). `current` piešķirts
+// zemāk, pirms apkalpošanas; bana izpilde (runtime) to izsauc, kad gateway jau eksistē.
+const gatewayHolder: { current?: WebSocketGateway } = {};
+// Admin audita serviss (pārcelts augšup — vajadzīgs banService konstruēšanai).
+const adminAudit = isAdminStore(storage) ? new AdminAuditService(storage, clock) : undefined;
+// Bani (Fāze 3.1, D1). Pieejams admin+auth-spējīgai glabātuvei ar adminAudit. `onUserBanned`
+// atvieno dzīvās WS sesijas pēc bana (push, NE poll). E-pasts best-effort.
+const banService =
+  isAdminStore(storage) && isAuthStore(storage) && adminAudit
+    ? new BanService({
+        store: storage,
+        audit: adminAudit,
+        clock,
+        emailSender,
+        onUserBanned: (userId) =>
+          gatewayHolder.current?.disconnectUser(userId, "Your account has been banned.")
+      })
+    : undefined;
+// Čata moderācija (Fāze 3.2): bloķēto vārdu filtrs + admin paziņojumi. Pieejama admin-spējīgai
+// glabātuvei ar adminAudit. Saraksts hidratēts no DB startā (zemāk, pirms apkalpošanas).
+const chatModeration =
+  isAdminStore(storage) && adminAudit
+    ? new ChatModerationService(storage, adminAudit, clock)
+    : undefined;
+// Bana pārbaužu adapteri izpildes ceļiem (login user-ban + IP-ban; WS handshake + upgrade).
+const banChecker = banService
+  ? async (userId: string) => toBanInfo(await banService.isUserBanned(userId))
+  : undefined;
+const ipBanInfo = banService
+  ? async (ip: string) => toBanInfo(await banService.isIpBanned(ip))
+  : undefined;
+const isUserBannedBool = banService
+  ? async (userId: string) => (await banService.isUserBanned(userId)) !== undefined
+  : undefined;
+const isIpBannedBool = banService
+  ? async (ip: string) => (await banService.isIpBanned(ip)) !== undefined
+  : undefined;
 const authService = isAuthStore(storage)
-  ? new AuthService({ store: storage, clock, emailSender, appBaseUrl: config.email.appBaseUrl })
+  ? new AuthService({
+      store: storage,
+      clock,
+      emailSender,
+      appBaseUrl: config.email.appBaseUrl,
+      banChecker
+    })
   : undefined;
 // Fāze 0: zelta monētu maks (virtuālā valūta). Gan SqliteStorage, gan PostgresStorage
 // implementē CoinStore. Anonīmā spēle to neizmanto. Starta bonuss + bilance.
@@ -95,12 +151,30 @@ const adminAuth =
         clock
       })
     : undefined;
-const adminAudit = isAdminStore(storage) ? new AdminAuditService(storage, clock) : undefined;
 // Admin spēlētāju lasīšanas serviss (Fāze 1): komponē meklēšanu/profilu/login-vēsturi no
 // AuthStore + AdminStore; bilance caur WalletService (repair-on-read, NE tiešs CoinStore).
 const adminPlayers =
   isAdminStore(storage) && isAuthStore(storage) && wallet
     ? new AdminPlayerService(storage, wallet)
+    : undefined;
+// Admin spēlētāju RAKSTĪŠANAS serviss (Fāze 2): konts/statistika/valūta/parole. Vajag arī
+// authService (paroles reset plūsma) + adminAudit (katra mutācija → audit servisa iekšienē).
+const adminPlayerWrites =
+  isAdminStore(storage) && isAuthStore(storage) && wallet && authService && adminAudit
+    ? new AdminPlayerWriteService(storage, wallet, authService, adminAudit, clock)
+    : undefined;
+// Admin analītika (Fāze 4A, read-only agregāti). `GeoipCountryResolver` (D4) konstruēts TIKAI ja
+// admin REĀLI iespējots (`adminAuth` truthy = parole + e-pasts + admin-store), NE tikai ja glabātuve
+// to atbalsta — citādi geoip-lite DB ielādētos boot-laikā arī ar atspējotu admin (Codex).
+const adminAnalytics =
+  adminAuth && isAdminStore(storage)
+    ? new AdminAnalyticsService(storage, clock, new GeoipCountryResolver())
+    : undefined;
+const adminGovernance =
+  isAdminStore(storage) && isAuthStore(storage) && isPlayerStatsStore(storage) && wallet && adminAudit
+    ? new AdminPlayerGovernanceService(storage, wallet, adminAudit, clock, (userId) =>
+        gatewayHolder.current?.disconnectUser(userId, "Your account has been deleted.")
+      )
     : undefined;
 // Fāze: padziļinātā spēlētāja statistika. Abas glabātuves implementē PlayerStatsStore.
 const playerStats = isPlayerStatsStore(storage)
@@ -218,7 +292,9 @@ const chat = new LobbyChat({
   // Cik čata ziņas paturēt atmiņā / ielādēt no DB startā (čats pārdzīvo restartu).
   historyLimit: config.chatHistoryLimit,
   // Fāze 10.3: pieņemtā ziņa → DB (fire-and-forget).
-  onMessage: (message) => persistence.chatMessage(message)
+  onMessage: (message) => persistence.chatMessage(message),
+  // Fāze 3.2: bloķēto vārdu filtrs (admin-rediģējams saraksts) → `****`.
+  ...(chatModeration ? { filterText: (text: string) => chatModeration.filter(text) } : {})
 });
 const chatTranslation =
   config.translation.enabled && config.translation.projectId !== undefined
@@ -240,6 +316,14 @@ try {
   chat.hydrate(await storage.loadRecentChatMessages(config.chatHistoryLimit));
 } catch (error) {
   console.error("[persistence] chat hydrate failed:", error);
+}
+// Fāze 3.2: ielādējam bloķēto vārdu sarakstu atmiņā (filtrs nedrīkst prasīt DB katrai ziņai).
+if (chatModeration) {
+  try {
+    await chatModeration.hydrate();
+  } catch (error) {
+    console.error("[chat-moderation] blocked words hydrate failed:", error);
+  }
 }
 // Produkcijā koalescējam LOBBY_STATE broadcastus, lai pie liela klientu
 // skaita (1000+) istabu izmaiņu plūsma neveidotu fanout pārslodzi.
@@ -270,8 +354,12 @@ const gateway = new WebSocketGateway({
           return { ...resolved, goldBalance: await wallet.getBalance(resolved.userId) };
         }
       }
-    : {})
+    : {}),
+  // Fāze 3.1, D1(c): banots autentificēts handshake → HARD reject (viena DB pārbaude uz handshake).
+  ...(isUserBannedBool ? { isUserBanned: isUserBannedBool } : {})
 });
+// Vēlu-saistīts: bana izpilde (disconnectUser) tagad var atrast dzīvās sesijas.
+gatewayHolder.current = gateway;
 await eventBus?.start((message) => {
   if (message.kind === "broadcast") {
     gateway.deliverRemoteBroadcast(message.event);
@@ -349,6 +437,8 @@ const server = createHealthHttpServer({
           clock,
           dev: config.nodeEnv !== "production",
           trustProxy: config.trustProxy,
+          // Fāze 3.1, D1: IP-bans → login 403 (konta banu pārbauda AuthService pirms token).
+          ...(ipBanInfo ? { isIpBanned: ipBanInfo } : {}),
           // Fāze 0.4: login mēģinājumu audits (admin panelis). Fire-and-forget; DB kļūda
           // nedrīkst lauzt login. Tikai ja glabātuve atbalsta admin (login_attempts tabula).
           ...(isAdminStore(storage)
@@ -400,12 +490,35 @@ const server = createHealthHttpServer({
       }
     : {}),
   // Admin panelis (`/admin/*`) — tikai ja admin iespējots (parole + e-pasts + admin-store).
-  ...(adminAuth && adminAudit && adminPlayers
+  ...(adminAuth &&
+  adminAudit &&
+  adminPlayers &&
+  adminPlayerWrites &&
+  banService &&
+  chatModeration &&
+  adminAnalytics &&
+  adminGovernance
     ? {
         adminHandler: createAdminHandler({
           adminAuth,
           audit: adminAudit,
           players: adminPlayers,
+          playerWrites: adminPlayerWrites,
+          bans: banService,
+          chatModeration,
+          // Fāze 3.2: admin paziņojums → LobbyChat.announce (vēsturē) + broadcast visiem.
+          onAnnounce: (text: string) => {
+            const message = chat.announce(text);
+            if (!message) {
+              return false;
+            }
+            gatewayHolder.current?.broadcast({ type: "CHAT_MESSAGE", ...message });
+            return true;
+          },
+          analytics: adminAnalytics,
+          governance: adminGovernance,
+          ...(leaderboard ? { leaderboard } : {}),
+          leaderboardConfig: { minGames: config.leaderboardMinGames, size: config.leaderboardSize },
           webOrigins: config.admin.webOrigins,
           clock,
           dev: config.nodeEnv !== "production",
@@ -438,7 +551,11 @@ const server = createHealthHttpServer({
     : {})
 });
 // Decision B: WebSocket uz tā paša HTTP servera/porta caur `upgrade`.
-attachWebSocketGateway(server, gateway);
+attachWebSocketGateway(server, gateway, {
+  // Fāze 3.1, D1(c/d): banots IP → noraidīts pie WS upgrade pirms socket pieņemšanas.
+  ...(isIpBannedBool ? { isIpBanned: isIpBannedBool } : {}),
+  trustProxy: config.trustProxy
+});
 
 server.listen(config.httpPort, config.serverHost, () => {
   console.log(

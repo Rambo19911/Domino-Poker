@@ -67,6 +67,12 @@ export interface WebSocketGatewayOptions {
   readonly slowClientBufferCap?: number;
   /** Opcionālā autentifikācija: ja dots, HELLO `authToken` tiek atrisināts. */
   readonly resolveAuth?: AuthResolver;
+  /**
+   * Bana pārbaude (Fāze 3.1, D1(c)): ja dots, autentificēts HELLO ar BANOTU userId tiek
+   * NORAIDĪTS (FORBIDDEN + close), NE pazemināts uz anonīmu. Viena DB pārbaude uz handshake
+   * (NE uz ziņu). `undefined` = banu nav (vai atspējots).
+   */
+  readonly isUserBanned?: (userId: string) => Promise<boolean>;
 }
 
 /**
@@ -91,6 +97,7 @@ export class WebSocketGateway implements GatewayHub {
   private readonly slowClientBufferCap: number;
   private readonly eventBus: ServerEventBus | undefined;
   private readonly resolveAuth: AuthResolver | undefined;
+  private readonly isUserBanned: ((userId: string) => Promise<boolean>) | undefined;
 
   constructor(options: WebSocketGatewayOptions) {
     this.clock = options.clock;
@@ -100,6 +107,7 @@ export class WebSocketGateway implements GatewayHub {
     this.slowClientBufferCap = options.slowClientBufferCap ?? DEFAULT_SLOW_CLIENT_BUFFER_CAP;
     this.eventBus = options.eventBus;
     this.resolveAuth = options.resolveAuth;
+    this.isUserBanned = options.isUserBanned;
     this.sessions = new SessionManager({
       displayIds: options.displayIds,
       ...(options.createSessionId ? { createSessionId: options.createSessionId } : {}),
@@ -397,11 +405,65 @@ export class WebSocketGateway implements GatewayHub {
     );
     if (isPromiseLike(auth) || isPromiseLike(register)) {
       return Promise.all([Promise.resolve(auth), Promise.resolve(register)]).then(
-        ([resolvedAuth, resolvedRegister]) =>
-          this.completeHello(ctx, resolvedRegister, resolvedAuth)
+        async ([resolvedAuth, resolvedRegister]) => {
+          // D1(c): banots autentificēts handshake → HARD reject (NE klusais anonīms downgrade).
+          // Viena DB pārbaude uz handshake; tieši pirms WELCOME. ZINĀMS REZIDUĀLS (Codex,
+          // pieņemts viena-instance riskam): ja bans persistē STARP šo pārbaudi un identitātes
+          // piesaisti, `disconnectUser` var nepamanīt šo savienojumu un WELCOME aiziet. Logs ir
+          // mikrosekundes (viens event-loop); HTTP tokeni jau dzēsti, un jebkurš reconnect tiek
+          // noraidīts. Pilna aizvēršana prasītu in-memory deny-set vai post-attach re-pārbaudi.
+          if (
+            resolvedAuth &&
+            this.isUserBanned !== undefined &&
+            (await this.isUserBanned(resolvedAuth.userId))
+          ) {
+            this.rejectBannedHandshake(ctx, resolvedRegister);
+            return;
+          }
+          this.completeHello(ctx, resolvedRegister, resolvedAuth);
+        }
       );
     }
     this.completeHello(ctx, register, undefined);
+  }
+
+  /**
+   * Noraida banotu autentificētu handshake (D1(c)): nosūta FORBIDDEN, aizver socketu un
+   * atritina jau izveidoto sesijas reģistrāciju (lai nepaliek zombie sesija). Ja savienojums
+   * jau aizvērās async pārbaudes laikā, tikai iztīra reģistrāciju.
+   */
+  private rejectBannedHandshake(ctx: ConnectionContext, result: RegisterResult): void {
+    if (this.contexts.get(ctx.conn.id) !== ctx || ctx.state !== "connected") {
+      if (result.ok) {
+        this.cleanupAbortedHandshake(ctx, result);
+      }
+      return;
+    }
+    ctx.conn.send(errorEvent("FORBIDDEN", "This account is banned."));
+    ctx.state = "disconnected";
+    ctx.conn.close(GATEWAY_CLOSE.sessionRejected, "banned");
+    if (result.ok) {
+      this.cleanupAbortedHandshake(ctx, result);
+    }
+  }
+
+  /**
+   * Atvieno visas dotā banotā lietotāja aktīvās WS sesijas (Fāze 3.1, D1(b) izpilde). Izsauc
+   * `BanService` pēc bana saglabāšanas (push, NE poll). Kombinēts ar handshake pārbaudi un
+   * auth tokenu atsaukšanu, banots konts nevar palikt autentificēts.
+   */
+  disconnectUser(userId: string, reason: string): void {
+    for (const ctx of [...this.contexts.values()]) {
+      if (ctx.state === "connected" && ctx.identity?.userId === userId) {
+        ctx.conn.send(errorEvent("FORBIDDEN", reason));
+        this.teardown(ctx, {
+          closeSocket: true,
+          code: GATEWAY_CLOSE.sessionRejected,
+          reason: "banned",
+          suppressDisconnectedIdentity: true
+        });
+      }
+    }
   }
 
   private completeHello(

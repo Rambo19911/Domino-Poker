@@ -3,7 +3,8 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { GAME_LANGUAGES } from "@domino-poker/shared";
 import { z } from "zod";
 
-import type { AuthService } from "../auth/AuthService.js";
+import { emailField, passwordField, usernameField } from "../auth/authFields.js";
+import type { AuthService, BanInfo } from "../auth/AuthService.js";
 import type { LeaderboardService } from "../leaderboard/LeaderboardService.js";
 import type { WalletService } from "../wallet/WalletService.js";
 import { applyCors, bearerToken, clientIp, writeJson } from "./httpUtils.js";
@@ -21,19 +22,8 @@ import { RateLimiter } from "./rateLimiter.js";
  * renderēti tikai kā teksts (klients) — šeit netiek atdots HTML.
  */
 
-const usernameField = z
-  .string()
-  .trim()
-  .min(3)
-  .max(20)
-  .regex(/^[A-Za-z0-9_-]+$/u);
-const passwordField = z.string().min(8).max(200);
-const emailField = z
-  .string()
-  .trim()
-  .min(3)
-  .max(254)
-  .regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/u);
+// Konta lauku shēmas (username/email/password) dzīvo `auth/authFields.ts` — viens avots,
+// koplietots ar admin paneļa konta rediģēšanu (Fāze 2.1), lai noteikumi neizšķirtos.
 
 const registerSchema = z.object({
   username: usernameField,
@@ -92,6 +82,12 @@ export interface AuthRoutesOptions {
    * forget (kļūda nedrīkst lauzt login). Injicē `index.ts`, ja glabātuve atbalsta admin.
    */
   readonly onLoginAttempt?: ((attempt: LoginAttemptInfo) => void) | undefined;
+  /**
+   * Opcionāla IP-bana pārbaude (Fāze 3.1, D1). Izsaukta login SĀKUMĀ (ir IP) → banots IP
+   * saņem 403 pirms paroles apstrādes. Konta (user) banu pārbauda `AuthService.login`
+   * (pirms token izdošanas). Injicē `index.ts`, ja bani konfigurēti.
+   */
+  readonly isIpBanned?: ((ip: string) => Promise<BanInfo | undefined>) | undefined;
 }
 
 /** Viena login mēģinājuma fakts audita reģistrēšanai (`login_attempts`). */
@@ -156,7 +152,8 @@ export function createAuthHandler(options: AuthRoutesOptions): AuthHandler {
           loginIpLimiter,
           loginUserLimiter,
           options.trustProxy,
-          options.onLoginAttempt
+          options.onLoginAttempt,
+          options.isIpBanned
         );
       } else if (request.method === "GET" && path === "/auth/me") {
         await handleMe(request, response, options.auth, options.leaderboard, options.wallet);
@@ -252,12 +249,21 @@ async function handleLogin(
   ipLimiter: RateLimiter,
   userLimiter: RateLimiter,
   trustProxy: boolean,
-  onLoginAttempt: ((attempt: LoginAttemptInfo) => void) | undefined
+  onLoginAttempt: ((attempt: LoginAttemptInfo) => void) | undefined,
+  isIpBanned: ((ip: string) => Promise<BanInfo | undefined>) | undefined
 ): Promise<void> {
   const ip = clientIp(request, trustProxy);
   if (!ipLimiter.check(ip)) {
     writeJson(response, 429, { error: "rate_limited" });
     return;
+  }
+  // IP-bans (Fāze 3.1, D1): banots IP → 403 pirms paroles apstrādes.
+  if (isIpBanned) {
+    const ipBan = await isIpBanned(ip);
+    if (ipBan) {
+      writeJson(response, 403, banPayload(ipBan));
+      return;
+    }
   }
   const body = await readJsonBody(request);
   if (!body.ok) {
@@ -290,10 +296,40 @@ async function handleLogin(
     success: result.ok
   });
   if (!result.ok) {
+    if (result.error === "banned") {
+      // Banots konts (parole bija pareiza) → 403 ar iemeslu/ilgumu; tokens NETIKA izsniegts.
+      writeJson(response, 403, banPayload(result.ban));
+      return;
+    }
     writeJson(response, 401, { error: "invalid_credentials" });
     return;
   }
+  // ATKĀRTOTA IP-bana pārbaude pēc veiksmes (Codex): ja IP tika banots STARP sākotnējo pārbaudi
+  // un token izdošanu, atsaucam tikko izdoto tokenu un atbildam 403 (aizver IP-ban↔login sacensību).
+  if (isIpBanned) {
+    const ipBan = await isIpBanned(ip);
+    if (ipBan) {
+      await auth.logout(result.token);
+      writeJson(response, 403, banPayload(ipBan));
+      return;
+    }
+  }
   writeJson(response, 200, { token: result.token, user: result.user });
+}
+
+/** Bana 403 atbildes ķermenis (iemesls + ilgums + beigu laiks; nav noslēpumu). */
+function banPayload(ban: BanInfo): {
+  error: "banned";
+  reason: string;
+  durationLabel: string;
+  until: number | null;
+} {
+  return {
+    error: "banned",
+    reason: ban.reason,
+    durationLabel: ban.durationLabel,
+    until: ban.expiresAt ?? null
+  };
 }
 
 async function handleMe(

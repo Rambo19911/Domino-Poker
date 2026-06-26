@@ -30,6 +30,11 @@ export interface EmailSender {
    * koda admin nevar pieslēgties, tāpēc kļūme jāatklāj).
    */
   sendAdminLoginCode(to: string, code: string): Promise<void>;
+  /**
+   * Nosūta bana paziņojumu spēlētājam ar iemeslu + ilgumu (Fāze 3.1, D1). Divvalodu
+   * (`locale`). Best-effort: izsaucējs ķer kļūdu (bana izpilde nedrīkst atkarīga no e-pasta).
+   */
+  sendBanNotice(to: string, reason: string, durationLabel: string, locale: EmailLocale): Promise<void>;
 }
 
 /** Admin 2FA OTP e-pasta saturs (tikai angļu — admin panelis ir ENG-only). */
@@ -39,6 +44,25 @@ const ADMIN_CODE_EMAIL = {
     `Your Domino Poker admin login code is:\n\n${code}\n\n` +
     `It is valid for 10 minutes and can be used once. ` +
     `If you did not try to sign in, ignore this email and rotate the admin password.`
+};
+
+/** Bana paziņojuma e-pasta saturs (subject + plain-text body) abās valodās. */
+const BAN_EMAIL: Record<
+  EmailLocale,
+  { readonly subject: string; readonly body: (reason: string, durationLabel: string) => string }
+> = {
+  lv: {
+    subject: "Domino Poker — konta bloķēšana",
+    body: (reason, durationLabel) =>
+      `Sveiki!\n\nTavs Domino Poker konts ir bloķēts.\n\nIlgums: ${durationLabel}\nIemesls: ${reason}\n\n` +
+      `Bloķēšanas laikā tu nevarēsi pieslēgties ar šo kontu. Ja uzskati, ka tā ir kļūda, atbildi uz šo e-pastu.`
+  },
+  en: {
+    subject: "Domino Poker — account ban",
+    body: (reason, durationLabel) =>
+      `Hello!\n\nYour Domino Poker account has been banned.\n\nDuration: ${durationLabel}\nReason: ${reason}\n\n` +
+      `While banned you cannot sign in with this account. If you believe this is a mistake, reply to this email.`
+  }
 };
 
 /** Paroles atjaunošanas e-pasta saturs (subject + plain-text body) abās valodās. */
@@ -97,6 +121,15 @@ export class ConsoleEmailSender implements EmailSender {
   async sendAdminLoginCode(to: string, code: string): Promise<void> {
     // Tikai dev: kods konsolē, lai var pieslēgties bez reāla e-pasta. Prod NEKAD šo senderi.
     console.log(`[email:dev] admin login code for ${to}: ${code}`);
+  }
+
+  async sendBanNotice(
+    to: string,
+    reason: string,
+    durationLabel: string,
+    locale: EmailLocale
+  ): Promise<void> {
+    console.log(`[email:dev] ban notice (${locale}) for ${to}: ${durationLabel} — ${reason}`);
   }
 }
 
@@ -172,6 +205,32 @@ export class ResendEmailSender implements EmailSender {
         to,
         subject: ADMIN_CODE_EMAIL.subject,
         text: ADMIN_CODE_EMAIL.body(code)
+      })
+    });
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      throw new Error(`Resend API error ${response.status}: ${detail.slice(0, 200)}`);
+    }
+  }
+
+  async sendBanNotice(
+    to: string,
+    reason: string,
+    durationLabel: string,
+    locale: EmailLocale
+  ): Promise<void> {
+    const content = BAN_EMAIL[locale];
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from: this.from,
+        to,
+        subject: content.subject,
+        text: content.body(reason, durationLabel)
       })
     });
     if (!response.ok) {

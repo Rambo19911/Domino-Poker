@@ -16,11 +16,13 @@
     "@domino-poker/core": "1.0.0",
     "@domino-poker/shared": "1.0.0",
     "@google-cloud/translate": "^9.4.1",
+    "geoip-lite": "^2.0.2",
     "pg": "8.21.0",
     "ws": "8.21.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@types/geoip-lite": "^1.4.4",
     "@types/node": "24.13.1",
     "@types/pg": "8.20.0",
     "@types/ws": "^8.18.1",

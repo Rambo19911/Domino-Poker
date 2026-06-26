@@ -166,6 +166,32 @@ export class WalletService {
     return result.ok ? result.balance : this.coins.getBalance(userId);
   }
 
+  /**
+   * Admin manuāla bilances korekcija (Fāze 2.3, sadaļa 11). Atomiski piemēro `delta`
+   * (+ piešķiršana / − samazināšana) ar `minBalance: 0` (bilance NEDRĪKST kļūt negatīva →
+   * `{ ok:false, reason:"insufficient" }`). Idempotents pēc `adjustmentId` (vienreizēja
+   * korekcijas atslēga = ledger `ref`): atkārtots SŪTĪJUMS ar to PAŠU id (tīkla retry /
+   * dubultklikšķis) ir drošs no-op (`applied:false`), bet JAUNS nodoms prasa JAUNU id.
+   * `applied` ļauj izsaucējam auditēt TIKAI reālu izmaiņu (NE idempotentu atkārtojumu — Codex).
+   * Iemeslu (`admin_adjust`) enforcē TS tips; cilvēklasāmo pamatojumu glabā audit slānis.
+   */
+  async adminAdjust(
+    userId: string,
+    adjustmentId: string,
+    delta: number
+  ): Promise<{ ok: true; applied: boolean; balance: number } | { ok: false; reason: "insufficient" }> {
+    const result = await this.coins.applyLedger({
+      id: this.createId(),
+      userId,
+      delta,
+      reason: "admin_adjust",
+      ref: adjustmentId,
+      minBalance: 0,
+      now: this.clock()
+    });
+    return result.ok ? { ok: true, applied: result.applied, balance: result.balance } : result;
+  }
+
   /** Kopā SP balvās nopelnītās monētas pēdējās 24h (dienas griestu pārbaudei). */
   async spRewardLast24h(userId: string, now: number): Promise<number> {
     return this.coins.sumLedgerSince(userId, "sp_reward", now - 24 * 60 * 60 * 1000);

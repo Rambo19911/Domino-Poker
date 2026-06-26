@@ -438,6 +438,373 @@ export function runStoragePortContract(label: string, setup: ContractSetup): voi
         });
         expect(ok).toEqual({ ok: true, applied: true, balance: 60 });
       });
+
+      it("accepts the admin_adjust reason after 0010 dropped the coin_ledger reason CHECK (D6)", async () => {
+        // Pierāda, ka migrācija 0010 noņēma `reason` CHECK enum ABOS dialektos — citādi
+        // `admin_adjust` insert mestu CHECK pārkāpumu. (Iemeslu tagad enforcē TS domēna slānis.)
+        const credit = await storage.applyLedger({
+          id: "a1",
+          userId: "user-1",
+          delta: 250,
+          reason: "admin_adjust",
+          ref: "adj-1",
+          now: 100
+        });
+        expect(credit).toEqual({ ok: true, applied: true, balance: 250 });
+        // Idempotents pēc (user, admin_adjust, ref): atkārtots adj-1 = no-op.
+        const repeat = await storage.applyLedger({
+          id: "a2",
+          userId: "user-1",
+          delta: 250,
+          reason: "admin_adjust",
+          ref: "adj-1",
+          now: 200
+        });
+        expect(repeat).toEqual({ ok: true, applied: false, balance: 250 });
+        // minBalance sargs joprojām strādā uz admin debetu (bilance < 0 nedrīkst).
+        const overdraw = await storage.applyLedger({
+          id: "a3",
+          userId: "user-1",
+          delta: -1000,
+          reason: "admin_adjust",
+          ref: "adj-2",
+          minBalance: 0,
+          now: 300
+        });
+        expect(overdraw).toEqual({ ok: false, reason: "insufficient" });
+        expect(await storage.getBalance("user-1")).toBe(250);
+      });
+    });
+
+    describe("admin player writes (account, stats, credentials)", () => {
+      beforeEach(async () => {
+        expect(
+          await storage.createUser(
+            makeUser({ email: "old@example.com", emailNorm: "old@example.com" })
+          )
+        ).toBe("created");
+      });
+
+      it("updates account fields (display name, email, avatar) atomically", async () => {
+        const result = await storage.adminUpdateAccount("user-1", {
+          username: "NewName",
+          usernameNorm: "newname",
+          email: "new@example.com",
+          emailNorm: "new@example.com",
+          avatar: "avatar-3",
+          updatedAt: 2000
+        });
+        expect(result).toBe("updated");
+        const user = await storage.getUserById("user-1");
+        expect(user?.username).toBe("NewName");
+        expect(user?.email).toBe("new@example.com");
+        expect(user?.avatar).toBe("avatar-3");
+      });
+
+      it("deletes the orphan custom avatar blob when admin switches to a preset", async () => {
+        await storage.setUserAvatar({
+          userId: "user-1",
+          contentType: "image/png",
+          bytes: new Uint8Array([1, 2, 3]),
+          updatedAt: 1500
+        });
+        expect(await storage.getUserAvatar("user-1")).toBeDefined();
+        // Admin pārslēdz uz preset → blob jādzēš (citādi hasCustomAvatar paliek true).
+        await storage.adminUpdateAccount("user-1", {
+          username: "Rihards",
+          usernameNorm: "rihards",
+          email: undefined,
+          emailNorm: undefined,
+          avatar: "avatar-5",
+          updatedAt: 2500
+        });
+        expect(await storage.getUserAvatar("user-1")).toBeUndefined();
+      });
+
+      it("keeps the custom avatar blob when admin update leaves avatar = 'custom'", async () => {
+        await storage.setUserAvatar({
+          userId: "user-1",
+          contentType: "image/png",
+          bytes: new Uint8Array([9, 9]),
+          updatedAt: 1500
+        });
+        await storage.adminUpdateAccount("user-1", {
+          username: "Renamed",
+          usernameNorm: "renamed",
+          email: undefined,
+          emailNorm: undefined,
+          avatar: "custom",
+          updatedAt: 2500
+        });
+        expect(await storage.getUserAvatar("user-1")).toBeDefined();
+      });
+
+      it("reports conflict when the new username collides with another account", async () => {
+        await storage.createUser(
+          makeUser({ id: "user-2", username: "Taken", usernameNorm: "taken" })
+        );
+        const result = await storage.adminUpdateAccount("user-1", {
+          username: "Taken",
+          usernameNorm: "taken",
+          email: "old@example.com",
+          emailNorm: "old@example.com",
+          avatar: "default",
+          updatedAt: 2000
+        });
+        expect(result).toBe("conflict");
+      });
+
+      it("reports not_found for an unknown account", async () => {
+        const result = await storage.adminUpdateAccount("ghost", {
+          username: "X",
+          usernameNorm: "x",
+          email: undefined,
+          emailNorm: undefined,
+          avatar: "default",
+          updatedAt: 2000
+        });
+        expect(result).toBe("not_found");
+      });
+
+      it("sets the user_stats aggregate (overwrite, not increment) and upserts when missing", async () => {
+        await storage.adminSetUserStats("user-1", { gamesPlayed: 5, wins: 3, losses: 2 }, 1000);
+        expect(await storage.getUserStats("user-1")).toMatchObject({
+          gamesPlayed: 5,
+          wins: 3,
+          losses: 2
+        });
+        // Otrā korekcija PĀRRAKSTA (NE inkrements).
+        await storage.adminSetUserStats("user-1", { gamesPlayed: 10, wins: 7, losses: 3 }, 2000);
+        expect(await storage.getUserStats("user-1")).toMatchObject({
+          gamesPlayed: 10,
+          wins: 7,
+          losses: 3
+        });
+      });
+
+      it("invalidates credentials: changes the password hash and revokes all auth tokens", async () => {
+        await storage.createAuthToken({
+          tokenHash: hex("t"),
+          userId: "user-1",
+          createdAt: 100,
+          lastUsedAt: 100,
+          expiresAt: 9_000_000
+        });
+        await storage.adminInvalidateCredentials("user-1", "scrypt$brand-new", 3000);
+        const user = await storage.getUserById("user-1");
+        expect(user?.passwordHash).toBe("scrypt$brand-new");
+        // Visas sesijas atsauktas (piespiedu izlogošana).
+        expect(await storage.getAuthToken(hex("t"))).toBeUndefined();
+      });
+    });
+
+    describe("bans (Phase 3.1)", () => {
+      beforeEach(async () => {
+        expect(await storage.createUser(makeUser())).toBe("created");
+      });
+
+      function banRecord(over: Partial<Parameters<ContractStorage["createBan"]>[0]> = {}) {
+        return {
+          id: "ban-1",
+          userId: "user-1",
+          ip: undefined,
+          reason: "cheating",
+          kind: "permanent" as const,
+          durationLabel: "Permanent",
+          expiresAt: undefined,
+          createdAt: 1000,
+          revokedAt: undefined,
+          createdBy: "admin",
+          ...over
+        };
+      }
+
+      it("creates and reads a ban back by id", async () => {
+        await storage.createBan(banRecord());
+        const ban = await storage.getBanById("ban-1");
+        expect(ban).toMatchObject({ id: "ban-1", userId: "user-1", kind: "permanent", reason: "cheating" });
+      });
+
+      it("finds an active permanent user ban and stops finding it after revoke", async () => {
+        await storage.createBan(banRecord());
+        expect(await storage.findActiveUserBan("user-1", 5000)).toMatchObject({ id: "ban-1" });
+        // Atsaukšana → vairs nav aktīvs; idempotents (otrā revoke → false).
+        expect(await storage.revokeBan("ban-1", 6000)).toBe(true);
+        expect(await storage.revokeBan("ban-1", 7000)).toBe(false);
+        expect(await storage.findActiveUserBan("user-1", 8000)).toBeUndefined();
+      });
+
+      it("treats a temporary ban as active only before expiry", async () => {
+        await storage.createBan(
+          banRecord({ id: "ban-t", kind: "temporary", durationLabel: "7 days", expiresAt: 10_000 })
+        );
+        expect(await storage.findActiveUserBan("user-1", 9_999)).toMatchObject({ id: "ban-t" });
+        // Tieši pēc beigām → vairs nav aktīvs (auto-beidzas, owner D1 lēmums).
+        expect(await storage.findActiveUserBan("user-1", 10_001)).toBeUndefined();
+        // Revoke uz JAU-beigušos banu → false (not_active; tikai aktīvus var atsaukt — Codex).
+        expect(await storage.revokeBan("ban-t", 10_002)).toBe(false);
+      });
+
+      it("finds an active ip ban (user_id NULL)", async () => {
+        await storage.createBan(
+          banRecord({ id: "ban-ip", userId: undefined, ip: "9.9.9.9" })
+        );
+        expect(await storage.findActiveIpBan("9.9.9.9", 5000)).toMatchObject({ id: "ban-ip", ip: "9.9.9.9" });
+        expect(await storage.findActiveIpBan("1.2.3.4", 5000)).toBeUndefined();
+      });
+
+      it("lists bans newest-first incl. revoked", async () => {
+        await storage.createBan(banRecord({ id: "b1", createdAt: 1000 }));
+        await storage.createBan(banRecord({ id: "b2", createdAt: 3000, userId: undefined, ip: "8.8.8.8" }));
+        const bans = await storage.listBans(10, 0);
+        expect(bans.map((b) => b.id)).toEqual(["b2", "b1"]);
+      });
+
+      it("deletes all of a user's auth tokens (ban → forced HTTP logout)", async () => {
+        await storage.createAuthToken({
+          tokenHash: hex("a"), userId: "user-1", createdAt: 1, lastUsedAt: 1, expiresAt: 9_000_000
+        });
+        await storage.createAuthToken({
+          tokenHash: hex("b"), userId: "user-1", createdAt: 1, lastUsedAt: 1, expiresAt: 9_000_000
+        });
+        await storage.deleteUserAuthTokens("user-1");
+        expect(await storage.getAuthToken(hex("a"))).toBeUndefined();
+        expect(await storage.getAuthToken(hex("b"))).toBeUndefined();
+      });
+    });
+
+    describe("analytics + governance (Phase 4)", () => {
+      it("computes overview aggregates over users / logins / coins", async () => {
+        await storage.createUser(makeUser({ id: "u-old", username: "Old", usernameNorm: "old", createdAt: 1000 }));
+        await storage.createUser(makeUser({ id: "u-new", username: "New", usernameNorm: "new", createdAt: 50_000 }));
+        await storage.appendLoginAttempt({
+          id: "la-1", userId: "u-new", usernameTried: "New", source: "password", success: true, createdAt: 50_000
+        });
+        await storage.appendLoginAttempt({
+          id: "la-2", userId: "u-new", usernameTried: "New", source: "password", success: true, createdAt: 50_001
+        });
+        await storage.applyLedger({ id: "c1", userId: "u-old", delta: 5000, reason: "signup", ref: "u-old", now: 1 });
+        expect(await storage.countUsers()).toBe(2);
+        expect(await storage.countNewUsers(40_000)).toBe(1); // tikai u-new
+        // Atšķirīgi aktīvie konti (2 login no u-new → 1 atšķirīgs lietotājs).
+        expect(await storage.countActiveUsers(40_000)).toBe(1);
+        expect(await storage.sumCoinBalances()).toBe(5000);
+        expect(await storage.countActiveBans(99_999)).toBe(0);
+        const regs = await storage.dailyRegistrations(0);
+        expect(regs.reduce((a, b) => a + b.count, 0)).toBe(2);
+      });
+
+      it("segments: new / inactive / suspicious", async () => {
+        await storage.createUser(makeUser({ id: "u-1", username: "Fresh", usernameNorm: "fresh", createdAt: 90_000 }));
+        await storage.createUser(makeUser({ id: "u-2", username: "Ghost", usernameNorm: "ghost", createdAt: 1000 }));
+        // u-2 daudz neveiksmīgu login → aizdomīgs; u-2 nav veiksmīga login → neaktīvs.
+        for (let i = 0; i < 6; i += 1) {
+          await storage.appendLoginAttempt({
+            id: `f-${i}`, userId: "u-2", usernameTried: "Ghost", source: "password", success: false, createdAt: 80_000 + i
+          });
+        }
+        expect((await storage.listNewPlayers(50_000, 10)).map((p) => p.id)).toContain("u-1");
+        expect((await storage.listInactivePlayers(50_000, 10)).map((p) => p.id)).toEqual(
+          expect.arrayContaining(["u-1", "u-2"])
+        );
+        const susp = await storage.listSuspiciousPlayers(50_000, 5, 10);
+        expect(susp.find((p) => p.id === "u-2")?.failedAttempts).toBe(6);
+      });
+
+      it("geo/platform segments: distinct (user,ip) + (user,ua) pairs for successful logins only", async () => {
+        await storage.createUser(makeUser({ id: "u-a", username: "A", usernameNorm: "a", createdAt: 1000 }));
+        await storage.createUser(makeUser({ id: "u-b", username: "B", usernameNorm: "b", createdAt: 1000 }));
+        // u-a: 3 veiksmīgi login no 2 IP ar to pašu UA — DISTINCT dod 2 IP pārus + 1 UA pāri.
+        await storage.appendLoginAttempt({ id: "g1", userId: "u-a", usernameTried: "A", ip: "8.8.8.8", userAgent: "M-UA", source: "password", success: true, createdAt: 50_000 });
+        await storage.appendLoginAttempt({ id: "g2", userId: "u-a", usernameTried: "A", ip: "8.8.4.4", userAgent: "M-UA", source: "password", success: true, createdAt: 50_001 });
+        await storage.appendLoginAttempt({ id: "g3", userId: "u-a", usernameTried: "A", ip: "8.8.8.8", userAgent: "M-UA", source: "password", success: true, createdAt: 50_002 });
+        // u-b: viens veiksmīgs login BEZ UA (NULL spainis).
+        await storage.appendLoginAttempt({ id: "g4", userId: "u-b", usernameTried: "B", ip: "1.1.1.1", source: "password", success: true, createdAt: 50_003 });
+        // Neveiksmīgs login — NEDRĪKST parādīties.
+        await storage.appendLoginAttempt({ id: "g5", userId: "u-b", usernameTried: "B", ip: "2.2.2.2", userAgent: "X", source: "password", success: false, createdAt: 50_004 });
+        // Pirms loga — izslēgts.
+        await storage.appendLoginAttempt({ id: "g6", userId: "u-a", usernameTried: "A", ip: "9.9.9.9", source: "password", success: true, createdAt: 40_000 });
+
+        const ips = await storage.successfulLoginUserIps(50_000, 1000);
+        expect(ips.map((r) => `${r.userId}|${r.ip}`).sort()).toEqual(["u-a|8.8.4.4", "u-a|8.8.8.8", "u-b|1.1.1.1"]);
+
+        const uas = await storage.successfulLoginUserAgents(50_000, 1000);
+        expect(uas.map((r) => `${r.userId}|${r.userAgent ?? "∅"}`).sort()).toEqual(["u-a|M-UA", "u-b|∅"]);
+      });
+
+      it("exports full per-user data (no limit) for ledger / logins / bans", async () => {
+        await storage.createUser(makeUser());
+        await storage.applyLedger({ id: "l1", userId: "user-1", delta: 5000, reason: "signup", ref: "user-1", now: 1 });
+        await storage.applyLedger({ id: "l2", userId: "user-1", delta: -100, reason: "mp_entry", ref: "e1", now: 2 });
+        await storage.appendLoginAttempt({
+          id: "la", userId: "user-1", usernameTried: "Rihards", source: "password", success: true, createdAt: 5
+        });
+        await storage.createBan({
+          id: "b", userId: "user-1", reason: "x", kind: "permanent", durationLabel: "Permanent", createdAt: 3, createdBy: "admin"
+        });
+        expect(await storage.exportUserLedger("user-1")).toHaveLength(2);
+        expect(await storage.exportUserLoginHistory("user-1")).toHaveLength(1);
+        expect(await storage.exportUserBans("user-1")).toHaveLength(1);
+      });
+
+      it("anonymizeUserInMatches removes userId+clientId (keeps replay fields, idempotent, others untouched)", async () => {
+        await storage.createUser(makeUser());
+        await storage.saveMatchStarted({
+          matchId: "m-1",
+          seed: "s",
+          numberOfRounds: 7,
+          players: [
+            { seatIndex: 0, corePlayerId: "1", kind: "human", clientId: "c-1", displayId: "P-100", userId: "user-1" },
+            { seatIndex: 1, corePlayerId: "2", kind: "human", clientId: "c-2", displayId: "P-200", userId: "other" }
+          ],
+          startedAt: 1000
+        });
+        expect(await storage.anonymizeUserInMatches("user-1")).toBe(1);
+        const loaded = await storage.loadUnfinishedMatch("m-1");
+        const seats = loaded!.match.players;
+        const mine = seats.find((s) => s.corePlayerId === "1")!;
+        // userId + clientId DZĒSTI (undefined, NE null) — replay lauki saglabāti.
+        expect(mine.userId).toBeUndefined();
+        expect(mine.clientId).toBeUndefined();
+        expect(mine.displayId).toBe("P-100");
+        expect(mine.seatIndex).toBe(0);
+        // Cita spēlētāja sēdvieta NETIEK aiztikta.
+        expect(seats.find((s) => s.corePlayerId === "2")!.userId).toBe("other");
+        // Idempotents: atkārtots → 0.
+        expect(await storage.anonymizeUserInMatches("user-1")).toBe(0);
+      });
+
+      it("hardDeleteUser cascades dependents but keeps login_attempts (user_id → NULL)", async () => {
+        await storage.createUser(makeUser());
+        await storage.applyLedger({ id: "l1", userId: "user-1", delta: 5000, reason: "signup", ref: "user-1", now: 1 });
+        await storage.createBan({
+          id: "b", userId: "user-1", reason: "x", kind: "permanent", durationLabel: "Permanent", createdAt: 1, createdBy: "admin"
+        });
+        await storage.appendLoginAttempt({
+          id: "la", userId: "user-1", usernameTried: "Rihards", source: "password", success: true, createdAt: 5
+        });
+        expect(await storage.hardDeleteUser("user-1")).toBe(true);
+        // Konts + FK CASCADE rindas pazudušas.
+        expect(await storage.getUserById("user-1")).toBeUndefined();
+        expect(await storage.getBalance("user-1")).toBe(0);
+        expect(await storage.exportUserBans("user-1")).toEqual([]);
+        // login_attempts rinda PALIEK (SET NULL): vairs nesaista uz user-1, bet skaitās globāli.
+        expect(await storage.exportUserLoginHistory("user-1")).toEqual([]);
+        expect((await storage.dailyLogins(0)).reduce((a, b) => a + b.count, 0)).toBe(1);
+        // Atkārtots hard-delete uz neesošu → false.
+        expect(await storage.hardDeleteUser("user-1")).toBe(false);
+      });
+    });
+
+    describe("chat blocked words (Phase 3.2)", () => {
+      it("adds (idempotently), lists sorted, and removes blocked words", async () => {
+        await storage.addBlockedWord("zeta", 100);
+        await storage.addBlockedWord("alpha", 200);
+        await storage.addBlockedWord("alpha", 300); // idempotents (PK)
+        expect(await storage.listBlockedWords()).toEqual(["alpha", "zeta"]);
+        await storage.removeBlockedWord("alpha");
+        expect(await storage.listBlockedWords()).toEqual(["zeta"]);
+      });
     });
 
     describe("admin store (sessions, OTP, audit, login attempts)", () => {

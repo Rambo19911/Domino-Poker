@@ -201,6 +201,47 @@ describe("SqliteStorage persistence across reopen", () => {
     expect(recent.map((message) => message.id)).toEqual(["persisted-1", "persisted-2"]);
     await second.close();
   });
+
+  it("hardDeleteUser anonymizes the user's login_attempts PII (D5) while keeping the row", async () => {
+    const storage = new SqliteStorage({ filename: tmpFile });
+    await storage.createUser({
+      id: "del-1",
+      username: "Victim",
+      usernameNorm: "victim",
+      email: undefined,
+      emailNorm: undefined,
+      passwordHash: "scrypt$x",
+      avatar: "default",
+      createdAt: 1,
+      updatedAt: 1
+    });
+    await storage.appendLoginAttempt({
+      id: "la-pii",
+      userId: "del-1",
+      usernameTried: "Victim",
+      ip: "203.0.113.9",
+      userAgent: "Mozilla/PII",
+      source: "password",
+      success: true,
+      createdAt: 5
+    });
+    expect(await storage.hardDeleteUser("del-1")).toBe(true);
+    await storage.close();
+
+    // Raw lasījums: login_attempts rinda PALIEK, bet visa identitāte ir anonimizēta.
+    const db = new DatabaseSync(tmpFile);
+    const row = db.prepare(`SELECT user_id, username_tried, ip, user_agent FROM login_attempts WHERE id = ?`).get("la-pii") as {
+      user_id: string | null;
+      username_tried: string;
+      ip: string | null;
+      user_agent: string | null;
+    };
+    db.close();
+    expect(row.user_id).toBeNull();
+    expect(row.username_tried).toBe("[deleted]");
+    expect(row.ip).toBeNull();
+    expect(row.user_agent).toBeNull();
+  });
 });
 
 describe("SqliteStorage schema version tracking", () => {
@@ -235,12 +276,15 @@ describe("SqliteStorage schema version tracking", () => {
       "0006_user_preferences",
       "0007_coin_wallet",
       "0008_player_game_results",
-      "0009_admin"
+      "0009_admin",
+      "0010_coin_ledger_open_reason",
+      "0011_bans",
+      "0012_chat_blocked_words"
     ]);
 
     // Reopen: nepiemēro neko atkārtoti (joprojām tieši tās pašas rindas).
     const second = new SqliteStorage({ filename: tmpFile });
     await second.close();
-    expect(recordedMigrations()).toHaveLength(9);
+    expect(recordedMigrations()).toHaveLength(12);
   });
 });

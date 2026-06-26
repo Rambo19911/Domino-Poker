@@ -135,3 +135,31 @@ describe("LobbyChat persistence hooks (10.3)", () => {
     expect(chat.history()).toHaveLength(1); // ziņa joprojām pieņemta lokāli
   });
 });
+
+describe("LobbyChat moderation (Phase 3.2)", () => {
+  const stripBad = (text: string): string => text.replace(/bad/giu, "****");
+
+  it("applies the blocked-word filter to submitted messages", () => {
+    const chat = new LobbyChat({ clock: () => 0, createMessageId: () => "m1", filterText: stripBad });
+    const result = chat.submit("p1", "#11111", "you are bad");
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.message.text).toBe("you are ****");
+    }
+  });
+
+  it("announce adds an Admin-authored message (no rate limit, no filter)", () => {
+    const chat = new LobbyChat({ clock: () => 5, createMessageId: () => "a1", filterText: stripBad });
+    const msg = chat.announce("restart soon — bad word stays");
+    expect(msg?.authorDisplayId).toBe("Admin");
+    // Paziņojums NETIEK filtrēts.
+    expect(msg?.text).toContain("bad");
+    expect(chat.history().map((m) => m.id)).toContain("a1");
+  });
+
+  it("announce rejects empty or oversize text", () => {
+    const chat = new LobbyChat({ clock: () => 0, createMessageId: () => "x", maxLength: 5 });
+    expect(chat.announce("   ")).toBeUndefined();
+    expect(chat.announce("toolong")).toBeUndefined();
+  });
+});

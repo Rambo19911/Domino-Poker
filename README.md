@@ -193,7 +193,7 @@ Screenshots      Public README screenshots
 
 ### Prerequisites
 
-- **Node.js 22.5+** (the default SQLite storage uses the built-in `node:sqlite`; Node 24 recommended and pinned in `.nvmrc`/`.node-version`)
+- **Node.js 24+** (pinned in `.nvmrc`/`.node-version`; required by `geoip-lite`, and the default SQLite storage uses the built-in `node:sqlite` which needs Node 22.5+)
 - **npm**
 - Optional: **PostgreSQL** if `DATABASE_URL` is a `postgres://` or `postgresql://` URL.
 

@@ -3,12 +3,21 @@ import type { IncomingMessage, Server } from "node:http";
 import { WebSocketServer } from "ws";
 import type { RawData, WebSocket } from "ws";
 
+import { clientIp } from "../http/httpUtils.js";
 import type { GatewayConnection } from "./GatewayConnection.js";
 import type { WebSocketGateway } from "./WebSocketGateway.js";
 
 export interface AttachOptions {
   /** WebSocket ceļš uz HTTP servera (noklusējums `/ws`). */
   readonly path?: string;
+  /**
+   * IP-bana pārbaude (Fāze 3.1, D1(c/d)): ja dots, banots IP tiek noraidīts pie `upgrade`
+   * (`socket.destroy`) PIRMS socket pieņemšanas — bez gateway izmaksām. `trustProxy` nosaka,
+   * vai ticēt `X-Forwarded-For` (tā pati drošības robeža kā login). DB kļūme → fail-open
+   * (atļauj; user-ban handshake + login pārbaudes joprojām piemērojas).
+   */
+  readonly isIpBanned?: (ip: string) => Promise<boolean>;
+  readonly trustProxy?: boolean;
 }
 
 /**
@@ -33,6 +42,8 @@ export function attachWebSocketGateway(
   options: AttachOptions = {}
 ): WebSocketServer {
   const path = options.path ?? "/ws";
+  const isIpBanned = options.isIpBanned;
+  const trustProxy = options.trustProxy ?? false;
   const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_WS_PAYLOAD_BYTES });
 
   httpServer.on("upgrade", (request, socket, head) => {
@@ -47,9 +58,28 @@ export function attachWebSocketGateway(
       socket.destroy();
       return;
     }
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      wss.emit("connection", ws, request);
-    });
+    const accept = (): void => {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit("connection", ws, request);
+      });
+    };
+    if (isIpBanned === undefined) {
+      accept();
+      return;
+    }
+    // IP-bans (D1(c/d)): noraida banotu IP pirms socket pieņemšanas. DB kļūme → fail-open.
+    void isIpBanned(clientIp(request, trustProxy))
+      .then((banned) => {
+        if (banned) {
+          socket.destroy();
+        } else {
+          accept();
+        }
+      })
+      .catch((error: unknown) => {
+        console.error("[gateway] IP ban check failed (allowing connection):", error);
+        accept();
+      });
   });
 
   wss.on("connection", (ws: WebSocket, _request: IncomingMessage) => {

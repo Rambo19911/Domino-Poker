@@ -10,8 +10,19 @@
  * izsaukums (reconnect / race / atkārtots event) ir drošs no-op.
  */
 
-/** Naudas kustības iemesls (atbilst `coin_ledger.reason` CHECK enum). */
-export type LedgerReason = "signup" | "sp_reward" | "mp_entry" | "mp_refund" | "mp_payout";
+/**
+ * Naudas kustības iemesls. Pēc migrācijas `0010_coin_ledger_open_reason` (D6) DB vairs
+ * NEpiespiež `reason` ar CHECK enum — ŠIS TS union ir VIENĪGAIS autoritatīvais iemeslu
+ * avots, ko `WalletService` enforcē (domēna validācija). Jaunu iemeslu pievieno ŠEIT.
+ * `admin_adjust` = admin manuāla bilances korekcija (Fāze 2.3, idempotenta pēc `adjustmentId`).
+ */
+export type LedgerReason =
+  | "signup"
+  | "sp_reward"
+  | "mp_entry"
+  | "mp_refund"
+  | "mp_payout"
+  | "admin_adjust";
 
 /** Viena (idempotenta) naudas kustība, ko piemēro `applyLedger`. */
 export interface LedgerEntryInput {

@@ -22,6 +22,9 @@ class FakeEmailSender implements EmailSender {
   async sendAdminLoginCode(): Promise<void> {
     // Nelietots šajā testā.
   }
+  async sendBanNotice(): Promise<void> {
+    // Nelietots šajā testā.
+  }
 }
 
 /** Izvelk raw tokenu no reset linka (`.../#reset=<token>`). */

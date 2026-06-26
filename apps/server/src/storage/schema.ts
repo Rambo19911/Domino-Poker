@@ -385,6 +385,113 @@ function adminSchema(t: DialectTypes): string {
 }
 
 /**
+ * 0010: atver `coin_ledger.reason` ceļu admin korekcijām (sk. `docs/TODO/admin-panel-plan.md`,
+ * D6 + Fāze 2.3). NOŅEM `coin_ledger.reason` rigid CHECK enum; iemesls turpmāk tiek validēts
+ * DOMĒNA slānī ar autoritatīvu TS union (`CoinStore.LedgerReason`), ko `WalletService` enforcē —
+ * viens avots, tīrāks turpmākiem iemesliem (`admin_adjust` u.c.) bez shēmas migrācijas katram.
+ *
+ * **Dialekta atšķirība (vienīgā vieta shēmā, kur tehnika atšķiras, NE tikai tips):**
+ *   - PG: `ALTER TABLE ... DROP CONSTRAINT` viena statement (= viena implicītā transakcija).
+ *     Inline kolonnas CHECK nosaukumu PG ģenerē pati; NEpaļaujamies uz auto-nosaukumu —
+ *     atrodam to dinamiski `pg_constraint` (contype='c', def satur `reason`; PG pārraksta
+ *     `IN (...)` → `= ANY (ARRAY[...])`, tāpēc meklējam pēc `%reason%`, NE pēc `IN`). Idempotents
+ *     (nav → no-op), atomisks.
+ *   - SQLite: `node:sqlite` nav `DROP CONSTRAINT` → tabulas PĀRBŪVE. `migrate()` `exec` NAV
+ *     auto-transakcionāls, tāpēc pārbūve ir IETĪTA `BEGIN IMMEDIATE; ... COMMIT;` — tā ir
+ *     ATOMISKA (nav crash-redzama pusstāvokļa) un idempotenta (pēc pilnas veiksmes atkārtota
+ *     palaišana pārbūvē vēlreiz, saglabājot datus; `coin_ledger_rebuild` nekad nepaliek).
+ *     Saglabā `delta <> 0` CHECK + FK CASCADE + abus indeksus; noņem TIKAI `reason` CHECK.
+ *     `coin_ledger` ir bērns (referencē `users`); neviena tabula nereferencē `coin_ledger`,
+ *     tāpēc DROP+RENAME ar `foreign_keys=ON` ir drošs (nav parent-rename ref-rewrite — Codex).
+ * Loģiskais rezultāts IDENTISKS abiem dialektiem: `coin_ledger` bez `reason` CHECK.
+ */
+function coinLedgerOpenReasonSchema(t: DialectTypes, dialect: SchemaDialect): string {
+  if (dialect === "pg") {
+    return `
+  DO $$
+  DECLARE
+    cname text;
+  BEGIN
+    SELECT con.conname INTO cname
+    FROM pg_constraint con
+    WHERE con.conrelid = 'coin_ledger'::regclass
+      AND con.contype = 'c'
+      AND pg_get_constraintdef(con.oid) ILIKE '%reason%';
+    IF cname IS NOT NULL THEN
+      EXECUTE format('ALTER TABLE coin_ledger DROP CONSTRAINT %I', cname);
+    END IF;
+  END $$;
+`;
+  }
+  return `
+  BEGIN IMMEDIATE;
+  DROP TABLE IF EXISTS coin_ledger_rebuild;
+  CREATE TABLE coin_ledger_rebuild (
+    id         TEXT PRIMARY KEY,
+    user_id    TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    delta      INTEGER NOT NULL CHECK (delta <> 0),
+    reason     TEXT NOT NULL,
+    ref        TEXT NOT NULL,
+    created_at ${t.bigint} NOT NULL
+  );
+  INSERT INTO coin_ledger_rebuild (id, user_id, delta, reason, ref, created_at)
+    SELECT id, user_id, delta, reason, ref, created_at FROM coin_ledger;
+  DROP TABLE coin_ledger;
+  ALTER TABLE coin_ledger_rebuild RENAME TO coin_ledger;
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_coin_ledger_idem
+    ON coin_ledger (user_id, reason, ref);
+  CREATE INDEX IF NOT EXISTS idx_coin_ledger_user_id ON coin_ledger (user_id);
+  COMMIT;
+`;
+}
+
+/**
+ * 0011: bani (sk. `docs/TODO/admin-panel-plan.md`, Fāze 3.1, D1). Viens ieraksts uz banu;
+ * `user_id` (konta bans) UN/VAI `ip` (IP bans = papildsignāls). Tabulas-līmeņa CHECK
+ * `(user_id IS NOT NULL OR ip IS NOT NULL)` ir enforcement robežas invariants (Codex) — bans
+ * VIENMĒR mērķē vismaz vienu. `kind` permanent/temporary; `expires_at` NULL = permanent (D1 +
+ * īpašnieks: temporary auto-beidzas). `duration_label` = cilvēklasāms ilgums (UI + e-pasts).
+ * `revoked_at` NULL = aktīvs. AKTĪVS bans = `revoked_at IS NULL AND (kind='permanent' OR
+ * expires_at > now)`. `user_id` FK CASCADE (dzēsta konta bans līdz ar to nav vajadzīgs).
+ * Visas formas (CHECK IN, tabulas-līmeņa CHECK, FK CASCADE, t.bigint) jau lietotas 0001..0010 →
+ * identiskas abiem dialektiem.
+ */
+function bansSchema(t: DialectTypes): string {
+  return `
+  CREATE TABLE IF NOT EXISTS bans (
+    id             TEXT PRIMARY KEY,
+    user_id        TEXT REFERENCES users (id) ON DELETE CASCADE,
+    ip             TEXT,
+    reason         TEXT NOT NULL,
+    kind           TEXT NOT NULL CHECK (kind IN ('permanent', 'temporary')),
+    duration_label TEXT NOT NULL,
+    expires_at     ${t.bigint},
+    created_at     ${t.bigint} NOT NULL,
+    revoked_at     ${t.bigint},
+    created_by     TEXT NOT NULL,
+    CHECK (user_id IS NOT NULL OR ip IS NOT NULL)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_bans_user_id ON bans (user_id);
+  CREATE INDEX IF NOT EXISTS idx_bans_ip ON bans (ip);
+`;
+}
+
+/**
+ * 0012: čata moderācija (sk. `docs/TODO/admin-panel-plan.md`, Fāze 3.2). Admin-rediģējams
+ * bloķēto vārdu saraksts; `word` glabā NORMALIZĒTU (lowercase) kā PK (idempotents add). Serveris
+ * filtrē tos uz `****` `LobbyChat.submit`. Minimāls (Codex: nepārbūvēt visu moderāciju).
+ */
+function chatModerationSchema(t: DialectTypes): string {
+  return `
+  CREATE TABLE IF NOT EXISTS chat_blocked_words (
+    word       TEXT PRIMARY KEY,
+    created_at ${t.bigint} NOT NULL
+  );
+`;
+}
+
+/**
  * Renderē sakārtoto migrāciju sarakstu dotajam dialektam. ID un secība ir
  * STABILA un identiska abiem dialektiem (versionēšanas paritāte); atšķiras tikai
  * kolonnu tipi un PG-only tabulu klātbūtne (tikai 0001).
@@ -402,6 +509,9 @@ export function buildMigrations(dialect: SchemaDialect): readonly SchemaMigratio
     { id: "0006_user_preferences", up: userPreferencesSchema(t) },
     { id: "0007_coin_wallet", up: coinWalletSchema(t) },
     { id: "0008_player_game_results", up: playerGameResultsSchema(t) },
-    { id: "0009_admin", up: adminSchema(t) }
+    { id: "0009_admin", up: adminSchema(t) },
+    { id: "0010_coin_ledger_open_reason", up: coinLedgerOpenReasonSchema(t, dialect) },
+    { id: "0011_bans", up: bansSchema(t) },
+    { id: "0012_chat_blocked_words", up: chatModerationSchema(t) }
   ];
 }
