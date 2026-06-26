@@ -259,7 +259,7 @@ Registered-user bid accuracy + placement distributions (NOT a competitive leader
 
 ### Admin Panel (Game Manager)
 
-Separate admin portal (PlayFab/Azure style, reduced scope), English-only. Phases 0-4 are built (security spine, player read/write, bans + chat moderation, read-only analytics incl. D4 country/platform segments, governance export + hard-delete); only the D2 deploy (admin systemd + Caddy subdomain) remains. Full plan: `docs/TODO/admin-panel-plan.md` (local/ignored). Read these before touching the admin panel:
+Separate admin portal (PlayFab/Azure style, reduced scope), English-only. Phases 0-4 are built (security spine, player read/write, bans + chat moderation, read-only analytics incl. D4 country/platform segments, governance export + hard-delete); D2 deployed 2026-06-26: live at https://admin.domino-poker.com (DNS A admin->VPS, domino-admin systemd on 3001, Caddy subdomain routes /admin/* + /auth/avatar/* to the server; ADMIN_* in VPS .env; deploy.sh builds apps/admin + restarts domino-admin). Full plan: `docs/TODO/admin-panel-plan.md` (local/ignored). Read these before touching the admin panel:
 
 - server module: `apps/server/src/admin/AdminStore.ts` (storage capability), `AdminAuthService.ts` (password + OTP 2FA + sessions), `AdminAuditService.ts` (audit log), `adminRoutes.ts` (`/admin/*` + `requireAdmin` guard), `cookies.ts`
 - wiring: `apps/server/src/config.ts` (`AdminConfig`), `index.ts` (admin construction + `onLoginAttempt` → `login_attempts`), `httpServer.ts` (handler chain), `http/authRoutes.ts` (`onLoginAttempt` hook), `auth/EmailSender.ts` (`sendAdminLoginCode`), `auth/passwords.ts` (reused scrypt), `storage/schema.ts` (migration `0009_admin`), `storage/SqliteStorage.ts` + `PostgresStorage.ts` (AdminStore impl)
