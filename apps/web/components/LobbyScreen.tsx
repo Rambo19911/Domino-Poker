@@ -360,6 +360,19 @@ function AboutPanel({
           <dt>{t.licenseLabel}</dt>
           <dd>Apache License 2.0</dd>
         </div>
+        <div className="aboutMetaRow aboutMetaRowSupport">
+          <dt>Liberapay</dt>
+          <dd>
+            <a
+              href="https://liberapay.com/Rihards/donate"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="liberapayDonateLink"
+            >
+              <img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg" />
+            </a>
+          </dd>
+        </div>
       </dl>
 
       <ContactForm labels={t} locale={locale} />

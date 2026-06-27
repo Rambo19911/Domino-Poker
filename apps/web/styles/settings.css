@@ -213,7 +213,7 @@
   background: transparent;
   color: var(--text-secondary);
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 500;
   cursor: pointer;
   transition: color 140ms ease, background 140ms ease;
 }
@@ -284,6 +284,21 @@
   color: var(--text-primary);
   font-size: 14px;
   text-align: right;
+}
+
+.aboutMetaRowSupport {
+  align-items: center;
+}
+
+.liberapayDonateLink {
+  display: inline-flex;
+}
+
+.liberapayDonateLink img {
+  display: block;
+  height: 28px;
+  width: auto;
+  border-radius: 4px;
 }
 
 .settingsDialog .audioControls {
