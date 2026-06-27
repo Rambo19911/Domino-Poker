@@ -161,6 +161,8 @@ export class LobbyChat {
     }
     const message: ChatMessage = {
       id: this.createMessageId(),
+      // "Admin" autors ir REZERVĒTS lietotājvārds (sk. `auth/authFields.ts`
+      // `RESERVED_USERNAMES`), lai neviens spēlētājs nevarētu uzdoties par adminu.
       authorDisplayId: "Admin",
       text,
       serverNow: this.clock()

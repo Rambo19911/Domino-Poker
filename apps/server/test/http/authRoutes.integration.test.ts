@@ -113,6 +113,14 @@ describe("auth HTTP routes (integration)", () => {
     expect(bad.status).toBe(400);
   });
 
+  it("rejects reserved username 'Admin' case-insensitively (400)", async () => {
+    // Spēlētājs ar "Admin" čatā būtu neatšķirams no admin paziņojumiem (uzdošanās).
+    for (const username of ["Admin", "admin", "ADMIN"]) {
+      const res = await post("/auth/register", { username, password: "secret123", email: `${username}@x.co` });
+      expect(res.status).toBe(400);
+    }
+  });
+
   it("ignores spoofed X-Forwarded-For for rate limiting when trustProxy is off", async () => {
     // Register limits = 5/h uz IP. Ar trustProxy=false visi pieprasījumi no 127.0.0.1
     // dalās VIENU IP atslēgu neatkarīgi no falsificēta X-Forwarded-For → 6. tiek bloķēts.

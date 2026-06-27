@@ -7,13 +7,29 @@ import { z } from "zod";
  * spēlētāja plūsma noraida (citādi username/email noteikumi varētu izšķirties = drift).
  */
 
-/** Lietotājvārds: 3–20 rakstzīmes, tikai `[A-Za-z0-9_-]`, apgriezts. */
+/**
+ * Rezervētie lietotājvārdi, ko spēlētājs NEDRĪKST reģistrēt vai pieņemt pārsaucoties.
+ * `"admin"` sakrīt ar admin paneļa čata paziņojumu autoru (`LobbyChat.announce`,
+ * `authorDisplayId: "Admin"`); ja spēlētājs to paņemtu, viņa čata ziņas būtu neatšķiramas
+ * no admina (uzdošanās / maldinošs saturs). Salīdzina REĢISTRNEJUTĪGI (sk. `usernameField`),
+ * jo čatā rādītais vārds ir neapstrādāts `username`. SVARĪGI: tur sinhroni ar `LobbyChat`.
+ */
+export const RESERVED_USERNAMES: ReadonlySet<string> = new Set(["admin"]);
+
+/**
+ * Lietotājvārds: 3–20 rakstzīmes, tikai `[A-Za-z0-9_-]`, apgriezts, NE rezervēts
+ * (reģistrnejutīgi). Rezervēto pārbaude šeit (viens avots) sedz reģistrāciju, profila
+ * pārsaukšanu UN admin konta rediģēšanu vienlaikus.
+ */
 export const usernameField = z
   .string()
   .trim()
   .min(3)
   .max(20)
-  .regex(/^[A-Za-z0-9_-]+$/u);
+  .regex(/^[A-Za-z0-9_-]+$/u)
+  .refine((value) => !RESERVED_USERNAMES.has(value.toLowerCase()), {
+    message: "username_reserved"
+  });
 
 /** Parole: 8–200 rakstzīmes (hašo `passwords.ts`). */
 export const passwordField = z.string().min(8).max(200);
