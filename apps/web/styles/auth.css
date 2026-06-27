@@ -206,10 +206,38 @@
      pāri dialogam (mobilajā Buy pogas aiz malas). `0` ļauj 1fr kolonnām sarauties. */
   min-width: 0;
 }
-/* Mobilajā 2 šauras kolonnas nesader (nosaukums+cena+Buy) → 1 tēma rindā (kā leaderboard rindas). */
+/* Mobilajā joprojām paturam 2 tēmas rindā (kolonnā), bet padarām tās kompaktākas, lai labi sader. */
 @media (max-width: 480px) {
   .themeOptions {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .themeOption {
+    padding: 8px 6px;
+    gap: 6px;
+    min-height: 58px;
+  }
+  .themeOptionHead {
+    gap: 6px;
+  }
+  .themeSwatch {
+    width: 20px;
+    height: 20px;
+  }
+  .themeOptionName {
+    font-size: 12px;
+  }
+  .themeOptionBuy {
+    gap: 4px;
+    justify-content: space-between;
+  }
+  .themePrice {
+    font-size: 11px;
+    gap: 2px;
+  }
+  .themeBuyButton {
+    padding: 4px 8px;
+    font-size: 11px;
   }
 }
 /* Karte = klikšķināms label; natīvais radio paslēpts, bet fokusējams (tastatūra).
