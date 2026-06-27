@@ -289,7 +289,7 @@
   {
     "path": "apps/web/lib/leaderboard/badgeAsset.ts",
     "type": "utility",
-    "purpose": "Maps a RankBadgeId to its public badge asset path (/assets/Badges/<id>.svg); web-side asset resolution paired with shared rankToBadge.",
+    "purpose": "Maps a RankBadgeId to its public badge asset path (/assets/Badges/<id>.png; rank icon pack, 128x128); web-side asset resolution paired with shared rankToBadge.",
     "importance": "low",
     "related_files": [
       "apps/web/components/LeaderboardDialog.tsx",
@@ -300,7 +300,7 @@
   {
     "path": "apps/web/components/AvatarRankBadge.tsx",
     "type": "ui",
-    "purpose": "Reusable decorative rank-badge overlay (RankBadgeId -> /assets/Badges/<id>.svg) absolutely positioned over an avatar's top-right corner; renders null when no badge. Shared by the lobby profile, MP waiting-room seat, and both MP game tables.",
+    "purpose": "Reusable decorative rank-badge overlay (RankBadgeId -> /assets/Badges/<id>.png) absolutely positioned over an avatar's top-right corner; renders null when no badge. Shared by the lobby profile, MP waiting-room seat, and both MP game tables.",
     "importance": "medium",
     "related_files": [
       "apps/web/styles/avatar-badge.css",

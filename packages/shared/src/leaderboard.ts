@@ -45,45 +45,31 @@ export const GAME_LANGUAGES = [
 export type GameLanguage = (typeof GAME_LANGUAGES)[number];
 
 /**
- * Rangam piesaistītā badge identifikators = asset bāzes nosaukums mapē
- * `apps/web/public/assets/Badges/` (viens patiesības avots; web atrisina ceļu ar
- * `badgeAssetPath`). NULL nav badge (rangs 71+ vai nederīgs rangs).
+ * Augstākā rangs (1-bāzēts), kas vēl saņem badge — VIENS patiesības avots limitam.
+ * Top {@link RANKED_BADGE_LIMIT} vietām katra saņem SAVU unikālo ikonu (rank icon
+ * pack); zem tā badge netiek piešķirts.
  */
-export type RankBadgeId =
-  | "Trophy-11"
-  | "Trophy-10"
-  | "Trophy-9"
-  | "Trophy-8"
-  | "Trophy-7"
-  | "badge-level-1"
-  | "badge-level-2"
-  | "badge-level-3"
-  | "badge-level-4"
-  | "badge-level-5"
-  | "badge-level-6";
+export const RANKED_BADGE_LIMIT = 30;
 
 /**
- * Globālā ranga (1-bāzēts) → badge kartēšana pēc lietotāja specifikācijas:
- * 1→Trophy-11, 2→Trophy-10, 3→Trophy-9, 4–5→Trophy-8, 6–10→Trophy-7,
- * 11–20→badge-level-1 … 61–70→badge-level-6. Rangs 71+ (vai nederīgs / <1 /
- * ne-vesels) → `null` (badge netiek piešķirts).
+ * Rangam piesaistītā badge identifikators = asset bāzes nosaukums mapē
+ * `apps/web/public/assets/Badges/` (viens patiesības avots; web atrisina ceļu ar
+ * `badgeAssetPath`). Forma vienmēr `rank_<N>`, kur `1 ≤ N ≤ RANKED_BADGE_LIMIT`
+ * (izpildlaika invariants — tikai `rankToBadge` ražo šīs vērtības). NULL = nav badge.
+ */
+export type RankBadgeId = `rank_${number}`;
+
+/**
+ * Globālā ranga (1-bāzēts) → badge 1:1 kartēšana: rangs N → `rank_N` augšējām
+ * {@link RANKED_BADGE_LIMIT} vietām (1→`rank_1` ir prestižākais … 30→`rank_30`).
+ * Rangs ārpus 1..{@link RANKED_BADGE_LIMIT} (vai nederīgs / <1 / ne-vesels) →
+ * `null` (badge netiek piešķirts).
  */
 export function rankToBadge(rank: number): RankBadgeId | null {
-  if (!Number.isInteger(rank) || rank < 1) {
+  if (!Number.isInteger(rank) || rank < 1 || rank > RANKED_BADGE_LIMIT) {
     return null;
   }
-  if (rank === 1) return "Trophy-11";
-  if (rank === 2) return "Trophy-10";
-  if (rank === 3) return "Trophy-9";
-  if (rank <= 5) return "Trophy-8"; //   4–5
-  if (rank <= 10) return "Trophy-7"; //  6–10
-  if (rank <= 20) return "badge-level-1"; // 11–20
-  if (rank <= 30) return "badge-level-2"; // 21–30
-  if (rank <= 40) return "badge-level-3"; // 31–40
-  if (rank <= 50) return "badge-level-4"; // 41–50
-  if (rank <= 60) return "badge-level-5"; // 51–60
-  if (rank <= 70) return "badge-level-6"; // 61–70
-  return null; // 71+
+  return `rank_${rank}`;
 }
 
 /**

@@ -252,14 +252,14 @@ describe("RoomManager seat rank badge (getRoomView)", () => {
     const room = manager.createRoom("host"); // host = human seat 0
     manager.setSeatProfileResolver(() => ({ username: "Host", avatar: "avatar-03", title: "mushroom" }));
 
-    let badge: "Trophy-11" | undefined = "Trophy-11";
+    let badge: "rank_1" | undefined = "rank_1";
     manager.setRankBadgeResolver((clientId) => (clientId === "host" ? badge : undefined));
 
     expect(manager.getRoomView(room.id).seats[0]).toMatchObject({
       displayId: "Host",
       avatar: "avatar-03",
       title: "mushroom",
-      rankBadge: "Trophy-11"
+      rankBadge: "rank_1"
     });
 
     // Volatile rank: a later view reflects the CURRENT badge (not a HELLO-time snapshot).

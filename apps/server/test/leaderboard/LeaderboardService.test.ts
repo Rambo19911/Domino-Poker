@@ -117,9 +117,9 @@ describe("LeaderboardService", () => {
 
   it("resolves seat badges synchronously from the cache", async () => {
     await svc.getResponse(null, 3); // warm the cache
-    expect(svc.getRankBadge("a")).toBe("Trophy-11"); // rank 1
-    expect(svc.getRankBadge("d")).toBe("Trophy-8"); // rank 4 -> 4-5 bucket
-    expect(svc.getRankBadge("e")).toBe("Trophy-8"); // rank 5 -> 4-5 bucket
+    expect(svc.getRankBadge("a")).toBe("rank_1"); // rank 1
+    expect(svc.getRankBadge("d")).toBe("rank_4"); // rank 4
+    expect(svc.getRankBadge("e")).toBe("rank_5"); // rank 5
     expect(svc.getRankBadge("ghost")).toBeNull(); // not ranked
   });
 

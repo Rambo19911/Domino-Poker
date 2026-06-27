@@ -1,38 +1,23 @@
 import { describe, expect, it } from "vitest";
 
-import { rankToBadge } from "../src/leaderboard.js";
+import { RANKED_BADGE_LIMIT, rankToBadge } from "../src/leaderboard.js";
 
 describe("rankToBadge", () => {
-  it("maps the exact top ranks to trophy badges", () => {
-    expect(rankToBadge(1)).toBe("Trophy-11");
-    expect(rankToBadge(2)).toBe("Trophy-10");
-    expect(rankToBadge(3)).toBe("Trophy-9");
+  it("maps each top rank 1:1 to its own rank icon", () => {
+    expect(rankToBadge(1)).toBe("rank_1");
+    expect(rankToBadge(2)).toBe("rank_2");
+    expect(rankToBadge(3)).toBe("rank_3");
+    expect(rankToBadge(10)).toBe("rank_10");
   });
 
-  it("maps the trophy tiers at their boundaries", () => {
-    expect(rankToBadge(4)).toBe("Trophy-8");
-    expect(rankToBadge(5)).toBe("Trophy-8");
-    expect(rankToBadge(6)).toBe("Trophy-7");
-    expect(rankToBadge(10)).toBe("Trophy-7");
+  it("assigns a badge up to (and including) the limit", () => {
+    expect(rankToBadge(RANKED_BADGE_LIMIT)).toBe(`rank_${RANKED_BADGE_LIMIT}`);
+    expect(rankToBadge(30)).toBe("rank_30");
   });
 
-  it("maps the level tiers at every 10-rank boundary", () => {
-    expect(rankToBadge(11)).toBe("badge-level-1");
-    expect(rankToBadge(20)).toBe("badge-level-1");
-    expect(rankToBadge(21)).toBe("badge-level-2");
-    expect(rankToBadge(30)).toBe("badge-level-2");
-    expect(rankToBadge(31)).toBe("badge-level-3");
-    expect(rankToBadge(40)).toBe("badge-level-3");
-    expect(rankToBadge(41)).toBe("badge-level-4");
-    expect(rankToBadge(50)).toBe("badge-level-4");
-    expect(rankToBadge(51)).toBe("badge-level-5");
-    expect(rankToBadge(60)).toBe("badge-level-5");
-    expect(rankToBadge(61)).toBe("badge-level-6");
-    expect(rankToBadge(70)).toBe("badge-level-6");
-  });
-
-  it("returns null beyond rank 70 (no badge)", () => {
-    expect(rankToBadge(71)).toBeNull();
+  it("returns null beyond the badge limit (no badge)", () => {
+    expect(rankToBadge(RANKED_BADGE_LIMIT + 1)).toBeNull();
+    expect(rankToBadge(31)).toBeNull();
     expect(rankToBadge(100)).toBeNull();
     expect(rankToBadge(10_000)).toBeNull();
   });

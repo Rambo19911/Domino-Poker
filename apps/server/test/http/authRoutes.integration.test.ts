@@ -309,12 +309,12 @@ describe("auth HTTP routes (integration)", () => {
 
   it("returns the caller's rankBadge via /auth/me when top-ranked", async () => {
     const champ = await registerUser("Champ");
-    // 1 eligible game -> ranked #1 (test config minGames = 1) -> Trophy-11.
+    // 1 eligible game -> ranked #1 (test config minGames = 1) -> rank_1.
     await storage.recordUserMatchOutcome("m1", champ.id, "win", 5000);
     const me = (await (await fetch(`${base}/auth/me`, {
       headers: { authorization: `Bearer ${champ.token}` }
     })).json()) as { rankBadge: string | null };
-    expect(me.rankBadge).toBe("Trophy-11");
+    expect(me.rankBadge).toBe("rank_1");
   });
 
   it("returns a null rankBadge via /auth/me for an unranked caller", async () => {

@@ -151,16 +151,16 @@ describe("toGameTableView", () => {
         currentPlayerIndex: 0
       }),
       room([
-        seat(0, { rankBadge: "Trophy-11" }),
-        seat(1, { kind: "human", isAI: false, displayId: "#00002", rankBadge: "badge-level-2" }),
+        seat(0, { rankBadge: "rank_1" }),
+        seat(1, { kind: "human", isAI: false, displayId: "#00002", rankBadge: "rank_21" }),
         seat(2), // bot
         seat(3) // bot
       ]),
       "t1"
     );
     const bySeat = new Map(view?.seats.map((s) => [s.gameSeatIndex, s.rankBadge]));
-    expect(bySeat.get(0)).toBe("Trophy-11");
-    expect(bySeat.get(1)).toBe("badge-level-2");
+    expect(bySeat.get(0)).toBe("rank_1");
+    expect(bySeat.get(1)).toBe("rank_21");
     expect(bySeat.get(2)).toBeUndefined(); // AI never carries a badge
     expect(bySeat.get(3)).toBeUndefined();
   });

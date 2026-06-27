@@ -77,7 +77,7 @@ export class LeaderboardService {
 
   /**
    * Sēdvietas badge (SINHRONS, no pašreizējā keša). `null`, ja spēlētājs nav
-   * ranžēts (spēles < minGames) vai ārpus badge-rangiem (71+). Lieto F4 seat būve.
+   * ranžēts (spēles < minGames) vai ārpus badge-rangiem (31+). Lieto F4 seat būve.
    */
   getRankBadge(userId: string): RankBadgeId | null {
     const rank = this.rankByUser.get(userId);

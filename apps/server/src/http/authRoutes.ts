@@ -346,7 +346,7 @@ async function handleMe(
     return;
   }
   // rankBadge (Leaderboard fāze): globālā ranga emblēma main-lobby profilam; `null`,
-  // ja ārpus badge-rangiem (71+) vai leaderboard nav konfigurēts.
+  // ja ārpus badge-rangiem (31+) vai leaderboard nav konfigurēts.
   // balance (Fāze 0): zelta monētu bilance; `null`, ja maks nav konfigurēts. `getBalance`
   // ir repair-on-read → nodrošina starta bonusu (arī esošo lietotāju backfill).
   const [stats, language, rankBadge, balance] = await Promise.all([
