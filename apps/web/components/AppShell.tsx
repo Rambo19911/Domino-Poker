@@ -13,6 +13,8 @@ import { avatarUrl } from "../lib/auth/avatarUrl";
 import { titleLabel } from "../lib/auth/titleLabel";
 import type { AuthResult } from "../lib/auth/authApi";
 import { useAuthUser } from "../lib/auth/useAuthUser";
+import { reconcileStoredTheme, startMotionFpsProbe } from "../lib/theme";
+import { apiFetchOwned } from "../lib/store/storeApi";
 import { apiSpComplete, apiSpStart, type SpGameResult, type SpStartResponse } from "../lib/sp/spReward";
 import {
   defaultLocale,
@@ -83,6 +85,34 @@ export function AppShell() {
   useEffect(() => {
     document.documentElement.lang = t.localeCode;
   }, [t.localeCode]);
+
+  // Fāze 5.5 — post-paint FPS zonde: ja aktīvā animētā tēma krīt zem sliekšņa, pārslēdz uz
+  // statisku posteri (papildina bootstrap pre-paint heiristikas). Vienreiz uz mount.
+  useEffect(() => {
+    startMotionFpsProbe();
+  }, []);
+
+  // P2 (Codex) — account-bound tēmas saskaņošana app-shell līmenī, NEatkarīgi no tā, vai
+  // Personalization tabs ir atvērts. Uz katru auth identitātes maiņu (login/logout/konta
+  // maiņa) pārbauda īpašumtiesības un atstata nepiederošu maksas tēmu uz Default. Pre-paint
+  // bootstrap tēmu pielieto optimistiski; šis to koriģē, tiklīdz īpašumtiesības zināmas.
+  useEffect(() => {
+    if (auth.status === "loading") return; // identitāte vēl nezināma — negaidīti neatstatām
+    if (auth.status === "anonymous") {
+      reconcileStoredTheme([]); // anon neko nepieder → maksas tēma atkrīt uz Default
+      return;
+    }
+    const token = getAuthToken();
+    if (!token) return;
+    let cancelled = false;
+    void apiFetchOwned(token).then((result) => {
+      if (cancelled || !result.ok) return;
+      reconcileStoredTheme(result.data.owned);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.status, auth.user?.id, getAuthToken]);
 
   useEffect(() => {
     const storedLocale = readLocalStorage(localeStorageKey);

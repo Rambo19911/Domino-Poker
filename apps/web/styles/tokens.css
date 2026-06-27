@@ -30,6 +30,11 @@
      Noklusējums = `--background` zaļais. */
   --felt: #1b6048;
   --felt-rgb: 27 96 72;
+  /* Kauliņu aizmugures (`.hiddenTileSide` — pretinieku face-down kauliņi). Atdalīts no
+     `--background` (zaļais funkcionālais signāls: tava-kārta gredzens u.c.), lai tēmas var
+     pārkrāsot kauliņu aizmuguri, neskarot signālus. Noklusējums = zaļais `--background`. */
+  --tile-back: var(--background);
+  --tile-back-rgb: var(--background-rgb);
   --surface: #1d6b50;
   --surface-rgb: 29 107 80;
   --overlay: #1e2622;
@@ -96,11 +101,19 @@
 
   /* Ekrānu fona attēli (SVG — swappable asset). Pašlaik vektora gradienti, kas atbilst
      esošajam izskatam; nākotnē aizvietot ar domino/pokera tekstūrām (bez koda izmaiņām).
-     Krāsas iesaiņotas SVG (NE token-recolored); `var(--overlay)` paliek bāzes fallback. */
-  --bg-lobby: url("/assets/backgrounds/lobby.svg");
-  --bg-mp-lobby: url("/assets/backgrounds/mp-lobby.svg");
-  --bg-sp-room: url("/assets/backgrounds/sp-room.svg");
-  --bg-mp-room: url("/assets/backgrounds/mp-room.svg");
+     Krāsas iesaiņotas SVG (NE token-recolored); `var(--overlay)` paliek bāzes fallback.
+     Cache-busting (§5.2): visiem fona asset URL ir `?v=N`. Aizvietojot JEBKURU fona
+     asset (default vai tēmas SVG/poster) tajā pašā ceļā, palielini N (find/replace
+     `?v=1` → `?v=2`), citādi klienti tur veco failu no kešatmiņas pēc deploy. */
+  --bg-lobby: url("/assets/backgrounds/lobby.svg?v=1");
+  --bg-mp-lobby: url("/assets/backgrounds/mp-lobby.svg?v=1");
+  --bg-sp-room: url("/assets/backgrounds/sp-room.svg?v=1");
+  --bg-mp-room: url("/assets/backgrounds/mp-room.svg?v=1");
+
+  /* Lasāmības scrim virs ekrāna fona (sk. lobby.css/mp-lobby.css). Default = 0 (bez
+     izmaiņām); animētās tēmas to pārraksta per-ekrāns, lai teksts/kauliņi paliek lasāmi
+     virs kustīga fona. Lieto kā `rgb(var(--overlay-rgb) / var(--scrim))`. */
+  --scrim: 0;
 
   /* Rādiusu skala (no esošo vērtību audita; 50% un kombinētās vērtības
      paliek literāļos kā ģeometrija) */
@@ -267,4 +280,266 @@
      ... (pārraksta tikai tos, kas atšķiras no Default)
    }
    ──────────────────────────────────────────────────────────────────────────── */
+
+/* ── PĒRKAMĀS ANIMĒTĀS TĒMAS ──────────────────────────────────────────────────
+   Katra tēma = animēts SVG fons + per-EKRĀNA palete, pieskaņota TĀ ekrāna SVG
+   krāsām (4 faili katrā tēmā ir dažādās krāsās). Scoped ar `[data-theme] .ekrāns`
+   (specifiskums 0,2,0 > Default `.ekrāns` 0,1,0 → pārraksta automātiski; Default
+   bloki neaiztikti). `--coin` re-pin uz zeltu (nauda paliek zelta); zaļš/sarkans
+   funkcionālie + grafika mantojas. `--scrim` per-ekrāns = lasāmība virs kustīga fona.
+   Paletes ir 1. PASS — vizuāli precizē Fāzē 3. ──────────────────────────────── */
+
+/* ---- bubbles ---------------------------------------------------------------- */
+[data-theme="bubbles"] .lobbyShell {
+  --bg-lobby: url("/assets/backgrounds/themes/bubbles/lobby.svg?v=1"); --scrim: 0.42;
+  --primary: #c98bd4; --primary-rgb: 201 139 212;
+  --surface: #241726; --surface-rgb: 36 23 38;
+  --surface-floating: #2e1d31; --surface-floating-rgb: 46 29 49;
+  --felt: #241726; --felt-rgb: 36 23 38;
+  --wheel-arc-top-rgb: 46 29 49; --wheel-arc-bottom-rgb: 30 19 32;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+[data-theme="bubbles"] .mpLobby {
+  --bg-mp-lobby: url("/assets/backgrounds/themes/bubbles/mp-lobby.svg?v=1"); --scrim: 0.45;
+  --primary: #ff5fb0; --primary-rgb: 255 95 176;
+  --surface: #2e0f22; --surface-rgb: 46 15 34;
+  --surface-floating: #3a1330; --surface-floating-rgb: 58 19 48;
+  --felt: #2e0f22; --felt-rgb: 46 15 34;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+[data-theme="bubbles"] .gameShell.spRoomBg {
+  --bg-sp-room: url("/assets/backgrounds/themes/bubbles/sp-room.svg?v=1"); --scrim: 0.42;
+  --primary: #6f8cff; --primary-rgb: 111 140 255;
+  --surface: #0e1340; --surface-rgb: 14 19 64;
+  --surface-floating: #161d55; --surface-floating-rgb: 22 29 85;
+  --felt: #0e1340; --felt-rgb: 14 19 64;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+[data-theme="bubbles"] .gameShell.mpRoomBg {
+  --bg-mp-room: url("/assets/backgrounds/themes/bubbles/mp-room.svg?v=1"); --scrim: 0.42;
+  --primary: #5cd96a; --primary-rgb: 92 217 106;
+  --surface: #0c2a10; --surface-rgb: 12 42 16;
+  --surface-floating: #143a18; --surface-floating-rgb: 20 58 24;
+  --felt: #0c2a10; --felt-rgb: 12 42 16;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+
+/* ---- twilight (gaiša animācija → augstāks scrim) ---------------------------- */
+[data-theme="twilight"] .lobbyShell {
+  --bg-lobby: url("/assets/backgrounds/themes/twilight/lobby.svg?v=1"); --scrim: 0.58;
+  --primary: #ffcb58; --primary-rgb: 255 203 88;
+  --surface: #241a12; --surface-rgb: 36 26 18;
+  --surface-floating: #2e2117; --surface-floating-rgb: 46 33 23;
+  --felt: #241a12; --felt-rgb: 36 26 18;
+  --wheel-arc-top-rgb: 46 33 23; --wheel-arc-bottom-rgb: 28 20 14;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+[data-theme="twilight"] .mpLobby {
+  --bg-mp-lobby: url("/assets/backgrounds/themes/twilight/mp-lobby.svg?v=1"); --scrim: 0.55;
+  --primary: #2ea6ff; --primary-rgb: 46 166 255;
+  --surface: #0c1f2c; --surface-rgb: 12 31 44;
+  --surface-floating: #123040; --surface-floating-rgb: 18 48 64;
+  --felt: #0c1f2c; --felt-rgb: 12 31 44;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+[data-theme="twilight"] .gameShell.spRoomBg {
+  --bg-sp-room: url("/assets/backgrounds/themes/twilight/sp-room.svg?v=1"); --scrim: 0.55;
+  --primary: #4a90ff; --primary-rgb: 74 144 255;
+  --surface: #0b1830; --surface-rgb: 11 24 48;
+  --surface-floating: #11213f; --surface-floating-rgb: 17 33 63;
+  --felt: #0b1830; --felt-rgb: 11 24 48;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+[data-theme="twilight"] .gameShell.mpRoomBg {
+  --bg-mp-room: url("/assets/backgrounds/themes/twilight/mp-room.svg?v=1"); --scrim: 0.55;
+  --primary: #44c7f4; --primary-rgb: 68 199 244;
+  --surface: #111a30; --surface-rgb: 17 26 48;
+  --surface-floating: #18233f; --surface-floating-rgb: 24 35 63;
+  --felt: #111a30; --felt-rgb: 17 26 48;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+
+/* ---- rain ------------------------------------------------------------------- */
+[data-theme="rain"] .lobbyShell {
+  --bg-lobby: url("/assets/backgrounds/themes/rain/lobby.svg?v=1"); --scrim: 0.40;
+  --primary: #ffe34d; --primary-rgb: 255 227 77;
+  --surface: #222222; --surface-rgb: 34 34 34;
+  --surface-floating: #2c2c2c; --surface-floating-rgb: 44 44 44;
+  --felt: #222222; --felt-rgb: 34 34 34;
+  --wheel-arc-top-rgb: 44 44 44; --wheel-arc-bottom-rgb: 28 28 28;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+[data-theme="rain"] .mpLobby {
+  --bg-mp-lobby: url("/assets/backgrounds/themes/rain/mp-lobby.svg?v=1"); --scrim: 0.52;
+  --primary: #b06bff; --primary-rgb: 176 107 255;
+  --surface: #241f2e; --surface-rgb: 36 31 46;
+  --surface-floating: #2e2738; --surface-floating-rgb: 46 39 56;
+  --felt: #241f2e; --felt-rgb: 36 31 46;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+[data-theme="rain"] .gameShell.spRoomBg {
+  --bg-sp-room: url("/assets/backgrounds/themes/rain/sp-room.svg?v=1"); --scrim: 0.48;
+  --primary: #f48924; --primary-rgb: 244 137 36;
+  --surface: #271d12; --surface-rgb: 39 29 18;
+  --surface-floating: #322517; --surface-floating-rgb: 50 37 23;
+  --felt: #271d12; --felt-rgb: 39 29 18;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+[data-theme="rain"] .gameShell.mpRoomBg {
+  --bg-mp-room: url("/assets/backgrounds/themes/rain/mp-room.svg?v=1"); --scrim: 0.48;
+  --primary: #3aa0ff; --primary-rgb: 58 160 255;
+  --surface: #2a1814; --surface-rgb: 42 24 20;
+  --surface-floating: #36201b; --surface-floating-rgb: 54 32 27;
+  --felt: #2a1814; --felt-rgb: 42 24 20;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+
+/* ---- pop-out (gaiši ekrāni → augstāks scrim) -------------------------------- */
+[data-theme="pop-out"] .lobbyShell {
+  --bg-lobby: url("/assets/backgrounds/themes/pop-out/lobby.svg?v=1"); --scrim: 0.55;
+  --primary: #fe7a00; --primary-rgb: 254 122 0;
+  --surface: #241c10; --surface-rgb: 36 28 16;
+  --surface-floating: #2e2415; --surface-floating-rgb: 46 36 21;
+  --felt: #241c10; --felt-rgb: 36 28 16;
+  --wheel-arc-top-rgb: 46 36 21; --wheel-arc-bottom-rgb: 28 22 14;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+[data-theme="pop-out"] .mpLobby {
+  --bg-mp-lobby: url("/assets/backgrounds/themes/pop-out/mp-lobby.svg?v=1"); --scrim: 0.50;
+  --primary: #2c9f45; --primary-rgb: 44 159 69;
+  --surface: #2a1717; --surface-rgb: 42 23 23;
+  --surface-floating: #341d1d; --surface-floating-rgb: 52 29 29;
+  --felt: #2a1717; --felt-rgb: 42 23 23;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+[data-theme="pop-out"] .gameShell.spRoomBg {
+  --bg-sp-room: url("/assets/backgrounds/themes/pop-out/sp-room.svg?v=1"); --scrim: 0.45;
+  --primary: #ffc845; --primary-rgb: 255 200 69;
+  --surface: #0f2030; --surface-rgb: 15 32 48;
+  --surface-floating: #15293c; --surface-floating-rgb: 21 41 60;
+  --felt: #0f2030; --felt-rgb: 15 32 48;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+[data-theme="pop-out"] .gameShell.mpRoomBg {
+  --bg-mp-room: url("/assets/backgrounds/themes/pop-out/mp-room.svg?v=1"); --scrim: 0.48;
+  --primary: #fdb813; --primary-rgb: 253 184 19;
+  --surface: #1c1238; --surface-rgb: 28 18 56;
+  --surface-floating: #241846; --surface-floating-rgb: 36 24 70;
+  --felt: #1c1238; --felt-rgb: 28 18 56;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+
+/* ---- confetti --------------------------------------------------------------- */
+[data-theme="confetti"] .lobbyShell {
+  --bg-lobby: url("/assets/backgrounds/themes/confetti/lobby.svg?v=1"); --scrim: 0.48;
+  --primary: #c0c4cc; --primary-rgb: 192 196 204;
+  --surface: #262626; --surface-rgb: 38 38 38;
+  --surface-floating: #303030; --surface-floating-rgb: 48 48 48;
+  --felt: #262626; --felt-rgb: 38 38 38;
+  --wheel-arc-top-rgb: 48 48 48; --wheel-arc-bottom-rgb: 30 30 30;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+[data-theme="confetti"] .mpLobby {
+  --bg-mp-lobby: url("/assets/backgrounds/themes/confetti/mp-lobby.svg?v=1"); --scrim: 0.48;
+  --primary: #00bce4; --primary-rgb: 0 188 228;
+  --surface: #281a1a; --surface-rgb: 40 26 26;
+  --surface-floating: #322121; --surface-floating-rgb: 50 33 33;
+  --felt: #281a1a; --felt-rgb: 40 26 26;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+[data-theme="confetti"] .gameShell.spRoomBg {
+  --bg-sp-room: url("/assets/backgrounds/themes/confetti/sp-room.svg?v=1"); --scrim: 0.45;
+  --primary: #ffc845; --primary-rgb: 255 200 69;
+  --surface: #16241a; --surface-rgb: 22 36 26;
+  --surface-floating: #1d2e22; --surface-floating-rgb: 29 46 34;
+  --felt: #16241a; --felt-rgb: 22 36 26;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+[data-theme="confetti"] .gameShell.mpRoomBg {
+  --bg-mp-room: url("/assets/backgrounds/themes/confetti/mp-room.svg?v=1"); --scrim: 0.45;
+  --primary: #3be8b0; --primary-rgb: 59 232 176;
+  --surface: #191d33; --surface-rgb: 25 29 51;
+  --surface-floating: #20253f; --surface-floating-rgb: 32 37 63;
+  --felt: #191d33; --felt-rgb: 25 29 51;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+
+/* ---- luminous (tumši ekrāni → zems scrim) ----------------------------------- */
+[data-theme="luminous"] .lobbyShell {
+  --bg-lobby: url("/assets/backgrounds/themes/luminous/lobby.svg?v=1"); --scrim: 0.25;
+  --primary: #c0f6d2; --primary-rgb: 192 246 210;
+  --surface: #1a1a1a; --surface-rgb: 26 26 26;
+  --surface-floating: #242424; --surface-floating-rgb: 36 36 36;
+  --felt: #1a1a1a; --felt-rgb: 26 26 26;
+  --wheel-arc-top-rgb: 36 36 36; --wheel-arc-bottom-rgb: 22 22 22;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+[data-theme="luminous"] .mpLobby {
+  --bg-mp-lobby: url("/assets/backgrounds/themes/luminous/mp-lobby.svg?v=1"); --scrim: 0.22;
+  --primary: #ffc20e; --primary-rgb: 255 194 14;
+  --surface: #161616; --surface-rgb: 22 22 22;
+  --surface-floating: #202020; --surface-floating-rgb: 32 32 32;
+  --felt: #161616; --felt-rgb: 22 22 22;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+[data-theme="luminous"] .gameShell.spRoomBg {
+  --bg-sp-room: url("/assets/backgrounds/themes/luminous/sp-room.svg?v=1"); --scrim: 0.26;
+  --primary: #ffcc2f; --primary-rgb: 255 204 47;
+  --surface: #1c1a0c; --surface-rgb: 28 26 12;
+  --surface-floating: #262312; --surface-floating-rgb: 38 35 18;
+  --felt: #1c1a0c; --felt-rgb: 28 26 12;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+[data-theme="luminous"] .gameShell.mpRoomBg {
+  --bg-mp-room: url("/assets/backgrounds/themes/luminous/mp-room.svg?v=1"); --scrim: 0.30;
+  --primary: #00aeff; --primary-rgb: 0 174 255;
+  --surface: #2a0e0e; --surface-rgb: 42 14 14;
+  --surface-floating: #361414; --surface-floating-rgb: 54 20 20;
+  --felt: #2a0e0e; --felt-rgb: 42 14 14;
+  --coin: #d6ad47; --coin-rgb: 214 173 71;
+}
+
+/* ---- Kauliņu aizmugures (`.hiddenTileSide`) per tēma — sp/mp istabās, pieskaņots paletei.
+   (Default paliek zaļš caur :root `--tile-back`.) ----------------------------------------- */
+[data-theme="bubbles"] .gameShell.spRoomBg { --tile-back: #34409e; --tile-back-rgb: 52 64 158; }
+[data-theme="bubbles"] .gameShell.mpRoomBg { --tile-back: #1d7a3a; --tile-back-rgb: 29 122 58; }
+[data-theme="twilight"] .gameShell.spRoomBg { --tile-back: #1f4a8f; --tile-back-rgb: 31 74 143; }
+[data-theme="twilight"] .gameShell.mpRoomBg { --tile-back: #1f6a8a; --tile-back-rgb: 31 106 138; }
+[data-theme="rain"] .gameShell.spRoomBg { --tile-back: #8a4e1e; --tile-back-rgb: 138 78 30; }
+[data-theme="rain"] .gameShell.mpRoomBg { --tile-back: #245a8f; --tile-back-rgb: 36 90 143; }
+[data-theme="pop-out"] .gameShell.spRoomBg { --tile-back: #1f5a8f; --tile-back-rgb: 31 90 143; }
+[data-theme="pop-out"] .gameShell.mpRoomBg { --tile-back: #4a3a8f; --tile-back-rgb: 74 58 143; }
+[data-theme="confetti"] .gameShell.spRoomBg { --tile-back: #2a6b3a; --tile-back-rgb: 42 107 58; }
+[data-theme="confetti"] .gameShell.mpRoomBg { --tile-back: #2a5a6b; --tile-back-rgb: 42 90 107; }
+[data-theme="luminous"] .gameShell.spRoomBg { --tile-back: #6b5a1e; --tile-back-rgb: 107 90 30; }
+[data-theme="luminous"] .gameShell.mpRoomBg { --tile-back: #1f4a8f; --tile-back-rgb: 31 74 143; }
+
+/* ── STATISKS FALLBACK (Fāze 5.5) — vājām/reduced-motion ierīcēm (`data-theme-motion="static"`,
+   uzliek bootstrap heiristika vai FPS zonde). Animētais SVG fons → statisks poster-kadrs (JPEG);
+   palete + scrim paliek (šie bloki pārraksta TIKAI `--bg-*`). Specifiskums (0,3,0) > animētie
+   `[data-theme] .ekrāns` (0,2,0) un novietoti PĒC tiem → uzvar. ──────────────────────────────── */
+[data-theme="twilight"][data-theme-motion="static"] .lobbyShell { --bg-lobby: url("/assets/backgrounds/themes/twilight/poster/lobby.jpg?v=1"); }
+[data-theme="twilight"][data-theme-motion="static"] .mpLobby { --bg-mp-lobby: url("/assets/backgrounds/themes/twilight/poster/mp-lobby.jpg?v=1"); }
+[data-theme="twilight"][data-theme-motion="static"] .gameShell.spRoomBg { --bg-sp-room: url("/assets/backgrounds/themes/twilight/poster/sp-room.jpg?v=1"); }
+[data-theme="twilight"][data-theme-motion="static"] .gameShell.mpRoomBg { --bg-mp-room: url("/assets/backgrounds/themes/twilight/poster/mp-room.jpg?v=1"); }
+[data-theme="rain"][data-theme-motion="static"] .lobbyShell { --bg-lobby: url("/assets/backgrounds/themes/rain/poster/lobby.jpg?v=1"); }
+[data-theme="rain"][data-theme-motion="static"] .mpLobby { --bg-mp-lobby: url("/assets/backgrounds/themes/rain/poster/mp-lobby.jpg?v=1"); }
+[data-theme="rain"][data-theme-motion="static"] .gameShell.spRoomBg { --bg-sp-room: url("/assets/backgrounds/themes/rain/poster/sp-room.jpg?v=1"); }
+[data-theme="rain"][data-theme-motion="static"] .gameShell.mpRoomBg { --bg-mp-room: url("/assets/backgrounds/themes/rain/poster/mp-room.jpg?v=1"); }
+[data-theme="pop-out"][data-theme-motion="static"] .lobbyShell { --bg-lobby: url("/assets/backgrounds/themes/pop-out/poster/lobby.jpg?v=1"); }
+[data-theme="pop-out"][data-theme-motion="static"] .mpLobby { --bg-mp-lobby: url("/assets/backgrounds/themes/pop-out/poster/mp-lobby.jpg?v=1"); }
+[data-theme="pop-out"][data-theme-motion="static"] .gameShell.spRoomBg { --bg-sp-room: url("/assets/backgrounds/themes/pop-out/poster/sp-room.jpg?v=1"); }
+[data-theme="pop-out"][data-theme-motion="static"] .gameShell.mpRoomBg { --bg-mp-room: url("/assets/backgrounds/themes/pop-out/poster/mp-room.jpg?v=1"); }
+[data-theme="confetti"][data-theme-motion="static"] .lobbyShell { --bg-lobby: url("/assets/backgrounds/themes/confetti/poster/lobby.jpg?v=1"); }
+[data-theme="confetti"][data-theme-motion="static"] .mpLobby { --bg-mp-lobby: url("/assets/backgrounds/themes/confetti/poster/mp-lobby.jpg?v=1"); }
+[data-theme="confetti"][data-theme-motion="static"] .gameShell.spRoomBg { --bg-sp-room: url("/assets/backgrounds/themes/confetti/poster/sp-room.jpg?v=1"); }
+[data-theme="confetti"][data-theme-motion="static"] .gameShell.mpRoomBg { --bg-mp-room: url("/assets/backgrounds/themes/confetti/poster/mp-room.jpg?v=1"); }
+[data-theme="bubbles"][data-theme-motion="static"] .lobbyShell { --bg-lobby: url("/assets/backgrounds/themes/bubbles/poster/lobby.jpg?v=1"); }
+[data-theme="bubbles"][data-theme-motion="static"] .mpLobby { --bg-mp-lobby: url("/assets/backgrounds/themes/bubbles/poster/mp-lobby.jpg?v=1"); }
+[data-theme="bubbles"][data-theme-motion="static"] .gameShell.spRoomBg { --bg-sp-room: url("/assets/backgrounds/themes/bubbles/poster/sp-room.jpg?v=1"); }
+[data-theme="bubbles"][data-theme-motion="static"] .gameShell.mpRoomBg { --bg-mp-room: url("/assets/backgrounds/themes/bubbles/poster/mp-room.jpg?v=1"); }
+[data-theme="luminous"][data-theme-motion="static"] .lobbyShell { --bg-lobby: url("/assets/backgrounds/themes/luminous/poster/lobby.jpg?v=1"); }
+[data-theme="luminous"][data-theme-motion="static"] .mpLobby { --bg-mp-lobby: url("/assets/backgrounds/themes/luminous/poster/mp-lobby.jpg?v=1"); }
+[data-theme="luminous"][data-theme-motion="static"] .gameShell.spRoomBg { --bg-sp-room: url("/assets/backgrounds/themes/luminous/poster/sp-room.jpg?v=1"); }
+[data-theme="luminous"][data-theme-motion="static"] .gameShell.mpRoomBg { --bg-mp-room: url("/assets/backgrounds/themes/luminous/poster/mp-room.jpg?v=1"); }
 

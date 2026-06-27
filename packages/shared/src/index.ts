@@ -7,3 +7,4 @@ export * from "./roomTypes.js";
 export * from "./serverEvents.js";
 export * from "./leaderboard.js";
 export * from "./economy.js";
+export * from "./store-catalog.js";

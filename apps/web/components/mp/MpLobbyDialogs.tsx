@@ -18,6 +18,7 @@ import { CoinGif } from "../CoinGif";
 import { Dialog } from "../Dialog";
 import { Presence } from "../usePresence";
 import { HelpIcon } from "../RulesDialog";
+import { CloseIcon } from "../ui/CloseIcon";
 import { IconButton } from "../ui/IconButton";
 
 const ROOM_CODE_MAX_LENGTH = 12;
@@ -411,15 +412,6 @@ function MultiplayerRulesDialog({
         ))}
       </div>
     </Dialog>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg className="iconSvg" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M18 6 6 18" />
-      <path d="m6 6 12 12" />
-    </svg>
   );
 }
 

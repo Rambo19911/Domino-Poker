@@ -168,8 +168,8 @@
   border-radius: 6px;
   background: linear-gradient(
     to bottom right,
-    rgb(var(--background-rgb) / 0.8),
-    var(--background)
+    rgb(var(--tile-back-rgb) / 0.8),
+    var(--tile-back)
   );
 }
 

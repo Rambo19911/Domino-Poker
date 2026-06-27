@@ -12,10 +12,22 @@
    kājene paliek pie apakšas (sk. `.authDialogAuthenticated .authForm` zemāk). */
 .authDialogAuthenticated {
   height: min(600px, calc(100vh - 40px));
-  overflow: auto;
+  /* `hidden` (ne `auto`): ritināšana dzīvo `.authDialogBody`, lai glass `backdrop-filter`
+     elements nekļūst par ritināmu kompozīcijas slāni → nav augšmalas mirgošanas. */
+  overflow: hidden;
   /* Galvene fiksēta augšā; tab-saturs (forma) aizpilda atlikušo augstumu. */
   display: flex;
   flex-direction: column;
+}
+
+/* Ritināmais ķermenis zem fiksētās galvenes (NAV `backdrop-filter` → drošs ritināt).
+   Flex-kolonna, lai `.authForm`/`.statsPanel` `flex:1` aizpilda augstumu kā iepriekš. */
+.authDialogAuthenticated .authDialogBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
 }
 
 /* Auth dialoga tabi (Login/Register vai Profile/Personalization): mazāki un ne
@@ -182,22 +194,32 @@
 }
 .themeOptions {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr)); /* 2 tēmas rindā; vertikāli vietas pietiek */
   gap: 10px;
   margin: 0;
   padding: 0;
   border: 0;
 }
-/* Karte = klikšķināms label; natīvais radio paslēpts, bet fokusējams (tastatūra). */
+/* Karte = klikšķināms label; natīvais radio paslēpts, bet fokusējams (tastatūra).
+   Vertikāla: galvene (swatch+nosaukums) augšā, pirkšanas rinda (cena+poga) apakšā. */
 .themeOption {
+  position: relative;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  min-height: 64px;
+  padding: 12px;
   border: 2px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--dialog-surface);
   cursor: pointer;
+}
+.themeOptionHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 .themeOption.selected {
   border-color: var(--primary);
@@ -218,6 +240,9 @@
   color: var(--text-primary);
   font-size: 14px;
   font-weight: 700;
+  min-width: 0;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 /* Tēmas krāsu priekšskatījums (mazs aplis). Katrai tēmai sava `.theme-<id>`. */
 .themeSwatch {
@@ -229,6 +254,61 @@
 }
 .themeSwatch.theme-default {
   background: linear-gradient(135deg, var(--background) 55%, var(--primary) 55%);
+}
+/* Pērkamo tēmu swatch = reprezentatīvs (lobby) paletes surface + akcents. */
+.themeSwatch.theme-bubbles { background: linear-gradient(135deg, #241726 55%, #c98bd4 55%); }
+.themeSwatch.theme-twilight { background: linear-gradient(135deg, #241a12 55%, #ffcb58 55%); }
+.themeSwatch.theme-rain { background: linear-gradient(135deg, #222222 55%, #ffe34d 55%); }
+.themeSwatch.theme-pop-out { background: linear-gradient(135deg, #241c10 55%, #fe7a00 55%); }
+.themeSwatch.theme-confetti { background: linear-gradient(135deg, #262626 55%, #c0c4cc 55%); }
+.themeSwatch.theme-luminous { background: linear-gradient(135deg, #1a1a1a 55%, #c0f6d2 55%); }
+
+/* Bloķēta (pērkama) tēma: galvene (swatch+nosaukums) + pirkšanas rinda (cena + "Pirkt"). */
+.themeOptionLocked {
+  cursor: default;
+}
+.themeOptionBuy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.themeSwatch.locked {
+  opacity: 0.5;
+}
+.themePrice {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--coin);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.themePriceCoin {
+  width: 1.1em;
+  height: 1.1em;
+}
+.themeBuyButton {
+  cursor: pointer;
+  border: 1px solid rgb(var(--primary-rgb) / 0.6);
+  border-radius: var(--radius-sm);
+  background: rgb(var(--primary-rgb) / 0.15);
+  color: var(--text-primary);
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.themeBuyButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.themeBuyError {
+  margin: 8px 0 0;
+  color: var(--error);
+  font-size: 13px;
 }
 
 /* ---- Statistika (Fāze 5) — pašu rakstītas mazas diagrammas, token-krāsas, BEZ

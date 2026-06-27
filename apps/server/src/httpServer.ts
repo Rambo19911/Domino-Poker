@@ -7,6 +7,7 @@ import type { AuthHandler } from "./http/authRoutes.js";
 import type { ContactHandler } from "./http/contactRoutes.js";
 import type { SpRewardHandler } from "./http/spRewardRoutes.js";
 import type { StatsHandler } from "./http/statsRoutes.js";
+import type { StoreHandler } from "./http/storeRoutes.js";
 
 interface PoolCounts {
   readonly total: number;
@@ -51,6 +52,11 @@ export interface HealthHttpServerOptions {
    * `index.ts` no `createStatsHandler`. Mēģināts PIRMS `authHandler`.
    */
   readonly statsHandler?: StatsHandler;
+  /**
+   * Opcionāls veikala maršruts (`/store/*`, Fāze 4 — tēmu pirkšana par monētām). Injicē
+   * `index.ts` no `createStoreHandler`. Mēģināts API ķēdē; atgriež `true`, ja apstrādāja.
+   */
+  readonly storeHandler?: StoreHandler;
   /**
    * Opcionāls kontaktformas maršruts (`POST /contact`). Injicē `index.ts`, ja serverim
    * ir e-pasta senderis. Mēģināts API ķēdē; atgriež `true`, ja apstrādāja ceļu.
@@ -140,6 +146,9 @@ async function routeApiHandlers(
       return;
     }
     if (options.statsHandler !== undefined && (await options.statsHandler(request, response))) {
+      return;
+    }
+    if (options.storeHandler !== undefined && (await options.storeHandler(request, response))) {
       return;
     }
     if (options.authHandler !== undefined && (await options.authHandler(request, response))) {

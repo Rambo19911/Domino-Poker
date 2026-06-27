@@ -23,6 +23,7 @@ import { createAuthHandler } from "./http/authRoutes.js";
 import { createContactHandler } from "./http/contactRoutes.js";
 import { createSpRewardHandler } from "./http/spRewardRoutes.js";
 import { createStatsHandler } from "./http/statsRoutes.js";
+import { createStoreHandler } from "./http/storeRoutes.js";
 import { createHealthHttpServer } from "./httpServer.js";
 import { DisplayIdRegistry } from "./identity/DisplayIdRegistry.js";
 import { LeaderboardService } from "./leaderboard/LeaderboardService.js";
@@ -42,6 +43,7 @@ import { PlayerStatsService } from "./stats/PlayerStatsService.js";
 import { PostgresStorage } from "./storage/PostgresStorage.js";
 import { openStorage } from "./storage/index.js";
 import { SystemTurnTimerScheduler } from "./timers/SystemTurnTimerScheduler.js";
+import { StoreService } from "./store/StoreService.js";
 import { MatchPayoutService } from "./wallet/MatchPayoutService.js";
 import { WalletService } from "./wallet/WalletService.js";
 
@@ -137,6 +139,8 @@ const authService = isAuthStore(storage)
 // Fāze 0: zelta monētu maks (virtuālā valūta). Gan SqliteStorage, gan PostgresStorage
 // implementē CoinStore. Anonīmā spēle to neizmanto. Starta bonuss + bilance.
 const wallet = isCoinStore(storage) ? new WalletService({ coins: storage, clock }) : undefined;
+// Fāze 4: veikals (tēmu pirkšana par monētām) virs maka. Īpašumtiesības atvasinātas no ledger.
+const store = wallet ? new StoreService(wallet) : undefined;
 // Admin panelis (sk. docs/TODO/admin-panel-plan.md, Fāze 0). Iespējots TIKAI ja ir admin
 // parole (config.admin.enabled), e-pasta senderis (2FA OTP) UN admin-spējīga glabātuve
 // (abas to ir). Citādi `/admin/*` maršruti netiek mounted (404). Pilnīgi atsevišķa no
@@ -483,6 +487,17 @@ const server = createHealthHttpServer({
         statsHandler: createStatsHandler({
           auth: authService,
           stats: playerStats,
+          webOrigins: config.webOrigins,
+          clock,
+          dev: config.nodeEnv !== "production"
+        })
+      }
+    : {}),
+  ...(authService && store
+    ? {
+        storeHandler: createStoreHandler({
+          auth: authService,
+          store,
           webOrigins: config.webOrigins,
           clock,
           dev: config.nodeEnv !== "production"

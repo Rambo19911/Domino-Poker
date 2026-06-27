@@ -13,6 +13,7 @@ import { CoinGif } from "./CoinGif";
 import { CompactLobbyPanel, LobbyWheel } from "./LobbyWheel";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
 import { Presence } from "./usePresence";
+import { CloseIcon } from "./ui/CloseIcon";
 import { IconButton } from "./ui/IconButton";
 
 import { SP_REWARDS } from "@domino-poker/shared";
@@ -48,6 +49,7 @@ type LobbyAuth = Pick<
   | "updateProfile"
   | "uploadAvatar"
   | "getToken"
+  | "applyBalance"
 >;
 
 /**
@@ -220,6 +222,8 @@ export function LobbyScreen({
           updateProfile={auth.updateProfile}
           uploadAvatar={auth.uploadAvatar}
           getToken={auth.getToken}
+          balance={auth.balance}
+          onBalanceChange={auth.applyBalance}
           playClick={() => audio.play("uiClick")}
           onClose={() => setAuthOpen(false)}
         />
@@ -297,6 +301,7 @@ function SettingsDialog({
           </IconButton>
         </div>
 
+        <div className="settingsBody">
         {tab === "settings" ? (
           <>
             <p className="settingsTabDescription">{t.settingsDescription}</p>
@@ -324,6 +329,7 @@ function SettingsDialog({
         ) : (
           <AboutPanel labels={t} locale={locale} />
         )}
+        </div>
     </Dialog>
   );
 }
@@ -454,13 +460,4 @@ function SettingsIcon() {
 
 function LoginIcon() {
   return <span className="loginAssetIcon" aria-hidden="true" />;
-}
-
-function CloseIcon() {
-  return (
-    <svg className="iconSvg" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M18 6 6 18" />
-      <path d="m6 6 12 12" />
-    </svg>
-  );
 }

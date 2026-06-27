@@ -68,19 +68,30 @@
      Ja Settings saturs mainās, atjaunini šo skaitli. */
   min-height: 580px;
   max-height: min(820px, calc(100vh - 40px));
-  overflow: auto;
+  /* `hidden` (ne `auto`): ritināšana dzīvo `.settingsBody`, lai glass `backdrop-filter`
+     elements nekļūst par ritināmu kompozīcijas slāni → nav augšmalas mirgošanas. */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
+/* Ritināmais ķermenis (zem fiksētās galvenes). NAV `backdrop-filter` → drošs ritināt. */
+.settingsBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Ritināšana dzīvo iekšējā `.rulesContent`, NEVIS uz glass-sekcijas: glass elementam ir
+   `backdrop-filter`, un, ja TAS pats ir ritināmais konteiners, pārlūks to paaugstina par
+   kompozīcijas scroll-slāni, uz kura blur sub-pikseļu līmenī mirgo (augšmalas "raustīšanās").
+   Sekcija = nekustīgs flex-stabs ar fiksētu augstumu; `overflow:hidden` glīti apgriež glasu. */
 .rulesDialog {
   width: min(760px, 100%);
   max-height: min(860px, calc(100vh - 40px));
-  overflow: auto;
-  /* Paslēpj redzamo ritjoslu, saglabājot ritināšanu (gan single-, gan multiplayer noteikumu logā). */
-  scrollbar-width: none;
-}
-
-.rulesDialog::-webkit-scrollbar {
-  display: none;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .rulesDialog h2 .helpAssetIcon {
@@ -90,6 +101,15 @@
 .rulesContent {
   display: grid;
   gap: 18px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* Paslēpj redzamo ritjoslu, saglabājot ritināšanu (gan single-, gan multiplayer noteikumu logā). */
+  scrollbar-width: none;
+}
+
+.rulesContent::-webkit-scrollbar {
+  display: none;
 }
 
 .rulesSection {

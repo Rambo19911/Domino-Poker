@@ -74,3 +74,12 @@ jobs:
       - run: npm run test:web
         env:
           CI: "true"
+
+      # Tēmu veiktspējas TRIPWIRE (themes-plan.md Fāze 6, solis 6): opt-in `THEME_PERF=1`,
+      # tāpēc galvenā `test:web` to izlaiž; šis dedikētais solis to palaiž. NE FPS garantija
+      # (headless ≠ reāla ierīce) — regresijas slazds: animācija dzīva, nav garu Long Task,
+      # nav konsoles kļūdu tēmas ceļā. Reālo ierīču gate īpašnieks atcēla (sk. Fāze 6).
+      - run: npx playwright test theme-performance
+        env:
+          CI: "true"
+          THEME_PERF: "1"

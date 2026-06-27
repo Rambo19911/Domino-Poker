@@ -22,7 +22,8 @@ export type LedgerReason =
   | "mp_entry"
   | "mp_refund"
   | "mp_payout"
-  | "admin_adjust";
+  | "admin_adjust"
+  | "theme_purchase";
 
 /** Viena (idempotenta) naudas kustība, ko piemēro `applyLedger`. */
 export interface LedgerEntryInput {
@@ -69,6 +70,13 @@ export interface CoinStore {
    * Lieto anti-cheat griestiem (piem. SP balvu dienas limits). 0, ja nav rindu.
    */
   sumLedgerSince(userId: string, reason: LedgerReason, sinceMs: number): Promise<number>;
+
+  /**
+   * Visi `ref` dotam `(userId, reason)` — īpašumtiesību atvasināšanai no ledger
+   * (piem. nopirktās tēmas: reason `theme_purchase`, ref = itemId). `UNIQUE(user_id,
+   * reason, ref)` garantē, ka katrs ref parādās vienreiz. Tukšs masīvs, ja nav.
+   */
+  listLedgerRefs(userId: string, reason: LedgerReason): Promise<readonly string[]>;
 }
 
 /** Runtime pārbaude, vai glabātuve atbalsta maku (abas to dara; sargs index.ts). */
@@ -78,6 +86,7 @@ export function isCoinStore(value: unknown): value is CoinStore {
     value !== null &&
     typeof (value as CoinStore).getBalance === "function" &&
     typeof (value as CoinStore).applyLedger === "function" &&
-    typeof (value as CoinStore).sumLedgerSince === "function"
+    typeof (value as CoinStore).sumLedgerSince === "function" &&
+    typeof (value as CoinStore).listLedgerRefs === "function"
   );
 }

@@ -748,6 +748,13 @@ export class SqliteStorage
     return row ? Number(row.total) : 0;
   }
 
+  async listLedgerRefs(userId: string, reason: string): Promise<readonly string[]> {
+    const rows = this.db
+      .prepare(`SELECT ref FROM coin_ledger WHERE user_id = ? AND reason = ?`)
+      .all(userId, reason) as Array<{ ref: string }>;
+    return rows.map((row) => row.ref);
+  }
+
   async getUserStats(userId: string): Promise<UserStatsRecord | undefined> {
     const row = this.db
       .prepare(

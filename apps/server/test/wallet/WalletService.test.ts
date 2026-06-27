@@ -64,6 +64,42 @@ describe("WalletService", () => {
     expect(await wallet.creditSpReward("u1", "game-B", 300)).toEqual({ applied: true, balance: 5400 });
   });
 
+  it("purchaseItem debits the price, is idempotent per item, and derives owned items from the ledger", async () => {
+    await wallet.grantSignupBonus("u1"); // 5000
+    // Pirkums atskaita cenu.
+    expect(await wallet.purchaseItem("u1", "theme.bubbles", 2000)).toEqual({
+      ok: true,
+      applied: true,
+      balance: 3000
+    });
+    expect(await storage.getBalance("u1")).toBe(3000);
+    // Atkārtots tās pašas preces pirkums = idempotents (applied:false), NEdebetē divreiz.
+    expect(await wallet.purchaseItem("u1", "theme.bubbles", 2000)).toEqual({
+      ok: true,
+      applied: false,
+      balance: 3000
+    });
+    expect(await storage.getBalance("u1")).toBe(3000);
+    // Cita prece = atsevišķs debets.
+    expect(await wallet.purchaseItem("u1", "theme.rain", 1000)).toEqual({
+      ok: true,
+      applied: true,
+      balance: 2000
+    });
+    // Īpašumtiesības atvasinātas no ledger (reason theme_purchase, ref = itemId).
+    expect([...(await wallet.listOwnedItems("u1"))].sort()).toEqual(["theme.bubbles", "theme.rain"]);
+  });
+
+  it("purchaseItem rejects when balance is insufficient (no debit, not owned)", async () => {
+    await wallet.grantSignupBonus("u1"); // 5000
+    expect(await wallet.purchaseItem("u1", "theme.bubbles", 6000)).toEqual({
+      ok: false,
+      reason: "insufficient"
+    });
+    expect(await storage.getBalance("u1")).toBe(5000);
+    expect(await wallet.listOwnedItems("u1")).toEqual([]);
+  });
+
   it("sums SP rewards within the last 24h for the daily cap", async () => {
     await wallet.grantSignupBonus("u1");
     await wallet.creditSpReward("u1", "game-A", 100);

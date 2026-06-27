@@ -897,6 +897,14 @@ export class PostgresStorage
     return row ? Number(row.total) : 0;
   }
 
+  async listLedgerRefs(userId: string, reason: string): Promise<readonly string[]> {
+    const result = await this.pool.query<{ ref: string }>(
+      `SELECT ref FROM coin_ledger WHERE user_id = $1 AND reason = $2`,
+      [userId, reason]
+    );
+    return result.rows.map((row) => row.ref);
+  }
+
   async getUserStats(userId: string): Promise<UserStatsRecord | undefined> {
     const result = await this.pool.query<UserStatsRow>(
       `SELECT user_id, games_played, wins, losses, updated_at

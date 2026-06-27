@@ -8,6 +8,7 @@ import type { AppStrings } from "../../lib/i18n";
 import type { ConnectionStatus } from "../../lib/mp/clientView";
 import { VolumeIcon, VolumeOffIcon } from "../AudioControls";
 import { HelpIcon } from "../RulesDialog";
+import { CloseIcon } from "../ui/CloseIcon";
 import { IconButton } from "../ui/IconButton";
 import {
   type ChatTranslationState,
@@ -505,15 +506,6 @@ function ChatIcon() {
   return (
     <svg className="iconSvg" viewBox="0 0 24 24" aria-hidden="true">
       <path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 8.5-8.5 8.38 8.38 0 0 1 8.5 8.5Z" />
-    </svg>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg className="iconSvg" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M18 6 6 18" />
-      <path d="m6 6 12 12" />
     </svg>
   );
 }

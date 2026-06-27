@@ -25,7 +25,7 @@
   {
     "path": ".github/workflows/ci.yml",
     "type": "config",
-    "purpose": "CI pipeline: install, build core/shared/server, typecheck, lint, unit tests, PostgreSQL integration tests, web build, admin build, and Playwright e2e.",
+    "purpose": "CI pipeline: install, build core/shared/server, typecheck, lint, unit tests, PostgreSQL integration tests, web build, admin build, Playwright e2e, and a dedicated opt-in theme-performance tripwire step (THEME_PERF=1).",
     "importance": "critical",
     "related_files": [
       "package.json",
@@ -680,7 +680,7 @@
   {
     "path": "apps/server/src/httpServer.ts",
     "type": "route",
-    "purpose": "Raw HTTP server for `/health`, `/metrics`, optional chat translation routes, optional admin routes (`/admin/*`), optional contact-form route (`POST /contact`), optional SP coin-reward routes (`/sp/*`), optional deep-stats route (`/stats`), optional auth routes, and JSON error responses. API handlers are tried in order: admin -> contact -> sp -> stats -> auth.",
+    "purpose": "Raw HTTP server for `/health`, `/metrics`, optional chat translation routes, optional admin routes (`/admin/*`), optional contact-form route (`POST /contact`), optional SP coin-reward routes (`/sp/*`), optional deep-stats route (`/stats`), optional store routes (`/store/*`), optional auth routes, and JSON error responses. API handlers are tried in order: admin -> contact -> sp -> stats -> store -> auth.",
     "importance": "high",
     "related_files": [
       "apps/server/src/http/authRoutes.ts",
@@ -801,6 +801,28 @@
     "importance": "medium",
     "related_files": [
       "apps/server/src/http/contactRoutes.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/store/StoreService.test.ts",
+    "type": "test",
+    "purpose": "Unit coverage for StoreService: unknown item → unknown_item (no debit), successful buy debits + grants ownership, re-buy is idempotent (alreadyOwned, no double debit), insufficient coins → insufficient + balance, and listOwned returns ledger-derived owned itemIds.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/store/StoreService.ts",
+      "apps/server/src/wallet/WalletService.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/test/http/storeRoutes.integration.test.ts",
+    "type": "test",
+    "purpose": "Integration coverage for `/store/*`: GET /store/owned + POST /store/buy require auth (401 anon), buy succeeds (200 owned/balance) and is idempotent (alreadyOwned), unknown item → 400, insufficient coins → 402 + balance, and per-user rate limits.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/http/storeRoutes.ts",
+      "apps/server/src/store/StoreService.ts"
     ],
     "confidence": "high"
   },
@@ -1530,6 +1552,18 @@
     "confidence": "high"
   },
   {
+    "path": "tests/e2e/theme-performance.spec.ts",
+    "type": "test",
+    "purpose": "Opt-in (THEME_PERF=1) CI performance TRIPWIRE for the 6 paid animated themes: for each, forces the animated path (reducedMotion no-preference + sets data-theme directly), asserts the lobby bg is that theme's animated SVG, then probes the main thread ~3s — fails only on catastrophe (dead rAF loop, a Long Task >400ms, or a console error on the theme path). NOT an FPS gate (headless ≠ real device); runs as a dedicated CI step, skipped by the main test:web run.",
+    "importance": "medium",
+    "related_files": [
+      ".github/workflows/ci.yml",
+      "apps/web/lib/theme.ts",
+      "playwright.config.ts"
+    ],
+    "confidence": "high"
+  },
+  {
     "path": "packages/core/test/dominoRules.test.ts",
     "type": "test",
     "purpose": "Primary core rule tests for tiles, shuffle, legal play, scoring, trick resolution, tiebreakers, and AI behavior.",
@@ -1627,10 +1661,12 @@
   {
     "path": "apps/web/lib/theme.ts",
     "type": "utility",
-    "purpose": "Theme identifier/source for the current default web theme and theme-related tests.",
-    "importance": "medium",
+    "purpose": "Web theme registry (Phase 4/5): 7 ThemeIds (default free + 6 paid twilight/rain/pop-out/confetti/bubbles/luminous, each with itemId `theme.<slug>`), THEMES, isThemeId, isThemeUnlocked(owned), applyTheme(<html data-theme>), reconcileStoredTheme(owned) (account-bound enforcement → downgrade non-owned stored theme to Default), getThemeBootstrapScript (pre-paint stored theme + reduced-motion/deviceMemory/hardwareConcurrency static-motion heuristic), and startMotionFpsProbe (post-paint FPS<40/1.5s → data-theme-motion=static poster fallback).",
+    "importance": "high",
     "related_files": [
       "apps/web/styles/tokens.css",
+      "packages/shared/src/store-catalog.ts",
+      "apps/web/lib/store/storeApi.ts",
       "apps/web/test/theme.test.ts"
     ],
     "confidence": "high"
@@ -1683,6 +1719,18 @@
     "importance": "medium",
     "related_files": [
       "apps/web/styles/tokens.css"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/ui/CloseIcon.tsx",
+    "type": "ui",
+    "purpose": "Shared dialog close (×) icon SVG, extracted from 6 dialog files (AuthDialog/LobbyScreen/RulesDialog/MpLobbyDialogs/LeaderboardDialog) to remove duplication. Presentational only; color via currentColor (.iconSvg).",
+    "importance": "low",
+    "related_files": [
+      "apps/web/components/auth/AuthDialog.tsx",
+      "apps/web/components/LobbyScreen.tsx",
+      "apps/web/components/LeaderboardDialog.tsx"
     ],
     "confidence": "high"
   },
@@ -2175,6 +2223,17 @@
     "confidence": "high"
   },
   {
+    "path": "packages/shared/test/store-catalog.test.ts",
+    "type": "test",
+    "purpose": "Store catalog tests: all 6 purchasable themes registered + priced at THEME_PRICE (kind theme, id `theme.*`), themeItemId↔getStoreItem round-trip, and getStoreItem returns undefined for unknown/empty ids (server rejects with 400).",
+    "importance": "medium",
+    "related_files": [
+      "packages/shared/src/store-catalog.ts",
+      "packages/shared/src/economy.ts"
+    ],
+    "confidence": "high"
+  },
+  {
     "path": "packages/core/test/multiplayer/determinism.test.ts",
     "type": "test",
     "purpose": "Multiplayer deterministic RNG/shuffle coverage.",
@@ -2385,19 +2444,33 @@
   {
     "path": "packages/shared/src/economy.ts",
     "type": "model",
-    "purpose": "Single authoritative source for gold-coin economy constants (STARTING_COINS, SP_REWARDS medium/hard/epic, POT_SPLIT 70/30, MIN_ENTRY_FEE, MAX_ENTRY_FEE sanity cap) and the splitPot helper (remainder→1st place, single human→100%). Imported by both server (enforces) and web (displays).",
+    "purpose": "Single authoritative source for gold-coin economy constants (STARTING_COINS, SP_REWARDS medium/hard/epic, POT_SPLIT 70/30, MIN_ENTRY_FEE, MAX_ENTRY_FEE sanity cap, THEME_PRICE 200k for purchasable themes) and the splitPot helper (remainder→1st place, single human→100%). Imported by both server (enforces) and web (displays).",
     "importance": "high",
     "related_files": [
       "apps/server/src/wallet/WalletService.ts",
       "apps/server/src/http/spRewardRoutes.ts",
+      "packages/shared/src/store-catalog.ts",
       "apps/web/lib/sp/spReward.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "packages/shared/src/store-catalog.ts",
+    "type": "model",
+    "purpose": "Single authoritative store catalog (Phase 4): purchasable items + prices. THEME_SLUGS (twilight/rain/pop-out/confetti/bubbles/luminous), themeItemId (slug→`theme.<slug>` = ledger ref), STORE_CATALOG (each theme priced at THEME_PRICE from economy.ts), getStoreItem (unknown→undefined → server 400). Imported by server (validates itemId + price at purchase) and web (shows price/lock). Ownership is ledger-derived (reason `theme_purchase`), no inventory table.",
+    "importance": "high",
+    "related_files": [
+      "packages/shared/src/economy.ts",
+      "apps/server/src/store/StoreService.ts",
+      "apps/web/lib/theme.ts",
+      "packages/shared/test/store-catalog.test.ts"
     ],
     "confidence": "high"
   },
   {
     "path": "apps/server/src/storage/CoinStore.ts",
     "type": "service",
-    "purpose": "Gold-coin wallet storage interface (getBalance, atomic+idempotent applyLedger, sumLedgerSince) + isCoinStore guard. Implemented by both SqliteStorage and PostgresStorage.",
+    "purpose": "Gold-coin wallet storage interface (getBalance, atomic+idempotent applyLedger, sumLedgerSince, listLedgerRefs for ledger-derived ownership) + isCoinStore guard. LedgerReason union includes `theme_purchase` (store). Implemented by both SqliteStorage and PostgresStorage.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/storage/SqliteStorage.ts",
@@ -2409,12 +2482,13 @@
   {
     "path": "apps/server/src/wallet/WalletService.ts",
     "type": "service",
-    "purpose": "Gold-coin money application layer over CoinStore: signup bonus (repair-on-read), getBalance, SP reward credit, creditSpRewardCapped (per-user lock + daily-cap clamp), and Phase 3 MP money — debitEntryFee (mp_entry, minBalance 0), refundEntryFee (mp_refund), payoutCoins (mp_payout); all reuse applyLedger (no new migration). The one place all balance changes flow through.",
+    "purpose": "Gold-coin money application layer over CoinStore: signup bonus (repair-on-read), getBalance, SP reward credit, creditSpRewardCapped (per-user lock + daily-cap clamp), Phase 3 MP money — debitEntryFee (mp_entry, minBalance 0), refundEntryFee (mp_refund), payoutCoins (mp_payout), and Phase 4 store — purchaseItem (theme_purchase, minBalance 0; the ledger row is debit + ownership, applied=false means already owned) + listOwnedItems (ledger-derived); all reuse applyLedger (no new migration). The one place all balance changes flow through.",
     "importance": "critical",
     "related_files": [
       "apps/server/src/storage/CoinStore.ts",
       "packages/shared/src/economy.ts",
       "apps/server/src/wallet/MatchPayoutService.ts",
+      "apps/server/src/store/StoreService.ts",
       "apps/server/src/net/messageRouter.ts",
       "apps/server/src/http/spRewardRoutes.ts",
       "apps/server/src/http/authRoutes.ts"
@@ -2431,6 +2505,44 @@
       "packages/shared/src/economy.ts",
       "apps/server/src/index.ts",
       "apps/server/src/storage/StoragePort.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/store/StoreService.ts",
+    "type": "service",
+    "purpose": "Store application layer (Phase 4): validates an itemId against the shared catalog (unknown→unknown_item) and orchestrates the purchase through WalletService.purchaseItem (price from catalog, server-authoritative). purchase() returns ok{alreadyOwned,balance} / unknown_item / insufficient{balance}; listOwned() returns the ledger-derived owned itemIds. No new state — ownership lives in coin_ledger (reason theme_purchase).",
+    "importance": "high",
+    "related_files": [
+      "packages/shared/src/store-catalog.ts",
+      "apps/server/src/wallet/WalletService.ts",
+      "apps/server/src/http/storeRoutes.ts",
+      "apps/server/test/store/StoreService.test.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/http/storeRoutes.ts",
+    "type": "route",
+    "purpose": "Optional `/store/*` HTTP routes (Phase 4): POST /store/buy (auth; zod itemId; 200 owned/alreadyOwned/balance, 402 insufficient_coins+balance, 400 unknown_item) and GET /store/owned (auth; owned itemIds). 401 for anonymous; per-user rate limits (buy 30/h, owned 120/h); CORS allowlist. Chained in httpServer before the auth handler; mounted in index.ts only when a wallet + AuthService exist. Prod: needs a Caddy `reverse_proxy /store` rule or it 404s.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/store/StoreService.ts",
+      "apps/server/src/http/httpUtils.ts",
+      "apps/server/src/httpServer.ts",
+      "apps/server/test/http/storeRoutes.integration.test.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/store/storeApi.ts",
+    "type": "service",
+    "purpose": "Client HTTP wrapper for the store: apiBuyItem (POST /store/buy) and apiFetchOwned (GET /store/owned). Reuses requestJson/jsonInit from authApi (same HTTP base + Bearer token). Anonymous gets 401; price comes from the server catalog, the client only displays.",
+    "importance": "medium",
+    "related_files": [
+      "apps/server/src/http/storeRoutes.ts",
+      "apps/web/lib/auth/authApi.ts",
+      "apps/web/lib/theme.ts"
     ],
     "confidence": "high"
   },

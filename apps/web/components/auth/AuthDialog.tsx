@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { AVATAR_IDS, avatarFilePath } from "@domino-poker/shared";
+import { AVATAR_IDS, avatarFilePath, THEME_PRICE } from "@domino-poker/shared";
 
 import { apiForgotPassword } from "../../lib/auth/authApi";
 import type {
@@ -15,6 +15,7 @@ import type {
 } from "../../lib/auth/authApi";
 import { avatarUrl } from "../../lib/auth/avatarUrl";
 import { prepareAvatar } from "../../lib/auth/avatarUpload";
+import { CloseIcon } from "../ui/CloseIcon";
 import { IconButton } from "../ui/IconButton";
 import { TextField } from "../ui/TextField";
 import { StatisticsPanel } from "./StatisticsPanel";
@@ -25,10 +26,16 @@ import {
   applyTheme,
   DEFAULT_THEME,
   isThemeId,
+  isThemeUnlocked,
+  reconcileStoredTheme,
+  startMotionFpsProbe,
   THEME_STORAGE_KEY,
   THEMES,
-  type ThemeId
+  type ThemeId,
+  type ThemeOption
 } from "../../lib/theme";
+import { apiBuyItem, apiFetchOwned } from "../../lib/store/storeApi";
+import { CoinGif } from "../CoinGif";
 import { Dialog } from "../Dialog";
 
 type Tab = "login" | "register" | "profile" | "personalization" | "statistics" | "forgot";
@@ -46,8 +53,12 @@ export interface AuthDialogProps {
   readonly uploadAvatar: (blob: Blob) => Promise<AuthResult<{ user: AuthUser; avatarVersion: number }>>;
   readonly onClose: () => void;
   readonly playClick?: () => void;
-  /** Pašreizējā auth tokena lasītājs — "Statistika" tabs to lieto `GET /stats`. */
+  /** Pašreizējā auth tokena lasītājs — "Statistika"/"Personalizācija" tabi to lieto. */
   readonly getToken: () => string | undefined;
+  /** Zelta monētu bilance (veikala pieejamība/affordability); `null`, ja anonīms/neielādēta. */
+  readonly balance: number | null;
+  /** Atjauno app bilanci pēc veikala pirkuma (serveris jau autoritatīvi debetēja). */
+  readonly onBalanceChange: (next: number) => void;
 }
 
 /** Maršrutē servera kļūdas kodu uz lokalizētu ziņu (nekādu hardcoded tekstu). */
@@ -157,6 +168,7 @@ export function AuthDialog(props: AuthDialogProps) {
         </IconButton>
       </div>
 
+      <div className="authDialogBody">
       <h2 id="auth-dialog-title" className="srOnly">
         {t.account}
       </h2>
@@ -261,32 +273,54 @@ export function AuthDialog(props: AuthDialogProps) {
       ) : null}
 
       {tab === "personalization" && authenticated ? (
-        <PersonalizationPanel labels={t} playClick={playClick} />
+        <PersonalizationPanel
+          labels={t}
+          playClick={playClick}
+          getToken={props.getToken}
+          balance={props.balance}
+          onBalanceChange={props.onBalanceChange}
+        />
       ) : null}
 
       {tab === "statistics" && authenticated ? (
         <StatisticsPanel labels={t} getToken={props.getToken} />
       ) : null}
+      </div>
     </Dialog>
   );
 }
 
+/** Tēmas cilvēklasāmais nosaukums (jaunās = EN `name`; Default = lokalizēts `labelKey`). */
+function themeName(t: AppStrings, option: ThemeOption): string {
+  return option.name ?? t[option.labelKey];
+}
+
 /**
- * Vizuālās personalizācijas panelis: krāsu tēmas izvēle. Pašpietiekams — lasa/
- * raksta `localStorage` un pielieto `<html data-theme>` (sk. `lib/theme`); React
- * nekas cits uz to nereaģē. Pagaidām saraksts satur tikai noklusējuma tēmu.
+ * Vizuālās personalizācijas panelis (Fāze 5): tēmas izvēle + veikals. Bezmaksas (Default) un
+ * NOPIRKTĀS tēmas ir izvēlamas; pārējās rāda slēdzeni + cenu + "Pirkt". Īpašumtiesības nāk no
+ * `/store/owned` (ledger-atvasinātas, account-bound). Pēc ielādes SASKAŅO: ja glabātā tēma nav
+ * atbloķēta (anon / nepieder) → atstata uz Default. Tēmas pielietojums paliek `localStorage`.
  */
 function PersonalizationPanel({
   labels: t,
-  playClick
+  playClick,
+  getToken,
+  balance,
+  onBalanceChange
 }: {
   readonly labels: AppStrings;
   readonly playClick?: (() => void) | undefined;
+  readonly getToken: () => string | undefined;
+  readonly balance: number | null;
+  readonly onBalanceChange: (next: number) => void;
 }) {
   const [theme, setTheme] = useState<ThemeId>(() => {
     const stored = readLocalStorage(THEME_STORAGE_KEY);
     return isThemeId(stored) ? stored : DEFAULT_THEME;
   });
+  const [owned, setOwned] = useState<readonly string[]>([]);
+  const [buying, setBuying] = useState<string | null>(null);
+  const [buyError, setBuyError] = useState<string | null>(null);
 
   const selectTheme = (next: ThemeId) => {
     if (next === theme) return;
@@ -299,6 +333,46 @@ function PersonalizationPanel({
     }
     applyTheme(next);
     setTheme(next);
+    // Fāze 5.5 (Codex) — pārbaudīt veiktspēju arī pēc tēmas maiņas tajā pašā sesijā (ne tikai
+    // sākotnējā AppShell mount). Default → zonde tūlīt atgriežas (nav animētas tēmas).
+    startMotionFpsProbe();
+  };
+
+  // Ielādē piederošās preces (UI: kuras tēmas atbloķētas) + SASKAŅO glabāto tēmu pret
+  // īpašumtiesībām caur centralizēto `reconcileStoredTheme` (tā pati loģika, ko app-shell
+  // lieto uz auth maiņu — P2). `setTheme` sinhronizē React stāvokli, ja saskaņošana atstāja Default.
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    let cancelled = false;
+    void apiFetchOwned(token).then((result) => {
+      if (cancelled || !result.ok) return;
+      setOwned(result.data.owned);
+      setTheme(reconcileStoredTheme(result.data.owned));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [getToken]);
+
+  const buy = async (option: ThemeOption): Promise<void> => {
+    const token = getToken();
+    const itemId = option.itemId;
+    if (!token || itemId === undefined || buying !== null) return;
+    playClick?.();
+    setBuyError(null);
+    setBuying(itemId);
+    const result = await apiBuyItem(token, itemId);
+    setBuying(null);
+    if (!result.ok) {
+      setBuyError(
+        result.error === "insufficient_coins" ? t.themeInsufficientCoins : t.authErrorGeneric
+      );
+      return;
+    }
+    onBalanceChange(result.data.balance);
+    setOwned((prev) => (prev.includes(itemId) ? prev : [...prev, itemId]));
+    selectTheme(option.id); // pēc pirkuma uzreiz pielieto nopirkto tēmu
   };
 
   return (
@@ -306,20 +380,63 @@ function PersonalizationPanel({
       <p className="settingsTabDescription">{t.personalizationDescription}</p>
       <fieldset className="themeOptions">
         <legend className="srOnly">{t.themeLabel}</legend>
-        {THEMES.map((option) => (
-          <label className={`themeOption ${theme === option.id ? "selected" : ""}`} key={option.id}>
-            <input
-              type="radio"
-              name="theme"
-              value={option.id}
-              checked={theme === option.id}
-              onChange={() => selectTheme(option.id)}
-            />
-            <span className={`themeSwatch theme-${option.id}`} aria-hidden="true" />
-            <span className="themeOptionName">{t[option.labelKey]}</span>
-          </label>
-        ))}
+        {THEMES.map((option) => {
+          const name = themeName(t, option);
+          if (isThemeUnlocked(option, owned)) {
+            return (
+              <label className={`themeOption ${theme === option.id ? "selected" : ""}`} key={option.id}>
+                <input
+                  type="radio"
+                  name="theme"
+                  value={option.id}
+                  checked={theme === option.id}
+                  onChange={() => selectTheme(option.id)}
+                />
+                <span className="themeOptionHead">
+                  <span className={`themeSwatch theme-${option.id}`} aria-hidden="true" />
+                  <span className="themeOptionName">{name}</span>
+                </span>
+              </label>
+            );
+          }
+          // Bloķēta (pērkama) tēma — slēdzene + cena + "Pirkt". Poga AKTĪVA, kad bilance ielādēta;
+          // ja nepietiek monētu, klikšķis → serveris 402 → lokalizēts "Nepietiek monētu" (redzama atsauksme,
+          // nevis kluss disabled). Serveris ir autoritatīvs: bilance tiek pārbaudīta un 200k debetēti atomiski.
+          const balanceLoading = balance === null;
+          return (
+            <div
+              className="themeOption themeOptionLocked"
+              key={option.id}
+              aria-label={`${name} — ${t.themeLocked}`}
+            >
+              <span className="themeOptionHead">
+                <span className={`themeSwatch theme-${option.id} locked`} aria-hidden="true" />
+                <span className="themeOptionName">{name}</span>
+              </span>
+              <span className="themeOptionBuy">
+                <span className="themePrice">
+                  <CoinGif className="themePriceCoin" />
+                  {THEME_PRICE.toLocaleString()}
+                </span>
+                <button
+                  type="button"
+                  className="themeBuyButton"
+                  aria-label={`${t.themeBuy} ${name}`}
+                  disabled={buying !== null || balanceLoading}
+                  onClick={() => void buy(option)}
+                >
+                  {t.themeBuy}
+                </button>
+              </span>
+            </div>
+          );
+        })}
       </fieldset>
+      {buyError ? (
+        <p className="themeBuyError" role="alert">
+          {buyError}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -622,14 +739,5 @@ function ForgotPasswordForm({
         </button>
       </div>
     </form>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg className="iconSvg" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M18 6 6 18" />
-      <path d="m6 6 12 12" />
-    </svg>
   );
 }

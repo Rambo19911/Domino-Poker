@@ -703,6 +703,43 @@
     "confidence": "high"
   },
   {
+    "name": "Store (Cosmetics)",
+    "folder": ".",
+    "purpose": "In-game cosmetics store (Phase 4): a coin SINK on top of the gold economy, NOT pay-to-win. Sells the 6 purchasable animated-background THEMES (slugs twilight/rain/pop-out/confetti/bubbles/luminous) for THEME_PRICE (200k) each. Ownership is DERIVED from the append-only coin_ledger (reason `theme_purchase`, ref = itemId `theme.<slug>`), so there is NO separate inventory table: one purchase is a single atomic ledger row that is simultaneously the coin debit AND the ownership grant (exactly-once via UNIQUE(user_id, reason, ref); re-buy is an idempotent no-op = alreadyOwned, no double debit). Server is authoritative: price comes from the shared catalog (never the client) and the server rejects unknown items. HTTP: POST /store/buy + GET /store/owned (auth required; anonymous cannot buy). Web client (lib/store/storeApi.ts) only displays catalog prices/locks and reconciles the active theme against owned items.",
+    "main_files": [
+      "packages/shared/src/store-catalog.ts",
+      "packages/shared/src/economy.ts",
+      "apps/server/src/store/StoreService.ts",
+      "apps/server/src/http/storeRoutes.ts",
+      "apps/server/src/wallet/WalletService.ts",
+      "apps/server/src/storage/CoinStore.ts",
+      "apps/web/lib/store/storeApi.ts",
+      "apps/web/lib/theme.ts",
+      "apps/web/components/ui/CloseIcon.tsx",
+      "apps/web/styles/tokens.css"
+    ],
+    "depends_on": [
+      "Shared Protocol",
+      "Coin Economy (Gold)",
+      "Server Auth",
+      "Web App"
+    ],
+    "used_by": [
+      "Web App",
+      "Multiplayer Server"
+    ],
+    "risks": [
+      "store-catalog.ts is the single authoritative source of purchasable items + prices (THEME_SLUGS, themeItemId, STORE_CATALOG, getStoreItem); both server (validates itemId + price at purchase) and web (shows price/lock) import it. THEME_PRICE lives in economy.ts — do not duplicate the price.",
+      "Ownership is ledger-derived (WalletService.purchaseItem reason `theme_purchase`, listOwnedItems via CoinStore.listLedgerRefs); no inventory table. The purchase ledger row IS the debit + the ownership record. Adding `theme_purchase` to the LedgerReason union needed NO migration (reason CHECK was already dropped in 0010).",
+      "StoreService is a thin application layer over WalletService: getStoreItem (unknown→unknown_item) → wallet.purchaseItem (insufficient→balance) → ok{alreadyOwned}. Keep money rules in WalletService, not here.",
+      "HTTP routes POST /store/buy (402 insufficient_coins + balance, 400 unknown_item) + GET /store/owned require auth (401 anon) and are per-user rate limited; storeHandler is chained in httpServer before the auth handler and mounted in index.ts only when a wallet + AuthService exist. Like every new server HTTP route, /store needs a Caddy reverse_proxy /store rule on the VPS or it 404s in prod.",
+      "Web theme registry (apps/web/lib/theme.ts): 7 ThemeIds (default free + 6 paid), isThemeUnlocked(owned), reconcileStoredTheme(owned) downgrades a non-owned/stored theme to Default (account-bound enforcement on auth change + after /store/owned), getThemeBootstrapScript (pre-paint applies stored theme + a reduced-motion/deviceMemory/hardwareConcurrency static-motion heuristic) and startMotionFpsProbe (post-paint FPS<40 over 1.5s → data-theme-motion=static poster fallback). Animated SVG bg vs static poster is gated by data-theme-motion.",
+      "CloseIcon.tsx is a shared dialog × icon extracted from 6 dialog files (AuthDialog/LobbyScreen/RulesDialog/MpLobbyDialogs/LeaderboardDialog) — currentColor only.",
+      "CI perf TRIPWIRE (tests/e2e/theme-performance.spec.ts, opt-in THEME_PERF=1) catches catastrophic theme regressions (dead rAF loop, long Long Task, console error) per paid theme; NOT an FPS gate (headless ≠ real device)."
+    ],
+    "confidence": "high"
+  },
+  {
     "name": "Player Statistics (Deep Stats)",
     "folder": ".",
     "purpose": "Cross-cutting deep player statistics for registered users (bid accuracy + placement distributions; NOT a competitive leaderboard — they drive no rewards/ranking). One generalized player_game_results table (migration 0008, mode sp/mp discriminator, per-game rows, idempotent by id) via the PlayerStatsStore capability. Bid accuracy needs per-round bid-vs-tricks, which the engine resets each round, so the authoritative ROUND_RESULT event was enriched with playerResults captured pre-reset. SP is client-reported + server-validated via POST /sp/complete (token snapshots difficulty+roundCount; sum===roundCount check; coins for 1st/2nd; independent idempotency + consumed-token replay -> stable success). MP is server-authoritative via MpStatsRecorder (room-owner lifecycle, accumulates from ROUND_RESULT.playerResults before GAME_OVER, persists mp:{matchId}:{userId} rows; records all MP games incl. with bots). Read via GET /stats (lazy, own handler) -> PlayerStatsService.getStats composition; profile Statistics tab renders hand-rolled token-only CSS bars.",

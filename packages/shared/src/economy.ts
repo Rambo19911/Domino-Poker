@@ -10,6 +10,12 @@
 /** Starta bonuss, ko saņem katrs reģistrētais konts (vienreiz, idempotenti). */
 export const STARTING_COINS = 5000;
 
+/**
+ * Pērkamās vizuālās tēmas cena (kosmētika — monētu izlietne, NE pay-to-win).
+ * VIENĪGAIS cenas avots; lieto `store-catalog.ts`. Mainot, mainās visur.
+ */
+export const THEME_PRICE = 200_000;
+
 /** SP grūtības līmeņi, kas dod balvu (atbilst web `BotDifficulty`). */
 export type CoinDifficulty = "medium" | "hard" | "epic";
 

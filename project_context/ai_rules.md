@@ -251,6 +251,7 @@ Care points:
 - `httpServer.ts` chains handlers `/sp/*` → `/stats` → auth (first to return `true` wins); raw-HTTP helpers are shared via `http/httpUtils.ts` (do not re-copy them).
 - On reward/charge errors, favor under-credit over over-credit (the SP token is consumed before the DB credit by design).
 - Multiplayer paid rooms (entry fee + pot, 70/30 payout to top-2 registered humans) are built server-side and surfaced in the web UI. Keep money rules in `WalletService` / `MatchPayoutService` / `packages/shared/src/economy.ts`; web code only displays balances, validates obvious client form constraints, and sends intents.
+- Store (cosmetic theme purchases, Phase 4): item ownership is DERIVED from the append-only `coin_ledger` (`UNIQUE(user_id, reason, ref)`), NOT a separate inventory table — one purchase is a single atomic ledger row that is simultaneously the coin debit AND the ownership grant (reason `theme_purchase`, ref = itemId), so it is exactly-once and a re-buy is an idempotent no-op (`applied=false` = already owned). `packages/shared/src/store-catalog.ts` is the authoritative item+price source (price from `economy.ts` `THEME_PRICE`); the server validates the itemId/price and rejects unknown items — never trust a client-supplied price. Keep purchase logic in `WalletService.purchaseItem` / `StoreService`; the web only displays catalog prices/locks and reconciles the active theme against `/store/owned`.
 
 ### Deep Player Statistics
 
@@ -322,7 +323,7 @@ Important ordering:
 - `.env` and `.env.*` are ignored except `.env.example`.
 - `WEB_ORIGIN`, `RESEND_API_KEY`, `EMAIL_FROM`, and `APP_BASE_URL` are read by `apps/server/src/config.ts`; verify `.env.example` when changing auth CORS or password-reset email behavior because those examples can drift.
 - `TRANSLATE_ENABLED`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_APPLICATION_CREDENTIALS`, and `TRANSLATE_*` limits are read by `apps/server/src/config.ts` for optional MP chat translation. Service account JSON files must stay outside source control.
-- Reverse proxies must route `/ws`, `/auth/*`, `/sp/*`, `/stats`, `/contact`, `/chat/translate`, and (when the admin panel is enabled) `/admin/*` to the server port. Enable `TRUST_PROXY=true` only behind a trusted proxy that controls `X-Forwarded-For`.
+- Reverse proxies must route `/ws`, `/auth/*`, `/sp/*`, `/stats`, `/store/*`, `/contact`, `/chat/translate`, and (when the admin panel is enabled) `/admin/*` to the server port. Every NEW server HTTP route needs its own Caddy `reverse_proxy` rule on the VPS (the Caddyfile is not in the repo) or it 404s in prod. Enable `TRUST_PROXY=true` only behind a trusted proxy that controls `X-Forwarded-For`.
 - Admin panel env (when enabled): `ADMIN_PASSWORD_HASH` (scrypt, format like `auth/passwords.ts`), `ADMIN_EMAIL` (2FA OTP recipient; default owner), `ADMIN_WEB_ORIGIN` (admin web CORS). Reuses `RESEND_API_KEY` / `EMAIL_FROM`. The production admin web uses its own subdomain and routes `/admin/*` plus `/auth/avatar/*` to the server.
 - `TRICK_PAUSE_MS` must remain aligned with the web client's completed-trick freeze (`apps/web/lib/mp/useTrickFreeze.ts`); config rejects values below 1500 ms.
 - `data/*.sqlite`, `data/*.sqlite-wal`, and `data/*.sqlite-shm` are ignored runtime files.

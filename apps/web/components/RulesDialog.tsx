@@ -1,6 +1,7 @@
 "use client";
 
 import { Dialog } from "./Dialog";
+import { CloseIcon } from "./ui/CloseIcon";
 import { IconButton } from "./ui/IconButton";
 import type { AppStrings } from "../lib/i18n";
 import type { AudioSettings } from "../lib/useAudioSettings";
@@ -118,14 +119,5 @@ export function HelpIcon() {
         alt=""
       />
     </span>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg className="iconSvg" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M18 6 6 18" />
-      <path d="m6 6 12 12" />
-    </svg>
   );
 }

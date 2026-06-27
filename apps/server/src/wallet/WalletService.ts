@@ -192,6 +192,36 @@ export class WalletService {
     return result.ok ? { ok: true, applied: result.applied, balance: result.balance } : result;
   }
 
+  /**
+   * Pērk kataloga preci (kosmētika, piem. tēma) par `price` monētām (Fāze 4). Atomiski
+   * atskaita, ja pietiek (`minBalance: 0`). Idempotents pēc `(userId, theme_purchase,
+   * itemId)` — atkārtots/vienlaicīgs pirkums NEdebetē divreiz un paliek īpašumā. Ledger
+   * rinda VIENLAIKUS ir debets UN īpašumtiesību ieraksts (exactly-once, bez atsevišķas
+   * inventāra tabulas; `UNIQUE(user_id,reason,ref)`). `applied=false` = jau piederēja.
+   * `{ ok:false }` ja bilance nepietiek.
+   */
+  async purchaseItem(
+    userId: string,
+    itemId: string,
+    price: number
+  ): Promise<{ ok: true; applied: boolean; balance: number } | { ok: false; reason: "insufficient" }> {
+    const result = await this.coins.applyLedger({
+      id: this.createId(),
+      userId,
+      delta: -price,
+      reason: "theme_purchase",
+      ref: itemId,
+      minBalance: 0,
+      now: this.clock()
+    });
+    return result.ok ? { ok: true, applied: result.applied, balance: result.balance } : result;
+  }
+
+  /** Lietotāja piederošās preces (itemId), atvasinātas no ledger `theme_purchase` ierakstiem. */
+  async listOwnedItems(userId: string): Promise<readonly string[]> {
+    return this.coins.listLedgerRefs(userId, "theme_purchase");
+  }
+
   /** Kopā SP balvās nopelnītās monētas pēdējās 24h (dienas griestu pārbaudei). */
   async spRewardLast24h(userId: string, now: number): Promise<number> {
     return this.coins.sumLedgerSince(userId, "sp_reward", now - 24 * 60 * 60 * 1000);

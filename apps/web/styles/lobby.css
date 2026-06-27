@@ -13,12 +13,14 @@
    `.gameShell` bāzes gradients paliek fallback, ja modifikatora nav. */
 .gameShell.spRoomBg {
   background:
+    linear-gradient(rgb(var(--overlay-rgb) / var(--scrim)), rgb(var(--overlay-rgb) / var(--scrim))),
     var(--bg-sp-room) center / cover no-repeat,
     var(--overlay);
 }
 
 .gameShell.mpRoomBg {
   background:
+    linear-gradient(rgb(var(--overlay-rgb) / var(--scrim)), rgb(var(--overlay-rgb) / var(--scrim))),
     var(--bg-mp-room) center / cover no-repeat,
     var(--overlay);
 }
@@ -33,6 +35,7 @@
   /* Swappable SVG fons (sk. --bg-lobby tokenu). `cover` aizpilda ekrānu; `--overlay`
      ir bāzes krāsa zem SVG. Nākotnē SVG aizvieto ar domino tekstūru. */
   background:
+    linear-gradient(rgb(var(--overlay-rgb) / var(--scrim)), rgb(var(--overlay-rgb) / var(--scrim))),
     var(--bg-lobby) center / cover no-repeat,
     var(--overlay);
 }

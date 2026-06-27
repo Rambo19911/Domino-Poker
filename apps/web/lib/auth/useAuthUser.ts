@@ -49,6 +49,8 @@ export interface UseAuthUser {
   uploadAvatar(blob: Blob): Promise<AuthResult<{ user: AuthUser; avatarVersion: number }>>;
   /** Pārlādē profilu + statistiku no `/auth/me` (piem. atgriežoties lobby pēc spēles). */
   refresh(): void;
+  /** Atjauno bilanci lokāli (piem. pēc veikala pirkuma; serveris jau autoritatīvi debetēja). */
+  applyBalance(next: number): void;
   /** Saglabā spēles valodu serverī (tikai autentificēts; anonīmam no-op). Optimistisks. */
   setLanguage(next: GameLanguage): void;
   /** Stabils tokena lasītājs WS HELLO vajadzībām (lasa pašreizējo vērtību). */
@@ -240,6 +242,8 @@ export function useAuthUser(): UseAuthUser {
 
   const getToken = useCallback((): string | undefined => tokenRef.current ?? undefined, []);
 
+  const applyBalance = useCallback((next: number): void => setBalance(next), []);
+
   return {
     status,
     user,
@@ -255,6 +259,7 @@ export function useAuthUser(): UseAuthUser {
     uploadAvatar,
     refresh,
     setLanguage,
-    getToken
+    getToken,
+    applyBalance
   };
 }
