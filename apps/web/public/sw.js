@@ -13,7 +13,7 @@
    WebSocket / cita-domēna pieprasījumi netiek skarti. `activate` izdzēš VISUS
    iepriekšējo versiju kešus, tāpēc CACHE versija jāpalielina laidienos, kas maina
    kešotos aktīvus (statisks SW nevar pats atvasināt build id). */
-const CACHE = "domino-poker-v4.2";
+const CACHE = "domino-poker-v4.4";
 const PRECACHE = ["/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 // Novērojamība (m12): kešošanas kļūdas paliek NE-fatālas (SW nedrīkst lauzt lapu),
