@@ -8,6 +8,8 @@ apps/web/public/assets/fonts/
 dist/
 build/
 .next/
+# Next auto-ģenerēts (mainās starp `next dev` un `next build` variantiem) — neizsekojam.
+apps/web/next-env.d.ts
 out/
 coverage/
 playwright-report/

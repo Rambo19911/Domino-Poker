@@ -1,6 +1,9 @@
 /* ---- Auth dialogs ---- */
 .authDialog {
-  width: min(440px, 92vw);
+  /* Mobilajā gandrīz pilns platums (kā leaderboard dialogam); desktopā ierobežots.
+     Login/register forma paliek 420px centrēta (sk. `.authForm`), tāpēc platāks logs
+     neizstiepj formu, bet dod vairāk vietas avatāru + tēmu režģim. */
+  width: min(520px, 94vw);
 }
 /* Stabils augstums autentificētajam dialogam: Profile (garākais saturs) nosaka
    izmēru, Personalization aizpilda to pašu augstumu ar brīvu vietu — pārslēdzot
@@ -199,6 +202,15 @@
   margin: 0;
   padding: 0;
   border: 0;
+  /* `<fieldset>` noklusētais `min-width: min-content` neļauj sarauties → režģis pārplūstu
+     pāri dialogam (mobilajā Buy pogas aiz malas). `0` ļauj 1fr kolonnām sarauties. */
+  min-width: 0;
+}
+/* Mobilajā 2 šauras kolonnas nesader (nosaukums+cena+Buy) → 1 tēma rindā (kā leaderboard rindas). */
+@media (max-width: 480px) {
+  .themeOptions {
+    grid-template-columns: 1fr;
+  }
 }
 /* Karte = klikšķināms label; natīvais radio paslēpts, bet fokusējams (tastatūra).
    Vertikāla: galvene (swatch+nosaukums) augšā, pirkšanas rinda (cena+poga) apakšā. */
@@ -272,6 +284,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: wrap; /* ļoti šaurā kartē "Pirkt" aplaužas zem cenas, nevis pārplūst */
 }
 .themeSwatch.locked {
   opacity: 0.5;
