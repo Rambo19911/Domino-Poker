@@ -36,6 +36,13 @@ tavs-domens.lv {
         header_up X-Forwarded-For {http.request.remote.host}
     }
 
+    # Veikals (kosmētika/tēmas): /store/* -> MP serveris (POST /store/buy, GET /store/owned).
+    # Auth obligāts; serveris rate-limito pēc IP. BEZ šī kārtulas tēmu pirkšana 404 prodā.
+    # Tāda pati XFF pārrakstīšana kā /auth.
+    reverse_proxy /store* 127.0.0.1:4000 {
+        header_up X-Forwarded-For {http.request.remote.host}
+    }
+
     # (pēc izvēles) metrikas tikai lokāli:
     # @metrics path /metrics
     # respond @metrics 403
