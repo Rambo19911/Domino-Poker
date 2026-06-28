@@ -11,7 +11,8 @@ all in a fast, installable web app that works on desktop and mobile.
 
 > **Status.** This is the live `main` codebase behind
 > [domino-poker.com](https://domino-poker.com/) — a complete, playable game that is actively
-> maintained and refined. Contributions are welcome (see [Contributing](#contributing)).
+> maintained and refined. It is built and maintained by a **single developer, in their spare
+> time**. Contributions are welcome (see [Contributing](#contributing)).
 
 ## Why you'll like it
 
@@ -50,6 +51,14 @@ Both modes share **one rules engine**, so the game plays identically everywhere.
 - **Multiplayer** (Node server): 2–4 humans in a room (the host can fill empty seats with
   bots), playing in real time against an authoritative server. Optional **accounts** add a
   persistent profile, win/loss stats, the gold-coin wallet, and a global leaderboard.
+
+## An original game
+
+Domino Poker's ruleset is **original** — designed from scratch by the project's author and not
+copied from any published game, so you won't find these exact rules anywhere online. If you
+have played **Texas 42**, you'll spot the family resemblance: the two games overlap by roughly
+**60%** (trick-taking on a double-six set with bidding and trumps), but the bidding, scoring,
+and special-tile rules here are their own thing.
 
 ## Screenshots
 
@@ -358,6 +367,13 @@ Contributions are welcome. A few ground rules that keep the codebase healthy:
 - Add tests for changes (core/server/shared/tools all use Vitest). Run
   `npm run typecheck && npm run test` before opening a PR.
 
+> **Note for would-be contributors.** Several files that affect how the game runs on the
+> **server** are intentionally **gitignored** (deployment, scaling, environment, and internal
+> design notes), so a clean clone does not contain everything needed for a full production
+> deploy. If you're serious about helping with development, get in touch first — including
+> through the in-game **Settings → About** contact form — and the relevant pieces can be
+> shared.
+
 ## Full game rules
 
 The full Domino Poker rules are available in the [`docs`](docs) folder:
@@ -365,6 +381,9 @@ The full Domino Poker rules are available in the [`docs`](docs) folder:
 - [`docs/Domino pokera Noteikumi.md`](docs/Domino%20pokera%20Noteikumi.md) — complete Latvian game rules.
 - [`docs/domino_poker_rules_summary.md`](docs/domino_poker_rules_summary.md) — compact rules summary.
 - [`docs/PUNKTU_SISTEMA_PIEMERI.md`](docs/PUNKTU_SISTEMA_PIEMERI.md) — scoring examples.
+
+A deeper **tactical guide** — describing ways to influence the flow of a game — also exists,
+but it is kept private and is not published in this repository.
 
 ## License
 
