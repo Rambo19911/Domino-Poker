@@ -142,6 +142,7 @@ export const lt = {
   rulesCoinsMpBody: "Daugelio žaidėjų režime kambarys gali turėti aukso dalyvio mokestį. Kiekvienas žaidėjas jį sumoka užimdamas vietą, o prizinis bankas dalijamas tarp dviejų geriausių registruotų žmonių. Visą informaciją rasite daugelio žaidėjų taisyklėse.",
   difficultySection: "Sudėtingumas",
   difficultyScopeNote: "Šis sudėtingumas taikomas tik vieno žaidėjo žaidimams prieš botus. Daugelio žaidėjų režimui jis neturi poveikio.",
+  botRepoLinkText: "Nuoroda į botų repozitoriją",
   difficultyMedium: "Vidutinis",
   difficultyHard: "Sunkus",
   difficultyEpic: "Epinis",

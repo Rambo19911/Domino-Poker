@@ -142,6 +142,7 @@ export const en = {
   rulesCoinsMpBody: "In multiplayer, a room can have a gold entry fee. Each player pays it on taking a seat, and the prize pot is shared between the top two registered human players. See the multiplayer rules for the full details.",
   difficultySection: "Difficulty",
   difficultyScopeNote: "This difficulty applies only to single-player games against the bots. It has no effect on multiplayer.",
+  botRepoLinkText: "Link to bot repo",
   difficultyMedium: "Medium",
   difficultyHard: "Hard",
   difficultyEpic: "Epic",

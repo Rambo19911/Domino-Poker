@@ -307,7 +307,18 @@ function SettingsDialog({
             <p className="settingsTabDescription">{t.settingsDescription}</p>
 
             <div className="settingsSectionTitle">{t.difficultySection}</div>
-            <p className="settingsSectionNote">{t.difficultyScopeNote}</p>
+            <p className="settingsSectionNote">
+              {t.difficultyScopeNote}{" "}
+              <a
+                href="https://github.com/Rambo19911/Domino_Poker_MAX_BOT"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="botRepoLink"
+                aria-label={t.botRepoLinkText}
+              >
+                {t.botRepoLinkText} <BotIcon />
+              </a>
+            </p>
             <DifficultySelector
               audio={audio}
               labels={t}
@@ -361,8 +372,8 @@ function AboutPanel({
           <dd>Apache License 2.0</dd>
         </div>
         <div className="aboutMetaRow aboutMetaRowSupport">
-          <dt>Liberapay</dt>
-          <dd>
+          <dt>Liberapay/Github</dt>
+          <dd className="aboutMetaSupportActions">
             <a
               href="https://liberapay.com/Rihards/donate"
               target="_blank"
@@ -370,6 +381,24 @@ function AboutPanel({
               className="liberapayDonateLink"
             >
               <img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg" />
+            </a>
+            <a
+              href="https://github.com/Rambo19911/Domino-Poker"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="githubRepoLink"
+              aria-label="GitHub Repository"
+            >
+              <img
+                className="githubIconStatic"
+                alt="GitHub"
+                src="/assets/icons/square-github.svg"
+              />
+              <img
+                className="githubIconAnimated"
+                alt="GitHub"
+                src="/assets/icons/square-github_brands_beat.svg"
+              />
             </a>
           </dd>
         </div>
@@ -473,4 +502,26 @@ function SettingsIcon() {
 
 function LoginIcon() {
   return <span className="loginAssetIcon" aria-hidden="true" />;
+}
+
+function BotIcon() {
+  return (
+    <svg
+      className="botRepoIcon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 8V4H8" />
+      <rect width="16" height="12" x="4" y="8" rx="2" />
+      <path d="M2 14h2" />
+      <path d="M20 14h2" />
+      <path d="M15 13v2" />
+      <path d="M9 13v2" />
+    </svg>
+  );
 }

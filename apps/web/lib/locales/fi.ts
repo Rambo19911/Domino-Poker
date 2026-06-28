@@ -142,6 +142,7 @@ export const fi = {
   rulesCoinsMpBody: "Moninpelissä huoneella voi olla kultaosallistumismaksu. Jokainen pelaaja maksaa sen ottaessaan paikan, ja palkintopotti jaetaan kahden parhaan rekisteröityneen ihmispelaajan kesken. Katso täydet tiedot moninpelin säännöistä.",
   difficultySection: "Vaikeustaso",
   difficultyScopeNote: "Tämä vaikeustaso koskee vain yksinpelejä botteja vastaan. Sillä ei ole vaikutusta moninpeliin.",
+  botRepoLinkText: "Linkki bottirepoon",
   difficultyMedium: "Keskitaso",
   difficultyHard: "Vaikea",
   difficultyEpic: "Eeppinen",

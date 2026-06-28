@@ -142,6 +142,7 @@ export const pl = {
   rulesCoinsMpBody: "W trybie wieloosobowym pokój może mieć wpisowe w złocie. Każdy gracz płaci je, zajmując miejsce, a pula nagród jest dzielona między dwóch najlepszych zarejestrowanych graczy-ludzi. Pełne szczegóły znajdziesz w zasadach gry wieloosobowej.",
   difficultySection: "Poziom trudności",
   difficultyScopeNote: "Ten poziom trudności dotyczy tylko gier dla jednego gracza przeciwko botom. Nie ma wpływu na grę wieloosobową.",
+  botRepoLinkText: "Link do repozytorium botów",
   difficultyMedium: "Średni",
   difficultyHard: "Trudny",
   difficultyEpic: "Epicki",

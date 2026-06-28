@@ -142,6 +142,7 @@ export const cs = {
   rulesCoinsMpBody: "V režimu pro více hráčů může mít místnost vstupní poplatek ve zlatě. Každý hráč jej zaplatí při obsazení místa a výherní bank se rozdělí mezi dva nejlepší registrované lidské hráče. Úplné podrobnosti najdete v pravidlech pro více hráčů.",
   difficultySection: "Obtížnost",
   difficultyScopeNote: "Tato obtížnost platí pouze pro hry pro jednoho hráče proti botům. Na hru pro více hráčů nemá vliv.",
+  botRepoLinkText: "Odkaz na repozitář botů",
   difficultyMedium: "Střední",
   difficultyHard: "Těžká",
   difficultyEpic: "Epická",

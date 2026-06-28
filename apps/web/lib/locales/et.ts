@@ -142,6 +142,7 @@ export const et = {
   rulesCoinsMpBody: "Mitmikmängus võib toal olla kuldne sisenemistasu. Iga mängija maksab selle koha võtmisel ja auhinnapank jagatakse kahe parima registreeritud inimmängija vahel. Täpsemad üksikasjad leiad mitmikmängu reeglitest.",
   difficultySection: "Raskusaste",
   difficultyScopeNote: "See raskusaste kehtib ainult üksikmängu mängudele botide vastu. Sellel pole mõju mitmikmängule.",
+  botRepoLinkText: "Link robotite repole",
   difficultyMedium: "Keskmine",
   difficultyHard: "Raske",
   difficultyEpic: "Eepiline",

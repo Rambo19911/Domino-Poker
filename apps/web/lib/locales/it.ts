@@ -142,6 +142,7 @@ export const it = {
   rulesCoinsMpBody: "Nel multigiocatore, una stanza può avere una quota d'ingresso in oro. Ogni giocatore la paga prendendo un posto, e il piatto in palio è suddiviso tra i due migliori giocatori umani registrati. Consulta le regole del multigiocatore per tutti i dettagli.",
   difficultySection: "Difficoltà",
   difficultyScopeNote: "Questa difficoltà si applica solo alle partite per giocatore singolo contro i bot. Non ha alcun effetto sul multigiocatore.",
+  botRepoLinkText: "Link al repository del bot",
   difficultyMedium: "Medio",
   difficultyHard: "Difficile",
   difficultyEpic: "Epico",

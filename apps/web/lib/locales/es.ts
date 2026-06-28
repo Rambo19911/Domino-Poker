@@ -142,6 +142,7 @@ export const es = {
   rulesCoinsMpBody: "En multijugador, una sala puede tener una cuota de entrada en oro. Cada jugador la paga al ocupar un asiento, y el bote del premio se reparte entre los dos mejores jugadores humanos registrados. Consulta las reglas del multijugador para todos los detalles.",
   difficultySection: "Dificultad",
   difficultyScopeNote: "Esta dificultad se aplica solo a las partidas de un jugador contra los bots. No afecta al multijugador.",
+  botRepoLinkText: "Enlace al repositorio del bot",
   difficultyMedium: "Media",
   difficultyHard: "Difícil",
   difficultyEpic: "Épica",

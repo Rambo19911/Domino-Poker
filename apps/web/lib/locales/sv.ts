@@ -142,6 +142,7 @@ export const sv = {
   rulesCoinsMpBody: "I flerspelarläget kan ett rum ha en insats i guld. Varje spelare betalar den när de tar en plats, och vinstpotten delas mellan de två bästa registrerade mänskliga spelarna. Se flerspelarreglerna för alla detaljer.",
   difficultySection: "Svårighetsgrad",
   difficultyScopeNote: "Denna svårighetsgrad gäller endast spel för en spelare mot bottarna. Den påverkar inte flerspelarläget.",
+  botRepoLinkText: "Länk till bot-repo",
   difficultyMedium: "Medel",
   difficultyHard: "Svår",
   difficultyEpic: "Episk",

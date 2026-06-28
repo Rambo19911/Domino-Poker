@@ -142,6 +142,7 @@ export const ro = {
   rulesCoinsMpBody: "În multiplayer, o cameră poate avea o taxă de intrare în aur. Fiecare jucător o plătește la ocuparea unui loc, iar potul de premii este împărțit între primii doi jucători umani înregistrați. Vezi regulile multiplayer pentru toate detaliile.",
   difficultySection: "Dificultate",
   difficultyScopeNote: "Această dificultate se aplică doar jocurilor cu un singur jucător împotriva boților. Nu are niciun efect asupra multiplayer-ului.",
+  botRepoLinkText: "Link către depozitul botului",
   difficultyMedium: "Mediu",
   difficultyHard: "Greu",
   difficultyEpic: "Epic",

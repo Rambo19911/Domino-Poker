@@ -142,6 +142,7 @@ export const no = {
   rulesCoinsMpBody: "I flerspiller kan et rom ha en inngangsavgift i gull. Hver spiller betaler den når de tar en plass, og premiepotten deles mellom de to øverste registrerte menneskelige spillerne. Se flerspillerreglene for alle detaljer.",
   difficultySection: "Vanskelighetsgrad",
   difficultyScopeNote: "Denne vanskelighetsgraden gjelder kun enspillerspill mot botene. Den har ingen effekt på flerspiller.",
+  botRepoLinkText: "Lenke til bot-repo",
   difficultyMedium: "Middels",
   difficultyHard: "Vanskelig",
   difficultyEpic: "Episk",

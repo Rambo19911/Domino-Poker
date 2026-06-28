@@ -142,6 +142,7 @@ export const hu = {
   rulesCoinsMpBody: "Többjátékos módban egy szobának lehet arany nevezési díja. Minden játékos a helyfoglaláskor fizeti meg, a nyereménykasszán pedig az első két regisztrált emberi játékos osztozik. A teljes részletekért lásd a többjátékos szabályokat.",
   difficultySection: "Nehézség",
   difficultyScopeNote: "Ez a nehézség csak az egyjátékos, gépek elleni játékokra vonatkozik. A többjátékos módra nincs hatása.",
+  botRepoLinkText: "Link a bot repóhoz",
   difficultyMedium: "Közepes",
   difficultyHard: "Nehéz",
   difficultyEpic: "Epikus",

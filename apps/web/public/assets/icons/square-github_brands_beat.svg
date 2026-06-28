@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" class="fa-beat"><style>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="96 96 448 448" class="fa-beat"><style>
     @keyframes fa-beat {
       0%, 90% { transform: scale(1); }
       45% { transform: scale(1.25); }

@@ -146,6 +146,7 @@ export const lv = {
   rulesCoinsMpBody: "Daudzspēlētāju režīmā istabai var būt zelta dalības maksa. Katrs spēlētājs to samaksā, ieņemot vietu, un balvas pods tiek sadalīts starp diviem augstāk novērtētajiem reģistrētajiem cilvēkiem. Pilnu aprakstu skaties daudzspēlētāju noteikumos.",
   difficultySection: "Grūtība",
   difficultyScopeNote: "Šī grūtība attiecas tikai uz viena spēlētāja spēlēm pret botiem. Daudzspēlētāju režīmu tā neietekmē.",
+  botRepoLinkText: "Saite uz botu repozitoriju",
   difficultyMedium: "Medium",
   difficultyHard: "Hard",
   difficultyEpic: "Epic",

@@ -142,6 +142,7 @@ export const fr = {
   rulesCoinsMpBody: "En multijoueur, une salle peut avoir des frais d'entrée en or. Chaque joueur les paie en prenant une place, et le pot est partagé entre les deux meilleurs joueurs humains inscrits. Consultez les règles du multijoueur pour tous les détails.",
   difficultySection: "Difficulté",
   difficultyScopeNote: "Cette difficulté s'applique uniquement aux parties solo contre les bots. Elle n'a aucun effet sur le multijoueur.",
+  botRepoLinkText: "Lien vers le dépôt du bot",
   difficultyMedium: "Moyen",
   difficultyHard: "Difficile",
   difficultyEpic: "Épique",

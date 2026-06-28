@@ -142,6 +142,7 @@ export const sk = {
   rulesCoinsMpBody: "V hre pre viac hráčov môže mať miestnosť vstupný poplatok v zlate. Každý hráč ho zaplatí, keď si sadne, a výherný bank sa rozdelí medzi dvoch najlepších registrovaných ľudských hráčov. Úplné podrobnosti nájdete v pravidlách pre viac hráčov.",
   difficultySection: "Obtiažnosť",
   difficultyScopeNote: "Táto obtiažnosť platí len pre hry pre jedného hráča proti počítačom. Na hru pre viac hráčov nemá vplyv.",
+  botRepoLinkText: "Odkaz na repozitár botov",
   difficultyMedium: "Stredná",
   difficultyHard: "Ťažká",
   difficultyEpic: "Epická",

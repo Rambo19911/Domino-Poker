@@ -142,6 +142,7 @@ export const nl = {
   rulesCoinsMpBody: "In multiplayer kan een kamer een goud-inleg hebben. Elke speler betaalt deze bij het nemen van een plaats, en de prijzenpot wordt verdeeld tussen de twee beste geregistreerde menselijke spelers. Zie de multiplayerregels voor alle details.",
   difficultySection: "Moeilijkheidsgraad",
   difficultyScopeNote: "Deze moeilijkheidsgraad geldt alleen voor singleplayerspellen tegen de bots. Hij heeft geen invloed op multiplayer.",
+  botRepoLinkText: "Link naar bot-repository",
   difficultyMedium: "Gemiddeld",
   difficultyHard: "Moeilijk",
   difficultyEpic: "Episch",

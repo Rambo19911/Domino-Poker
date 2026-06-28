@@ -142,6 +142,7 @@ export const pt = {
   rulesCoinsMpBody: "No multijogador, uma sala pode ter uma taxa de entrada em ouro. Cada jogador paga-a ao ocupar um lugar, e o pote do prémio é partilhado entre os dois melhores jogadores humanos registados. Consulta as regras do multijogador para os detalhes completos.",
   difficultySection: "Dificuldade",
   difficultyScopeNote: "Esta dificuldade aplica-se apenas aos jogos para um jogador contra os bots. Não tem efeito no multijogador.",
+  botRepoLinkText: "Link para o repositório do bot",
   difficultyMedium: "Médio",
   difficultyHard: "Difícil",
   difficultyEpic: "Épico",

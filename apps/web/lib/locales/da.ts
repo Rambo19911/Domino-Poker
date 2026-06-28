@@ -142,6 +142,7 @@ export const da = {
   rulesCoinsMpBody: "I multiplayer kan et rum have et deltagergebyr i guld. Hver spiller betaler det ved at tage en plads, og præmiepuljen deles mellem de to bedste registrerede menneskelige spillere. Se multiplayer-reglerne for alle detaljer.",
   difficultySection: "Sværhedsgrad",
   difficultyScopeNote: "Denne sværhedsgrad gælder kun for enkeltspiller-spil mod bots. Den har ingen effekt på multiplayer.",
+  botRepoLinkText: "Link til bot-repo",
   difficultyMedium: "Mellem",
   difficultyHard: "Svær",
   difficultyEpic: "Episk",

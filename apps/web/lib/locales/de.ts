@@ -142,6 +142,7 @@ export const de = {
   rulesCoinsMpBody: "Im Mehrspieler kann ein Raum ein Gold-Startgeld haben. Jeder Spieler zahlt es beim Einnehmen eines Platzes, und der Preis-Pot wird zwischen den besten zwei registrierten menschlichen Spielern aufgeteilt. Alle Details findest du in den Mehrspieler-Regeln.",
   difficultySection: "Schwierigkeit",
   difficultyScopeNote: "Diese Schwierigkeit gilt nur für Einzelspieler-Partien gegen die Bots. Sie hat keine Auswirkung auf den Mehrspieler.",
+  botRepoLinkText: "Link zum Bot-Repository",
   difficultyMedium: "Mittel",
   difficultyHard: "Schwer",
   difficultyEpic: "Episch",
