@@ -338,7 +338,7 @@ store with six animated themes; deep per-player statistics; a 21-language UI; em
 password reset; an internal admin/moderation portal; an installable PWA with a responsive
 desktop/mobile UI.
 
-**Not done yet / intentionally deferred (post-MVP):** real-money play; ranked matchmaking;
+**Not done yet / intentionally deferred (post-MVP):** ranked matchmaking;
 tournaments; spectator mode; full horizontal scaling with active room failover; in-room (table)
 chat; trained AI bots in multiplayer (the server still uses the lightweight heuristic bot).
 
