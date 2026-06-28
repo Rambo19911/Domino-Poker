@@ -90,7 +90,6 @@ export const en = {
   increaseRounds: "Increase rounds",
   play: "Play",
   settings: "Settings",
-  settingsDescription: "Audio controls and language selection are available now. More options are coming later.",
   about: "About",
   aboutDescription: "Browser-based Domino Poker — a trick-taking domino game with single-player practice against bots and real-time four-player multiplayer.",
   versionLabel: "Version",

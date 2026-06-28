@@ -90,7 +90,6 @@ export const lt = {
   increaseRounds: "Padidinti raundų skaičių",
   play: "Žaisti",
   settings: "Nustatymai",
-  settingsDescription: "Garso valdikliai ir kalbos pasirinkimas jau prieinami. Daugiau parinkčių bus pridėta vėliau.",
   about: "Apie",
   aboutDescription: "Naršyklėje veikiantis Domino Poker — kauliukų kirčių žaidimas su vieno žaidėjo treniruotėmis prieš botus ir realaus laiko keturių žaidėjų daugelio žaidėjų režimu.",
   versionLabel: "Versija",

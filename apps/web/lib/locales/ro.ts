@@ -90,7 +90,6 @@ export const ro = {
   increaseRounds: "Crește rundele",
   play: "Joacă",
   settings: "Setări",
-  settingsDescription: "Controalele audio și selecția limbii sunt disponibile acum. Mai multe opțiuni vor veni mai târziu.",
   about: "Despre",
   aboutDescription: "Domino Poker pentru browser — un joc de domino cu levate, cu antrenament în modul un singur jucător împotriva boților și multiplayer în timp real pentru patru jucători.",
   versionLabel: "Versiune",

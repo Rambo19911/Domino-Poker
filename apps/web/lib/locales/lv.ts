@@ -94,7 +94,6 @@ export const lv = {
   increaseRounds: "Palielināt raundu skaitu",
   play: "Spēlēt",
   settings: "Iestatījumi",
-  settingsDescription: "Skaņas kontroles un valodas izvēle ir pieejamas tagad. Citas opcijas tiks pievienotas vēlāk.",
   about: "Par spēli",
   aboutDescription: "Pārlūkā spēlējams Domino Poker — stiķu domino spēle ar viena spēlētāja treniņu pret botiem un reāllaika četru spēlētāju režīmu.",
   versionLabel: "Versija",

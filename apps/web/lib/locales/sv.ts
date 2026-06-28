@@ -90,7 +90,6 @@ export const sv = {
   increaseRounds: "Öka ronder",
   play: "Spela",
   settings: "Inställningar",
-  settingsDescription: "Ljudkontroller och språkval är tillgängliga nu. Fler alternativ kommer senare.",
   about: "Om",
   aboutDescription: "Webbläsarbaserad Domino Poker — ett stickspel med domino, med övning för en spelare mot bottar och flerspelarläge för fyra spelare i realtid.",
   versionLabel: "Version",

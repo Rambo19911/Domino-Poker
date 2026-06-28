@@ -304,8 +304,6 @@ function SettingsDialog({
         <div className="settingsBody">
         {tab === "settings" ? (
           <>
-            <p className="settingsTabDescription">{t.settingsDescription}</p>
-
             <div className="settingsSectionTitle">{t.difficultySection}</div>
             <p className="settingsSectionNote">
               {t.difficultyScopeNote}{" "}

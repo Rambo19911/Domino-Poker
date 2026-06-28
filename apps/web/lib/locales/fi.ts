@@ -90,7 +90,6 @@ export const fi = {
   increaseRounds: "Lisää kierroksia",
   play: "Pelaa",
   settings: "Asetukset",
-  settingsDescription: "Äänisäädöt ja kielen valinta ovat nyt käytettävissä. Lisää vaihtoehtoja tulossa myöhemmin.",
   about: "Tietoja",
   aboutDescription: "Selainpohjainen Domino Poker — tikkipeli dominoilla, jossa on yksinpeliharjoittelu botteja vastaan ja reaaliaikainen neljän pelaajan moninpeli.",
   versionLabel: "Versio",

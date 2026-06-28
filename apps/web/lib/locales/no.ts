@@ -90,7 +90,6 @@ export const no = {
   increaseRounds: "Flere runder",
   play: "Spill",
   settings: "Innstillinger",
-  settingsDescription: "Lydkontroller og språkvalg er tilgjengelige nå. Flere alternativer kommer senere.",
   about: "Om",
   aboutDescription: "Nettleserbasert Domino Poker — et stikkspill med domino, med enspilltrening mot boter og sanntids firespillers flerspiller.",
   versionLabel: "Versjon",

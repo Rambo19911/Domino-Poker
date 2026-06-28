@@ -90,7 +90,6 @@ export const da = {
   increaseRounds: "Flere runder",
   play: "Spil",
   settings: "Indstillinger",
-  settingsDescription: "Lydstyring og sprogvalg er tilgængelige nu. Flere indstillinger kommer senere.",
   about: "Om",
   aboutDescription: "Browserbaseret Domino Poker — et stik-baseret dominospil med enkeltspiller-træning mod bots og fire-spiller multiplayer i realtid.",
   versionLabel: "Version",

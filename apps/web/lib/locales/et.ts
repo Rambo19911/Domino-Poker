@@ -90,7 +90,6 @@ export const et = {
   increaseRounds: "Suurenda ringe",
   play: "Mängi",
   settings: "Seaded",
-  settingsDescription: "Heli juhtnupud ja keelevalik on nüüd saadaval. Rohkem valikuid tuleb hiljem.",
   about: "Teave",
   aboutDescription: "Brauseripõhine Domino Poker — tihilõike domino­mäng üksikmängija harjutamisega botide vastu ja reaalajas nelja mängija mitmikmänguga.",
   versionLabel: "Versioon",

@@ -90,7 +90,6 @@ export const hu = {
   increaseRounds: "Körök növelése",
   play: "Játék",
   settings: "Beállítások",
-  settingsDescription: "Hangvezérlés és nyelvválasztás már elérhető. További lehetőségek hamarosan érkeznek.",
   about: "Névjegy",
   aboutDescription: "Böngészőalapú Domino Poker — ütésvivő dominójáték egyjátékos gyakorlással gépek ellen és valós idejű, négyfős többjátékos móddal.",
   versionLabel: "Verzió",

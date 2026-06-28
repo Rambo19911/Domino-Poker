@@ -90,7 +90,6 @@ export const pt = {
   increaseRounds: "Aumentar mãos",
   play: "Jogar",
   settings: "Definições",
-  settingsDescription: "Os controlos de áudio e a seleção de idioma já estão disponíveis. Mais opções virão mais tarde.",
   about: "Acerca",
   aboutDescription: "Domino Poker no navegador — um jogo de dominó de vazas com prática para um jogador contra bots e multijogador em tempo real para quatro jogadores.",
   versionLabel: "Versão",

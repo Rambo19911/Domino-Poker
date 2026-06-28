@@ -90,7 +90,6 @@ export const sk = {
   increaseRounds: "Zvýšiť počet kôl",
   play: "Hrať",
   settings: "Nastavenia",
-  settingsDescription: "Ovládanie zvuku a výber jazyka sú dostupné už teraz. Ďalšie možnosti pribudnú neskôr.",
   about: "O hre",
   aboutDescription: "Domino Poker v prehliadači — kartová hra so zdvihmi s domino kameňmi, s tréningom pre jedného hráča proti počítačom a hrou pre štyroch hráčov v reálnom čase.",
   versionLabel: "Verzia",

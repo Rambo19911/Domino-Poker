@@ -90,7 +90,6 @@ export const pl = {
   increaseRounds: "Zwiększ liczbę rund",
   play: "Graj",
   settings: "Ustawienia",
-  settingsDescription: "Sterowanie dźwiękiem i wybór języka są już dostępne. Więcej opcji pojawi się później.",
   about: "O grze",
   aboutDescription: "Domino Poker w przeglądarce — domino w wersji lewowej z treningiem dla jednego gracza przeciwko botom oraz grą czteroosobową online w czasie rzeczywistym.",
   versionLabel: "Wersja",

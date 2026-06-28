@@ -90,7 +90,6 @@ export const it = {
   increaseRounds: "Aumenta mani",
   play: "Gioca",
   settings: "Impostazioni",
-  settingsDescription: "I controlli audio e la selezione della lingua sono già disponibili. Altre opzioni arriveranno più avanti.",
   about: "Informazioni",
   aboutDescription: "Domino Poker basato su browser — un gioco di domino a prese con pratica per giocatore singolo contro i bot e multigiocatore in tempo reale per quattro giocatori.",
   versionLabel: "Versione",

@@ -90,7 +90,6 @@ export const fr = {
   increaseRounds: "Augmenter les manches",
   play: "Jouer",
   settings: "Paramètres",
-  settingsDescription: "Les commandes audio et la sélection de la langue sont disponibles dès maintenant. D'autres options arriveront plus tard.",
   about: "À propos",
   aboutDescription: "Domino Poker dans le navigateur — un jeu de plis aux dominos avec un entraînement solo contre des bots et un multijoueur en temps réel à quatre joueurs.",
   versionLabel: "Version",

@@ -90,7 +90,6 @@ export const de = {
   increaseRounds: "Runden erhöhen",
   play: "Spielen",
   settings: "Einstellungen",
-  settingsDescription: "Audio-Steuerung und Sprachauswahl sind jetzt verfügbar. Weitere Optionen folgen später.",
   about: "Über",
   aboutDescription: "Browserbasiertes Domino Poker – ein Stich-Domino-Spiel mit Einzelspieler-Training gegen Bots und Echtzeit-Mehrspieler für vier Spieler.",
   versionLabel: "Version",

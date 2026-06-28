@@ -90,7 +90,6 @@ export const nl = {
   increaseRounds: "Meer rondes",
   play: "Spelen",
   settings: "Instellingen",
-  settingsDescription: "Audiobediening en taalkeuze zijn nu beschikbaar. Meer opties volgen later.",
   about: "Over",
   aboutDescription: "Browsergebaseerde Domino Poker — een slagenspel met domino's, met singleplayer-oefening tegen bots en realtime multiplayer voor vier spelers.",
   versionLabel: "Versie",
