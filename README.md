@@ -6,6 +6,7 @@ coins, climb a global leaderboard, unlock animated themes, and play in your own 
 all in a fast, installable web app that works on desktop and mobile.
 
 **▶ Play it live: [domino-poker.com](https://domino-poker.com/)**
+&nbsp;·&nbsp; **▶ Watch the gameplay video: [youtu.be/QoCuoa6lhTo](https://youtu.be/QoCuoa6lhTo)**
 
 ![Domino Poker main menu](Screenshots/main-menu.png)
 
@@ -13,6 +14,13 @@ all in a fast, installable web app that works on desktop and mobile.
 > [domino-poker.com](https://domino-poker.com/) — a complete, playable game that is actively
 > maintained and refined. It is built and maintained by a **single developer, in their spare
 > time**. Contributions are welcome (see [Contributing](#contributing)).
+
+## Watch it in action
+
+[![Watch the Domino Poker gameplay video on YouTube](https://img.youtube.com/vi/QoCuoa6lhTo/maxresdefault.jpg)](https://youtu.be/QoCuoa6lhTo)
+
+> ▶ A quick walkthrough of single-player, multiplayer, and the in-game store —
+> [watch it on YouTube](https://youtu.be/QoCuoa6lhTo).
 
 ## Why you'll like it
 
