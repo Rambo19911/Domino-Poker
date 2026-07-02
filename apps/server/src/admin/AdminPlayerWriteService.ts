@@ -54,7 +54,14 @@ export class AdminPlayerWriteService {
     private readonly wallet: WalletService,
     private readonly auth: AuthService,
     private readonly audit: AdminAuditService,
-    private readonly clock: () => number
+    private readonly clock: () => number,
+    /**
+     * Opcionāls signāls pēc FAKTISKAS username maiņas (kā `authRoutes.onUsernameChanged`;
+     * injicē `index.ts` to pašu kompozīcijas saknes callback): leaderboard keša
+     * invalidācija + lietotāja dzīvo WS sesiju klusa pārstartēšana, lai admina
+     * pārsauktais spēlētājs pie galda/čatā nepaliek ar veco (atbrīvoto) vārdu.
+     */
+    private readonly onUsernameChanged?: (userId: string) => void
   ) {}
 
   /** Konta rediģēšana (Fāze 2.1): display name / e-pasts / avatars → audit diff. */
@@ -126,6 +133,11 @@ export class AdminPlayerWriteService {
       },
       ip: ctx.ip
     });
+    // TIKAI pie faktiskas username maiņas — tie paši pēc-pārsaukšanas efekti kā
+    // spēlētāja pašapkalpošanās ceļam (sk. konstruktora doc).
+    if (username.trim() !== before.username) {
+      this.onUsernameChanged?.(userId);
+    }
     return "updated";
   }
 

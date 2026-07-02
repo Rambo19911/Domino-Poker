@@ -10,7 +10,12 @@ export const GATEWAY_CLOSE = {
   /** Vecais socket aizvērts, jo jauns savienojums to aizstāja (viens aktīvs socket). */
   superseded: 4003,
   /** Reconnect noraidīts — `reconnectToken` nesakrīt ar zināmo `clientId`. */
-  sessionRejected: 4004
+  sessionRejected: 4004,
+  /**
+   * Konta profils (username) mainījās — sesija klusi jāpārhandshake'o, lai WELCOME/
+   * profila kešs nes jauno vārdu. Klients šo kodu neapstrādā īpaši → auto-reconnect.
+   */
+  profileRefresh: 4005
 } as const;
 
 /** Veido drošu `ERROR` eventu (tikai kods + ziņojums + neobligāts `requestId`). */

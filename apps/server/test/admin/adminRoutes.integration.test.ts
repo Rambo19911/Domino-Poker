@@ -53,12 +53,15 @@ describe("admin HTTP routes (integration)", () => {
   let nowMs: number;
   let bannedDisconnects: string[];
   let announcements: string[];
+  /** `onUsernameChanged` signālu tvērējs (kā `bannedDisconnects`) — admin rename testiem. */
+  let renameSignals: string[];
   let chatMod: ChatModerationService;
 
   beforeEach(async () => {
     nowMs = 1_000_000;
     bannedDisconnects = [];
     announcements = [];
+    renameSignals = [];
     storage = new SqliteStorage({ filename: ":memory:" });
     email = new CapturingEmailSender();
     const adminAuth = new AdminAuthService({
@@ -81,7 +84,9 @@ describe("admin HTTP routes (integration)", () => {
         adminAuth,
         audit,
         players: new AdminPlayerService(storage, wallet),
-        playerWrites: new AdminPlayerWriteService(storage, wallet, authService, audit, () => nowMs),
+        playerWrites: new AdminPlayerWriteService(storage, wallet, authService, audit, () => nowMs, (userId) =>
+          renameSignals.push(userId)
+        ),
         bans: new BanService({
           store: storage,
           audit,
@@ -315,6 +320,17 @@ describe("admin HTTP routes (integration)", () => {
     const audit = await fetch(`${base}/admin/audit`, { headers: { cookie: auth.cookieHeader } });
     const body = (await audit.json()) as { entries: Array<{ action: string }> };
     expect(body.entries.some((e) => e.action === "player.account.update")).toBe(true);
+    // Faktiska username maiņa → onUsernameChanged signāls (leaderboard invalidācija +
+    // dzīvo WS sesiju klusa pārstartēšana kompozīcijas saknē, kā spēlētāja pašapkalpošanās ceļā).
+    expect(renameSignals).toEqual(["p-1"]);
+  });
+
+  it("2.1 email-only account edit does NOT signal onUsernameChanged", async () => {
+    await seedPlayer(storage, { id: "p-1", username: "Alice", email: "alice@example.com" });
+    const auth = await signIn();
+    const res = await mutate("/admin/players/p-1", "PATCH", { email: "new@example.com" }, auth);
+    expect(res.status).toBe(200);
+    expect(renameSignals).toEqual([]);
   });
 
   it("2.1 requires CSRF for a mutating PATCH (403 without header)", async () => {

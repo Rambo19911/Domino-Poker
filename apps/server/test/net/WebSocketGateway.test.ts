@@ -571,3 +571,89 @@ describe("WebSocketGateway ban enforcement (Phase 3.1, D1)", () => {
     expect(gateway.onlineCount()).toBe(0);
   });
 });
+
+describe("WebSocketGateway profile refresh (unikāli username)", () => {
+  const authInfo = (userId: string, username: string): ResolvedAuthInfo => ({
+    userId,
+    username,
+    avatar: "avatar-01",
+    title: titleForWins(0)
+  });
+
+  const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+
+  function makeRefreshGateway(resolveAuth: (token: string) => Promise<ResolvedAuthInfo | undefined>): {
+    gateway: WebSocketGateway;
+    router: CoreMessageRouter;
+  } {
+    const displayIds = new DisplayIdRegistry();
+    const rooms = new RoomManager({ clock: () => FIXED_NOW, displayIds });
+    const chat = new LobbyChat({ clock: () => FIXED_NOW });
+    const router = new CoreMessageRouter({ rooms, chat });
+    const gateway = new WebSocketGateway({
+      clock: () => FIXED_NOW,
+      displayIds,
+      router,
+      createSessionId: () => "session-1",
+      createReconnectToken: () => "token-1",
+      resolveAuth
+    });
+    return { gateway, router };
+  }
+
+  it("refreshUserSessions silently closes ONLY the target user's sockets with profileRefresh (4005)", async () => {
+    const { gateway } = makeRefreshGateway(async (token) =>
+      token === "a" ? authInfo("uA", "Alice") : authInfo("uB", "Bob")
+    );
+    const connA = new FakeConnection("cA");
+    gateway.open(connA);
+    gateway.message(connA, hello({ clientId: "client-A", authToken: "a" }));
+    const connB = new FakeConnection("cB");
+    gateway.open(connB);
+    gateway.message(connB, hello({ clientId: "client-B", authToken: "b" }));
+    await flush();
+    expect(gateway.onlineCount()).toBe(2);
+
+    const sentBeforeA = connA.sent.length;
+    gateway.refreshUserSessions("uA");
+
+    // Mērķa lietotājs: aizvērts ar 4005, KLUSI (bez FORBIDDEN/ERROR — nav soda signāls;
+    // klients šo kodu neapstrādā īpaši → auto-reconnect ar svaigu HELLO/WELCOME).
+    expect(connA.isClosed).toBe(true);
+    expect(connA.closedCode).toBe(4005); // profileRefresh
+    expect(connA.sent.length).toBe(sentBeforeA);
+    // Cits lietotājs — neskarts.
+    expect(connB.isClosed).toBe(false);
+    expect(gateway.onlineCount()).toBe(1);
+  });
+
+  it("refreshUserSessions does NOT run the disconnect/forfeit path (suppressed identity)", async () => {
+    const { gateway, router } = makeRefreshGateway(async () => authInfo("uA", "Alice"));
+    const conn = new FakeConnection("cA");
+    gateway.open(conn);
+    gateway.message(conn, hello({ authToken: "a" }));
+    await flush();
+
+    const onDisconnected = vi.spyOn(router, "onDisconnected");
+    gateway.refreshUserSessions("uA");
+
+    // Kodola drošības pieņēmums (Codex): teardown ar suppressDisconnectedIdentity —
+    // router saņem `undefined` identitāti → NAV markPlayerDisconnected/auto-forfeit/
+    // abandon plānošanas; notiek tikai lobby stāvokļa push.
+    expect(onDisconnected).toHaveBeenCalledTimes(1);
+    expect(onDisconnected).toHaveBeenCalledWith(gateway, FIXED_NOW, undefined);
+  });
+
+  it("refreshUserSessions ignores anonymous sessions and unknown users", async () => {
+    const { gateway } = makeRefreshGateway(async () => undefined);
+    const conn = new FakeConnection("cA");
+    gateway.open(conn);
+    gateway.message(conn, hello()); // anonīms (bez authToken)
+    await flush();
+    expect(gateway.onlineCount()).toBe(1);
+
+    gateway.refreshUserSessions("uA");
+    expect(conn.isClosed).toBe(false);
+    expect(gateway.onlineCount()).toBe(1);
+  });
+});

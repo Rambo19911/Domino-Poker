@@ -14,6 +14,8 @@ describe("auth HTTP routes (integration)", () => {
   let storage: SqliteStorage;
   let server: ReturnType<typeof createHealthHttpServer>;
   let base: string;
+  /** `onUsernameChanged` signālu tvērējs (userId secībā) — rename blakusefektu testiem. */
+  let usernameChanged: string[];
 
   beforeEach(async () => {
     storage = new SqliteStorage({ filename: ":memory:" });
@@ -26,6 +28,7 @@ describe("auth HTTP routes (integration)", () => {
       minGames: 1,
       refreshMs: 0
     });
+    usernameChanged = [];
     server = createHealthHttpServer({
       authHandler: createAuthHandler({
         auth,
@@ -33,7 +36,8 @@ describe("auth HTTP routes (integration)", () => {
         webOrigins: [ORIGIN],
         clock: () => Date.now(),
         dev: true,
-        trustProxy: false
+        trustProxy: false,
+        onUsernameChanged: (userId) => usernameChanged.push(userId)
       })
     });
     await new Promise<void>((resolve) => server.listen(0, resolve));
@@ -111,6 +115,35 @@ describe("auth HTTP routes (integration)", () => {
 
     const bad = await post("/auth/register", { username: "ab", password: "secret123", email: "ab@x.co" });
     expect(bad.status).toBe(400);
+  });
+
+  it("renaming to an existing username returns 409 and does NOT signal onUsernameChanged", async () => {
+    await registerUser("Alice");
+    const bob = await registerUser("Bob");
+    // Reģistrnejutīgi: "alice" sadursme ar "Alice" (username_norm UNIQUE).
+    const res = await patch("/auth/me", { username: "alice", avatar: "avatar-01" }, bob.token);
+    expect(res.status).toBe(409);
+    await expect(res.json()).resolves.toEqual({ error: "username_taken" });
+    expect(usernameChanged).toEqual([]);
+  });
+
+  it("successful rename signals onUsernameChanged exactly once with the userId", async () => {
+    const alice = await registerUser("Alice");
+    const res = await patch("/auth/me", { username: "Alice2", avatar: "avatar-01" }, alice.token);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { user: { username: string } };
+    expect(body.user.username).toBe("Alice2");
+    expect(usernameChanged).toEqual([alice.id]);
+    // Atbrīvotais vārds tagad ir brīvs jaunam kontam (unikalitāte pēc normas saglabājas).
+    const reclaim = await post("/auth/register", { username: "Alice", password: "secret123", email: "alice3@x.co" });
+    expect(reclaim.status).toBe(200);
+  });
+
+  it("avatar-only profile update does NOT signal onUsernameChanged", async () => {
+    const alice = await registerUser("Alice");
+    const res = await patch("/auth/me", { username: "Alice", avatar: "avatar-02" }, alice.token);
+    expect(res.status).toBe(200);
+    expect(usernameChanged).toEqual([]);
   });
 
   it("rejects reserved username 'Admin' case-insensitively (400)", async () => {

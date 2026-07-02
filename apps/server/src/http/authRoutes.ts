@@ -88,6 +88,14 @@ export interface AuthRoutesOptions {
    * (pirms token izdošanas). Injicē `index.ts`, ja bani konfigurēti.
    */
   readonly isIpBanned?: ((ip: string) => Promise<BanInfo | undefined>) | undefined;
+  /**
+   * Opcionāls signāls pēc FAKTISKAS username maiņas (PATCH /auth/me). Injicē `index.ts`
+   * (kompozīcijas sakne, kopīgs ar admin rename ceļu): invalidē leaderboard kešu un
+   * klusi pārstartē lietotāja aktīvās WS sesijas (`refreshUserSessions`), lai dzīvs
+   * seat profils/čata identitāte nepaliek ar veco vārdu, kuru tikmēr var paņemt cits
+   * konts (divi vienādi redzami vārdi). Fire-and-forget; avatar-only maiņa NEizsauc.
+   */
+  readonly onUsernameChanged?: ((userId: string) => void) | undefined;
 }
 
 /** Viena login mēģinājuma fakts audita reģistrēšanai (`login_attempts`). */
@@ -167,7 +175,7 @@ export function createAuthHandler(options: AuthRoutesOptions): AuthHandler {
           options.trustProxy
         );
       } else if (request.method === "PATCH" && path === "/auth/me") {
-        await handleUpdateProfile(request, response, options.auth);
+        await handleUpdateProfile(request, response, options.auth, options.onUsernameChanged);
       } else if (request.method === "GET" && path === "/auth/leaderboard") {
         await handleLeaderboard(
           request,
@@ -429,7 +437,8 @@ async function handleSetLanguage(
 async function handleUpdateProfile(
   request: IncomingMessage,
   response: ServerResponse,
-  auth: AuthService
+  auth: AuthService,
+  onUsernameChanged: ((userId: string) => void) | undefined
 ): Promise<void> {
   const token = bearerToken(request);
   const user = token ? await auth.resolveToken(token) : undefined;
@@ -452,6 +461,14 @@ async function handleUpdateProfile(
     const status = result.error === "not_found" ? 404 : result.error === "username_taken" ? 409 : 400;
     writeJson(response, status, { error: result.error });
     return;
+  }
+  // TIKAI pie faktiskas username maiņas (ne avatar-only) signalizē kompozīcijas
+  // saknei (index.ts): tā invalidē leaderboard kešu (vecais vārds citādi paliek līdz
+  // TTL) un klusi pārstartē lietotāja dzīvās WS sesijas (displayId/profils uzstādīts
+  // tikai HELLO laikā). Citādi atbrīvoto vārdu var paņemt cits konts, kamēr vecais
+  // vēl redzams pie galda/čatā (divi vienādi vārdi).
+  if (result.user.username !== user.username) {
+    onUsernameChanged?.(user.id);
   }
   writeJson(response, 200, { user: result.user });
 }

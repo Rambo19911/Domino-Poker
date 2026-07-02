@@ -466,6 +466,32 @@ export class WebSocketGateway implements GatewayHub {
     }
   }
 
+  /**
+   * Klusi pārstartē lietotāja aktīvās WS sesijas pēc username maiņas (rename ceļš).
+   * `displayId`/publiskais profils tiek uzstādīts TIKAI HELLO laikā (`completeHello`),
+   * tāpēc dzīva sesija citādi paturētu VECO vārdu — un atbrīvoto vārdu tikmēr var
+   * paņemt cits konts (divi vienādi redzami vārdi). In-place keša maiņa nav droša:
+   * klients savu sēdvietu/hostu nosaka ar `seat.displayId === selfDisplayId`, un
+   * selfDisplayId nāk no vecā WELCOME. Tāpēc: kluss close ar `profileRefresh` (4005)
+   * — klients auto-reconnectējas, jaunais HELLO/WELCOME atsvaidzina visu konsekventi.
+   * BEZ `FORBIDDEN` eventa (nav soda signāls); `suppressDisconnectedIdentity` kā
+   * `closeRemoteSupersededPlayer` — bez PLAYER_DISCONNECT/forfeit blakusefektiem.
+   * Kā `disconnectUser`, sniedzas tikai pār ŠĪS instances sesijām (pieņemtais
+   * viena-instances ierobežojums; sk. index.ts wiring).
+   */
+  refreshUserSessions(userId: string): void {
+    for (const ctx of [...this.contexts.values()]) {
+      if (ctx.state === "connected" && ctx.identity?.userId === userId) {
+        this.teardown(ctx, {
+          closeSocket: true,
+          code: GATEWAY_CLOSE.profileRefresh,
+          reason: "profile updated",
+          suppressDisconnectedIdentity: true
+        });
+      }
+    }
+  }
+
   private completeHello(
     ctx: ConnectionContext,
     result: RegisterResult,

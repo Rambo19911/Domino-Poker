@@ -93,6 +93,16 @@ function toBanInfo(ban: BanRecord | undefined): BanInfo | undefined {
 // Vēlu-saistīts turētājs WS gateway (ban → dzīvo sesiju atvienošanai). `current` piešķirts
 // zemāk, pirms apkalpošanas; bana izpilde (runtime) to izsauc, kad gateway jau eksistē.
 const gatewayHolder: { current?: WebSocketGateway } = {};
+// Pēc-pārsaukšanas efekti VIENĀ vietā (kopīgs spēlētāja PATCH /auth/me un admin konta
+// rediģēšanas ceļam; izsaukts TIKAI pie faktiskas username maiņas): (1) leaderboard kešs
+// citādi rādītu veco vārdu līdz TTL; (2) dzīvās WS sesijas kešo veco vārdu kā displayId/
+// profilu kopš HELLO — klusa pārstartēšana (auto-reconnect) atnes svaigu WELCOME. Kā ban
+// disconnectUser, sniedzas tikai pār ŠĪS instances sesijām (pieņemtais viena-instances
+// ierobežojums — cita instance atsvaidzinās savā nākamajā HELLO).
+const onUsernameChanged = (userId: string): void => {
+  leaderboard?.invalidate();
+  gatewayHolder.current?.refreshUserSessions(userId);
+};
 // Admin audita serviss (pārcelts augšup — vajadzīgs banService konstruēšanai).
 const adminAudit = isAdminStore(storage) ? new AdminAuditService(storage, clock) : undefined;
 // Bani (Fāze 3.1, D1). Pieejams admin+auth-spējīgai glabātuvei ar adminAudit. `onUserBanned`
@@ -165,7 +175,7 @@ const adminPlayers =
 // authService (paroles reset plūsma) + adminAudit (katra mutācija → audit servisa iekšienē).
 const adminPlayerWrites =
   isAdminStore(storage) && isAuthStore(storage) && wallet && authService && adminAudit
-    ? new AdminPlayerWriteService(storage, wallet, authService, adminAudit, clock)
+    ? new AdminPlayerWriteService(storage, wallet, authService, adminAudit, clock, onUsernameChanged)
     : undefined;
 // Admin analītika (Fāze 4A, read-only agregāti). `GeoipCountryResolver` (D4) konstruēts TIKAI ja
 // admin REĀLI iespējots (`adminAuth` truthy = parole + e-pasts + admin-store), NE tikai ja glabātuve
@@ -443,6 +453,8 @@ const server = createHealthHttpServer({
           trustProxy: config.trustProxy,
           // Fāze 3.1, D1: IP-bans → login 403 (konta banu pārbauda AuthService pirms token).
           ...(ipBanInfo ? { isIpBanned: ipBanInfo } : {}),
+          // Username maiņa → leaderboard invalidācija + dzīvo WS sesiju klusa pārstartēšana.
+          onUsernameChanged,
           // Fāze 0.4: login mēģinājumu audits (admin panelis). Fire-and-forget; DB kļūda
           // nedrīkst lauzt login. Tikai ja glabātuve atbalsta admin (login_attempts tabula).
           ...(isAdminStore(storage)
