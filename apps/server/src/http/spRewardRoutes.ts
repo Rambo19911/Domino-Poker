@@ -258,6 +258,9 @@ async function handleComplete(
   }
 
   const now = options.clock();
+  // Spēles ilgums (serveris; `issuedAt` no /sp/start, nemaināms). Clamp ≥ 0 defensīvi.
+  // Glabāts uz spēles rindas → dienas uzdevumu anti-abuse min-ilguma vārtiem (Fāze 2/6).
+  const durationMs = Math.max(0, now - claimed.issuedAt);
 
   // 1) Statistika (idempotents pēc sp:{gameToken}). Difficulty + roundCount no TOKENA.
   //    Stats dzen tikai personīgu atgriezenisku saiti → ierakstām visiem placement 1..4
@@ -271,7 +274,8 @@ async function handleComplete(
     bidMet,
     bidExceeded,
     bidMissed,
-    now
+    now,
+    durationMs
   });
 
   // 2) Monētas (idempotents pēc gameToken ledger ref). Tikai 1./2. vieta UN min ilgums

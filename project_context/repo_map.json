@@ -2704,5 +2704,83 @@
       "apps/web/test/StatisticsPanel.test.tsx"
     ],
     "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/daily/DailyTaskService.ts",
+    "type": "service",
+    "purpose": "Daily Tasks application service (registered-users-only coin faucet). DERIVES progress from player_game_results (countSpWinsSince) over the current UTC day window (windowStart = max(utcDayStart, FEATURE_LAUNCH_EPOCH_MS)); getState composes 4 tasks (parallel accrual, sequential unlock: order N unlocked only if N-1 claimed today) + secondsUntilReset + anyClaimable. claim() runs under a per-user in-process lock: validate id -> already-claimed stable success -> sequential gate -> threshold from derived count -> idempotent WalletService.creditDailyTaskReward. Owns FEATURE_LAUNCH_EPOCH_MS + DAILY_TASK_MIN_GAME_MS (anti-abuse, server-only).",
+    "importance": "high",
+    "related_files": [
+      "packages/shared/src/economy.ts",
+      "apps/server/src/http/dailyTaskRoutes.ts",
+      "apps/server/src/wallet/WalletService.ts",
+      "apps/server/src/storage/PlayerStatsStore.ts",
+      "apps/server/test/daily/DailyTaskService.test.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/server/src/http/dailyTaskRoutes.ts",
+    "type": "http",
+    "purpose": "Daily Tasks HTTP routes GET /daily/tasks + POST /daily/tasks/claim (auth required, anon 401, bearer-token so no CSRF, per-user rate-limited, zod enum taskId boundary validation). Chained in httpServer before the auth handler; mounted only when wallet + PlayerStatsStore + AuthService exist. Needs a Caddy reverse_proxy /daily/* rule on the VPS or it 404s in prod.",
+    "importance": "high",
+    "related_files": [
+      "apps/server/src/daily/DailyTaskService.ts",
+      "apps/server/src/httpServer.ts",
+      "apps/server/src/index.ts",
+      "apps/server/test/http/dailyTaskRoutes.integration.test.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/daily/dailyApi.ts",
+    "type": "lib",
+    "purpose": "Client-side Daily Tasks HTTP API (apiDailyTasks GET, apiClaimDailyTask POST) reusing auth requestJson/jsonInit (bearer). Client DTOs mirror the server DailyTasksState (no shared type; defined here like spReward).",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/lib/daily/useDailyTasks.ts",
+      "apps/web/lib/auth/authApi.ts"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/lib/daily/useDailyTasks.ts",
+    "type": "lib",
+    "purpose": "Lobby hook for Daily Tasks state. Fetches on mount when authed and when refreshSignal changes (AppShell bumps it after /sp/complete so progress is fresh after returning to lobby); has a reqRef sequence guard so a stale response cannot overwrite newer state; anon = no-op. Exposes state, anyClaimable (pulse), claim, refresh. Countdown is computed locally in the dialog (never re-fetched).",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/lib/daily/dailyApi.ts",
+      "apps/web/components/DailyTasksDialog.tsx",
+      "apps/web/components/LobbyScreen.tsx",
+      "apps/web/test/useDailyTasks.test.tsx"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/DailyTasksDialog.tsx",
+    "type": "ui",
+    "purpose": "Daily Tasks dialog (controlled: receives state + claim + onBalanceChange). Renders 4 task cards (PNG art by id, goal text from dailyGoal + difficulty labels, token progress bar, coin gif + reward) with claimed/claim/locked/progress states, a locally-ticking reset countdown, and error handling. Exports DailyTasksIcon (single currentColor calendar path). Token-only styling via styles/daily.css.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/lib/daily/useDailyTasks.ts",
+      "apps/web/components/LobbyScreen.tsx",
+      "apps/web/components/Dialog.tsx",
+      "apps/web/styles/daily.css",
+      "apps/web/test/DailyTasksDialog.test.tsx"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/styles/daily.css",
+    "type": "style",
+    "purpose": "Daily Tasks token-only styles: calendar icon pulse (@keyframes dailyPulse, --coin glow, reduced-motion-safe via the global reset), .lobbyDailyButton pointer-events:auto (the top bar is pointer-events:none so each button must re-enable it, else clicks pass through), header icon sizing (28px), task card layout/states, and mobile single-column stacking. Mobile dialog width is set in mp-mobile-table.css (.modalScale .dailyDialog).",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/DailyTasksDialog.tsx",
+      "apps/web/styles/mp-mobile-table.css",
+      "apps/web/app/globals.css",
+      "apps/web/styles/tokens.css"
+    ],
+    "confidence": "high"
   }
 ]

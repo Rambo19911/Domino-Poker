@@ -1,0 +1,219 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { Dialog } from "./Dialog";
+import { Button } from "./ui/Button";
+import { CloseIcon } from "./ui/CloseIcon";
+import { IconButton } from "./ui/IconButton";
+import type {
+  DailyClaimView,
+  DailyDifficulty,
+  DailyTasksView,
+  DailyTaskView
+} from "../lib/daily/dailyApi";
+import type { AppStrings } from "../lib/i18n";
+import type { AudioSettings } from "../lib/useAudioSettings";
+
+/** Uzdevuma id → PNG attēls (assets/daily). Katalogs ir servera puses; attēli ir web puses. */
+const TASK_ART: Record<string, string> = {
+  win10_medium: "win_medium",
+  win20_hard: "win_hard",
+  win30_epic: "win_epic_30",
+  win50_epic: "win_epic_50"
+};
+
+const DIFFICULTY_LABEL: Record<DailyDifficulty, keyof AppStrings> = {
+  medium: "difficultyMedium",
+  hard: "difficultyHard",
+  epic: "difficultyEpic"
+};
+
+/** HH:MM:SS no sekundēm (countdown līdz UTC atiestatīšanai). */
+function formatCountdown(totalSeconds: number): string {
+  const s = Math.max(0, totalSeconds);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(h)}:${pad(m)}:${pad(sec)}`;
+}
+
+export function DailyTasksDialog({
+  audio,
+  labels: t,
+  state,
+  claim,
+  onBalanceChange,
+  onClose
+}: {
+  readonly audio: AudioSettings;
+  readonly labels: AppStrings;
+  readonly state: DailyTasksView | null;
+  readonly claim: (taskId: string) => Promise<DailyClaimView | null>;
+  readonly onBalanceChange: (balance: number) => void;
+  readonly onClose: () => void;
+}) {
+  const [claiming, setClaiming] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+  // Info tooltip atveras TIKAI uz "?" klikšķi (NE hover/focus — dialogs auto-fokusē,
+  // tāpēc focus-within to atvērtu uzreiz pie dialoga atvēršanas).
+  const [infoOpen, setInfoOpen] = useState(false);
+  // Countdown atskaitās LOKĀLI no servera `secondsUntilReset` (nav re-fetch — Codex).
+  const [secondsLeft, setSecondsLeft] = useState(state?.secondsUntilReset ?? 0);
+
+  useEffect(() => {
+    setSecondsLeft(state?.secondsUntilReset ?? 0);
+  }, [state?.secondsUntilReset]);
+
+  useEffect(() => {
+    if (secondsLeft <= 0) {
+      return;
+    }
+    const id = setInterval(() => setSecondsLeft((prev) => Math.max(0, prev - 1)), 1000);
+    return () => clearInterval(id);
+  }, [secondsLeft]);
+
+  const handleClose = () => {
+    audio.play("uiClick");
+    onClose();
+  };
+
+  const handleClaim = async (task: DailyTaskView) => {
+    setError(false);
+    setClaiming(task.id);
+    audio.play("uiClick");
+    const result = await claim(task.id);
+    setClaiming(null);
+    if (result) {
+      onBalanceChange(result.balance);
+      if (result.awarded > 0) {
+        audio.play("coinClaim");
+      }
+    } else {
+      setError(true);
+    }
+  };
+
+  return (
+    <Dialog
+      ariaLabelledBy="daily-title"
+      className="alertDialog dailyDialog"
+      onEscape={handleClose}
+      resetScrollOnMount
+    >
+      <div className="settingsHeader">
+        <div>
+          <h2 id="daily-title">
+            <DailyTasksIcon /> {t.dailyTasks}
+            <span className="dailyInfoWrap">
+              <button
+                className="dailyInfoButton"
+                type="button"
+                aria-label={t.dailyInfoLabel}
+                aria-controls="daily-info-tip"
+                aria-expanded={infoOpen}
+                onClick={() => {
+                  audio.play("uiClick");
+                  setInfoOpen((open) => !open);
+                }}
+              >
+                ?
+              </button>
+              {/* Klikšķa-toggle "disclosure" (NE īsts tooltip): role=note + aria-hidden
+                  kad aizvērts, lai SR to nenolasa, kamēr tas ir vizuāli slēpts. */}
+              <span
+                className="dailyTooltip"
+                role="note"
+                id="daily-info-tip"
+                data-open={infoOpen}
+                aria-hidden={!infoOpen}
+              >
+                <span>{t.dailyInfoConditions}</span>
+                <span>{t.dailyInfoDifficulty}</span>
+                <span>{t.dailyInfoSpOnly}</span>
+              </span>
+            </span>
+          </h2>
+          <p>{t.dailyTasksSubtitle}</p>
+        </div>
+        <IconButton className="settingsCloseButton" label={t.close} onClick={handleClose}>
+          <CloseIcon />
+        </IconButton>
+      </div>
+
+      <div className="dailyList">
+        {(state?.tasks ?? []).map((task) => {
+          const goal = t.dailyGoal
+            .replace("{count}", String(task.threshold))
+            .replace("{difficulty}", t[DIFFICULTY_LABEL[task.difficulty]]);
+          const pct = Math.min(100, Math.round((task.progress / task.threshold) * 100));
+          const status = task.claimed
+            ? "claimed"
+            : task.claimable
+              ? "claimable"
+              : task.unlocked
+                ? "open"
+                : "locked";
+          return (
+            <div className="dailyCard" data-status={status} key={task.id}>
+              <img
+                className="dailyCardArt"
+                src={`/assets/daily/${TASK_ART[task.id] ?? "win_medium"}.png`}
+                alt=""
+                aria-hidden="true"
+              />
+              <div className="dailyCardBody">
+                <h3 className="dailyCardTitle">{goal}</h3>
+                <div className="dailyProgress" aria-label={`${task.progress}/${task.threshold}`}>
+                  <div className="dailyProgressTrack">
+                    <span className="dailyProgressFill" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="dailyProgressText">
+                    {task.progress}/{task.threshold}
+                  </span>
+                </div>
+                <div className="dailyReward">
+                  <img className="dailyCoin" src="/assets/coins/spinRight-32.gif" alt="" aria-hidden="true" />
+                  <span>{task.rewardCoins.toLocaleString()}</span>
+                </div>
+              </div>
+              <div className="dailyCardAction">
+                {task.claimed ? (
+                  <span className="dailyBadge dailyBadgeClaimed">{t.dailyClaimed}</span>
+                ) : task.claimable ? (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    loading={claiming === task.id}
+                    onClick={() => void handleClaim(task)}
+                  >
+                    {t.dailyClaim}
+                  </Button>
+                ) : !task.unlocked ? (
+                  <span className="dailyBadge dailyBadgeLocked">{t.dailyLocked}</span>
+                ) : (
+                  <span className="dailyBadge">
+                    {task.progress}/{task.threshold}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {error ? <p className="dailyError">{t.dailyClaimError}</p> : null}
+      <p className="dailyReset">{t.dailyResetIn.replace("{time}", formatCountdown(secondsLeft))}</p>
+    </Dialog>
+  );
+}
+
+/** Kalendāra ikona (viens `currentColor` ceļš — token-krāsojas ar tēmu; pulsē caur CSS klasi). */
+export function DailyTasksIcon() {
+  return (
+    <svg viewBox="0 0 640 640" aria-hidden="true" focusable="false" fill="currentColor">
+      <path d="M224 64C241.7 64 256 78.3 256 96L256 128L384 128L384 96C384 78.3 398.3 64 416 64C433.7 64 448 78.3 448 96L448 128L480 128C515.3 128 544 156.7 544 192L544 480C544 515.3 515.3 544 480 544L160 544C124.7 544 96 515.3 96 480L96 192C96 156.7 124.7 128 160 128L192 128L192 96C192 78.3 206.3 64 224 64zM160 304L160 336C160 344.8 167.2 352 176 352L208 352C216.8 352 224 344.8 224 336L224 304C224 295.2 216.8 288 208 288L176 288C167.2 288 160 295.2 160 304zM288 304L288 336C288 344.8 295.2 352 304 352L336 352C344.8 352 352 344.8 352 336L352 304C352 295.2 344.8 288 336 288L304 288C295.2 288 288 295.2 288 304zM432 288C423.2 288 416 295.2 416 304L416 336C416 344.8 423.2 352 432 352L464 352C472.8 352 480 344.8 480 336L480 304C480 295.2 472.8 288 464 288L432 288zM160 432L160 464C160 472.8 167.2 480 176 480L208 480C216.8 480 224 472.8 224 464L224 432C224 423.2 216.8 416 208 416L176 416C167.2 416 160 423.2 160 432zM304 416C295.2 416 288 423.2 288 432L288 464C288 472.8 295.2 480 304 480L336 480C344.8 480 352 472.8 352 464L352 432C352 423.2 344.8 416 336 416L304 416zM416 432L416 464C416 472.8 423.2 480 432 480L464 480C472.8 480 480 472.8 480 464L480 432C480 423.2 472.8 416 464 416L432 416C423.2 416 416 423.2 416 432z" />
+    </svg>
+  );
+}

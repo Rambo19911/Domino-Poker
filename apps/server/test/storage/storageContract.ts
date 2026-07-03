@@ -317,8 +317,60 @@ export function runStoragePortContract(label: string, setup: ContractSetup): voi
         await expect(storage.recordGameResult({ ...base, id: "mp:bad3", mode: "mp" })).rejects.toThrow();
         // Placement ārpus 1..4.
         await expect(storage.recordGameResult({ ...base, id: "sp:bad4", placement: 5 })).rejects.toThrow();
+        // Negatīvs / frakcionāls ilgums.
+        await expect(storage.recordGameResult({ ...base, id: "sp:bad5", durationMs: -1 })).rejects.toThrow();
+        await expect(storage.recordGameResult({ ...base, id: "sp:bad6", durationMs: 1.5 })).rejects.toThrow();
         // Neviens nederīgais ieraksts nedrīkst būt ierakstīts.
         expect(await storage.getPlayerGameStats("user-1")).toEqual([]);
+      });
+
+      it("countSpWinsSince: filters by difficulty, placement<=2, [since,until) window, and min duration", async () => {
+        const win = (
+          id: string,
+          difficulty: "medium" | "hard" | "epic",
+          placement: number,
+          completedAt: number,
+          durationMs: number | undefined
+        ) =>
+          storage.recordGameResult({
+            id, userId: "user-1", mode: "sp", difficulty,
+            placement, roundCount: 4, bidMet: 4, bidExceeded: 0, bidMissed: 0,
+            completedAt, ...(durationMs === undefined ? {} : { durationMs })
+          });
+
+        // Logs = [1000, 2000). Min ilgums = 5000.
+        await win("sp:w1", "epic", 1, 1000, 9000); // skaitās
+        await win("sp:w2", "epic", 2, 1500, 5000); // skaitās (placement 2, ilgums == min)
+        await win("sp:w3", "epic", 3, 1200, 9000); // NE (placement 3)
+        await win("sp:w4", "hard", 1, 1200, 9000); // NE (cita grūtība)
+        await win("sp:w5", "epic", 1, 999, 9000);  // NE (pirms loga)
+        await win("sp:w6", "epic", 1, 2000, 9000); // NE (untilMs ekskluzīvs)
+        await win("sp:w7", "epic", 1, 1300, 4000); // NE (ilgums < min)
+        await win("sp:w8", "epic", 1, 1400, undefined); // NE (legacy/NULL ilgums)
+
+        expect(await storage.countSpWinsSince("user-1", "epic", 1000, 2000, 5000)).toBe(2);
+        expect(await storage.countSpWinsSince("user-1", "hard", 1000, 2000, 5000)).toBe(1);
+        expect(await storage.countSpWinsSince("user-2", "epic", 1000, 2000, 5000)).toBe(0);
+      });
+
+      it("preserves the original duration_ms on idempotent duplicate insert", async () => {
+        expect(
+          await storage.recordGameResult({
+            id: "sp:dur", userId: "user-1", mode: "sp", difficulty: "epic",
+            placement: 1, roundCount: 4, bidMet: 4, bidExceeded: 0, bidMissed: 0,
+            completedAt: 1500, durationMs: 8000
+          })
+        ).toBe(true);
+        // Atkārtots ieraksts ar CITU ilgumu → no-op, oriģinālais duration_ms paliek.
+        expect(
+          await storage.recordGameResult({
+            id: "sp:dur", userId: "user-1", mode: "sp", difficulty: "epic",
+            placement: 1, roundCount: 4, bidMet: 4, bidExceeded: 0, bidMissed: 0,
+            completedAt: 1500, durationMs: 1
+          })
+        ).toBe(false);
+        // Ja oriģinālais 8000 tiktu pārrakstīts uz 1, šis skaits būtu 0.
+        expect(await storage.countSpWinsSince("user-1", "epic", 1000, 2000, 5000)).toBe(1);
       });
     });
 

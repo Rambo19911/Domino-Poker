@@ -1,0 +1,300 @@
+/* Dienas uzdevumi (Daily Tasks). TIKAI tokeni (bez krāsu literāļiem) — seko tēmai.
+   Pulsēšana + pārējās animācijas globāli atspējotas ar `prefers-reduced-motion` (animations.css). */
+
+/* Kalendāra ikonas maigā pulsēšana, kad kāda balva savācama (paziņojums lietotājam).
+   Zeltaina (--coin) — nauda paliek zelta katrā ekrānā. */
+@keyframes dailyPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgb(var(--coin-rgb) / 0.5);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 0 14px 3px rgb(var(--coin-rgb) / 0.55);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgb(var(--coin-rgb) / 0);
+  }
+}
+
+/* `.lobbyTopBar` ir `pointer-events: none`; katrai pogai tas jāatjauno atsevišķi (kā
+   pārējām lobby.css pogām), citādi klikšķi iet cauri pogai uz fonu (poga "neaktīva"). */
+.lobbyDailyButton {
+  pointer-events: auto;
+}
+
+/* Inline SVG bez intrinsic izmēra — skaidri izmēro, lai sakristu ar māsu ikonām
+   (trophy/help = 32px), citādi tas pilda visu pogu (~50px, lielāks par pārējām).
+   Maiga "bounce" animācija (kā oriģinālais fa-bounce SVG) ar pauzēm; globālais
+   `prefers-reduced-motion` reset (animations.css) to atspējo. */
+.lobbyDailyButton svg {
+  width: 32px;
+  height: 32px;
+  animation: dailyBounce 2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes dailyBounce {
+  0%,
+  15% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-5px);
+  }
+  45% {
+    transform: translateY(0);
+  }
+  60% {
+    transform: translateY(-2px);
+  }
+  75%,
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.lobbyDailyButton.dailyPulse {
+  color: var(--coin);
+  border-radius: var(--radius-pill);
+  animation: dailyPulse 1.6s ease-in-out infinite;
+}
+
+/* Dialogs */
+.dailyDialog {
+  max-width: 30rem;
+}
+
+/* Galvenes kalendāra ikona (inline SVG bez intrinsic izmēra — jāizmēro, kā trophy/help). */
+.dailyDialog h2 svg {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  vertical-align: -7px;
+}
+
+/* "?" info poga galvenē (kā leaderboard) — atklāj uzdevumu izpildes nosacījumus. */
+.dailyInfoButton {
+  margin-left: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgb(var(--primary-rgb) / 0.6);
+  background: rgb(var(--primary-rgb) / 0.12);
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.dailyInfoButton:hover,
+.dailyInfoButton:focus-visible {
+  background: rgb(var(--primary-rgb) / 0.22);
+}
+
+/* Tooltip: atveras TIKAI uz "?" klikšķi (`data-open`), NE hover/focus (dialogs auto-fokusē,
+   tāpēc focus-within to atvērtu uzreiz). Absolūti pozicionēts → NEaizņem layout vietu. */
+.dailyInfoWrap {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.dailyTooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: max-content;
+  max-width: min(260px, 68vw);
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-md);
+  background: var(--surface-floating);
+  border: 1px solid rgb(var(--primary-rgb) / 0.4);
+  box-shadow: var(--shadow-md);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.dailyTooltip[data-open="true"] {
+  opacity: 1;
+  visibility: visible;
+}
+
+.dailyList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.dailyCard {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid rgb(var(--border-rgb) / 0.9);
+  border-radius: var(--radius-lg);
+  background: rgb(var(--surface-floating-rgb) / 0.55);
+}
+
+.dailyCard[data-status="claimable"] {
+  border-color: rgb(var(--coin-rgb) / 0.75);
+  background: rgb(var(--coin-rgb) / 0.1);
+}
+
+.dailyCard[data-status="claimed"] {
+  opacity: 0.62;
+}
+
+.dailyCard[data-status="locked"] {
+  opacity: 0.7;
+}
+
+.dailyCardArt {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.dailyCardBody {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dailyCardTitle {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dailyProgress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dailyProgressTrack {
+  flex: 1 1 auto;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: rgb(var(--muted-rgb) / 0.35);
+  overflow: hidden;
+}
+
+.dailyProgressFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--coin);
+  transition: width 0.3s ease;
+}
+
+.dailyProgressText {
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.dailyReward {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+  font-weight: 700;
+  color: var(--coin);
+  font-variant-numeric: tabular-nums;
+}
+
+.dailyCoin {
+  width: 20px;
+  height: 20px;
+}
+
+.dailyCardAction {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 5.5rem;
+}
+
+.dailyBadge {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  background: rgb(var(--muted-rgb) / 0.25);
+}
+
+.dailyBadgeClaimed {
+  color: var(--success);
+  background: rgb(var(--success-rgb) / 0.16);
+}
+
+.dailyBadgeLocked {
+  color: var(--text-secondary);
+}
+
+.dailyReset {
+  margin: 0.85rem 0 0;
+  text-align: center;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.dailyError {
+  margin: 0.6rem 0 0;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--error);
+}
+
+/* Mobilais: kompaktāks attēls + darbība nolaižas zem satura šaurās joslās. */
+@media (max-width: 420px) {
+  /* Tooltip atveras pa KREISI (right:0), lai neizplūstu pāri labajai malai šauros
+     ekrānos (piem. 320px), kur `.modalBackdrop` overflow:hidden to nogrieztu. */
+  .dailyTooltip {
+    left: auto;
+    right: 0;
+  }
+
+  .dailyCard {
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .dailyCardArt {
+    width: 44px;
+    height: 44px;
+  }
+
+  .dailyCardAction {
+    flex: 1 1 100%;
+    justify-content: stretch;
+    min-width: 0;
+  }
+
+  .dailyCardAction .uiButton {
+    width: 100%;
+  }
+}

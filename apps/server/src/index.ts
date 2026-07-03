@@ -21,6 +21,7 @@ import { createChatTranslateHandler } from "./chat/chatTranslateRoutes.js";
 import { loadServerConfig } from "./config.js";
 import { createAuthHandler } from "./http/authRoutes.js";
 import { createContactHandler } from "./http/contactRoutes.js";
+import { createDailyTaskHandler } from "./http/dailyTaskRoutes.js";
 import { createSpRewardHandler } from "./http/spRewardRoutes.js";
 import { createStatsHandler } from "./http/statsRoutes.js";
 import { createStoreHandler } from "./http/storeRoutes.js";
@@ -39,6 +40,7 @@ import { SpRewardTokens } from "./sp/SpRewardTokens.js";
 import { isCoinStore } from "./storage/CoinStore.js";
 import { isPlayerStatsStore } from "./storage/PlayerStatsStore.js";
 import { MpStatsRecorder } from "./stats/MpStatsRecorder.js";
+import { DailyTaskService } from "./daily/DailyTaskService.js";
 import { PlayerStatsService } from "./stats/PlayerStatsService.js";
 import { PostgresStorage } from "./storage/PostgresStorage.js";
 import { openStorage } from "./storage/index.js";
@@ -199,6 +201,12 @@ const playerStats = isPlayerStatsStore(storage)
 const mpStats = isPlayerStatsStore(storage)
   ? new MpStatsRecorder({ store: storage, clock })
   : undefined;
+// Dienas uzdevumi (atvasināts progress no player_game_results + ledger savākšana). Tikai
+// ar maku + stats-store (abi vajadzīgi); reģistrētiem lietotājiem, anonīmiem 401.
+const dailyTasks =
+  wallet && isPlayerStatsStore(storage)
+    ? new DailyTaskService({ stats: storage, wallet, clock })
+    : undefined;
 // Fāze 3: MP poda izmaksas dzinējs (atsevišķs no OutcomeRecorder; tikai ar maku).
 const payouts = wallet ? new MatchPayoutService({ wallet }) : undefined;
 // Fāze 2: SP balvas vienreizējie spēles tokeni (in-memory, vienas instances anti-cheat).
@@ -499,6 +507,17 @@ const server = createHealthHttpServer({
         statsHandler: createStatsHandler({
           auth: authService,
           stats: playerStats,
+          webOrigins: config.webOrigins,
+          clock,
+          dev: config.nodeEnv !== "production"
+        })
+      }
+    : {}),
+  ...(authService && dailyTasks
+    ? {
+        dailyHandler: createDailyTaskHandler({
+          auth: authService,
+          daily: dailyTasks,
           webOrigins: config.webOrigins,
           clock,
           dev: config.nodeEnv !== "production"

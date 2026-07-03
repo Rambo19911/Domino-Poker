@@ -9,6 +9,7 @@ const audioPaths = {
   trickComplete: "/assets/sounds/trick_complete.mp3",
   roundWin: "/assets/sounds/round_win.mp3",
   uiClick: "/assets/sounds/mixkit-typewriter-soft-click.wav",
+  coinClaim: "/assets/sounds/Coin_claim.mp3",
   backgroundMusic: "/assets/sounds/background_music.mp3"
 } as const;
 
@@ -20,7 +21,8 @@ const effectNames = [
   "bidClick",
   "trickComplete",
   "roundWin",
-  "uiClick"
+  "uiClick",
+  "coinClaim"
 ] as const satisfies readonly EffectName[];
 const effectPoolSize = 3;
 

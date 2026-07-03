@@ -41,6 +41,7 @@ import type { ApplyLedgerResult, CoinStore, LedgerEntryInput } from "./CoinStore
 import { scrubSeats } from "./matchAnonymize.js";
 import {
   assertValidGameResult,
+  type GameDifficulty,
   type GameResultRecord,
   type GameStatsAggregateRow,
   type PlayerStatsStore
@@ -929,8 +930,8 @@ export class PostgresStorage
     const result = await this.pool.query(
       `INSERT INTO player_game_results
          (id, user_id, mode, difficulty, placement, round_count,
-          bid_met, bid_exceeded, bid_missed, completed_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          bid_met, bid_exceeded, bid_missed, completed_at, duration_ms)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (id) DO NOTHING`,
       [
         record.id,
@@ -942,10 +943,29 @@ export class PostgresStorage
         record.bidMet,
         record.bidExceeded,
         record.bidMissed,
-        record.completedAt
+        record.completedAt,
+        record.durationMs ?? null
       ]
     );
     return (result.rowCount ?? 0) > 0;
+  }
+
+  async countSpWinsSince(
+    userId: string,
+    difficulty: GameDifficulty,
+    sinceMs: number,
+    untilMs: number,
+    minDurationMs: number
+  ): Promise<number> {
+    const result = await this.pool.query<{ wins: number }>(
+      `SELECT COUNT(*)::int AS wins
+         FROM player_game_results
+        WHERE user_id = $1 AND mode = 'sp' AND difficulty = $2 AND placement <= 2
+          AND completed_at >= $3 AND completed_at < $4
+          AND duration_ms IS NOT NULL AND duration_ms >= $5`,
+      [userId, difficulty, sinceMs, untilMs, minDurationMs]
+    );
+    return Number(result.rows[0]?.wins ?? 0);
   }
 
   async getPlayerGameStats(userId: string): Promise<readonly GameStatsAggregateRow[]> {

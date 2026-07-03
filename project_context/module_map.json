@@ -843,5 +843,45 @@
       "Admin panel is FUNCTIONALLY COMPLETE (Phases 0-4) and D2 deployed; future work should treat it as a live production surface."
     ],
     "confidence": "high"
+  },
+  {
+    "name": "Daily Tasks",
+    "folder": ".",
+    "purpose": "Coin-earning daily tasks (calendar icon in lobby top bar, registered-users-only). 4 SEQUENTIAL tasks (win 10 medium/20 hard/30 epic/50 epic = 2000/4000/8000/16000 coins; win = SP placement <=2). DAILY reset UTC 00:00; progress accrues in parallel, CLAIM is sequential within the same UTC day. Progress is DERIVED from player_game_results (countSpWinsSince), NO counter table; claims are idempotent ledger rows (reason daily_task_reward, ref daily:{yyyymmdd}:{taskId}). Amounts/thresholds in economy.ts (server-enforced). Plan: docs/TODO/daily-tasks-plan.md.",
+    "main_files": [
+      "packages/shared/src/economy.ts",
+      "apps/server/src/daily/DailyTaskService.ts",
+      "apps/server/src/http/dailyTaskRoutes.ts",
+      "apps/server/src/wallet/WalletService.ts",
+      "apps/server/src/storage/PlayerStatsStore.ts",
+      "apps/server/src/storage/schema.ts",
+      "apps/server/src/http/spRewardRoutes.ts",
+      "apps/web/lib/daily/dailyApi.ts",
+      "apps/web/lib/daily/useDailyTasks.ts",
+      "apps/web/components/DailyTasksDialog.tsx",
+      "apps/web/components/LobbyScreen.tsx",
+      "apps/web/components/AppShell.tsx",
+      "apps/web/styles/daily.css"
+    ],
+    "depends_on": [
+      "Shared Protocol",
+      "Coin Economy (Gold)",
+      "Player Statistics (Deep Stats)",
+      "Server Auth",
+      "Web App"
+    ],
+    "used_by": [
+      "Web App",
+      "Multiplayer Server"
+    ],
+    "risks": [
+      "economy.ts DAILY_TASKS is the single source of thresholds+rewards+order (server enforces; client never sends them). DailyTaskService depends on the array being sorted by contiguous order 1..N (claim looks up order-1); a shared invariant test guards it.",
+      "Progress is DERIVED from player_game_results (countSpWinsSince: mode='sp', placement<=2, difficulty, completed_at in [windowStart, windowEnd), duration_ms>=minDurationMs). windowStart = max(utcDayStart, FEATURE_LAUNCH_EPOCH_MS). No dual-write; always recomputable. Claims = ledger rows reason 'daily_task_reward' ref 'daily:{yyyymmdd}:{taskId}', idempotent by UNIQUE(user_id, reason, ref) (no migration; 0010 dropped the reason CHECK).",
+      "Migration 0014_player_game_results_duration is ADDITIVE (duration_ms nullable + index). SchemaMigration.selfTransaction marks SQLite self-managed-tx rebuilds (0010/0013); the SQLite migrate() runner wraps every other migration up + schema_migrations record in ONE BEGIN IMMEDIATE tx so 0014 ADD COLUMN (no IF NOT EXISTS) is crash-rerun safe. /sp/complete stores duration_ms = now - token.issuedAt (clamp>=0) on the same idempotent insert (dup does NOT update it).",
+      "ANTI-ABUSE: min-game-duration-per-difficulty gate (DAILY_TASK_MIN_GAME_MS, server-only) on what counts + natural 30000/day/user cap (once per UTC day per task) + per-user rate limits + per-user in-process claim lock (ledger UNIQUE is the real guard). RESIDUAL (accepted, like existing SP rewards): placement is still client-asserted at /sp/complete; duration gate blocks instant scripts, not fabricated placements (full fix = server-side replay, out of scope).",
+      "Routes GET /daily/tasks + POST /daily/tasks/claim require auth (anon 401), bearer-token (no CSRF), rate-limited, chained before the auth handler, mounted only when wallet + PlayerStatsStore + AuthService exist. Needs a Caddy reverse_proxy /daily/* rule on the VPS or it 404s in prod.",
+      "Web: useDailyTasks fetches on lobby mount + on dailyRefreshSignal change (AppShell bumps it after /sp/complete) with a reqRef sequence guard (stale fetch cannot overwrite newer state); calendar icon shows only when authed and pulses (--coin, reduced-motion-safe) when anyClaimable; countdown computed locally (never re-fetched). 9 i18n keys across all 21 locales (EN+LV proper, 19 EN fallback). Token-only CSS. FEATURE_LAUNCH_EPOCH_MS must be set to the real deploy date."
+    ],
+    "confidence": "high"
   }
 ]

@@ -438,6 +438,7 @@
   .modalScale .rulesDialog,
   .modalScale .settingsDialog,
   .modalScale .leaderboardDialog,
+  .modalScale .dailyDialog,
   .modalScale .authDialog {
     width: min(560px, 110vw);
     max-width: none;

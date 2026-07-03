@@ -46,6 +46,8 @@ export interface RecordSpGameInput {
   readonly bidExceeded: number;
   readonly bidMissed: number;
   readonly now: number;
+  /** Spēles ilgums ms (`now - token.issuedAt`) — dienas uzdevumu anti-abuse min-ilguma vārtiem. */
+  readonly durationMs: number;
 }
 
 export class PlayerStatsService {
@@ -80,7 +82,8 @@ export class PlayerStatsService {
       bidMet: input.bidMet,
       bidExceeded: input.bidExceeded,
       bidMissed: input.bidMissed,
-      completedAt: input.now
+      completedAt: input.now,
+      durationMs: input.durationMs
     });
   }
 

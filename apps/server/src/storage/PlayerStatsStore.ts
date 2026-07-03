@@ -38,6 +38,12 @@ export interface GameResultRecord {
   readonly bidMissed: number;
   /** Servera laiks (ms), kad spēle pabeigta. */
   readonly completedAt: number;
+  /**
+   * Spēles ilgums ms (`now - token.issuedAt`, tikai SP; MP = `undefined`/NULL). Lieto
+   * dienas uzdevumu anti-abuse skaitīšanā (`countSpWinsSince` min-ilguma vārti). Vecām
+   * rindām (pirms migrācijas `0014`) NULL. Idempotentā INSERT dublikātā NEatjaunina.
+   */
+  readonly durationMs?: number | undefined;
 }
 
 /**
@@ -77,6 +83,20 @@ export interface PlayerStatsStore {
    * (NE 409). Atgriež tikai `userId` (īpašumtiesību pārbaudei), ne pilnu rindu.
    */
   getGameResultOwner(id: string): Promise<string | undefined>;
+
+  /**
+   * Dienas uzdevumu progress: skaita SP UZVARAS (placement ≤ 2) dotajā grūtībā laika
+   * logā `[sinceMs, untilMs)` ar `duration_ms >= minDurationMs` (anti-abuse; NULL/legacy
+   * rindas izslēgtas — tas GAN gate momentānus skriptus, GAN dod "skaita no palaišanas").
+   * Atvasināts (nav skaitītāja tabulas). Identisks SQLite + PostgreSQL (kontrakta tests).
+   */
+  countSpWinsSince(
+    userId: string,
+    difficulty: GameDifficulty,
+    sinceMs: number,
+    untilMs: number,
+    minDurationMs: number
+  ): Promise<number>;
 }
 
 /** Runtime pārbaude, vai glabātuve atbalsta statistiku (abas to dara; sargs `index.ts`). */
@@ -86,7 +106,8 @@ export function isPlayerStatsStore(value: unknown): value is PlayerStatsStore {
     value !== null &&
     typeof (value as PlayerStatsStore).recordGameResult === "function" &&
     typeof (value as PlayerStatsStore).getPlayerGameStats === "function" &&
-    typeof (value as PlayerStatsStore).getGameResultOwner === "function"
+    typeof (value as PlayerStatsStore).getGameResultOwner === "function" &&
+    typeof (value as PlayerStatsStore).countSpWinsSince === "function"
   );
 }
 
@@ -132,5 +153,10 @@ export function assertValidGameResult(record: GameResultRecord): void {
     }
   } else if (record.difficulty !== undefined) {
     throw new Error(`player_game_results: mp result must not have a difficulty (got ${record.difficulty})`);
+  }
+  // `durationMs` ir opcionāls (MP/legacy = undefined→NULL); ja dots, ne-negatīvs vesels
+  // skaitlis (aizsargā pret NaN/frakcionālu/negatīvu ilgumu; SQLite/PG noraida identiski).
+  if (record.durationMs !== undefined) {
+    assertNonNegativeInt("durationMs", record.durationMs);
   }
 }

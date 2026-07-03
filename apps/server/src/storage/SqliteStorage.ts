@@ -56,6 +56,7 @@ import type { ApplyLedgerResult, CoinStore, LedgerEntryInput } from "./CoinStore
 import { scrubSeats } from "./matchAnonymize.js";
 import {
   assertValidGameResult,
+  type GameDifficulty,
   type GameResultRecord,
   type GameStatsAggregateRow,
   type PlayerStatsStore
@@ -125,8 +126,25 @@ export class SqliteStorage
       if (applied.has(migration.id)) {
         continue;
       }
-      this.db.exec(migration.up);
-      insertApplied.run(migration.id, Date.now());
+      if (migration.selfTransaction) {
+        // `up` pats pārvalda savu BEGIN IMMEDIATE/COMMIT (0010/0013 pārbūve) — nedrīkst
+        // ligzdot tx. Ieraksts atsevišķi; šīs migrācijas ir idempotentas atkārtotā palaišanā.
+        this.db.exec(migration.up);
+        insertApplied.run(migration.id, Date.now());
+      } else {
+        // Ietin `up` + `schema_migrations` ierakstu VIENĀ tx → atomiski (crash atstāj vai
+        // nu abus, vai nevienu), tāpēc migrācija ir crash-rerun droša arī ne-idempotentam
+        // `up` (piem. SQLite `ADD COLUMN`, kam nav `IF NOT EXISTS`).
+        this.db.exec("BEGIN IMMEDIATE;");
+        try {
+          this.db.exec(migration.up);
+          insertApplied.run(migration.id, Date.now());
+          this.db.exec("COMMIT;");
+        } catch (error) {
+          this.db.exec("ROLLBACK;");
+          throw error;
+        }
+      }
     }
   }
 
@@ -780,8 +798,8 @@ export class SqliteStorage
       .prepare(
         `INSERT OR IGNORE INTO player_game_results
            (id, user_id, mode, difficulty, placement, round_count,
-            bid_met, bid_exceeded, bid_missed, completed_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            bid_met, bid_exceeded, bid_missed, completed_at, duration_ms)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         record.id,
@@ -793,9 +811,29 @@ export class SqliteStorage
         record.bidMet,
         record.bidExceeded,
         record.bidMissed,
-        record.completedAt
+        record.completedAt,
+        record.durationMs ?? null
       );
     return Number(inserted.changes) > 0;
+  }
+
+  async countSpWinsSince(
+    userId: string,
+    difficulty: GameDifficulty,
+    sinceMs: number,
+    untilMs: number,
+    minDurationMs: number
+  ): Promise<number> {
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS wins
+           FROM player_game_results
+          WHERE user_id = ? AND mode = 'sp' AND difficulty = ? AND placement <= 2
+            AND completed_at >= ? AND completed_at < ?
+            AND duration_ms IS NOT NULL AND duration_ms >= ?`
+      )
+      .get(userId, difficulty, sinceMs, untilMs, minDurationMs) as { wins: number | bigint };
+    return Number(row.wins);
   }
 
   async getPlayerGameStats(userId: string): Promise<readonly GameStatsAggregateRow[]> {

@@ -69,6 +69,9 @@ export function AppShell() {
   // ir piešķirtās monētas, ko GameEndDialog rāda kā "+N".
   const spStartRef = useRef<Promise<AuthResult<SpStartResponse>> | null>(null);
   const [spAward, setSpAward] = useState<number | null>(null);
+  // Palielinās PĒC katras veiksmīgas /sp/complete → lobija dienas uzdevumu progress
+  // atsvaidzinās, pat ja ekrāns atgriezās (remontējās) pirms ieraksta pabeigšanas.
+  const [dailyRefreshSignal, setDailyRefreshSignal] = useState(0);
   const audio = useAudioSettings();
   const auth = useAuthUser();
   const refreshAuth = auth.refresh;
@@ -244,8 +247,12 @@ export function AppShell() {
             : null
         )
         .then((completeRes) => {
-          if (completeRes && completeRes.ok && completeRes.data.coinsAwarded > 0) {
-            setSpAward(completeRes.data.coinsAwarded);
+          if (completeRes && completeRes.ok) {
+            if (completeRes.data.coinsAwarded > 0) {
+              setSpAward(completeRes.data.coinsAwarded);
+            }
+            // Spēle ierakstīta → paziņo lobijam atsvaidzināt dienas uzdevumu progresu.
+            setDailyRefreshSignal((n) => n + 1);
           }
         });
     },
@@ -319,6 +326,7 @@ export function AppShell() {
       labels={t}
       locale={locale}
       auth={authForLobby}
+      dailyRefreshSignal={dailyRefreshSignal}
       selectedRoundCount={selectedRoundCount}
       onRoundCountChange={setSelectedRoundCount}
       difficulty={selectedDifficulty}

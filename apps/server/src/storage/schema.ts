@@ -40,6 +40,14 @@ const TYPES: Record<SchemaDialect, DialectTypes> = {
 export interface SchemaMigration {
   readonly id: string;
   readonly up: string;
+  /**
+   * SQLite: `up` PATS pārvalda savu transakciju (`BEGIN IMMEDIATE; ... COMMIT;`, piem.
+   * tabulas pārbūve 0010/0013). Tad `migrate()` NEDRĪKST to ietīt vēlreiz (SQLite nav
+   * ligzdotu tx). Nenorādīts/`false` → runner ietin `up` + `schema_migrations` ierakstu
+   * VIENĀ tx, tā katra ne-paštransakcijas migrācija ir crash-rerun droša (piem. 0014
+   * `ADD COLUMN`, kam nav `IF NOT EXISTS`). PG neietekmē (katrs `up` = implicītā tx).
+   */
+  readonly selfTransaction?: boolean;
 }
 
 /**
@@ -543,6 +551,38 @@ function userPreferencesLanguageOpenSchema(t: DialectTypes, dialect: SchemaDiale
 }
 
 /**
+ * 0014: dienas uzdevumiem (sk. `docs/TODO/daily-tasks-plan.md`) pievieno per-spēli
+ * ILGUMU `player_game_results` tabulai + indeksu dienas logu skaitīšanai. TIKAI
+ * ADDITĪVS (bez tabulas pārbūves): jauna NULLABLE kolonna + jauns indekss.
+ *   - `duration_ms` (nullable) = `now - token.issuedAt` no `/sp/complete`, saglabāts
+ *     ar to PAŠU idempotento INSERT (viens raksts, exactly-once). Vecām rindām NULL →
+ *     tās dabiski izslēdz dienas skaits (`duration_ms >= min`) — anti-abuse UN "skaita
+ *     no palaišanas" bez maksas. MP rindas nesūta ilgumu (NULL; skaita tikai `mode='sp'`).
+ *   - Indekss `(user_id, mode, difficulty, completed_at)` dienas loga COUNT vaicājumam.
+ * Abi dialekti ir vienkārši, self-contained (BEZ savas tx):
+ *   - PG: `ADD COLUMN IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS` (viena implicītā tx;
+ *     jau pilnībā crash-rerun droša — atkārtota palaišana ir no-op).
+ *   - SQLite: `ADD COLUMN` (nav `IF NOT EXISTS`) + `CREATE INDEX IF NOT EXISTS`. Crash-rerun
+ *     drošību nodrošina RUNNER (`SqliteStorage.migrate()`): migrācijas BEZ `selfTransaction`
+ *     karoga tiek ietītas `BEGIN IMMEDIATE`, un `schema_migrations` ieraksts notiek tajā
+ *     PAŠĀ tx → `up` un ieraksts ir atomiski (crash atstāj vai nu abus, vai nevienu).
+ */
+function playerGameResultsDurationSchema(t: DialectTypes, dialect: SchemaDialect): string {
+  if (dialect === "pg") {
+    return `
+  ALTER TABLE player_game_results ADD COLUMN IF NOT EXISTS duration_ms ${t.bigint};
+  CREATE INDEX IF NOT EXISTS idx_player_game_results_user_completed
+    ON player_game_results (user_id, mode, difficulty, completed_at);
+`;
+  }
+  return `
+  ALTER TABLE player_game_results ADD COLUMN duration_ms ${t.bigint};
+  CREATE INDEX IF NOT EXISTS idx_player_game_results_user_completed
+    ON player_game_results (user_id, mode, difficulty, completed_at);
+`;
+}
+
+/**
  * Renderē sakārtoto migrāciju sarakstu dotajam dialektam. ID un secība ir
  * STABILA un identiska abiem dialektiem (versionēšanas paritāte); atšķiras tikai
  * kolonnu tipi un PG-only tabulu klātbūtne (tikai 0001).
@@ -561,12 +601,23 @@ export function buildMigrations(dialect: SchemaDialect): readonly SchemaMigratio
     { id: "0007_coin_wallet", up: coinWalletSchema(t) },
     { id: "0008_player_game_results", up: playerGameResultsSchema(t) },
     { id: "0009_admin", up: adminSchema(t) },
-    { id: "0010_coin_ledger_open_reason", up: coinLedgerOpenReasonSchema(t, dialect) },
+    {
+      id: "0010_coin_ledger_open_reason",
+      up: coinLedgerOpenReasonSchema(t, dialect),
+      // SQLite pārbūve pārvalda savu BEGIN IMMEDIATE/COMMIT (PG = DROP CONSTRAINT DO bloks).
+      selfTransaction: dialect === "sqlite"
+    },
     { id: "0011_bans", up: bansSchema(t) },
     { id: "0012_chat_blocked_words", up: chatModerationSchema(t) },
     {
       id: "0013_user_preferences_language_open",
-      up: userPreferencesLanguageOpenSchema(t, dialect)
+      up: userPreferencesLanguageOpenSchema(t, dialect),
+      // SQLite pārbūve pārvalda savu BEGIN IMMEDIATE/COMMIT (PG = DROP CONSTRAINT DO bloks).
+      selfTransaction: dialect === "sqlite"
+    },
+    {
+      id: "0014_player_game_results_duration",
+      up: playerGameResultsDurationSchema(t, dialect)
     }
   ];
 }

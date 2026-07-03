@@ -3,6 +3,18 @@ import type { en } from "./en";
 type LocaleMessages = Record<keyof typeof en, string>;
 
 export const lv = {
+  dailyTasks: "Dienas uzdevumi",
+  dailyTasksSubtitle: "Uzvari viena spēlētāja spēlēs, lai pelnītu monētas. Progress atiestatās katru dienu plkst. 00:00 UTC.",
+  dailyGoal: "Uzvari {count} spēles ({difficulty})",
+  dailyClaim: "Savākt",
+  dailyClaimed: "Savākts",
+  dailyLocked: "Bloķēts",
+  dailyResetIn: "Atiestatās pēc {time}",
+  dailyClaimError: "Neizdevās savākt. Mēģini vēlreiz.",
+  dailyInfoLabel: "Kā darbojas dienas uzdevumi",
+  dailyInfoConditions: "Katra viena spēlētāja spēle, kurā ieņem 1. vai 2. vietu, skaitās uzdevumam.",
+  dailyInfoDifficulty: "Sarežģītību iestati sadaļā Iestatījumi pirms spēles.",
+  dailyInfoSpOnly: "Skaitās tikai viena spēlētāja spēles — daudzspēlētāju režīms neskaitās.",
   localeCode: "lv",
   metadataTitle: "Domino Poker",
   metadataDescription: "Domino Poker vienam spēlētājam, pārbūvēts ar Next.js un TypeScript.",

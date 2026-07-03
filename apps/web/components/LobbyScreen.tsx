@@ -11,7 +11,9 @@ import { InstallPrompt } from "./InstallPrompt";
 import { LeaderboardDialog, TrophyIcon } from "./LeaderboardDialog";
 import { CoinGif } from "./CoinGif";
 import { CompactLobbyPanel, LobbyWheel } from "./LobbyWheel";
+import { DailyTasksDialog, DailyTasksIcon } from "./DailyTasksDialog";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
+import { useDailyTasks } from "../lib/daily/useDailyTasks";
 import { Presence } from "./usePresence";
 import { CloseIcon } from "./ui/CloseIcon";
 import { IconButton } from "./ui/IconButton";
@@ -63,6 +65,7 @@ export function LobbyScreen({
   labels: t,
   locale,
   auth,
+  dailyRefreshSignal,
   selectedRoundCount,
   onRoundCountChange,
   difficulty,
@@ -75,6 +78,8 @@ export function LobbyScreen({
   readonly labels: AppStrings;
   readonly locale: Locale;
   readonly auth: LobbyAuth;
+  /** Palielinās pēc katras SP spēles pabeigšanas → dienas uzdevumu progress atsvaidzinās. */
+  readonly dailyRefreshSignal: number;
   readonly selectedRoundCount: number;
   readonly onRoundCountChange: (count: number) => void;
   readonly difficulty: BotDifficulty;
@@ -86,7 +91,13 @@ export function LobbyScreen({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [dailyOpen, setDailyOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+
+  const isAuthed = auth.status === "authenticated";
+  // Dienas uzdevumi tikai ielogotiem. Fetch pie mount (lobija atgriešanās pēc SP spēles
+  // remontē šo ekrānu → progress atsvaidzinās); ikona pulsē, kad kāda balva savācama.
+  const daily = useDailyTasks(auth.getToken, isAuthed, dailyRefreshSignal);
 
   const openAuth = () => {
     audio.play("uiClick");
@@ -128,6 +139,22 @@ export function LobbyScreen({
         >
           <TrophyIcon />
         </IconButton>
+        {isAuthed ? (
+          <IconButton
+            className={
+              daily.anyClaimable ? "lobbyDailyButton dailyPulse" : "lobbyDailyButton"
+            }
+            label={t.dailyTasks}
+            title={t.dailyTasks}
+            data-claimable={daily.anyClaimable || undefined}
+            onClick={() => {
+              audio.play("uiClick");
+              setDailyOpen(true);
+            }}
+          >
+            <DailyTasksIcon />
+          </IconButton>
+        ) : null}
         <IconButton
           className="lobbySettingsButton"
           label={t.settings}
@@ -203,10 +230,21 @@ export function LobbyScreen({
         />
       </Presence>
 
+      <Presence open={dailyOpen}>
+        <DailyTasksDialog
+          audio={audio}
+          labels={t}
+          state={daily.state}
+          claim={daily.claim}
+          onBalanceChange={auth.applyBalance}
+          onClose={() => setDailyOpen(false)}
+        />
+      </Presence>
+
       {/* PWA instalēšanas piedāvājums — tikai galvenajā lobby, nekad spēles laikā.
           Paslēpts, kamēr atvērts kāds dialogs (banneris ir virs modālā fona slāņa
           un citādi paliktu klikšķināms ārpus modālā konteksta). */}
-      {!settingsOpen && !rulesOpen && !leaderboardOpen && !authOpen ? (
+      {!settingsOpen && !rulesOpen && !leaderboardOpen && !dailyOpen && !authOpen ? (
         <InstallPrompt labels={t} />
       ) : null}
 
