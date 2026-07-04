@@ -81,7 +81,13 @@ export function MpDesktopTable({
   errorToast,
   onTileClick,
   onShowRules,
-  onShowExit
+  onShowExit,
+  recommendedTileKey = null,
+  recommendedDeclaredNumber,
+  onUseHint,
+  hintsRemaining = 0,
+  hintEnabled = false,
+  hintComputing = false
 }: {
   readonly audio: AudioSettings;
   readonly labels: AppStrings;
@@ -98,6 +104,13 @@ export function MpDesktopTable({
   readonly onTileClick: (tile: DominoTile) => void;
   readonly onShowRules: () => void;
   readonly onShowExit: () => void;
+  /** B daļa: "supportHuman" padoma UI (poga slēpta, ja nav `onUseHint`). */
+  readonly recommendedTileKey?: string | null;
+  readonly recommendedDeclaredNumber?: number | undefined;
+  readonly onUseHint?: (() => void) | undefined;
+  readonly hintsRemaining?: number;
+  readonly hintEnabled?: boolean;
+  readonly hintComputing?: boolean;
 }) {
   return (
     <>
@@ -125,6 +138,12 @@ export function MpDesktopTable({
               validTileKeys={validTileKeys}
               remainingSeconds={remainingSeconds}
               onTileClick={onTileClick}
+              recommendedTileKey={recommendedTileKey}
+              recommendedDeclaredNumber={recommendedDeclaredNumber}
+              onUseHint={onUseHint}
+              hintsRemaining={hintsRemaining}
+              hintEnabled={hintEnabled}
+              hintComputing={hintComputing}
             />
           ))}
 
@@ -228,7 +247,13 @@ function MpSeat({
   isViewerTurn,
   validTileKeys,
   remainingSeconds,
-  onTileClick
+  onTileClick,
+  recommendedTileKey,
+  recommendedDeclaredNumber,
+  onUseHint,
+  hintsRemaining,
+  hintEnabled,
+  hintComputing
 }: {
   readonly labels: AppStrings;
   readonly seat: MpTableSeat;
@@ -238,6 +263,12 @@ function MpSeat({
   readonly validTileKeys: ReadonlySet<string>;
   readonly remainingSeconds: number | undefined;
   readonly onTileClick: (tile: DominoTile) => void;
+  readonly recommendedTileKey: string | null;
+  readonly recommendedDeclaredNumber: number | undefined;
+  readonly onUseHint: (() => void) | undefined;
+  readonly hintsRemaining: number;
+  readonly hintEnabled: boolean;
+  readonly hintComputing: boolean;
 }) {
   // Izgaismojam to, kurš tagad "domā" (atskaņošanas aktīvā sēdvieta), nevis
   // snapshot aktīvo (kas ir notikumu priekšā secīgās atskaņošanas laikā).
@@ -251,12 +282,35 @@ function MpSeat({
       {seat.isViewer ? (
         <>
           {isViewerTurn ? <MpYourTurnIndicator labels={t} /> : null}
+          {/* B daļa: "supportHuman" padoma poga uz skatītāja profila apļa malas (tikai īpašniekam).
+              Augšējā-KREISĀ mala (simetrisks spogulis rangu badge, kas MP sēž augšējā-labajā) —
+              citādi tie pārklātos. SP šī kolīzija nav (SP sēdvietām nav rangu badge). */}
+          {onUseHint ? (
+            <button
+              type="button"
+              className={`hintButton ${hintComputing ? "computing" : ""}`}
+              style={{
+                left: seatLayout.player0ProfileLeft - 8,
+                top: seatLayout.player0ProfileTop - 8
+              }}
+              onClick={onUseHint}
+              disabled={!hintEnabled}
+              aria-label={formatTemplate(t.hintButtonAria, { count: String(hintsRemaining) })}
+            >
+              <svg className="hintBulbIcon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.2 1 2.5h6c0-1.3.3-1.8 1-2.5A6 6 0 0 0 12 3z" />
+              </svg>
+              <span className="hintCount">{hintsRemaining}</span>
+            </button>
+          ) : null}
           {viewerHand.map((tile, index) => {
             // Derīgs = skatītāja kārta + noteikumi atļauj (tikai attēlošanai; serveris validē).
-            const isValid = isViewerTurn && validTileKeys.has(tileKey(tile));
+            const key = tileKey(tile);
+            const isValid = isViewerTurn && validTileKeys.has(key);
+            const isRecommended = isViewerTurn && key === recommendedTileKey;
             return (
               <button
-                className={`humanTileButton ${isValid ? "valid" : ""}`}
+                className={`humanTileButton ${isValid ? "valid" : ""} ${isRecommended ? "recommended" : ""}`}
                 key={`${tile.side1}-${tile.side2}-${index}`}
                 type="button"
                 aria-label={formatTemplate(t.playTile, { tile: `${tile.side1}-${tile.side2}` })}
@@ -268,6 +322,11 @@ function MpSeat({
                 }}
               >
                 <DominoTileView tile={tile} isPlayable={isValid} />
+                {isRecommended && recommendedDeclaredNumber !== undefined ? (
+                  <span className="hintDeclare" aria-hidden="true">
+                    {recommendedDeclaredNumber}
+                  </span>
+                ) : null}
               </button>
             );
           })}

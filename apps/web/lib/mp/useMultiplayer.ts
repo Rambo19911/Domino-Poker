@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import type { HintDeniedEvent, HintGrantedEvent } from "@domino-poker/shared";
 
 import { readLocalStorage, writeLocalStorage } from "../safeStorage";
 import { getOrCreateClientId } from "./clientId";
@@ -26,11 +28,24 @@ export interface MultiplayerActions {
   readonly submitBid: (bid: number) => void;
   readonly submitMove: (move: MoveIntent) => void;
   readonly listRooms: () => void;
+  /** B daļa: pieprasa "supportHuman" padomu; atgriež `requestId` (vai `undefined` bez turna). */
+  readonly requestHint: () => string | undefined;
 }
+
+/** B daļa: "supportHuman" padoma atbildes apstrādātājs (`undefined` = noņem). */
+export type HintResponseHandler =
+  | ((event: HintGrantedEvent | HintDeniedEvent) => void)
+  | undefined;
 
 export interface MultiplayerApi {
   readonly view: ClientView;
   readonly actions: MultiplayerActions;
+  /**
+   * B daļa: reģistrē padoma atbilžu (HINT_GRANTED/HINT_DENIED) apstrādātāju. Ref-based, tāpēc
+   * to var iestatīt pēc `useMultiplayer` bez WS savienojuma atkārtotas izveides. Padoma slānis
+   * (`useMpHint`) to izmanto, jo atbildes ir pārejošas RPC, nevis reducējams `ClientView` state.
+   */
+  readonly registerHintResponse: (handler: HintResponseHandler) => void;
 }
 
 /**
@@ -53,6 +68,8 @@ export function useMultiplayer(options: UseMultiplayerOptions = {}): Multiplayer
   // Ref, lai HELLO vienmēr lasa jaunāko tokenu bez efekta atkārtotas palaišanas.
   const getAuthTokenRef = useRef(getAuthToken);
   getAuthTokenRef.current = getAuthToken;
+  // B daļa: padoma atbilžu apstrādātājs (ref → nepārveido savienojumu, kad padoma slānis mainās).
+  const hintHandlerRef = useRef<HintResponseHandler>(undefined);
 
   // `authToken` atkarībā: login/logout maiņa pārveido savienojumu ar svaigu HELLO.
   useEffect(() => {
@@ -66,7 +83,8 @@ export function useMultiplayer(options: UseMultiplayerOptions = {}): Multiplayer
       onReconnectToken: (token) => {
         writeLocalStorage(RECONNECT_TOKEN_KEY, token);
       },
-      getAuthToken: () => getAuthTokenRef.current?.()
+      getAuthToken: () => getAuthTokenRef.current?.(),
+      onHintResponse: (event) => hintHandlerRef.current?.(event)
     });
     clientRef.current = client;
     client.connect();
@@ -91,10 +109,15 @@ export function useMultiplayer(options: UseMultiplayerOptions = {}): Multiplayer
       sendChat: (text) => clientRef.current?.sendChat(text),
       submitBid: (bid) => clientRef.current?.submitBid(bid),
       submitMove: (move) => clientRef.current?.submitMove(move),
-      listRooms: () => clientRef.current?.listRooms()
+      listRooms: () => clientRef.current?.listRooms(),
+      requestHint: () => clientRef.current?.requestHint()
     }),
     []
   );
 
-  return { view, actions };
+  const registerHintResponse = useCallback((handler: HintResponseHandler) => {
+    hintHandlerRef.current = handler;
+  }, []);
+
+  return { view, actions, registerHintResponse };
 }

@@ -7,6 +7,7 @@ import type { DominoTile } from "@domino-poker/core";
 import type { AppStrings } from "../../lib/i18n";
 import type { ClientView } from "../../lib/mp/clientView";
 import type { MpGameTableView, MpTableSeat } from "../../lib/mp/gameTableView";
+import type { MpHint } from "../../lib/mp/useMpHint";
 import type { MoveIntent } from "../../lib/mp/MultiplayerClient";
 import type { AudioSettings } from "../../lib/useAudioSettings";
 import { CoinGif } from "../CoinGif";
@@ -29,6 +30,8 @@ export function MpGameTable({
   labels: t,
   table,
   view,
+  hint,
+  ownsBot,
   onSubmitBid,
   onSubmitMove,
   onExitToLobby,
@@ -38,6 +41,10 @@ export function MpGameTable({
   readonly labels: AppStrings;
   readonly table: MpGameTableView;
   readonly view: ClientView;
+  /** B daļa: "supportHuman" padoma stāvoklis + darbība (no `useMpHint`). */
+  readonly hint: MpHint;
+  /** B daļa: vai skatītājs pieder botam (poga rādās tikai īpašniekam). */
+  readonly ownsBot: boolean;
   readonly onSubmitBid: (bid: number) => void;
   readonly onSubmitMove: (move: MoveIntent) => void;
   /** Mid-game iziešana (forfeit) — sūta LEAVE_ROOM serverim. */
@@ -75,6 +82,8 @@ export function MpGameTable({
   // tas ir uzvarētājs (viņš vada nākamo) — tāpēc aizturē izgaismojas uzvarētājs.
   const activeSeatIndex = table.seats.find((seat) => seat.isActive)?.gameSeatIndex;
   const validTileKeys = new Set(table.viewerValidTileKeys);
+  // B daļa: padoma poga rādās TIKAI īpašniekam (onUseHint dots) — gan mobilajā, gan desktopā.
+  const onUseHint = ownsBot ? hint.useHint : undefined;
 
   // Aizver kauliņa-skaitļa dialogu, tiklīdz vairs nav skatītāja gājiena kārta
   // (`turnAction === "move"` ir tikai tad, kad skatītājs drīkst likt). Tas notiek,
@@ -132,6 +141,12 @@ export function MpGameTable({
           errorToast={errorToast}
           onTileClick={handleTileClick}
           onLeave={openExit}
+          recommendedTileKey={hint.recommendedTileKey}
+          recommendedDeclaredNumber={hint.recommendedDeclaredNumber}
+          onUseHint={onUseHint}
+          hintsRemaining={hint.hintsRemaining}
+          hintEnabled={hint.hintEnabled}
+          hintComputing={hint.hintComputing}
         />
       ) : (
         <MpDesktopTable
@@ -150,6 +165,12 @@ export function MpGameTable({
           onTileClick={handleTileClick}
           onShowRules={openRules}
           onShowExit={openExit}
+          recommendedTileKey={hint.recommendedTileKey}
+          recommendedDeclaredNumber={hint.recommendedDeclaredNumber}
+          onUseHint={onUseHint}
+          hintsRemaining={hint.hintsRemaining}
+          hintEnabled={hint.hintEnabled}
+          hintComputing={hint.hintComputing}
         />
       )}
 

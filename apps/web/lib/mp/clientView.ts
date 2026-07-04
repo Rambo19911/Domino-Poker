@@ -164,6 +164,13 @@ export function reduceServerEvent(view: ClientView, event: ServerEvent): ClientV
         wallet: { balance: event.balance },
         ...(event.coinsWon !== undefined ? { coinsWon: event.coinsWon } : {})
       };
+    case "HINT_GRANTED":
+    case "HINT_DENIED":
+      // B daļa: "supportHuman" padoma kvotas atbildes ir pārejošas RPC atbildes uz
+      // REQUEST_HINT, ko apstrādā padoma pieprasījuma slānis (B2/B3), NE state reducer.
+      // Skats paliek nemainīts (kā PONG); skaidri uzskaitītas, lai `never` sargs turpina
+      // ķert patiesi nezināmus nākotnes eventus.
+      return view;
     default:
       // Forward-compat (F12): nezināmu servera notikumu IGNORĒJAM (atgriežam `view`
       // nemainītu), nevis metam izņēmumu — jaunāks serveris saderīgā protokola

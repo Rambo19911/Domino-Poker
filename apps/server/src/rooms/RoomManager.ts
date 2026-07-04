@@ -26,6 +26,7 @@ import { GameDirector } from "./GameDirector.js";
 import { LobbyError } from "./lobbyErrors.js";
 import {
   RoomEngine,
+  type HintOutcome,
   type RoomDispatchResult,
   type SequencedRoomEvent,
   type SnapshotRecovery
@@ -823,6 +824,23 @@ export class RoomManager {
       );
     }
     return engine.dispatch(command);
+  }
+
+  /**
+   * "supportHuman" padoma kvotas vārti (B daļa, D7). Deleģē istabas dzinējam (servera-
+   * autoritatīvā efemērā kvota). Īpašumtiesības pārbauda AUGSTĀK (router/aplikācijas
+   * slānis) PIRMS šī — `RoomEngine` neatkarīgs no Wallet/storage. Ja istabai vēl nav
+   * aktīvas spēles (WAITING), atgriež `no_active_game` (nevis met) — tā padoma noraidījums
+   * ir godīgs `HINT_DENIED` iznākums, ne protokola kļūda. Met `PLAYER_NOT_IN_ROOM`, ja
+   * klientam nav sēdvietas (transports; router to pārvērš par ERROR).
+   */
+  requestHint(roomId: string, clientId: string, turnId: string, requestId: string): HintOutcome {
+    const engine = this.engines.get(roomId);
+    if (!engine) {
+      return { granted: false, reason: "no_active_game", hintsRemaining: 0 };
+    }
+    const corePlayerId = this.corePlayerIdForClient(roomId, clientId);
+    return engine.requestHint(corePlayerId, turnId, requestId);
   }
 
   /** Reconnect: personalizēts snapshot tikai istabas dalībniekam. */

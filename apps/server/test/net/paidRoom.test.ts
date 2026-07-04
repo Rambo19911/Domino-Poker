@@ -303,7 +303,8 @@ describe("Paid MP rooms (Phase 3 routing)", () => {
             throw new Error("transient db error");
           }
           return real.refundEntryFee(userId, entryId, fee);
-        }
+        },
+        listOwnedItems: (userId: string) => real.listOwnedItems(userId)
       })
     });
     const gw = harness.gateway;

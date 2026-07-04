@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
 
-import type { ClientMessage, ProtocolErrorCode, ServerEvent } from "@domino-poker/shared";
+import type {
+  ClientMessage,
+  HintDenyReason,
+  ProtocolErrorCode,
+  ServerEvent
+} from "@domino-poker/shared";
+import { ownsSupportHuman } from "@domino-poker/shared";
 
 import type { LobbyChat } from "../chat/LobbyChat.js";
 import type { SeatEntry } from "../rooms/LobbyManager.js";
@@ -75,8 +81,15 @@ export interface MessageRouter {
   sweepExpiredRooms(hub: GatewayHub, now: number): MaybePromise<void>;
 }
 
-/** Maks debet/refund vajadzībām (Fāze 3); opcionāls — bez tā maksas istabas noraida. */
-export type RouterWallet = Pick<WalletService, "debitEntryFee" | "refundEntryFee">;
+/**
+ * Maks debet/refund vajadzībām (Fāze 3) + īpašumtiesību lasīšanai (B daļa: MP padoma
+ * vārti pārbauda `bot.supportHuman` piederību caur `listOwnedItems`). Opcionāls — bez tā
+ * maksas istabas un padomi tiek noraidīti deterministiski.
+ */
+export type RouterWallet = Pick<
+  WalletService,
+  "debitEntryFee" | "refundEntryFee" | "listOwnedItems"
+>;
 
 export interface CoreMessageRouterOptions {
   readonly rooms: RoomManager;
@@ -170,6 +183,8 @@ export class CoreMessageRouter implements MessageRouter {
         return this.handleSubmitBid(ctx, message);
       case "SUBMIT_MOVE":
         return this.handleSubmitMove(ctx, message);
+      case "REQUEST_HINT":
+        return this.handleRequestHint(ctx, message);
       case "REQUEST_SNAPSHOT":
         return this.handleRequestSnapshot(ctx, message);
       case "PLAYER_RESUME":
@@ -600,6 +615,56 @@ export class CoreMessageRouter implements MessageRouter {
     // Pieņemts: gājiena eventi + tālāka cilpa (botu darbības/nākamais turns) → piegāde.
     const advanceEvents = this.rooms.advanceGame(roomId);
     this.deliverGameUpdate(ctx, roomId, [...result.events, ...advanceEvents]);
+  }
+
+  /**
+   * MP "supportHuman" padoma kvotas vārti (B daļa, D7/D8/D9). Validācijas secība:
+   * Zod (gateway) → dalība istabā (transports) → istabas līzings (šī instance) →
+   * īpašumtiesības (aplikācijas slānis; `listOwnedItems` ietver `bot_purchase`) →
+   * `RoomEngine` (kārta + kvota + idempotence). Serveris NEKAD nesūta pašu padomu — tikai
+   * atļauju (`HINT_GRANTED`); klients rēķina lokāli (D8). Nepieder / anonīms / bez maka →
+   * `HINT_DENIED("not_owned")` — noraidījums ir gaidīts iznākums, nevis protokola kļūda
+   * (tāpēc events, ne ERROR). Dalība trūkst (nav istabā) paliek `guard`→ERROR (transports).
+   */
+  private handleRequestHint(
+    ctx: RouteContext,
+    message: Extract<PostHandshakeMessage, { type: "REQUEST_HINT" }>
+  ): MaybePromise<void> {
+    return this.guard(
+      ctx,
+      async () => {
+        this.requireMembership(ctx, message.roomId);
+        await this.ensureOwnership(message.roomId, ctx.serverNow);
+        const userId = ctx.identity.userId;
+        if (userId === undefined || !this.wallet) {
+          ctx.conn.send(hintDeniedEvent(message, "not_owned", 0));
+          return;
+        }
+        const owned = await this.wallet.listOwnedItems(userId);
+        if (!ownsSupportHuman(owned)) {
+          ctx.conn.send(hintDeniedEvent(message, "not_owned", 0));
+          return;
+        }
+        const outcome = this.rooms.requestHint(
+          message.roomId,
+          ctx.identity.playerId,
+          message.turnId,
+          message.requestId
+        );
+        ctx.conn.send(
+          outcome.granted
+            ? {
+                type: "HINT_GRANTED",
+                roomId: message.roomId,
+                requestId: message.requestId,
+                turnId: message.turnId,
+                hintsRemaining: outcome.hintsRemaining
+              }
+            : hintDeniedEvent(message, outcome.reason, outcome.hintsRemaining)
+        );
+      },
+      message.requestId
+    );
   }
 
   /** Piegādā spēles atjauninājumu istabas dalībniekiem (kopīgs ar timeout ceļu). */
@@ -1234,6 +1299,21 @@ function toMoveErrorCode(errors: RoomDispatchResult["errors"]): ProtocolErrorCod
 
 function firstErrorMessage(errors: RoomDispatchResult["errors"]): string {
   return errors[0]?.message ?? "Action rejected.";
+}
+
+/** Sastāda `HINT_DENIED` eventu (B daļa) no pieprasījuma + iemesla + atlikušās kvotas. */
+function hintDeniedEvent(
+  message: Extract<PostHandshakeMessage, { type: "REQUEST_HINT" }>,
+  reason: HintDenyReason,
+  hintsRemaining: number
+): ServerEvent {
+  return {
+    type: "HINT_DENIED",
+    roomId: message.roomId,
+    requestId: message.requestId,
+    reason,
+    hintsRemaining
+  };
 }
 
 function isPromiseLike<T>(value: MaybePromise<T>): value is Promise<T> {

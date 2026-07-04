@@ -109,6 +109,20 @@ export const submitMoveSchema = z.object({
   move: moveSchema
 });
 
+/**
+ * MP "supportHuman" padoma pieprasījums (B daļa). Serveris ir kvotas vārti (servera-
+ * autoritatīva kvota `RoomEngine`); PADOMU PAŠU aprēķina KLIENTS (tam ir savs skats),
+ * serveris tikai atskaita kvotu un atbild `HINT_GRANTED`/`HINT_DENIED` (D8). `requestId`
+ * padara pieprasījumu idempotentu raunda/spēlētāja tvērumā — retry neatskaita divreiz (D9).
+ * `turnId` sasaista padomu ar konkrēto kārtu (serveris pārbauda, ka tā ir pieprasītāja kārta).
+ */
+export const requestHintSchema = z.object({
+  type: z.literal("REQUEST_HINT"),
+  requestId: nonEmpty,
+  roomId: nonEmpty,
+  turnId: nonEmpty
+});
+
 export const playerResumeSchema = z.object({
   type: z.literal("PLAYER_RESUME"),
   roomId: nonEmpty
@@ -147,6 +161,7 @@ export const clientMessageSchema = z.union([
   startGameSchema,
   submitBidSchema,
   submitMoveSchema,
+  requestHintSchema,
   playerResumeSchema,
   requestSnapshotSchema,
   sendChatSchema,

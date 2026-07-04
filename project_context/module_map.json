@@ -93,7 +93,8 @@
       "serverEvents.ts imports core MP event/snapshot types, so shared is protocol-facing but not fully domain-neutral.",
       "Changing room/event/message contracts requires server, web, load-test, and shared tests.",
       "Keep `GAME_LANGUAGES` aligned with `apps/web/lib/i18n.ts`; server account-language validation uses this enum, while DB migration 0013 deliberately removed the old en/lv CHECK.",
-      "serverEvents.ts also carries fanout/event-bus contracts used by ServerEventBus/PostgresEventBus."
+      "serverEvents.ts also carries fanout/event-bus contracts used by ServerEventBus/PostgresEventBus.",
+      "B-part MP supportHuman hint protocol: clientMessages.ts REQUEST_HINT{requestId,roomId,turnId}; serverEvents.ts HINT_GRANTED{roomId,requestId,turnId,hintsRemaining} + HINT_DENIED{reason:HintDenyReason (not_owned|not_your_turn|no_quota|no_active_game),hintsRemaining}. Like WALLET_UPDATED, both events MUST stay in BOTH the ServerEvent union AND serverEventSchema (discriminated union) or cross-instance PG fanout drops them. The web client reducer (clientView.ts) intentionally IGNORES both (transient RPC handled by useMpHint, not reduced ClientView state) but keeps them in the exhaustiveness switch. economy.ts HINTS_PER_ROUND is the single source for the 3/round limit (SP React quota + MP server quota; SP DominoPokerGame imports it too — de-duped)."
     ],
     "confidence": "high"
   },
@@ -237,6 +238,7 @@
     ],
     "risks": [
       "RoomEngine is the per-room single-writer state mutation path.",
+      "B-part MP supportHuman hint (server-authoritative quota, D7/D9): RoomEngine.requestHint / syncHintRound hold an EPHEMERAL per-player hint quota (economy HINTS_PER_ROUND; lazy round-reset by comparing coreState.currentRound; NOT in core state — a monetized UI right, not a domino rule) + a GRANTS-ONLY idempotence cache keyed by playerId:turnId:requestId. turnId IS IN THE KEY on purpose: without it a client could replay one granted requestId across later valid turns in the same round to get free hints past the 3/round cap (security fix). Ownership stays in the APPLICATION layer, NOT RoomEngine: messageRouter.handleRequestHint does membership -> room lease -> ownership (wallet.listOwnedItems + ownsSupportHuman) -> RoomManager.requestHint -> engine, then sends HINT_GRANTED/HINT_DENIED (denials are events, not ERRORs; not-a-member stays ERROR). RoomManager.requestHint returns no_active_game (does NOT throw) for a WAITING room. RoomEngine stays independent of Wallet/storage. The hint MOVE is computed CLIENT-side (D8, 'official UI only' threat model — accepted+documented, owner decision 2026-07-04); the server only gates the quota+ownership. RouterWallet gained listOwnedItems. Tests: RoomEngineHints.test.ts (unit) + hintRouting.test.ts (WS).",
       "messageRouter.ts is large and mixes routing with lifecycle/finalization concerns; avoid adding rule logic there.",
       "Server time is authoritative; do not trust client timestamps for correctness.",
       "PostgreSQL multi-instance foundations exist, but active room failover is not complete.",
@@ -629,12 +631,13 @@
   {
     "name": "Web SP Bot Bridge",
     "folder": "apps/web/lib/bot",
-    "purpose": "Browser-side glue that makes the trained ISMCTS bot drive all 3 single-player CPU seats, replacing the old core/aiService heuristic AI in SP. botBridge.ts converts core GameState <-> bot PlayerView (main thread, cheap) and delegates the heavy decideBid (Monte Carlo) / decideMove (ISMCTS) to a Web Worker (botWorker.ts) so the UI never blocks. difficulty.ts holds the lightweight Medium/Hard/Epic budgets (so the lobby can import it without pulling the heavy bot). liveness.ts guarantees the AI turn never stalls if the bot returns an illegal move.",
+    "purpose": "Browser-side glue that makes the trained ISMCTS bot drive all 3 single-player CPU seats, replacing the old core/aiService heuristic AI in SP. botBridge.ts converts core GameState <-> bot PlayerView (main thread, cheap) and delegates the heavy decideBid (Monte Carlo) / decideMove (ISMCTS) to a Web Worker (botWorker.ts) so the UI never blocks. difficulty.ts holds the lightweight Medium/Hard/Epic budgets (so the lobby can import it without pulling the heavy bot). liveness.ts guarantees the AI turn never stalls if the bot returns an illegal move. B-part refactor (D10): the PURE conversions (trick/history/calledPip reconstruction, hand mask, seed) were EXTRACTED into playerView.ts as the single source, now shared by SP (botBridge.buildPlayerView, core GameState) AND MP (apps/web/lib/mp/botView.buildMpPlayerView, server PlayerSnapshot) via assemblePlayerView; both structurally satisfy the minimal TrickSourceState. botBridge gained decideMoveFromView(view, difficulty) (the shared worker-move path; decideMove delegates to it).",
     "main_files": [
       "apps/web/lib/bot/botBridge.ts",
       "apps/web/lib/bot/botWorker.ts",
       "apps/web/lib/bot/difficulty.ts",
-      "apps/web/lib/bot/liveness.ts"
+      "apps/web/lib/bot/liveness.ts",
+      "apps/web/lib/bot/playerView.ts"
     ],
     "depends_on": [
       "AI Bot (trained ISMCTS)",
@@ -647,7 +650,8 @@
       "Only botWorker.ts imports @domino-poker/ai (heavy ISMCTS); Turbopack bundles it as a separate Web Worker asset, so it is OFF the main thread AND out of the main page bundle. botBridge.ts (main thread) imports only @domino-poker/engine helpers + the worker URL. DominoPokerGame is also code-split via next/dynamic(ssr:false) to keep the game UI out of the lobby bundle.",
       "Keep DEFAULT_DIFFICULTY/BOT_DIFFICULTIES in difficulty.ts (no heavy imports) so AppShell/LobbyScreen don't drag the bot back into the lobby chunk. Difficulty (Medium 8000/1000, Hard 30000/3000, Epic 50000/5000) is chosen in the Settings dialog (lobby) and threaded AppShell -> DominoPokerGame -> botBridge; read via a ref so it doesn't churn the AI effect.",
       "The AI turn effect is async with turnKey + cancelled guards; decideBid/decideMove are async (await the worker). The worker has a 20s per-request timeout backstop and onerror handling so a worker crash/hang rejects the call and the liveness net engages (it never permanently stalls the turn).",
-      "Old heuristic bots (core/aiService makeAIBid/selectAITile/selectNumber) are NO LONGER used in SP, but they are NOT dead: multiplayer still uses them via core/multiplayer autoBid/autoMove -> server GameDirector. Do not delete them."
+      "Old heuristic bots (core/aiService makeAIBid/selectAITile/selectNumber) are NO LONGER used in SP, but they are NOT dead: multiplayer still uses them via core/multiplayer autoBid/autoMove -> server GameDirector. Do not delete them.",
+      "playerView.ts (B-part D10 extraction) is the ONE source for core-state -> ai_bot PlayerView conversions; keep TrickSourceState minimal so both core GameState and MP PlayerSnapshot satisfy it structurally (both have currentTrick/completedTricks/currentPlayerIndex with identical PlayedTile shape). SP behavior must stay identical after the extraction (buildPlayerView output unchanged). The heavy @domino-poker/ai is STILL only in botWorker.ts; playerView/botBridge/botView import only @domino-poker/engine helpers (light), so importing botView in the MP lobby does NOT pull the ISMCTS search into the lobby chunk (only the worker loads it, lazily on first hint)."
     ],
     "confidence": "high"
   },
@@ -708,7 +712,7 @@
   {
     "name": "Store (Cosmetics + Bot Assistant)",
     "folder": ".",
-    "purpose": "In-game store: a coin SINK on top of the gold economy, NOT pay-to-win. Two product kinds (StoreItemKind): (1) `theme` — 6 purchasable animated-background THEMES (twilight/rain/pop-out/confetti/bubbles/luminous) for THEME_PRICE (200k) each; (2) `bot_assistant` — the supportHuman bot 'The Sage' (SUPPORT_HUMAN_ITEM_ID `bot.supportHuman`) for BOT_ASSISTANT_PRICE (5M), which grants 3 single-player hints/round (Part A shipped; MP hints = planned Part B). Ownership is DERIVED from the append-only coin_ledger (reason per kind: `theme_purchase` / `bot_purchase`, ref = itemId), so there is NO separate inventory table: one purchase is a single atomic ledger row that is simultaneously the coin debit AND the ownership grant (exactly-once via UNIQUE(user_id, reason, ref); re-buy is an idempotent no-op = alreadyOwned). StoreService's KIND_TO_REASON maps kind→reason; WalletService.listOwnedItems UNIONS both ownership reasons so consumers must filter /store/owned by kind/id. Server is authoritative: price comes from the shared catalog (never the client). HTTP: POST /store/buy + GET /store/owned (auth required; anonymous cannot buy). StoreDialog is a token-only CSS 3D flip card (inline SVG art, front price + Buy/Owned/Login, back dense localized description); coinClaim sound on a real purchase.",
+    "purpose": "In-game store: a coin SINK on top of the gold economy, NOT pay-to-win. Two product kinds (StoreItemKind): (1) `theme` — 6 purchasable animated-background THEMES (twilight/rain/pop-out/confetti/bubbles/luminous) for THEME_PRICE (200k) each; (2) `bot_assistant` — the supportHuman bot 'The Sage' (SUPPORT_HUMAN_ITEM_ID `bot.supportHuman`) for BOT_ASSISTANT_PRICE (5M), which grants 3 hints/round in BOTH SP and MP (Part A SP shipped+committed 1a6e7d6; Part B MP BUILT + Codex-PASS B1–B3, LOCAL/uncommitted, not deployed). Ownership is DERIVED from the append-only coin_ledger (reason per kind: `theme_purchase` / `bot_purchase`, ref = itemId), so there is NO separate inventory table: one purchase is a single atomic ledger row that is simultaneously the coin debit AND the ownership grant (exactly-once via UNIQUE(user_id, reason, ref); re-buy is an idempotent no-op = alreadyOwned). StoreService's KIND_TO_REASON maps kind→reason; WalletService.listOwnedItems UNIONS both ownership reasons so consumers must filter /store/owned by kind/id. Server is authoritative: price comes from the shared catalog (never the client). HTTP: POST /store/buy + GET /store/owned (auth required; anonymous cannot buy). StoreDialog is a token-only CSS 3D flip card (inline SVG art, front price + Buy/Owned/Login, back dense localized description); coinClaim sound on a real purchase.",
     "main_files": [
       "packages/shared/src/store-catalog.ts",
       "packages/shared/src/economy.ts",
@@ -724,7 +728,22 @@
       "apps/web/components/PlayerSeat.tsx",
       "apps/web/components/SpMobileTable.tsx",
       "apps/web/lib/bot/botBridge.ts",
-      "apps/web/styles/tokens.css"
+      "apps/web/lib/bot/playerView.ts",
+      "apps/web/styles/tokens.css",
+      "packages/shared/src/clientMessages.ts",
+      "packages/shared/src/serverEvents.ts",
+      "apps/server/src/rooms/RoomEngine.ts",
+      "apps/server/src/rooms/RoomManager.ts",
+      "apps/server/src/net/messageRouter.ts",
+      "apps/web/lib/mp/botView.ts",
+      "apps/web/lib/mp/useMpHint.ts",
+      "apps/web/lib/store/useOwnsSupportHuman.ts",
+      "apps/web/lib/mp/useMultiplayer.ts",
+      "apps/web/lib/mp/MultiplayerClient.ts",
+      "apps/web/components/MultiplayerLobby.tsx",
+      "apps/web/components/mp/MpGameTable.tsx",
+      "apps/web/components/mp/MpDesktopTable.tsx",
+      "apps/web/components/mp/MpMobileTable.tsx"
     ],
     "depends_on": [
       "Shared Protocol",
@@ -739,7 +758,8 @@
     "risks": [
       "store-catalog.ts is the single authoritative source of purchasable items + prices (THEME_SLUGS, themeItemId, SUPPORT_HUMAN_ITEM_ID, ownsSupportHuman, STORE_CATALOG, getStoreItem); both server (validates itemId + price at purchase) and web (shows price/lock) import it. Prices live in economy.ts (THEME_PRICE, BOT_ASSISTANT_PRICE) — do not duplicate. Adding a product = extend StoreItemKind + STORE_CATALOG + StoreService.KIND_TO_REASON; do NOT hardcode a reason.",
       "Ownership is ledger-derived (WalletService.purchaseItem takes a PurchaseReason `theme_purchase`|`bot_purchase` from StoreService.KIND_TO_REASON; listOwnedItems UNIONS both via CoinStore.listLedgerRefs); no inventory table. The purchase ledger row IS the debit + the ownership record. New reasons need NO migration (reason CHECK dropped in 0010). Because /store/owned is a union, consumers MUST filter by kind/id: theme code matches theme.* ids (isThemeUnlocked), bot code uses ownsSupportHuman — a foreign ref is inert.",
-      "SP bot hint (owned bot.supportHuman → HINTS_PER_ROUND=3): DominoPokerGame reuses botBridge.decideMove(state, humanSeat, 'epic') (NO new bot engine code — same worker/budget as an epic opponent), keeps the quota in React state (core stays pure), resets per round, clears the recommendation on any decision-point change (turnKey), and tryAdvance-validates the FULL move {tile, declaredNumber} before consuming quota. UI: PlayerSeat HintButton on the profile ring + .recommended tile pulse + .hintDeclare pip badge; SpMobileTable mirrors it (.mpmHintButton). Gated on owned+authed (isAuthed/getToken threaded from AppShell). MP hints (Part B) keep the quota server-authoritative in RoomEngine + ownership in the router, NOT in RoomEngine.",
+      "SP bot hint (owned bot.supportHuman → HINTS_PER_ROUND=3): DominoPokerGame reuses botBridge.decideMove(state, humanSeat, 'epic') (NO new bot engine code — same worker/budget as an epic opponent), keeps the quota in React state (core stays pure), resets per round, clears the recommendation on any decision-point change (turnKey), and tryAdvance-validates the FULL move {tile, declaredNumber} before consuming quota. UI: PlayerSeat HintButton on the profile ring + .recommended tile pulse + .hintDeclare pip badge; SpMobileTable mirrors it (.mpmHintButton). Gated on owned+authed (isAuthed/getToken threaded from AppShell).",
+      "MP bot hint (Part B, BUILT + Codex-PASS, uncommitted): the quota is SERVER-authoritative (RoomEngine.requestHint, ephemeral, keyed playerId:turnId:requestId — see the Multiplayer Server module) and ownership is checked in the ROUTER (messageRouter.handleRequestHint via wallet.listOwnedItems), NOT in RoomEngine. The hint MOVE is computed CLIENT-side (D8): apps/web/lib/mp/botView.buildMpPlayerView builds the ai_bot PlayerView from the server PlayerSnapshot (sharing playerView.ts conversions with SP, D10) and computeMpHint runs the epic worker. useMpHint owns the UI state (remaining/computing/recommended) + orchestration: requestHint -> HINT_GRANTED -> compute -> highlight, with D9 (accept only the latest requestId's response), D11 (only apply if turnId unchanged; clear on turn/round change), a synchronous inFlightRef double-spend guard, and per-round reset. useMultiplayer exposes requestHint + registerHintResponse (ref-routed onHintResponse, out of the reduced ClientView). useOwnsSupportHuman fetches /store/owned (resets false on token change). Button rendered ONLY when owned; reuses A4 CSS (mobile .mpmHintButton, desktop .hintButton — MP desktop viewer seat uses the identical seatLayout as SP PlayerSeat, but the hint button sits TOP-LEFT of the profile ring to avoid the MP rank badge which is top-right). Tests: botView.test.ts (byte-equivalence vs buildPlayerView), useMpHint.test.tsx, useOwnsSupportHuman.test.tsx, MultiplayerClient.test.ts (hint transport). ACCEPTED RISK (D8, owner decision 2026-07-04 + Codex): the client-side compute can be bypassed by a technical user (the ISMCTS ships for SP anyway; any client gate is patchable) — a client 'block engine load' gate is security theater; the server ownership+quota gate is deemed sufficient for a free-to-play coin game with no cashout. If ever needed, server-side hint compute (from the player-perspective view) is the robust path; see docs/TODO/support-human-bot-store-plan.md D8/section 8.",
       "StoreService is a thin application layer over WalletService: getStoreItem (unknown→unknown_item) → wallet.purchaseItem (insufficient→balance) → ok{alreadyOwned}. Keep money rules in WalletService, not here.",
       "HTTP routes POST /store/buy (402 insufficient_coins + balance, 400 unknown_item) + GET /store/owned require auth (401 anon) and are per-user rate limited; storeHandler is chained in httpServer before the auth handler and mounted in index.ts only when a wallet + AuthService exist. Like every new server HTTP route, /store needs a Caddy reverse_proxy /store rule on the VPS or it 404s in prod.",
       "Web theme registry (apps/web/lib/theme.ts): 7 ThemeIds (default free + 6 paid), isThemeUnlocked(owned), reconcileStoredTheme(owned) downgrades a non-owned/stored theme to Default (account-bound enforcement on auth change + after /store/owned), getThemeBootstrapScript (pre-paint applies stored theme + a reduced-motion/deviceMemory/hardwareConcurrency static-motion heuristic) and startMotionFpsProbe (post-paint FPS<40 over 1.5s → data-theme-motion=static poster fallback). Animated SVG bg vs static poster is gated by data-theme-motion.",

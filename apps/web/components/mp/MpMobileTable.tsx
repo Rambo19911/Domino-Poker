@@ -40,7 +40,13 @@ export function MpMobileTable({
   preGameSeconds,
   errorToast,
   onTileClick,
-  onLeave
+  onLeave,
+  recommendedTileKey = null,
+  recommendedDeclaredNumber,
+  onUseHint,
+  hintsRemaining = 0,
+  hintEnabled = false,
+  hintComputing = false
 }: {
   readonly labels: AppStrings;
   readonly table: MpGameTableView;
@@ -55,6 +61,13 @@ export function MpMobileTable({
   readonly errorToast: string | null;
   readonly onTileClick: (tile: DominoTile) => void;
   readonly onLeave: () => void;
+  /** B daļa: "supportHuman" padoma UI (visi undefined/false → poga slēpta, ja nav `onUseHint`). */
+  readonly recommendedTileKey?: string | null;
+  readonly recommendedDeclaredNumber?: number | undefined;
+  readonly onUseHint?: (() => void) | undefined;
+  readonly hintsRemaining?: number;
+  readonly hintEnabled?: boolean;
+  readonly hintComputing?: boolean;
 }) {
   const showLeadInfo = !frozen && table.leadTile !== undefined && table.phase === "playing";
   const stage = useMobileStageLayout();
@@ -123,10 +136,12 @@ export function MpMobileTable({
       {viewerHand.map((tile, index) => {
         const pos = MP_MOBILE_POS.hand[index];
         if (!pos) return null;
-        const isValid = isViewerTurn && validTileKeys.has(tileKey(tile));
+        const key = tileKey(tile);
+        const isValid = isViewerTurn && validTileKeys.has(key);
+        const isRecommended = isViewerTurn && key === recommendedTileKey;
         return (
           <button
-            className={`mpmTile mpmHandTile ${isValid ? "valid" : ""}`}
+            className={`mpmTile mpmHandTile ${isValid ? "valid" : ""} ${isRecommended ? "recommended" : ""}`}
             key={`${tile.side1}-${tile.side2}-${index}`}
             type="button"
             aria-label={formatTemplate(t.playTile, { tile: `${tile.side1}-${tile.side2}` })}
@@ -135,9 +150,30 @@ export function MpMobileTable({
             onClick={() => onTileClick(tile)}
           >
             <DominoTileView tile={tile} isPlayable={isValid} />
+            {isRecommended && recommendedDeclaredNumber !== undefined ? (
+              <span className="mpmHintDeclare" aria-hidden="true">
+                {recommendedDeclaredNumber}
+              </span>
+            ) : null}
           </button>
         );
       })}
+
+      {onUseHint ? (
+        <button
+          type="button"
+          className={`mpmHintButton ${hintComputing ? "computing" : ""}`}
+          style={centerBox(MP_MOBILE_POS.hint, 120, 1)}
+          onClick={onUseHint}
+          disabled={!hintEnabled}
+          aria-label={formatTemplate(t.hintButtonAria, { count: String(hintsRemaining) })}
+        >
+          <svg className="mpmHintBulb" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.2 1 2.5h6c0-1.3.3-1.8 1-2.5A6 6 0 0 0 12 3z" />
+          </svg>
+          <span className="mpmHintCount">{hintsRemaining}</span>
+        </button>
+      ) : null}
 
       {preGameSeconds !== undefined ? (
         <div className="mpPreGameOverlay" role="status" aria-live="polite">

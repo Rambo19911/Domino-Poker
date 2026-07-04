@@ -2,6 +2,8 @@ import {
   parseServerEvent,
   PROTOCOL_VERSION,
   type ClientMessage,
+  type HintDeniedEvent,
+  type HintGrantedEvent,
   type RoomVisibility,
   type ServerEvent
 } from "@domino-poker/shared";
@@ -49,6 +51,12 @@ export interface MultiplayerClientOptions {
   readonly clientBuild: string;
   readonly socketFactory: ClientSocketFactory;
   readonly onView: (view: ClientView) => void;
+  /**
+   * "supportHuman" padoma kvotas atbilde (B daļa). Atsevišķi no `onView`, jo tā ir pārejoša
+   * RPC atbilde (nevis state) — padoma slānis (useMpHint) to patērē, lai palaistu epic worker
+   * (grant) vai atjaunotu skaitītāju/kļūdu (denied). Bez consumer'a — no-op.
+   */
+  readonly onHintResponse?: (event: HintGrantedEvent | HintDeniedEvent) => void;
   /** Saglabātais reconnectToken (Fāze 9); atgriež `undefined`, ja vēl nav. */
   readonly getReconnectToken?: () => string | undefined;
   readonly onReconnectToken?: (token: string) => void;
@@ -220,6 +228,21 @@ export class MultiplayerClient {
     this.send({ type: "SUBMIT_MOVE", requestId: this.nextRequestId(), roomId, turnId, move });
   }
 
+  /**
+   * Pieprasa "supportHuman" padomu pašreizējam aktīvajam turnam (B daļa). Serveris ir kvotas
+   * vārti; atbilde atnāk kā `HINT_GRANTED`/`HINT_DENIED` caur `onHintResponse`. Atgriež
+   * `requestId` (vai `undefined`, ja nav aktīva turna), lai izsaucējs var korelēt atbildi un
+   * ignorēt novecojušu (D11/D9). No-op, ja nav istabas/turna.
+   */
+  requestHint(): string | undefined {
+    const roomId = this.view.room?.id;
+    const turnId = this.view.game.turnId;
+    if (roomId === undefined || turnId === undefined) return undefined;
+    const requestId = this.nextRequestId();
+    this.send({ type: "REQUEST_HINT", requestId, roomId, turnId });
+    return requestId;
+  }
+
   // ---- iekšējais ----
 
   private send(message: ClientMessage): void {
@@ -302,6 +325,11 @@ export class MultiplayerClient {
     }
 
     this.view = reduceServerEvent(this.view, event);
+
+    // Padoma atbildes ir pārejošas (reducer tās ignorē) — nododam padoma slānim atsevišķi.
+    if (event.type === "HINT_GRANTED" || event.type === "HINT_DENIED") {
+      this.options.onHintResponse?.(event);
+    }
 
     if (event.type === "WELCOME") {
       this.reconnectAttempt = 0;

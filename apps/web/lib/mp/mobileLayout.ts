@@ -46,6 +46,9 @@ export const MP_MOBILE_POS = {
   // Rāda tikai maksas istabās (pot > 0).
   pot: { cx: 0.917, cy: 0.103 },
   leave: { cx: 0.9222, cy: 0.0329 },
+  // B daļa: "supportHuman" padoma poga — apakšējā-labajā (tāda pati vieta kā SP mobilajam),
+  // blakus skatītāja rokai, nepārklājot sēdvietas/nozīmītes. Rādās tikai preces īpašniekam.
+  hint: { cx: 0.885, cy: 0.902 },
   trick: {
     N: { cx: 0.5, cy: 0.4476 },
     S: { cx: 0.5, cy: 0.5545 },

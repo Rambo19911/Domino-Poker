@@ -7,7 +7,9 @@ import { type RoomView } from "@domino-poker/shared";
 import type { AppStrings } from "../lib/i18n";
 import { toGameTableView } from "../lib/mp/gameTableView";
 import { useLobbyTransientErrors } from "../lib/mp/useLobbyTransientErrors";
+import { useMpHint } from "../lib/mp/useMpHint";
 import { useMultiplayer } from "../lib/mp/useMultiplayer";
+import { useOwnsSupportHuman } from "../lib/store/useOwnsSupportHuman";
 import type { AudioSettings } from "../lib/useAudioSettings";
 import { MpDesktopLobby } from "./mp/MpDesktopLobby";
 import { MpGameTable } from "./mp/MpGameTable";
@@ -29,11 +31,13 @@ export function MultiplayerLobby({
   readonly authToken?: string | null;
   readonly getAuthToken?: () => string | undefined;
 }) {
-  const { view, actions } = useMultiplayer({
+  const { view, actions, registerHintResponse } = useMultiplayer({
     authToken: authToken ?? null,
     ...(getAuthToken ? { getAuthToken } : {})
   });
   const isPhonePortrait = useIsPhonePortrait();
+  // B daļa: "supportHuman" īpašumtiesības (poga rādās tikai īpašniekam; serveris tik un tā vārtē).
+  const ownsBot = useOwnsSupportHuman(authToken ?? null, getAuthToken);
   const [chatDraft, setChatDraft] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isJoinCodeOpen, setIsJoinCodeOpen] = useState(false);
@@ -81,6 +85,17 @@ export function MultiplayerLobby({
   // 8.4 — Kad istaba ir IN_GAME un ir saņemts snapshot, rādām pilnekrāna MP galdu.
   // Galds tikai renderē servera snapshot un sūta nodomu (nav lokālas state izmaiņas).
   const gameTable = toGameTableView(view.game.snapshot, view.room, view.game.turnId, view.game.startsAt);
+  // B daļa: padoma slānis (kvota/aprēķins/D9/D11). Izsaukts BEZNOSACĪJUMA (hooks noteikumi) —
+  // pirms jebkuras agrīnas atgriešanās; darbojas tikai, kad ir aktīva spēle + skatītāja gājiens.
+  const hint = useMpHint({
+    snapshot: view.game.snapshot,
+    turnId: view.game.turnId,
+    currentRound: view.game.snapshot?.currentRound,
+    isViewerMoveTurn: gameTable?.turnAction === "move",
+    owned: ownsBot,
+    requestHint: actions.requestHint,
+    registerHintResponse
+  });
   if (activeRoom?.status === "IN_GAME" && gameTable) {
     return (
       <MpGameTable
@@ -88,6 +103,8 @@ export function MultiplayerLobby({
         labels={t}
         table={gameTable}
         view={view}
+        hint={hint}
+        ownsBot={ownsBot}
         onSubmitBid={(bid) => actions.submitBid(bid)}
         onSubmitMove={(move) => actions.submitMove(move)}
         onExitToLobby={() => {

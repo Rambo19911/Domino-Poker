@@ -386,6 +386,59 @@ describe("MultiplayerClient game-over return to lobby", () => {
   });
 });
 
+describe("MultiplayerClient hint requests (B daļa)", () => {
+  it("sends REQUEST_HINT with roomId and turnId for the active turn", () => {
+    const { client, sockets } = buildHarness();
+    client.connect();
+    sockets[0]!.open();
+    welcomeEmit(sockets[0]!);
+    sockets[0]!.emit({ type: "ROOM_JOINED", room: roomView("room-1") });
+    sockets[0]!.emit(turnStarted(2, "turn-7"));
+
+    const requestId = client.requestHint();
+
+    const hint = sockets[0]!.sent.find((message) => message.type === "REQUEST_HINT");
+    expect(hint).toMatchObject({ type: "REQUEST_HINT", roomId: "room-1", turnId: "turn-7" });
+    expect(hint!.requestId).toBe(requestId);
+  });
+
+  it("is a no-op without an active turn (returns undefined, sends nothing)", () => {
+    const { client, sockets } = buildHarness();
+    client.connect();
+    sockets[0]!.open();
+    welcomeEmit(sockets[0]!);
+    sockets[0]!.emit({ type: "ROOM_JOINED", room: roomView("room-1") }); // nav turnStarted → nav turnId
+
+    expect(client.requestHint()).toBeUndefined();
+    expect(sockets[0]!.sentTypes()).not.toContain("REQUEST_HINT");
+  });
+
+  it("forwards HINT_GRANTED / HINT_DENIED to onHintResponse", () => {
+    const received: Array<{ readonly type: string }> = [];
+    const { client, sockets } = buildHarness({ onHintResponse: (event) => received.push(event) });
+    client.connect();
+    sockets[0]!.open();
+    welcomeEmit(sockets[0]!);
+
+    sockets[0]!.emit({
+      type: "HINT_GRANTED",
+      roomId: "room-1",
+      requestId: "h1",
+      turnId: "turn-7",
+      hintsRemaining: 2
+    });
+    sockets[0]!.emit({
+      type: "HINT_DENIED",
+      roomId: "room-1",
+      requestId: "h2",
+      reason: "no_quota",
+      hintsRemaining: 0
+    });
+
+    expect(received.map((event) => event.type)).toEqual(["HINT_GRANTED", "HINT_DENIED"]);
+  });
+});
+
 // ---- helperi ----
 
 function welcomeEmit(socket: FakeSocket): void {

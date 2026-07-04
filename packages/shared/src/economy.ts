@@ -23,6 +23,13 @@ export const THEME_PRICE = 200_000;
  */
 export const BOT_ASSISTANT_PRICE = 5_000_000;
 
+/**
+ * Cik "supportHuman" padomus īpašnieks saņem katrā raundā (GAN SP, GAN MP). VIENĪGAIS
+ * autoritatīvais avots šai robežai: SP to lieto React kvotas state (D6), MP to piespiež
+ * serveris (`RoomEngine`, D7). Mainot, mainās abās pusēs — nedublēt literāli.
+ */
+export const HINTS_PER_ROUND = 3;
+
 /** SP grūtības līmeņi, kas dod balvu (atbilst web `BotDifficulty`). */
 export type CoinDifficulty = "medium" | "hard" | "epic";
 

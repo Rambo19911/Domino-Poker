@@ -133,6 +133,37 @@ export interface WalletUpdatedEvent {
   readonly coinsWon?: number;
 }
 
+/**
+ * "supportHuman" padoma noraidījuma iemesls (B daļa). `not_owned` nosaka aplikācijas
+ * slānis (router — nepieder prece / nav ielogojies); pārējos nosaka `RoomEngine`
+ * (kvota / kārta / spēles state). Klients tos lokalizē un neatgriezeniski nerāda padomu.
+ */
+export type HintDenyReason = "not_owned" | "not_your_turn" | "no_quota" | "no_active_game";
+
+/**
+ * Padoms atļauts (B daļa): serveris atskaitīja kvotu; KLIENTS tagad rēķina un izgaismo
+ * ieteikto gājienu lokāli (D8). `hintsRemaining` sinhronizē UI skaitītāju ar serveri.
+ */
+export interface HintGrantedEvent {
+  readonly type: "HINT_GRANTED";
+  readonly roomId: string;
+  readonly requestId: string;
+  readonly turnId: string;
+  readonly hintsRemaining: number;
+}
+
+/**
+ * Padoms noraidīts (B daļa): serveris kvotu NEATSKAITĪJA. `hintsRemaining` atspoguļo
+ * pašreizējo (neizmainīto) atlikumu, lai klients var koriģēt UI. Kvota netiek tērēta.
+ */
+export interface HintDeniedEvent {
+  readonly type: "HINT_DENIED";
+  readonly roomId: string;
+  readonly requestId: string;
+  readonly reason: HintDenyReason;
+  readonly hintsRemaining: number;
+}
+
 /** Visu servera → klients eventu diskriminētā union (pēc `type`). */
 export type ServerEvent =
   | WelcomeEvent
@@ -149,7 +180,9 @@ export type ServerEvent =
   | ChatHistoryEvent
   | ErrorEvent
   | PongEvent
-  | WalletUpdatedEvent;
+  | WalletUpdatedEvent
+  | HintGrantedEvent
+  | HintDeniedEvent;
 
 export type ServerEventType = ServerEvent["type"];
 
@@ -234,6 +267,20 @@ export const serverEventSchema = z.discriminatedUnion("type", [
     type: z.literal("WALLET_UPDATED"),
     balance: z.number(),
     coinsWon: z.number().int().nonnegative().optional()
+  }),
+  z.object({
+    type: z.literal("HINT_GRANTED"),
+    roomId: z.string(),
+    requestId: z.string(),
+    turnId: z.string(),
+    hintsRemaining: z.number()
+  }),
+  z.object({
+    type: z.literal("HINT_DENIED"),
+    roomId: z.string(),
+    requestId: z.string(),
+    reason: z.enum(["not_owned", "not_your_turn", "no_quota", "no_active_game"]),
+    hintsRemaining: z.number()
   })
 ]);
 

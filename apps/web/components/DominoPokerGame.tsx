@@ -15,7 +15,7 @@ import {
   tileKey
 } from "@domino-poker/core";
 import type { DominoTile, GameState, InvalidMoveReason } from "@domino-poker/core";
-import { ownsSupportHuman } from "@domino-poker/shared";
+import { HINTS_PER_ROUND, ownsSupportHuman } from "@domino-poker/shared";
 import { decideBid as botDecideBid, decideMove as botDecideMove } from "../lib/bot/botBridge";
 import type { BotDifficulty } from "../lib/bot/difficulty";
 import { resolveAiMove, tryAdvance, type SimpleMove } from "../lib/bot/liveness";
@@ -46,8 +46,6 @@ const CANVAS_HEIGHT = 1080;
 
 /** SP cilvēka sēdvieta (bots aizņem 1..3). */
 const HUMAN_SEAT = 0;
-/** SupportHuman palīga padomu skaits katrā raundā (A4; kataloga preces efekts). */
-const HINTS_PER_ROUND = 3;
 
 // Precīzs lēmuma punkta identifikators (fāze + raunds + kārta + stiķu progress). Async
 // rezultātu (bota gājiens VAI hint) pielieto TIKAI, ja dzīvais stāvoklis joprojām ir tieši
