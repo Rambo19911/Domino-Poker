@@ -22,6 +22,13 @@ export type Determinizer = (rng: Rng) => SeatTuple<number>;
 // which a points-maximizer does not pursue at bid 0 (where extra tricks still raise the score).
 export type RewardKind = "points" | "inclusion";
 
+// Back-propagation reward as an injectable function (behavior layer seam, docs/bot-behaviors.md).
+// Contract: fill ALL four slots of `out` with finite values, preferably in [0, 1] (UCB divides the
+// accumulated reward by visits and assumes roughly unit range); MUST NOT mutate `state`. When a
+// `reward` function is supplied to the search it overrides `rewardKind`. See `createBehaviorReward`
+// (behavior.ts) for the human-targeting objectives built on top of this seam.
+export type RewardFn = (state: GameState, out: Float64Array) => void;
+
 // ISMCTS max^n single-threaded play engine (plan 4.5, M4 without parallelization/pondering).
 // The tree is an information-set tree from the bot's seat: a node is a public move
 // sequence from the current decision point. Each iteration determinizes the opponents'
@@ -61,6 +68,8 @@ export type ChooseMoveOptions = {
   // Back-propagation objective; defaults to "points" (L6). "inclusion" makes the search play to
   // land taken == bid (the project's acceptance goal).
   rewardKind?: RewardKind;
+  // Optional injected reward function (behavior layer). When set it fully overrides `rewardKind`.
+  reward?: RewardFn;
 };
 
 type Child = {
@@ -93,13 +102,13 @@ export function chooseMove(view: PlayerView, rng: Rng, options: ChooseMoveOption
   }
 
   const determinize = options.determinizer ?? buildDeterminizer(view, inferConstraints(view), options.profiles);
-  const rewardKind = options.rewardKind ?? "points";
+  const rewardFn = resolveRewardFn(options.reward, options.rewardKind);
   const root: Node = { children: new Map() };
   const reward = new Float64Array(4);
   const path: Child[] = [];
 
   for (let iteration = 0; iteration < iterations; iteration += 1) {
-    runIteration(root, determinize, view, rng, explorationC, reward, path, rewardKind);
+    runIteration(root, determinize, view, rng, explorationC, reward, path, rewardFn);
   }
 
   return { move: selectFinalMove(root), stats: buildStats(root, iterations) };
@@ -115,7 +124,7 @@ function runIteration(
   explorationC: number,
   reward: Float64Array,
   path: Child[],
-  rewardKind: RewardKind
+  rewardFn: RewardFn
 ): void {
   const hands = determinize(rng);
   const state = buildSearchState(view, hands);
@@ -123,7 +132,17 @@ function runIteration(
 
   descend(root, state, path, explorationC);
   rollout(state, rng);
-  backpropagate(state, path, reward, rewardKind);
+  backpropagate(state, path, reward, rewardFn);
+}
+
+// Resolve the effective reward function once (per search / per searcher). An injected `reward`
+// wins over `rewardKind`; otherwise fall back to the built-in points/inclusion objective.
+function resolveRewardFn(reward: RewardFn | undefined, rewardKind: RewardKind | undefined): RewardFn {
+  if (reward !== undefined) {
+    return reward;
+  }
+  const kind = rewardKind ?? "points";
+  return (state, out) => computeReward(state, out, kind);
 }
 
 // Build the determinization strategy for a fixed position. Without profiles it is the uniform
@@ -153,6 +172,8 @@ export type SearcherConfig = {
   explorationC?: number;
   profiles?: SeatTuple<OpponentProfile>;
   rewardKind?: RewardKind;
+  // Optional injected reward function (behavior layer). When set it fully overrides `rewardKind`.
+  reward?: RewardFn;
 };
 
 // Stateful ISMCTS searcher for M5: keeps its tree across real moves (tree reuse) and can be
@@ -162,7 +183,7 @@ export class IsmctsSearcher {
   private readonly rng: Rng;
   private readonly explorationC: number;
   private readonly profiles: SeatTuple<OpponentProfile> | undefined;
-  private readonly rewardKind: RewardKind;
+  private readonly rewardFn: RewardFn;
   private readonly reward = new Float64Array(4);
   private readonly path: Child[] = [];
   private root: Node = { children: new Map() };
@@ -175,7 +196,7 @@ export class IsmctsSearcher {
     this.rng = rng;
     this.explorationC = config.explorationC ?? UCB_C;
     this.profiles = config.profiles;
-    this.rewardKind = config.rewardKind ?? "points";
+    this.rewardFn = resolveRewardFn(config.reward, config.rewardKind);
   }
 
   // Point the searcher at the current public position. If the new history extends the previous
@@ -217,7 +238,7 @@ export class IsmctsSearcher {
       throw new Error("IsmctsSearcher.iterate called before sync.");
     }
     for (let index = 0; index < iterations; index += 1) {
-      runIteration(this.root, this.determinize, this.view, this.rng, this.explorationC, this.reward, this.path, this.rewardKind);
+      runIteration(this.root, this.determinize, this.view, this.rng, this.explorationC, this.reward, this.path, this.rewardFn);
       this.iterationsRun += 1;
     }
   }
@@ -326,8 +347,8 @@ function rollout(state: GameState, rng: Rng): void {
   }
 }
 
-function backpropagate(state: GameState, path: Child[], reward: Float64Array, rewardKind: RewardKind): void {
-  computeReward(state, reward, rewardKind);
+function backpropagate(state: GameState, path: Child[], reward: Float64Array, rewardFn: RewardFn): void {
+  rewardFn(state, reward);
   for (let index = 0; index < path.length; index += 1) {
     const child = path[index] as Child;
     child.visits += 1;
@@ -340,24 +361,35 @@ function backpropagate(state: GameState, path: Child[], reward: Float64Array, re
 
 function computeReward(state: GameState, reward: Float64Array, rewardKind: RewardKind): void {
   if (rewardKind === "inclusion") {
-    // Maximize the probability of landing taken == bid exactly (the acceptance objective). A small
-    // shaping term for near-misses keeps a gradient when no determinization line hits exactly.
     for (let seat = 0; seat < 4; seat += 1) {
-      const miss = Math.abs((state.taken[seat] as number) - (state.bids[seat] as number));
-      reward[seat] = miss === 0 ? 1 : Math.max(0, 0.5 - 0.1 * miss);
+      reward[seat] = seatInclusionReward(state.taken[seat] as number, state.bids[seat] as number);
     }
     return;
   }
+  computePointsReward(state, reward);
+}
 
+// Single-seat inclusion reward: 1 for landing taken == bid exactly (the acceptance objective), with
+// a small shaping term for near-misses so search keeps a gradient when no line hits exactly. Range
+// [0, 1]. Exported so the behavior layer reuses the exact same rule (no duplicated formula).
+export function seatInclusionReward(taken: number, bid: number): number {
+  const miss = Math.abs(taken - bid);
+  return miss === 0 ? 1 : Math.max(0, 0.5 - 0.1 * miss);
+}
+
+// Relative-points reward (L6) for all four seats: each seat's score minus the average of the other
+// three, normalized onto [0, 1]. Exported so the behavior layer can use it as a score-maximizing
+// self term. Fills `out` in place; does not read or mutate anything beyond `state`.
+export function computePointsReward(state: GameState, out: Float64Array): void {
   const s0 = score(state.bids[0], state.taken[0]);
   const s1 = score(state.bids[1], state.taken[1]);
   const s2 = score(state.bids[2], state.taken[2]);
   const s3 = score(state.bids[3], state.taken[3]);
   const total = s0 + s1 + s2 + s3;
-  reward[0] = normalizeReward(s0 - (total - s0) / 3);
-  reward[1] = normalizeReward(s1 - (total - s1) / 3);
-  reward[2] = normalizeReward(s2 - (total - s2) / 3);
-  reward[3] = normalizeReward(s3 - (total - s3) / 3);
+  out[0] = normalizeReward(s0 - (total - s0) / 3);
+  out[1] = normalizeReward(s1 - (total - s1) / 3);
+  out[2] = normalizeReward(s2 - (total - s2) / 3);
+  out[3] = normalizeReward(s3 - (total - s3) / 3);
 }
 
 function normalizeReward(raw: number): number {

@@ -1,3 +1,4 @@
+export * from "./behavior.js";
 export * from "./bidding.js";
 export * from "./dealer.js";
 export * from "./inference.js";
