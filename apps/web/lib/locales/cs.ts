@@ -1,4 +1,6 @@
 export const cs = {
+  store: "Obchod",
+  storeComingSoon: "Již brzy",
   dailyTasks: "Denní úkoly",
   dailyTasksSubtitle: "Vyhrávej hry pro jednoho hráče a získávej mince. Postup se resetuje každý den v 00:00 UTC.",
   dailyGoal: "Vyhraj {count} her ({difficulty})",

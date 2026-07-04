@@ -1,4 +1,6 @@
 export const ro = {
+  store: "Magazin",
+  storeComingSoon: "În curând",
   dailyTasks: "Sarcini zilnice",
   dailyTasksSubtitle: "Câștigă partide single-player pentru a câștiga monede. Progresul se resetează zilnic la 00:00 UTC.",
   dailyGoal: "Câștigă {count} jocuri pe {difficulty}",

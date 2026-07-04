@@ -1,4 +1,6 @@
 export const en = {
+  store: "Store",
+  storeComingSoon: "Coming soon",
   dailyTasks: "Daily Tasks",
   dailyTasksSubtitle: "Win single-player games to earn coins. Progress resets daily at 00:00 UTC.",
   dailyGoal: "Win {count} games on {difficulty}",

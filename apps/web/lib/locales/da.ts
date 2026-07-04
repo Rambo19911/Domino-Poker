@@ -1,4 +1,6 @@
 export const da = {
+  store: "Butik",
+  storeComingSoon: "Kommer snart",
   dailyTasks: "Daglige opgaver",
   dailyTasksSubtitle: "Vind singleplayer-spil for at tjene mønter. Fremskridt nulstilles hver dag kl. 00:00 UTC.",
   dailyGoal: "Vind {count} spil på {difficulty}",

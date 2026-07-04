@@ -3,6 +3,8 @@ import type { en } from "./en";
 type LocaleMessages = Record<keyof typeof en, string>;
 
 export const lv = {
+  store: "Veikals",
+  storeComingSoon: "Drīzumā",
   dailyTasks: "Dienas uzdevumi",
   dailyTasksSubtitle: "Uzvari viena spēlētāja spēlēs, lai pelnītu monētas. Progress atiestatās katru dienu plkst. 00:00 UTC.",
   dailyGoal: "Uzvari {count} spēles ({difficulty})",

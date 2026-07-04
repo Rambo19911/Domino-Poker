@@ -1,4 +1,6 @@
 export const es = {
+  store: "Tienda",
+  storeComingSoon: "Próximamente",
   dailyTasks: "Tareas diarias",
   dailyTasksSubtitle: "Gana partidas para un jugador y consigue monedas. El progreso se reinicia cada día a las 00:00 UTC.",
   dailyGoal: "Gana {count} partidas en {difficulty}",

@@ -1,4 +1,6 @@
 export const et = {
+  store: "Pood",
+  storeComingSoon: "Tulekul",
   dailyTasks: "Päevaülesanded",
   dailyTasksSubtitle: "Võida üksikmängu partiisid, et teenida münte. Edenemine lähtestatakse iga päev kell 00:00 UTC.",
   dailyGoal: "Võida {count} mängu ({difficulty})",

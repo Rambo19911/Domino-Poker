@@ -245,7 +245,21 @@
       "apps/web/components/LobbyWheel.tsx",
       "apps/web/components/auth/AuthDialog.tsx",
       "apps/web/components/LeaderboardDialog.tsx",
-      "apps/web/components/ContactForm.tsx"
+      "apps/web/components/ContactForm.tsx",
+      "apps/web/components/StoreDialog.tsx"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/components/StoreDialog.tsx",
+    "type": "ui",
+    "purpose": "Lobby store dialog shell: controlled modal using shared Dialog/IconButton primitives, localized title/empty-state text, close audio behavior, and exported StoreIcon based on the store SVG mask. No store business logic lives here yet.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/LobbyScreen.tsx",
+      "apps/web/components/Dialog.tsx",
+      "apps/web/components/ui/IconButton.tsx",
+      "apps/web/styles/store.css"
     ],
     "confidence": "high"
   },
@@ -2803,6 +2817,19 @@
     "related_files": [
       "apps/web/components/DailyTasksDialog.tsx",
       "apps/web/styles/mp-mobile-table.css",
+      "apps/web/app/globals.css",
+      "apps/web/styles/tokens.css"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/styles/store.css",
+    "type": "style",
+    "purpose": "Token-only styles for the lobby store button/icon and the empty StoreDialog shell, including CSS mask usage for /assets/icons/store.svg, dialog width, centered empty state, and compact mobile sizing.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/components/StoreDialog.tsx",
+      "apps/web/components/LobbyScreen.tsx",
       "apps/web/app/globals.css",
       "apps/web/styles/tokens.css"
     ],

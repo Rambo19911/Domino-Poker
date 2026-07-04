@@ -1,4 +1,6 @@
 export const uk = {
+  store: "Магазин",
+  storeComingSoon: "Незабаром",
   dailyTasks: "Щоденні завдання",
   dailyTasksSubtitle: "Вигравай одиночні партії, щоб заробляти монети. Прогрес скидається щодня о 00:00 UTC.",
   dailyGoal: "Виграй {count} партій ({difficulty})",

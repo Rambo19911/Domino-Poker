@@ -1,4 +1,6 @@
 export const be = {
+  store: "Крама",
+  storeComingSoon: "Неўзабаве",
   dailyTasks: "Штодзённыя заданні",
   dailyTasksSubtitle: "Выйгравай адзіночныя партыі, каб зарабляць манеты. Прагрэс скідаецца штодня а 00:00 UTC.",
   dailyGoal: "Выйграй {count} партый ({difficulty})",

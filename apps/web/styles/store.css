@@ -1,0 +1,71 @@
+/* Veikals (Store). TIKAI tokeni (bez krāsu literāļiem) — seko tēmu pakām.
+   Ikona ir CSS maska (background: currentColor) → krāsojas ar pogas tokenu, tāpat kā
+   settings/login ikonas lobby.css. */
+
+/* `.lobbyTopBar` ir `pointer-events: none`; katrai pogai tas jāatjauno atsevišķi. */
+.lobbyStoreButton {
+  color: var(--primary);
+  pointer-events: auto;
+}
+
+/* Maskēta SVG ikona — tāds pats 24px izmērs kā settings/login māsu ikonām. */
+.storeAssetIcon {
+  display: block;
+  width: 24px;
+  height: 24px;
+  background: currentColor;
+  mask: url("/assets/icons/store.svg") center / contain no-repeat;
+  -webkit-mask: url("/assets/icons/store.svg") center / contain no-repeat;
+}
+
+/* Dialogs — tāds pats platuma limits kā dienas uzdevumiem (konsekvence). */
+.storeDialog {
+  max-width: 30rem;
+}
+
+/* Galvenes ikona (maska span) — izmērota kā trophy/help/daily galvenēs. */
+.storeDialog h2 .storeAssetIcon {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  vertical-align: -6px;
+}
+
+/* Tukšais stāvoklis — centrēts placeholder, kamēr saturs vēl nav pievienots. */
+.storeEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  padding: 2.5rem 1rem;
+  text-align: center;
+}
+
+.storeEmptyIcon {
+  width: 64px;
+  height: 64px;
+  background: currentColor;
+  color: var(--text-secondary);
+  opacity: 0.5;
+  mask: url("/assets/icons/store.svg") center / contain no-repeat;
+  -webkit-mask: url("/assets/icons/store.svg") center / contain no-repeat;
+}
+
+.storeEmptyText {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+/* Mobilais: kompaktāks tukšā stāvokļa attēls šaurās joslās. */
+@media (max-width: 420px) {
+  .storeEmpty {
+    padding: 2rem 0.75rem;
+  }
+
+  .storeEmptyIcon {
+    width: 52px;
+    height: 52px;
+  }
+}

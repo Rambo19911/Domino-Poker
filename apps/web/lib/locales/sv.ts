@@ -1,4 +1,6 @@
 export const sv = {
+  store: "Butik",
+  storeComingSoon: "Kommer snart",
   dailyTasks: "Dagliga uppdrag",
   dailyTasksSubtitle: "Vinn enspelarpartier för att tjäna mynt. Framsteg återställs varje dag kl. 00:00 UTC.",
   dailyGoal: "Vinn {count} spel på {difficulty}",

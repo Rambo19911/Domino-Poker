@@ -1,4 +1,6 @@
 export const fi = {
+  store: "Kauppa",
+  storeComingSoon: "Tulossa pian",
   dailyTasks: "Päivittäiset tehtävät",
   dailyTasksSubtitle: "Voita yksinpelipelejä ansaitaksesi kolikoita. Edistyminen nollautuu joka päivä klo 00:00 UTC.",
   dailyGoal: "Voita {count} peliä ({difficulty})",

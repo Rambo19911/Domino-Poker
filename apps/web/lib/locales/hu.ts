@@ -1,4 +1,6 @@
 export const hu = {
+  store: "Bolt",
+  storeComingSoon: "Hamarosan",
   dailyTasks: "Napi feladatok",
   dailyTasksSubtitle: "Nyerj egyjátékos partikat, hogy érméket szerezz. A haladás minden nap 00:00 UTC-kor visszaáll.",
   dailyGoal: "Nyerj {count} játszmát ({difficulty})",

@@ -12,6 +12,7 @@ import { LeaderboardDialog, TrophyIcon } from "./LeaderboardDialog";
 import { CoinGif } from "./CoinGif";
 import { CompactLobbyPanel, LobbyWheel } from "./LobbyWheel";
 import { DailyTasksDialog, DailyTasksIcon } from "./DailyTasksDialog";
+import { StoreDialog, StoreIcon } from "./StoreDialog";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
 import { useDailyTasks } from "../lib/daily/useDailyTasks";
 import { Presence } from "./usePresence";
@@ -92,6 +93,7 @@ export function LobbyScreen({
   const [rulesOpen, setRulesOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [dailyOpen, setDailyOpen] = useState(false);
+  const [storeOpen, setStoreOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
 
   const isAuthed = auth.status === "authenticated";
@@ -155,6 +157,17 @@ export function LobbyScreen({
             <DailyTasksIcon />
           </IconButton>
         ) : null}
+        <IconButton
+          className="lobbyStoreButton"
+          label={t.store}
+          title={t.store}
+          onClick={() => {
+            audio.play("uiClick");
+            setStoreOpen(true);
+          }}
+        >
+          <StoreIcon />
+        </IconButton>
         <IconButton
           className="lobbySettingsButton"
           label={t.settings}
@@ -241,10 +254,18 @@ export function LobbyScreen({
         />
       </Presence>
 
+      <Presence open={storeOpen}>
+        <StoreDialog
+          audio={audio}
+          labels={t}
+          onClose={() => setStoreOpen(false)}
+        />
+      </Presence>
+
       {/* PWA instalēšanas piedāvājums — tikai galvenajā lobby, nekad spēles laikā.
           Paslēpts, kamēr atvērts kāds dialogs (banneris ir virs modālā fona slāņa
           un citādi paliktu klikšķināms ārpus modālā konteksta). */}
-      {!settingsOpen && !rulesOpen && !leaderboardOpen && !dailyOpen && !authOpen ? (
+      {!settingsOpen && !rulesOpen && !leaderboardOpen && !dailyOpen && !storeOpen && !authOpen ? (
         <InstallPrompt labels={t} />
       ) : null}
 

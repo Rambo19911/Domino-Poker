@@ -1,4 +1,6 @@
 export const nl = {
+  store: "Winkel",
+  storeComingSoon: "Binnenkort",
   dailyTasks: "Dagelijkse taken",
   dailyTasksSubtitle: "Win singleplayer-potjes om munten te verdienen. Voortgang wordt elke dag om 00:00 UTC gereset.",
   dailyGoal: "Win {count} potjes op {difficulty}",

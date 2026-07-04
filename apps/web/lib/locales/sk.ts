@@ -1,4 +1,6 @@
 export const sk = {
+  store: "Obchod",
+  storeComingSoon: "Už čoskoro",
   dailyTasks: "Denné úlohy",
   dailyTasksSubtitle: "Vyhrávaj hry pre jedného hráča a získavaj mince. Postup sa resetuje každý deň o 00:00 UTC.",
   dailyGoal: "Vyhraj {count} hier ({difficulty})",

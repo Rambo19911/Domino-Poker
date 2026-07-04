@@ -1,4 +1,6 @@
 export const lt = {
+  store: "Parduotuvė",
+  storeComingSoon: "Netrukus",
   dailyTasks: "Dienos užduotys",
   dailyTasksSubtitle: "Laimėk vieno žaidėjo partijas, kad uždirbtum monetų. Pažanga atstatoma kasdien 00:00 UTC.",
   dailyGoal: "Laimėk {count} partijų ({difficulty})",
