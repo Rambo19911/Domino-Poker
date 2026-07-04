@@ -2,7 +2,7 @@ export const hu = {
   store: "Bolt",
   storeComingSoon: "Hamarosan",
   storeSupportHumanTagline: "Epic-erejű lépéstanácsadó",
-  storeSupportHumanDesc: "A személyes dominó bölcsed. Költs el minden körben egyet a 3 tippből, és több ezer Epic-erejű szimulációt futtat le, hogy felfedje a legjobb kövedet, közvetlenül a kezedben kiemelve. Egyjátékos és többjátékos módban is működik. Mindig csak a saját lépésedhez ad tanácsot — semmi csalás, csak egy okosabb te.",
+  storeSupportHumanDesc: "Minden körben 3-szor hívhatod a lépésajánló segítőt.",
   storeOwned: "Birtokolt",
   storeLoginRequired: "Jelentkezz be a vásárláshoz",
   storeDetails: "Részletek",

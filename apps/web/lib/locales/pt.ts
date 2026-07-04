@@ -2,7 +2,7 @@ export const pt = {
   store: "Loja",
   storeComingSoon: "Em breve",
   storeSupportHumanTagline: "Consultor de jogadas de força Epic",
-  storeSupportHumanDesc: "O teu sábio do dominó pessoal. Gasta uma das 3 dicas em cada ronda e ele executa milhares de simulações de força Epic para revelar a tua melhor peça, destacada mesmo na tua mão. Funciona em um jogador e multijogador. Só aconselha a tua própria jogada — nada de batota, apenas um tu mais afiado.",
+  storeSupportHumanDesc: "Em cada ronda podes chamar 3 vezes o assistente de recomendação de jogada.",
   storeOwned: "Adquirido",
   storeLoginRequired: "Inicia sessão para comprar",
   storeDetails: "Detalhes",

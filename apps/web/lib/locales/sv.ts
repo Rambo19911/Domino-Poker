@@ -2,7 +2,7 @@ export const sv = {
   store: "Butik",
   storeComingSoon: "Kommer snart",
   storeSupportHumanTagline: "Dragrådgivare i Epic-styrka",
-  storeSupportHumanDesc: "Din personliga domino-vise. Använd en av 3 ledtrådar varje runda så kör den tusentals simuleringar i Epic-styrka för att avslöja din bästa bricka, markerad direkt i din hand. Fungerar i enspelar- och flerspelarläge. Den ger bara råd om ditt eget drag — inget fusk, bara en skarpare du.",
+  storeSupportHumanDesc: "I varje runda kan du kalla på draghjälparen 3 gånger.",
   storeOwned: "Ägs",
   storeLoginRequired: "Logga in för att köpa",
   storeDetails: "Detaljer",

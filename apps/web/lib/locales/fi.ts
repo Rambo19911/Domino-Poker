@@ -2,7 +2,7 @@ export const fi = {
   store: "Kauppa",
   storeComingSoon: "Tulossa pian",
   storeSupportHumanTagline: "Epic-tason siirtoneuvoja",
-  storeSupportHumanDesc: "Henkilökohtainen domino-viisaasi. Käytä joka kierroksella yksi kolmesta vihjeestä, niin se ajaa tuhansia Epic-tason simulaatioita paljastaakseen parhaan laattasi, korostettuna suoraan kädessäsi. Toimii yksin- ja moninpelissä. Se neuvoo vain omaa siirtoasi — ei huijausta, vain terävämpi sinä.",
+  storeSupportHumanDesc: "Joka kierroksella voit kutsua siirtosuositusavustajan 3 kertaa.",
   storeOwned: "Omistettu",
   storeLoginRequired: "Kirjaudu ostaaksesi",
   storeDetails: "Tiedot",

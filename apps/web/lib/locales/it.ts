@@ -2,7 +2,7 @@ export const it = {
   store: "Negozio",
   storeComingSoon: "Prossimamente",
   storeSupportHumanTagline: "Consulente di mosse di livello Epic",
-  storeSupportHumanDesc: "Il tuo saggio del domino personale. Spendi uno dei 3 suggerimenti a ogni round e lancerà migliaia di simulazioni di livello Epic per rivelare la tua tessera migliore, evidenziata proprio nella tua mano. Funziona in giocatore singolo e multigiocatore. Consiglia solo la tua mossa — niente imbrogli, solo un te più acuto.",
+  storeSupportHumanDesc: "In ogni round puoi richiamare 3 volte l’assistente per i consigli sulle mosse.",
   storeOwned: "Posseduto",
   storeLoginRequired: "Accedi per acquistare",
   storeDetails: "Dettagli",

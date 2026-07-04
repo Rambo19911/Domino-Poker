@@ -2,7 +2,7 @@ export const ro = {
   store: "Magazin",
   storeComingSoon: "În curând",
   storeSupportHumanTagline: "Consilier de mutări de forță Epic",
-  storeSupportHumanDesc: "Înțeleptul tău personal de domino. Cheltuiește unul din cele 3 indicii în fiecare rundă și rulează mii de simulări de forță Epic pentru a dezvălui cea mai bună piesă a ta, evidențiată chiar în mâna ta. Funcționează în modul un singur jucător și multiplayer. Te sfătuiește doar cu privire la propria ta mutare — fără trișare, doar un tu mai isteț.",
+  storeSupportHumanDesc: "În fiecare rundă poți chema de 3 ori asistentul de recomandare a mutării.",
   storeOwned: "Deținut",
   storeLoginRequired: "Conectează-te pentru a cumpăra",
   storeDetails: "Detalii",

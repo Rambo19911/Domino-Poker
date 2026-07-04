@@ -2,7 +2,7 @@ export const cs = {
   store: "Obchod",
   storeComingSoon: "Již brzy",
   storeSupportHumanTagline: "Poradce tahů síly Epic",
-  storeSupportHumanDesc: "Tvůj osobní domino mudrc. V každém kole utrať jednu ze 3 nápověd a on přehraje tisíce simulací síly Epic, aby odhalil tvůj nejlepší kámen, zvýrazněný přímo v tvé ruce. Funguje v jednom hráči i více hráčích. Radí vždy jen tvůj vlastní tah — žádné podvádění, jen bystřejší ty.",
+  storeSupportHumanDesc: "V každém kole můžeš 3× přivolat pomocníka s doporučením tahu.",
   storeOwned: "Vlastněno",
   storeLoginRequired: "Přihlas se pro nákup",
   storeDetails: "Podrobnosti",

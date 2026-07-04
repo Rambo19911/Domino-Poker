@@ -2,7 +2,7 @@ export const en = {
   store: "Store",
   storeComingSoon: "Coming soon",
   storeSupportHumanTagline: "Epic-strength move advisor",
-  storeSupportHumanDesc: "Your personal domino sage. Spend one of 3 hints each round and it runs thousands of epic-strength simulations to reveal your single best tile, highlighted right on your hand. Works in single-player and multiplayer. It only ever advises your own move — no cheating, just a sharper you.",
+  storeSupportHumanDesc: "Each round you get 3 chances to call up the move-recommendation assistant.",
   storeOwned: "Owned",
   storeLoginRequired: "Log in to buy",
   storeDetails: "Details",

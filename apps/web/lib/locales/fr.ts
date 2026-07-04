@@ -2,7 +2,7 @@ export const fr = {
   store: "Boutique",
   storeComingSoon: "Bientôt disponible",
   storeSupportHumanTagline: "Conseiller de coups de force Epic",
-  storeSupportHumanDesc: "Votre sage du domino personnel. Dépensez l'un des 3 indices à chaque manche et il exécute des milliers de simulations de force Epic pour révéler votre meilleur domino, mis en évidence directement dans votre main. Fonctionne en solo et en multijoueur. Il ne conseille jamais que votre propre coup — pas de triche, juste un vous plus affûté.",
+  storeSupportHumanDesc: "À chaque manche, tu peux appeler 3 fois l’assistant de recommandation de coup.",
   storeOwned: "Possédé",
   storeLoginRequired: "Connectez-vous pour acheter",
   storeDetails: "Détails",

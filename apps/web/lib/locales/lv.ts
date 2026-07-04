@@ -6,7 +6,7 @@ export const lv = {
   store: "Veikals",
   storeComingSoon: "Drīzumā",
   storeSupportHumanTagline: "Epic līmeņa gājienu padomnieks",
-  storeSupportHumanDesc: "Tavs personīgais domino gudrinieks. Iztērē vienu no 3 padomiem katrā raundā, un tas izspēlē tūkstošiem epic līmeņa simulāciju, lai atklātu tavu labāko kauliņu, izgaismojot to tavā rokā. Darbojas gan vienatnē, gan daudzspēlētāju režīmā. Tas iesaka tikai tavu paša gājienu — bez krāpšanās, tikai gudrāks tu.",
+  storeSupportHumanDesc: "Katrā spēles kārtā tev būs iespējas 3x izsaukt gājiena rekomendācijas palīgu.",
   storeOwned: "Pieder",
   storeLoginRequired: "Ielogojies, lai pirktu",
   storeDetails: "Sīkāk",

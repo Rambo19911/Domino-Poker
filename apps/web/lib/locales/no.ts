@@ -2,7 +2,7 @@ export const no = {
   store: "Butikk",
   storeComingSoon: "Kommer snart",
   storeSupportHumanTagline: "Trekkrådgiver i Epic-styrke",
-  storeSupportHumanDesc: "Din personlige domino-vismann. Bruk ett av 3 hint hver runde, så kjører den tusenvis av simuleringer i Epic-styrke for å avsløre din beste brikke, uthevet rett i hånden din. Fungerer i enkeltspiller og flerspiller. Den gir bare råd om ditt eget trekk — ingen juks, bare en skarpere deg.",
+  storeSupportHumanDesc: "I hver runde kan du kalle på trekkhjelperen 3 ganger.",
   storeOwned: "Eies",
   storeLoginRequired: "Logg inn for å kjøpe",
   storeDetails: "Detaljer",

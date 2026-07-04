@@ -2,7 +2,7 @@ export const et = {
   store: "Pood",
   storeComingSoon: "Tulekul",
   storeSupportHumanTagline: "Epic-taseme käigunõustaja",
-  storeSupportHumanDesc: "Sinu isiklik doominotark. Kuluta igas voorus üks kolmest vihjest ja see mängib läbi tuhandeid epic-taseme simulatsioone, et paljastada sinu parim kivi, tõstes selle sinu käes esile. Töötab nii üksikmängus kui ka mitmikmängus. See soovitab ainult sinu enda käiku — ei mingit petmist, lihtsalt teravam sina.",
+  storeSupportHumanDesc: "Igas voorus saad 3 korda kutsuda käigusoovituse abilise.",
   storeOwned: "Kuulub sulle",
   storeLoginRequired: "Ostmiseks logi sisse",
   storeDetails: "Üksikasjad",

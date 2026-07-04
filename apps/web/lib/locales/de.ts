@@ -2,7 +2,7 @@ export const de = {
   store: "Shop",
   storeComingSoon: "Demnächst",
   storeSupportHumanTagline: "Zugberater in Epic-Stärke",
-  storeSupportHumanDesc: "Dein persönlicher Domino-Weiser. Setze in jeder Runde einen von 3 Hinweisen ein, und er spielt Tausende Simulationen in Epic-Stärke durch, um deinen besten Stein zu enthüllen, direkt in deiner Hand hervorgehoben. Funktioniert im Einzel- und Mehrspielermodus. Er berät immer nur deinen eigenen Zug — kein Schummeln, nur ein cleveres du.",
+  storeSupportHumanDesc: "In jeder Runde kannst du 3-mal den Zug-Empfehlungshelfer aufrufen.",
   storeOwned: "Im Besitz",
   storeLoginRequired: "Zum Kaufen anmelden",
   storeDetails: "Details",

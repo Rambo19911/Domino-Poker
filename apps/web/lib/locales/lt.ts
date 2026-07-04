@@ -2,7 +2,7 @@ export const lt = {
   store: "Parduotuvė",
   storeComingSoon: "Netrukus",
   storeSupportHumanTagline: "Epic lygio ėjimų patarėjas",
-  storeSupportHumanDesc: "Tavo asmeninis domino išminčius. Kiekviename raunde išleisk vieną iš 3 patarimų, ir jis sužais tūkstančius epic lygio simuliacijų, kad atskleistų geriausią tavo kauliuką, paryškindamas jį tavo rankoje. Veikia tiek vieno žaidėjo, tiek kelių žaidėjų režimu. Jis pataria tik dėl tavo paties ėjimo — jokio sukčiavimo, tiesiog protingesnis tu.",
+  storeSupportHumanDesc: "Kiekviename raunde galėsi 3 kartus iškviesti ėjimo rekomendacijų pagalbininką.",
   storeOwned: "Turima",
   storeLoginRequired: "Prisijunk, kad pirktum",
   storeDetails: "Išsamiau",

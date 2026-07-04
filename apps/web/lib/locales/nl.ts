@@ -2,7 +2,7 @@ export const nl = {
   store: "Winkel",
   storeComingSoon: "Binnenkort",
   storeSupportHumanTagline: "Zetadviseur van Epic-sterkte",
-  storeSupportHumanDesc: "Je persoonlijke domino-wijze. Besteed elke ronde een van de 3 hints en hij draait duizenden simulaties van Epic-sterkte om jouw beste steen te onthullen, direct in je hand gemarkeerd. Werkt in singleplayer en multiplayer. Hij adviseert alleen jouw eigen zet — geen valsspelen, gewoon een scherpere jij.",
+  storeSupportHumanDesc: "Elke ronde kun je 3 keer de zetaanbevelingshulp oproepen.",
   storeOwned: "In bezit",
   storeLoginRequired: "Log in om te kopen",
   storeDetails: "Details",

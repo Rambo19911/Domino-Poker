@@ -13,10 +13,13 @@ import type { AppStrings } from "../lib/i18n";
 import type { AudioSettings } from "../lib/useAudioSettings";
 
 /**
- * Veikala dialogs (Fāze A2) — pagaidām VIENA prece: "supportHuman" bota palīgs kā
- * flip-card. Priekšpuse: SVG māksla + nosaukums + cena + Pirkt/Pieder. Otra puse: blīvs
- * apraksts. TIKAI tokeni (bez krāsu literāļiem) → seko tēmām; teksti no i18n (21 valoda).
- * Serveris ir autoritatīvs: cena no kataloga, debets+īpašums atomiski (`/store/buy`).
+ * Veikala dialogs — VIENA prece: "supportHuman" bota palīgs kā flip-card. Priekšpuse:
+ * bota attēls (`/assets/store/the_sage_front.webp` — bots + "THE SAGE" iebūvēts) ar diviem
+ * transparent React overlay: (1) naudas summa = pirkšanas poga (nav ielogojies → login;
+ * ielogots → darījums + skaņa), (2) vertikāls "FLIP" uz apraksta pusi. Otra puse: apraksts
+ * uz bronzas paneļa (`the_sage_back.webp`). Kartes palete ir FIKSĒTA (nesekojam tēmām —
+ * īpašnieka lēmums); teksti no i18n (21 valoda). Serveris ir autoritatīvs: cena no kataloga,
+ * debets+īpašums atomiski (`/store/buy`).
  */
 
 /** Zīmola nosaukums (EN literāls, kā tēmu nosaukumi — netiek lokalizēts). */
@@ -122,56 +125,68 @@ export function StoreDialog({
       <div className="storeGrid">
         <div className={`storeCard ${flipped ? "flipped" : ""}`}>
           <div className="storeCardInner">
-            {/* Priekšpuse */}
+            {/* Priekšpuse — bota attēls (assets webp, bots + "THE SAGE" iebūvēts) + klikšķināma
+                naudas summa (= pirkšana: anon → login; ielogots → darījums + skaņa) + vertikāls
+                "flip" saite uz apraksta pusi. Nav atsevišķas Buy pogas. */}
             <div className="storeCardFace storeCardFront" aria-hidden={flipped}>
-              <BotArt />
-              <div className="storeCardName">{SUPPORT_HUMAN_NAME}</div>
-              <div className="storeCardTagline">{t.storeSupportHumanTagline}</div>
-              <div className="storeCardFooter">
-                <span className="storeCardPrice">
-                  <CoinGif className="storeCardPriceCoin" />
-                  {BOT_ASSISTANT_PRICE.toLocaleString()}
-                </span>
-                {owned ? (
-                  <span className="storeOwnedBadge">{t.storeOwned}</span>
-                ) : (
-                  <button
-                    type="button"
-                    className="storeBuyButton"
-                    tabIndex={frontTab}
-                    disabled={buying || balanceLoading}
-                    onClick={() => void buy()}
-                  >
-                    {isAuthed ? t.themeBuy : t.storeLoginRequired}
-                  </button>
-                )}
-              </div>
+              <img
+                className="storeFrontArt"
+                src="/assets/store/the_sage_front.webp"
+                alt={SUPPORT_HUMAN_NAME}
+                draggable={false}
+              />
+              {owned ? (
+                <span className="storePricePill storeOwnedPill">{t.storeOwned}</span>
+              ) : (
+                <button
+                  type="button"
+                  className="storePricePill storePriceButton"
+                  tabIndex={frontTab}
+                  disabled={buying || balanceLoading}
+                  onClick={() => void buy()}
+                  aria-label={`${isAuthed ? t.themeBuy : t.storeLoginRequired}: ${SUPPORT_HUMAN_NAME}, ${BOT_ASSISTANT_PRICE.toLocaleString()}`}
+                >
+                  <CoinGif className="storePriceCoin" />
+                  <span className="storePriceValue">{BOT_ASSISTANT_PRICE.toLocaleString()}</span>
+                </button>
+              )}
+              <button
+                type="button"
+                className="storeFlipTab"
+                tabIndex={frontTab}
+                onClick={toggleFlip}
+                aria-label={t.storeDetails}
+              >
+                FLIP
+              </button>
               {buyError ? (
-                <p className="storeBuyError" role="alert">
+                <p className="storeBuyError storeCardError" role="alert">
                   {buyError}
                 </p>
               ) : null}
-              <button
-                type="button"
-                className="storeFlipButton"
-                tabIndex={frontTab}
-                onClick={toggleFlip}
-              >
-                {t.storeDetails}
-              </button>
             </div>
 
-            {/* Otra puse — blīvs apraksts */}
+            {/* Otra puse — apraksts uz bronzas paneļa (assets webp) + vertikāls "flip" atpakaļ. */}
             <div className="storeCardFace storeCardBack" aria-hidden={!flipped}>
-              <div className="storeCardName">{SUPPORT_HUMAN_NAME}</div>
-              <p className="storeCardDesc">{t.storeSupportHumanDesc}</p>
+              <img
+                className="storeBackArt"
+                src="/assets/store/the_sage_back.webp"
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+              />
+              <div className="storeBackContent">
+                <div className="storeCardName">{SUPPORT_HUMAN_NAME}</div>
+                <p className="storeCardDesc">{t.storeSupportHumanDesc}</p>
+              </div>
               <button
                 type="button"
-                className="storeFlipButton"
+                className="storeFlipTab"
                 tabIndex={backTab}
                 onClick={toggleFlip}
+                aria-label={t.storeFlipBack}
               >
-                {t.storeFlipBack}
+                FLIP
               </button>
             </div>
           </div>
@@ -184,36 +199,4 @@ export function StoreDialog({
 /** Veikala ikona (CSS maska + `currentColor` → token-krāsojas ar tēmu, kā settings/login ikonas). */
 export function StoreIcon() {
   return <span className="storeAssetIcon" aria-hidden="true" />;
-}
-
-/**
- * Bota māksla — inline SVG ar `fill="currentColor"` (opacity slāņi = īsts aizpildījums),
- * tonēts ar `.storeBotArt { color: var(--primary) }` → seko tēmai. Stilizēts "gudrinieks-
- * robots", kas rāda domino kauliņu.
- */
-function BotArt() {
-  return (
-    <svg className="storeBotArt" viewBox="0 0 200 200" fill="currentColor" aria-hidden="true">
-      <circle cx="100" cy="100" r="82" opacity="0.08" />
-      <circle cx="100" cy="100" r="66" opacity="0.06" />
-      <rect x="96.5" y="24" width="7" height="20" rx="3.5" opacity="0.85" />
-      <circle cx="100" cy="22" r="7" opacity="0.95" />
-      <rect x="52" y="44" width="96" height="80" rx="24" opacity="0.9" />
-      <rect x="64" y="58" width="72" height="46" rx="16" opacity="0.18" />
-      <circle cx="84" cy="80" r="9" />
-      <circle cx="116" cy="80" r="9" />
-      <path d="M80 95 q20 16 40 0" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" opacity="0.75" />
-      <rect x="42" y="72" width="10" height="26" rx="5" opacity="0.8" />
-      <rect x="148" y="72" width="10" height="26" rx="5" opacity="0.8" />
-      <rect x="60" y="128" width="80" height="44" rx="18" opacity="0.85" />
-      <rect x="82" y="132" width="36" height="52" rx="8" opacity="0.16" />
-      <rect x="82" y="132" width="36" height="52" rx="8" fill="none" stroke="currentColor" strokeWidth="3" opacity="0.55" />
-      <line x1="84" y1="158" x2="116" y2="158" stroke="currentColor" strokeWidth="3" opacity="0.55" />
-      <circle cx="92" cy="141" r="3.4" />
-      <circle cx="100" cy="145" r="3.4" />
-      <circle cx="108" cy="149" r="3.4" />
-      <circle cx="93" cy="167" r="3.4" />
-      <circle cx="107" cy="177" r="3.4" />
-    </svg>
-  );
 }

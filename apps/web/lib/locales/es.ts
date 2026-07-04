@@ -2,7 +2,7 @@ export const es = {
   store: "Tienda",
   storeComingSoon: "Próximamente",
   storeSupportHumanTagline: "Asesor de jugadas de nivel Epic",
-  storeSupportHumanDesc: "Tu sabio del dominó personal. Gasta una de las 3 pistas en cada ronda y ejecutará miles de simulaciones de nivel Epic para revelar tu mejor ficha, resaltada justo en tu mano. Funciona en un jugador y multijugador. Solo aconseja tu propia jugada — sin trampas, solo un tú más astuto.",
+  storeSupportHumanDesc: "En cada ronda podrás invocar 3 veces al asistente de recomendación de jugada.",
   storeOwned: "En posesión",
   storeLoginRequired: "Inicia sesión para comprar",
   storeDetails: "Detalles",

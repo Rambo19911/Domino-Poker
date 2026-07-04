@@ -2,7 +2,7 @@ export const pl = {
   store: "Sklep",
   storeComingSoon: "Wkrótce",
   storeSupportHumanTagline: "Doradca ruchów o sile Epic",
-  storeSupportHumanDesc: "Twój osobisty mędrzec domina. Wykorzystaj jedną z 3 podpowiedzi w każdej rundzie, a przeprowadzi tysiące symulacji o sile Epic, aby wskazać twój najlepszy kamień, podświetlając go wprost w twojej ręce. Działa w trybie jednoosobowym i wieloosobowym. Doradza wyłącznie w twoim własnym ruchu — żadnego oszukiwania, po prostu bystrzejszy ty.",
+  storeSupportHumanDesc: "W każdej rundzie możesz 3 razy wezwać asystenta rekomendacji ruchu.",
   storeOwned: "Posiadane",
   storeLoginRequired: "Zaloguj się, aby kupić",
   storeDetails: "Szczegóły",
