@@ -608,6 +608,7 @@
       "packages/ai_bot/packages/engine/src/index.ts",
       "packages/ai_bot/packages/ai/src/index.ts",
       "packages/ai_bot/packages/ai/src/ismcts.ts",
+      "packages/ai_bot/packages/ai/src/behavior.ts",
       "packages/ai_bot/packages/bot-adapter/src/AiClient.ts"
     ],
     "depends_on": [],
@@ -620,7 +621,8 @@
       "Do NOT keep a local pnpm node_modules under packages/ai_bot: its broken tsc bin shadows root typescript for the npm-workspace build. VPS never has it (tar excludes node_modules), so root tsc is used there.",
       "Has its own engine duplicating Domino rules independently of packages/core; the browser bridge (botBridge.ts) maps core {side1,side2} tiles <-> bot bitmask indices and reconstructs PlayerView. Trump/ace ordering and bid=-1 sentinel are verified-identical between the two engines.",
       "eslint ignores packages/ai_bot/** (vendored sub-project, fails this repo's no-unused-vars).",
-      "Decisions are seedable (mulberry32); no Math.random/Date.now. Not yet wired into multiplayer (server still uses core/aiService bots)."
+      "Decisions are seedable (mulberry32); no Math.random/Date.now. Not yet wired into multiplayer (server still uses core/aiService bots).",
+      "behavior.ts adds a bot behavior/objective LAYER (createBehaviorReward: supportHuman/denyHuman/aggressiveVsHuman) on a RewardFn seam in ismcts.ts (reward? overrides rewardKind; exported seatInclusionReward/computePointsReward). Built + exported but UNWIRED — botWorker.ts still uses plain rewardKind 'inclusion'. The store's SP bot hint does NOT use this layer (it runs plain inclusion search from the human's own view); the 'supportHuman' name is a brand tie, mechanics differ. See docs/bot-behaviors.md."
     ],
     "confidence": "high"
   },
@@ -695,7 +697,7 @@
       "Phase 3 MP money: entry fee/refund/payout reuse WalletService.applyLedger with NO new migration. Idempotency keys: mp_entry/mp_refund ref=entryId (per seat-occupation, NOT roomId, so refund→rejoin is a real new debit); mp_payout ref=matchId (one payout per user per match). LobbyManager owns pot bookkeeping (create/join +fee, leave −fee, forfeit/mid-game teardown unchanged so forfeited fees stay in the pot, D5). Seat carries opaque entry{entryId,payerUserId}.",
       "Phase 3 orchestration lives in messageRouter (createPaidRoom/joinPaidRoom): debit-then-commit-seat with full rollback on any post-debit failure; isUserSeated is re-checked synchronously right before the seat commit to close the concurrent duplicate-userId race; leave/delete/TTL refunds go through tryRefund (idempotent) with an in-memory pendingRefunds retry queue drained by the periodic sweepExpiredRooms. MatchPayoutService settles the pot at GAME_OVER (top-2 registered non-forfeited humans; bots/forfeiters excluded; idempotent by matchId; fire-and-forget). Residual (R3): refund-retry + payout are in-memory, so a process crash can strand a refund/payout (no DB outbox; accepted for virtual currency / single-VPS). Fully abandoned paid games leave the pot unpaid.",
       "SP reward anti-cheat (D3): reward difficulty comes from the server-issued one-time token (SpRewardTokens), not the client; /sp/reward also enforces auth + min duration + per-user rate limit + a HARD daily cap clamped under a per-user in-process lock. Tokens are in-memory/single-instance (matches the per-instance RateLimiter assumption). Residual: client still asserts placement.",
-      "Coin tables (migration 0007_coin_wallet: coin_balances, coin_ledger) follow the schema.ts rules — append-only, never renumber. coin_balances keeps the balance>=0 CHECK; coin_ledger keeps the delta<>0 CHECK and the UNIQUE(user_id, reason, ref) idempotency index, but migration 0010_coin_ledger_open_reason DROPPED the reason CHECK enum (D6) — reason is now the authoritative TS LedgerReason union (signup/sp_reward/mp_entry/mp_refund/mp_payout/admin_adjust), enforced by WalletService, not the DB. Add a new reason in the union; no migration needed.",
+      "Coin tables (migration 0007_coin_wallet: coin_balances, coin_ledger) follow the schema.ts rules — append-only, never renumber. coin_balances keeps the balance>=0 CHECK; coin_ledger keeps the delta<>0 CHECK and the UNIQUE(user_id, reason, ref) idempotency index, but migration 0010_coin_ledger_open_reason DROPPED the reason CHECK enum (D6) — reason is now the authoritative TS LedgerReason union (signup/sp_reward/mp_entry/mp_refund/mp_payout/admin_adjust/theme_purchase/bot_purchase/daily_task_reward), enforced by WalletService, not the DB. Add a new reason in the union; no migration needed.",
       "Registration grants the signup bonus; WalletService.getBalance is repair-on-read so /auth/me and WELCOME also backfill existing accounts idempotently.",
       "WELCOME carries optional goldBalance and /auth/me returns balance — both additive/optional, backward compatible with old clients.",
       "Single-instance caveat: the SP daily-cap lock and token store are per-process; a true multi-instance SP mode would need the cap pushed into the DB transaction.",
@@ -704,9 +706,9 @@
     "confidence": "high"
   },
   {
-    "name": "Store (Cosmetics)",
+    "name": "Store (Cosmetics + Bot Assistant)",
     "folder": ".",
-    "purpose": "In-game cosmetics store (Phase 4): a coin SINK on top of the gold economy, NOT pay-to-win. Sells the 6 purchasable animated-background THEMES (slugs twilight/rain/pop-out/confetti/bubbles/luminous) for THEME_PRICE (200k) each. Ownership is DERIVED from the append-only coin_ledger (reason `theme_purchase`, ref = itemId `theme.<slug>`), so there is NO separate inventory table: one purchase is a single atomic ledger row that is simultaneously the coin debit AND the ownership grant (exactly-once via UNIQUE(user_id, reason, ref); re-buy is an idempotent no-op = alreadyOwned, no double debit). Server is authoritative: price comes from the shared catalog (never the client) and the server rejects unknown items. HTTP: POST /store/buy + GET /store/owned (auth required; anonymous cannot buy). Web client (lib/store/storeApi.ts) only displays catalog prices/locks and reconciles the active theme against owned items.",
+    "purpose": "In-game store: a coin SINK on top of the gold economy, NOT pay-to-win. Two product kinds (StoreItemKind): (1) `theme` — 6 purchasable animated-background THEMES (twilight/rain/pop-out/confetti/bubbles/luminous) for THEME_PRICE (200k) each; (2) `bot_assistant` — the supportHuman bot 'The Sage' (SUPPORT_HUMAN_ITEM_ID `bot.supportHuman`) for BOT_ASSISTANT_PRICE (5M), which grants 3 single-player hints/round (Part A shipped; MP hints = planned Part B). Ownership is DERIVED from the append-only coin_ledger (reason per kind: `theme_purchase` / `bot_purchase`, ref = itemId), so there is NO separate inventory table: one purchase is a single atomic ledger row that is simultaneously the coin debit AND the ownership grant (exactly-once via UNIQUE(user_id, reason, ref); re-buy is an idempotent no-op = alreadyOwned). StoreService's KIND_TO_REASON maps kind→reason; WalletService.listOwnedItems UNIONS both ownership reasons so consumers must filter /store/owned by kind/id. Server is authoritative: price comes from the shared catalog (never the client). HTTP: POST /store/buy + GET /store/owned (auth required; anonymous cannot buy). StoreDialog is a token-only CSS 3D flip card (inline SVG art, front price + Buy/Owned/Login, back dense localized description); coinClaim sound on a real purchase.",
     "main_files": [
       "packages/shared/src/store-catalog.ts",
       "packages/shared/src/economy.ts",
@@ -715,8 +717,13 @@
       "apps/server/src/wallet/WalletService.ts",
       "apps/server/src/storage/CoinStore.ts",
       "apps/web/lib/store/storeApi.ts",
+      "apps/web/components/StoreDialog.tsx",
+      "apps/web/styles/store.css",
       "apps/web/lib/theme.ts",
-      "apps/web/components/ui/CloseIcon.tsx",
+      "apps/web/components/DominoPokerGame.tsx",
+      "apps/web/components/PlayerSeat.tsx",
+      "apps/web/components/SpMobileTable.tsx",
+      "apps/web/lib/bot/botBridge.ts",
       "apps/web/styles/tokens.css"
     ],
     "depends_on": [
@@ -730,8 +737,9 @@
       "Multiplayer Server"
     ],
     "risks": [
-      "store-catalog.ts is the single authoritative source of purchasable items + prices (THEME_SLUGS, themeItemId, STORE_CATALOG, getStoreItem); both server (validates itemId + price at purchase) and web (shows price/lock) import it. THEME_PRICE lives in economy.ts — do not duplicate the price.",
-      "Ownership is ledger-derived (WalletService.purchaseItem reason `theme_purchase`, listOwnedItems via CoinStore.listLedgerRefs); no inventory table. The purchase ledger row IS the debit + the ownership record. Adding `theme_purchase` to the LedgerReason union needed NO migration (reason CHECK was already dropped in 0010).",
+      "store-catalog.ts is the single authoritative source of purchasable items + prices (THEME_SLUGS, themeItemId, SUPPORT_HUMAN_ITEM_ID, ownsSupportHuman, STORE_CATALOG, getStoreItem); both server (validates itemId + price at purchase) and web (shows price/lock) import it. Prices live in economy.ts (THEME_PRICE, BOT_ASSISTANT_PRICE) — do not duplicate. Adding a product = extend StoreItemKind + STORE_CATALOG + StoreService.KIND_TO_REASON; do NOT hardcode a reason.",
+      "Ownership is ledger-derived (WalletService.purchaseItem takes a PurchaseReason `theme_purchase`|`bot_purchase` from StoreService.KIND_TO_REASON; listOwnedItems UNIONS both via CoinStore.listLedgerRefs); no inventory table. The purchase ledger row IS the debit + the ownership record. New reasons need NO migration (reason CHECK dropped in 0010). Because /store/owned is a union, consumers MUST filter by kind/id: theme code matches theme.* ids (isThemeUnlocked), bot code uses ownsSupportHuman — a foreign ref is inert.",
+      "SP bot hint (owned bot.supportHuman → HINTS_PER_ROUND=3): DominoPokerGame reuses botBridge.decideMove(state, humanSeat, 'epic') (NO new bot engine code — same worker/budget as an epic opponent), keeps the quota in React state (core stays pure), resets per round, clears the recommendation on any decision-point change (turnKey), and tryAdvance-validates the FULL move {tile, declaredNumber} before consuming quota. UI: PlayerSeat HintButton on the profile ring + .recommended tile pulse + .hintDeclare pip badge; SpMobileTable mirrors it (.mpmHintButton). Gated on owned+authed (isAuthed/getToken threaded from AppShell). MP hints (Part B) keep the quota server-authoritative in RoomEngine + ownership in the router, NOT in RoomEngine.",
       "StoreService is a thin application layer over WalletService: getStoreItem (unknown→unknown_item) → wallet.purchaseItem (insufficient→balance) → ok{alreadyOwned}. Keep money rules in WalletService, not here.",
       "HTTP routes POST /store/buy (402 insufficient_coins + balance, 400 unknown_item) + GET /store/owned require auth (401 anon) and are per-user rate limited; storeHandler is chained in httpServer before the auth handler and mounted in index.ts only when a wallet + AuthService exist. Like every new server HTTP route, /store needs a Caddy reverse_proxy /store rule on the VPS or it 404s in prod.",
       "Web theme registry (apps/web/lib/theme.ts): 7 ThemeIds (default free + 6 paid), isThemeUnlocked(owned), reconcileStoredTheme(owned) downgrades a non-owned/stored theme to Default (account-bound enforcement on auth change + after /store/owned), getThemeBootstrapScript (pre-paint applies stored theme + a reduced-motion/deviceMemory/hardwareConcurrency static-motion heuristic) and startMotionFpsProbe (post-paint FPS<40 over 1.5s → data-theme-motion=static poster fallback). Animated SVG bg vs static poster is gated by data-theme-motion.",

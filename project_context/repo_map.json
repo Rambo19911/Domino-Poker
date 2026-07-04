@@ -593,6 +593,7 @@
   {"path":"packages/ai_bot/INTEGRATION.md","name":"INTEGRATION.md"},
   {"path":"packages/ai_bot/package.json","name":"package.json"},
   {"path":"packages/ai_bot/packages/ai/package.json","name":"package.json"},
+  {"path":"packages/ai_bot/packages/ai/src/behavior.ts","name":"behavior.ts"},
   {"path":"packages/ai_bot/packages/ai/src/bidding.ts","name":"bidding.ts"},
   {"path":"packages/ai_bot/packages/ai/src/dealer.ts","name":"dealer.ts"},
   {"path":"packages/ai_bot/packages/ai/src/index.ts","name":"index.ts"},
