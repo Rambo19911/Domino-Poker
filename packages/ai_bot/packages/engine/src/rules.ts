@@ -140,6 +140,13 @@ export function legalMoves(hand: number, trick: TrickState, out: Move[] = []): M
     return movesFrom(suit, false, out);
   }
 
+  if (trick.anyTrumpPlayed) {
+    const stronger = hand & (TRUMP_STRONGER_THAN[trick.maxTrumpRank] as number);
+    if (stronger !== 0) {
+      return movesFrom(stronger, false, out);
+    }
+  }
+
   const anyTrump = hand & TRUMP_MASK;
   if (anyTrump !== 0) {
     return movesFrom(anyTrump, false, out);
