@@ -76,23 +76,21 @@ describe("Daily task HTTP routes (integration)", () => {
     return { token: body.token, id: body.user.id };
   }
 
-  /** Sēj `count` SP uzvaras (placement 1) dotajā grūtībā šodienas logā ar pietiekamu ilgumu. */
-  async function seedWins(userId: string, difficulty: GameDifficulty, count: number): Promise<void> {
-    for (let i = 0; i < count; i++) {
-      await storage.recordGameResult({
-        id: `sp:seed-${++seedN}`,
-        userId,
-        mode: "sp",
-        difficulty,
-        placement: 1,
-        roundCount: 4,
-        bidMet: 4,
-        bidExceeded: 0,
-        bidMissed: 0,
-        completedAt: NOW,
-        durationMs: 20_000
-      });
-    }
+  /** Sēj VIENU SP uzvaru (placement 1) dotajā grūtībā ar `rounds` raundiem, šodienas logā. */
+  async function seedWin(userId: string, difficulty: GameDifficulty, rounds: number): Promise<void> {
+    await storage.recordGameResult({
+      id: `sp:seed-${++seedN}`,
+      userId,
+      mode: "sp",
+      difficulty,
+      placement: 1,
+      roundCount: rounds,
+      bidMet: rounds,
+      bidExceeded: 0,
+      bidMissed: 0,
+      completedAt: NOW,
+      durationMs: 20_000
+    });
   }
 
   it("rejects anonymous GET and POST (401)", async () => {
@@ -100,21 +98,26 @@ describe("Daily task HTTP routes (integration)", () => {
     expect((await req("POST", "/daily/tasks/claim", undefined, { taskId: "win10_medium" })).status).toBe(401);
   });
 
-  it("returns derived state; task 1 claimable once medium wins reach the threshold", async () => {
+  it("returns derived state; a too-short win does not qualify but a full-length win makes task 1 claimable", async () => {
     const { token, id } = await registerUser("Alice");
-    await seedWins(id, "medium", 10);
-    const res = await req("GET", "/daily/tasks", token);
-    expect(res.status).toBe(200);
-    const state = (await res.json()) as TasksState;
+    // 5-raundu medium uzvara NEsasniedz win10_medium (≥10) → progress 0.
+    await seedWin(id, "medium", 5);
+    let state = (await (await req("GET", "/daily/tasks", token)).json()) as TasksState;
+    expect(state.tasks[0]).toMatchObject({ id: "win10_medium", progress: 0, claimable: false });
+    expect(state.anyClaimable).toBe(false);
+
+    // 10-raundu medium uzvara kvalificējas → progress 1, claimable (order 1).
+    await seedWin(id, "medium", 10);
+    state = (await (await req("GET", "/daily/tasks", token)).json()) as TasksState;
     expect(state.serverDay).toBe("20260710");
-    expect(state.tasks[0]).toMatchObject({ id: "win10_medium", progress: 10, claimable: true });
+    expect(state.tasks[0]).toMatchObject({ id: "win10_medium", progress: 1, claimable: true });
     expect(state.tasks[1]).toMatchObject({ id: "win20_hard", unlocked: false, claimable: false });
     expect(state.anyClaimable).toBe(true);
   });
 
   it("claims sequentially and awards coins; duplicate claim is a stable no-award success", async () => {
     const { token, id } = await registerUser("Bob");
-    await seedWins(id, "medium", 10);
+    await seedWin(id, "medium", 10);
 
     const first = await req("POST", "/daily/tasks/claim", token, { taskId: "win10_medium" });
     expect(first.status).toBe(200);
@@ -127,7 +130,7 @@ describe("Daily task HTTP routes (integration)", () => {
 
   it("rejects claiming a locked task (409) and an unmet task (409)", async () => {
     const { token, id } = await registerUser("Carol");
-    await seedWins(id, "hard", 20); // hard met, BET medium nav savākts → hard bloķēts
+    await seedWin(id, "hard", 20); // hard kvalificējas, BET medium nav savākts → hard bloķēts
     const locked = await req("POST", "/daily/tasks/claim", token, { taskId: "win20_hard" });
     expect(locked.status).toBe(409);
     expect(await locked.json()).toEqual({ error: "locked" });
@@ -140,8 +143,8 @@ describe("Daily task HTTP routes (integration)", () => {
 
   it("unlocks and claims the next task after the previous is claimed", async () => {
     const { token, id } = await registerUser("Dave");
-    await seedWins(id, "medium", 10);
-    await seedWins(id, "hard", 20);
+    await seedWin(id, "medium", 10);
+    await seedWin(id, "hard", 20);
     expect((await req("POST", "/daily/tasks/claim", token, { taskId: "win10_medium" })).status).toBe(200);
     const hard = await req("POST", "/daily/tasks/claim", token, { taskId: "win20_hard" });
     expect(hard.status).toBe(200);

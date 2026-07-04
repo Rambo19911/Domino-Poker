@@ -955,15 +955,17 @@ export class PostgresStorage
     difficulty: GameDifficulty,
     sinceMs: number,
     untilMs: number,
-    minDurationMs: number
+    minDurationMs: number,
+    minRounds: number
   ): Promise<number> {
     const result = await this.pool.query<{ wins: number }>(
       `SELECT COUNT(*)::int AS wins
          FROM player_game_results
         WHERE user_id = $1 AND mode = 'sp' AND difficulty = $2 AND placement <= 2
           AND completed_at >= $3 AND completed_at < $4
-          AND duration_ms IS NOT NULL AND duration_ms >= $5`,
-      [userId, difficulty, sinceMs, untilMs, minDurationMs]
+          AND duration_ms IS NOT NULL AND duration_ms >= $5
+          AND round_count >= $6`,
+      [userId, difficulty, sinceMs, untilMs, minDurationMs, minRounds]
     );
     return Number(result.rows[0]?.wins ?? 0);
   }

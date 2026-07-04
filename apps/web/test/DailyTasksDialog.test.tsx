@@ -14,10 +14,10 @@ const STATE: DailyTasksView = {
   secondsUntilReset: 3661, // 01:01:01
   anyClaimable: true,
   tasks: [
-    { id: "win10_medium", difficulty: "medium", threshold: 10, rewardCoins: 2000, order: 1, progress: 10, claimed: false, unlocked: true, claimable: true },
-    { id: "win20_hard", difficulty: "hard", threshold: 20, rewardCoins: 4000, order: 2, progress: 5, claimed: false, unlocked: false, claimable: false },
-    { id: "win30_epic", difficulty: "epic", threshold: 30, rewardCoins: 8000, order: 3, progress: 0, claimed: false, unlocked: false, claimable: false },
-    { id: "win50_epic", difficulty: "epic", threshold: 50, rewardCoins: 16000, order: 4, progress: 0, claimed: false, unlocked: false, claimable: false }
+    { id: "win10_medium", difficulty: "medium", requiredRounds: 10, rewardCoins: 2000, order: 1, progress: 1, claimed: false, unlocked: true, claimable: true },
+    { id: "win20_hard", difficulty: "hard", requiredRounds: 20, rewardCoins: 4000, order: 2, progress: 0, claimed: false, unlocked: false, claimable: false },
+    { id: "win30_epic", difficulty: "epic", requiredRounds: 30, rewardCoins: 8000, order: 3, progress: 0, claimed: false, unlocked: false, claimable: false },
+    { id: "win50_epic", difficulty: "epic", requiredRounds: 50, rewardCoins: 16000, order: 4, progress: 0, claimed: false, unlocked: false, claimable: false }
   ]
 };
 
@@ -38,8 +38,8 @@ describe("DailyTasksDialog", () => {
         onClose={vi.fn()}
       />
     );
-    expect(screen.getByText("Win 10 games on Medium")).toBeTruthy();
-    expect(screen.getByText("Win 50 games on Epic")).toBeTruthy();
+    expect(screen.getByText("Win a game with 10 rounds on Medium")).toBeTruthy();
+    expect(screen.getByText("Win a game with 50 rounds on Epic")).toBeTruthy();
     // Balvas summa (atdalītājs atkarīgs no vides — tolerants regex).
     expect(screen.getByText(/2[,.\s]?000/u)).toBeTruthy();
     expect(screen.getByText(/16[,.\s]?000/u)).toBeTruthy();

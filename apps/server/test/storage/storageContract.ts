@@ -324,33 +324,41 @@ export function runStoragePortContract(label: string, setup: ContractSetup): voi
         expect(await storage.getPlayerGameStats("user-1")).toEqual([]);
       });
 
-      it("countSpWinsSince: filters by difficulty, placement<=2, [since,until) window, and min duration", async () => {
+      it("countSpWinsSince: filters by difficulty, placement<=2, [since,until) window, min duration, and min rounds", async () => {
         const win = (
           id: string,
           difficulty: "medium" | "hard" | "epic",
           placement: number,
           completedAt: number,
-          durationMs: number | undefined
+          durationMs: number | undefined,
+          rounds = 4
         ) =>
           storage.recordGameResult({
             id, userId: "user-1", mode: "sp", difficulty,
-            placement, roundCount: 4, bidMet: 4, bidExceeded: 0, bidMissed: 0,
+            placement, roundCount: rounds, bidMet: rounds, bidExceeded: 0, bidMissed: 0,
             completedAt, ...(durationMs === undefined ? {} : { durationMs })
           });
 
-        // Logs = [1000, 2000). Min ilgums = 5000.
-        await win("sp:w1", "epic", 1, 1000, 9000); // skaitās
-        await win("sp:w2", "epic", 2, 1500, 5000); // skaitās (placement 2, ilgums == min)
-        await win("sp:w3", "epic", 3, 1200, 9000); // NE (placement 3)
-        await win("sp:w4", "hard", 1, 1200, 9000); // NE (cita grūtība)
-        await win("sp:w5", "epic", 1, 999, 9000);  // NE (pirms loga)
-        await win("sp:w6", "epic", 1, 2000, 9000); // NE (untilMs ekskluzīvs)
-        await win("sp:w7", "epic", 1, 1300, 4000); // NE (ilgums < min)
-        await win("sp:w8", "epic", 1, 1400, undefined); // NE (legacy/NULL ilgums)
+        // Logs = [1000, 2000). Min ilgums = 5000. Raundi variē round-gate pārbaudei.
+        await win("sp:w1", "epic", 1, 1000, 9000, 30); // skaitās (30 raundi)
+        await win("sp:w2", "epic", 2, 1500, 5000, 50); // skaitās (placement 2, ilgums == min, 50 raundi)
+        await win("sp:w3", "epic", 3, 1200, 9000, 50); // NE (placement 3)
+        await win("sp:w4", "hard", 1, 1200, 9000, 50); // cita grūtība (epic vaicājumam NE; hard vaicājumam der)
+        await win("sp:w5", "epic", 1, 999, 9000, 50);  // NE (pirms loga)
+        await win("sp:w6", "epic", 1, 2000, 9000, 50); // NE (untilMs ekskluzīvs)
+        await win("sp:w7", "epic", 1, 1300, 4000, 50); // NE (ilgums < min)
+        await win("sp:w8", "epic", 1, 1400, undefined, 50); // NE (legacy/NULL ilgums)
 
-        expect(await storage.countSpWinsSince("user-1", "epic", 1000, 2000, 5000)).toBe(2);
-        expect(await storage.countSpWinsSince("user-1", "hard", 1000, 2000, 5000)).toBe(1);
-        expect(await storage.countSpWinsSince("user-2", "epic", 1000, 2000, 5000)).toBe(0);
+        // minRounds=1: w1 (30) + w2 (50) kvalificējas.
+        expect(await storage.countSpWinsSince("user-1", "epic", 1000, 2000, 5000, 1)).toBe(2);
+        // minRounds=30: gan w1 (30), gan w2 (50) der (>=30).
+        expect(await storage.countSpWinsSince("user-1", "epic", 1000, 2000, 5000, 30)).toBe(2);
+        // minRounds=50: tikai w2 (50); w1 (30) izkrīt.
+        expect(await storage.countSpWinsSince("user-1", "epic", 1000, 2000, 5000, 50)).toBe(1);
+        // minRounds=51: neviena spēle nesasniedz.
+        expect(await storage.countSpWinsSince("user-1", "epic", 1000, 2000, 5000, 51)).toBe(0);
+        expect(await storage.countSpWinsSince("user-1", "hard", 1000, 2000, 5000, 1)).toBe(1);
+        expect(await storage.countSpWinsSince("user-2", "epic", 1000, 2000, 5000, 1)).toBe(0);
       });
 
       it("preserves the original duration_ms on idempotent duplicate insert", async () => {
@@ -370,7 +378,7 @@ export function runStoragePortContract(label: string, setup: ContractSetup): voi
           })
         ).toBe(false);
         // Ja oriģinālais 8000 tiktu pārrakstīts uz 1, šis skaits būtu 0.
-        expect(await storage.countSpWinsSince("user-1", "epic", 1000, 2000, 5000)).toBe(1);
+        expect(await storage.countSpWinsSince("user-1", "epic", 1000, 2000, 5000, 1)).toBe(1);
       });
     });
 

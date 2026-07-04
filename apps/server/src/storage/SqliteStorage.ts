@@ -822,7 +822,8 @@ export class SqliteStorage
     difficulty: GameDifficulty,
     sinceMs: number,
     untilMs: number,
-    minDurationMs: number
+    minDurationMs: number,
+    minRounds: number
   ): Promise<number> {
     const row = this.db
       .prepare(
@@ -830,9 +831,12 @@ export class SqliteStorage
            FROM player_game_results
           WHERE user_id = ? AND mode = 'sp' AND difficulty = ? AND placement <= 2
             AND completed_at >= ? AND completed_at < ?
-            AND duration_ms IS NOT NULL AND duration_ms >= ?`
+            AND duration_ms IS NOT NULL AND duration_ms >= ?
+            AND round_count >= ?`
       )
-      .get(userId, difficulty, sinceMs, untilMs, minDurationMs) as { wins: number | bigint };
+      .get(userId, difficulty, sinceMs, untilMs, minDurationMs, minRounds) as {
+      wins: number | bigint;
+    };
     return Number(row.wins);
   }
 

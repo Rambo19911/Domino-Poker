@@ -18,9 +18,9 @@ describe("DAILY_TASKS catalog invariants", () => {
     expect(orders).toEqual(DAILY_TASKS.map((_, i) => i + 1));
   });
 
-  it("thresholds and rewards are positive integers; difficulties are valid", () => {
+  it("requiredRounds and rewards are positive integers; difficulties are valid", () => {
     for (const task of DAILY_TASKS) {
-      expect(Number.isInteger(task.threshold) && task.threshold > 0).toBe(true);
+      expect(Number.isInteger(task.requiredRounds) && task.requiredRounds > 0).toBe(true);
       expect(Number.isInteger(task.rewardCoins) && task.rewardCoins > 0).toBe(true);
       expect(["medium", "hard", "epic"]).toContain(task.difficulty);
     }

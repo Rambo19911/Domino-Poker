@@ -11,7 +11,8 @@ import type { WalletService } from "../wallet/WalletService.js";
  * Modelis (bez skaitītāja tabulas):
  *   - PROGRESS atvasināts no `player_game_results` (`countSpWinsSince`): SP uzvaras
  *     (placement ≤ 2) dotajā grūtībā ŠODIENAS UTC logā ar `duration_ms >= min` (anti-abuse
- *     UN "skaita no palaišanas" — NULL/legacy rindas izslēgtas).
+ *     UN "skaita no palaišanas" — NULL/legacy rindas izslēgtas) UN `round_count >=
+ *     requiredRounds` (N-raundu vārti). Progress ir BINĀRS: ≥1 kvalificējoša uzvara → izpildīts.
  *   - SAVĀKŠANA = ledger rinda (`WalletService.creditDailyTaskReward`, reason
  *     `daily_task_reward`, ref `daily:{yyyymmdd}:{taskId}`), idempotenta pēc `UNIQUE(user_id,
  *     reason, ref)` → viena balva uz uzdevumu uz UTC dienu, exactly-once.
@@ -44,15 +45,16 @@ export const DAILY_TASK_MIN_GAME_MS: Readonly<Record<CoinDifficulty, number>> = 
 export interface DailyTaskState {
   readonly id: string;
   readonly difficulty: CoinDifficulty;
-  readonly threshold: number;
+  /** Minimālais raundu skaits (≥) uzvarētajā spēlē. */
+  readonly requiredRounds: number;
   readonly rewardCoins: number;
   readonly order: number;
-  /** Šodienas uzvaras (ierobežots ar `threshold`). */
+  /** Binārs: 1, ja šodien uzvarēta kvalificējoša spēle, citādi 0. */
   readonly progress: number;
   readonly claimed: boolean;
   /** `order===1` VAI iepriekšējais uzdevums šodien savākts. */
   readonly unlocked: boolean;
-  /** `unlocked && progress>=threshold && !claimed`. */
+  /** `unlocked && progress>=1 && !claimed`. */
   readonly claimable: boolean;
 }
 
@@ -146,24 +148,30 @@ export class DailyTaskService {
     return run;
   }
 
-  /** Šodienas uzvaru skaits grūtībā (kešots pa grūtību — epic uzdevumi 3+4 dalās). */
+  /**
+   * Šodienas kvalificējošo uzvaru skaits (placement ≤ 2, grūtība, min-ilgums, raundi ≥
+   * minRounds). Kešots pa `difficulty:minRounds` — epic uzdevumiem 3 (≥30) un 4 (≥50) ir
+   * ATŠĶIRĪGI raundu vārti, tāpēc grūtība viena NAV pietiekama keša atslēga.
+   */
   private makeWinCounter(
     userId: string,
     windowStart: number,
     windowEnd: number
-  ): (difficulty: CoinDifficulty) => Promise<number> {
-    const cache = new Map<CoinDifficulty, Promise<number>>();
-    return (difficulty) => {
-      let pending = cache.get(difficulty);
+  ): (difficulty: CoinDifficulty, minRounds: number) => Promise<number> {
+    const cache = new Map<string, Promise<number>>();
+    return (difficulty, minRounds) => {
+      const key = `${difficulty}:${minRounds}`;
+      let pending = cache.get(key);
       if (!pending) {
         pending = this.stats.countSpWinsSince(
           userId,
           difficulty,
           windowStart,
           windowEnd,
-          this.minGameMs[difficulty]
+          this.minGameMs[difficulty],
+          minRounds
         );
-        cache.set(difficulty, pending);
+        cache.set(key, pending);
       }
       return pending;
     };
@@ -182,19 +190,19 @@ export class DailyTaskService {
     let prevClaimed = true; // order 1 vienmēr atbloķēts
     for (const task of DAILY_TASKS) {
       const isClaimed = claimed.has(claimRef(day, task.id));
-      const wins = await countWins(task.difficulty);
+      const wins = await countWins(task.difficulty, task.requiredRounds);
       const unlocked = task.order === 1 ? true : prevClaimed;
-      const progress = Math.min(task.threshold, wins);
+      const progress = wins >= 1 ? 1 : 0; // binārs: kvalificējoša uzvara ir vai nav
       tasks.push({
         id: task.id,
         difficulty: task.difficulty,
-        threshold: task.threshold,
+        requiredRounds: task.requiredRounds,
         rewardCoins: task.rewardCoins,
         order: task.order,
         progress,
         claimed: isClaimed,
         unlocked,
-        claimable: unlocked && wins >= task.threshold && !isClaimed
+        claimable: unlocked && wins >= 1 && !isClaimed
       });
       prevClaimed = isClaimed;
     }
@@ -244,15 +252,16 @@ export class DailyTaskService {
         }
       }
 
-      // Slieksnis no atvasinātā skaita.
+      // Vārti: vismaz viena kvalificējoša uzvara (raundi ≥ requiredRounds).
       const wins = await this.stats.countSpWinsSince(
         userId,
         task.difficulty,
         windowStart,
         windowEnd,
-        this.minGameMs[task.difficulty]
+        this.minGameMs[task.difficulty],
+        task.requiredRounds
       );
-      if (wins < task.threshold) {
+      if (wins < 1) {
         return { ok: false, reason: "not_met" };
       }
 

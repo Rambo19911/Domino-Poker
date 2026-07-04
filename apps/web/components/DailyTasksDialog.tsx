@@ -145,9 +145,10 @@ export function DailyTasksDialog({
       <div className="dailyList">
         {(state?.tasks ?? []).map((task) => {
           const goal = t.dailyGoal
-            .replace("{count}", String(task.threshold))
+            .replace("{count}", String(task.requiredRounds))
             .replace("{difficulty}", t[DIFFICULTY_LABEL[task.difficulty]]);
-          const pct = Math.min(100, Math.round((task.progress / task.threshold) * 100));
+          // Progress ir binārs (0/1): josla ir pilna, kad kvalificējoša spēle uzvarēta.
+          const pct = task.progress >= 1 ? 100 : 0;
           const status = task.claimed
             ? "claimed"
             : task.claimable
@@ -165,12 +166,12 @@ export function DailyTasksDialog({
               />
               <div className="dailyCardBody">
                 <h3 className="dailyCardTitle">{goal}</h3>
-                <div className="dailyProgress" aria-label={`${task.progress}/${task.threshold}`}>
+                <div className="dailyProgress" aria-label={`${task.progress}/1`}>
                   <div className="dailyProgressTrack">
                     <span className="dailyProgressFill" style={{ width: `${pct}%` }} />
                   </div>
                   <span className="dailyProgressText">
-                    {task.progress}/{task.threshold}
+                    {task.progress}/1
                   </span>
                 </div>
                 <div className="dailyReward">
@@ -194,7 +195,7 @@ export function DailyTasksDialog({
                   <span className="dailyBadge dailyBadgeLocked">{t.dailyLocked}</span>
                 ) : (
                   <span className="dailyBadge">
-                    {task.progress}/{task.threshold}
+                    {task.progress}/1
                   </span>
                 )}
               </div>

@@ -12,10 +12,11 @@ export type DailyDifficulty = "medium" | "hard" | "epic";
 export interface DailyTaskView {
   readonly id: string;
   readonly difficulty: DailyDifficulty;
-  readonly threshold: number;
+  /** Minimālais raundu skaits (≥) uzvarētajā spēlē. */
+  readonly requiredRounds: number;
   readonly rewardCoins: number;
   readonly order: number;
-  /** Šodienas uzvaras (ierobežots ar `threshold`). */
+  /** Binārs: 1, ja šodien uzvarēta kvalificējoša spēle, citādi 0. */
   readonly progress: number;
   readonly claimed: boolean;
   readonly unlocked: boolean;

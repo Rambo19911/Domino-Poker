@@ -87,15 +87,18 @@ export interface PlayerStatsStore {
   /**
    * Dienas uzdevumu progress: skaita SP UZVARAS (placement ≤ 2) dotajā grūtībā laika
    * logā `[sinceMs, untilMs)` ar `duration_ms >= minDurationMs` (anti-abuse; NULL/legacy
-   * rindas izslēgtas — tas GAN gate momentānus skriptus, GAN dod "skaita no palaišanas").
-   * Atvasināts (nav skaitītāja tabulas). Identisks SQLite + PostgreSQL (kontrakta tests).
+   * rindas izslēgtas — tas GAN gate momentānus skriptus, GAN dod "skaita no palaišanas")
+   * UN ar `round_count >= minRounds` (N-raundu uzdevuma vārti; raundu skaits ir servera-
+   * autoritatīvs no /sp/start tokena). Atvasināts (nav skaitītāja tabulas). Identisks
+   * SQLite + PostgreSQL (kontrakta tests).
    */
   countSpWinsSince(
     userId: string,
     difficulty: GameDifficulty,
     sinceMs: number,
     untilMs: number,
-    minDurationMs: number
+    minDurationMs: number,
+    minRounds: number
   ): Promise<number>;
 }
 

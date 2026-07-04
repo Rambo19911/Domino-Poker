@@ -169,10 +169,12 @@ describe("SP reward HTTP routes (integration)", () => {
       const res = await complete(token, gameToken, { placement: 2, bidMet: 2, bidExceeded: 1, bidMissed: 1 });
       expect(res.status).toBe(200);
       const until = nowMs + 1;
-      // Uzvara (placement 2), ilgums 8000 ≥ min 5000 → skaitās.
-      expect(await storage.countSpWinsSince(id, "epic", start, until, 5000)).toBe(1);
+      // Uzvara (placement 2), ilgums 8000 ≥ min 5000, raundi 4 ≥ 1 → skaitās.
+      expect(await storage.countSpWinsSince(id, "epic", start, until, 5000, 1)).toBe(1);
       // Ilgums zem min-vārtiem (9000) → neskaitās (anti-abuse).
-      expect(await storage.countSpWinsSince(id, "epic", start, until, 9000)).toBe(0);
+      expect(await storage.countSpWinsSince(id, "epic", start, until, 9000, 1)).toBe(0);
+      // Raundu vārti: spēlei 4 raundi, prasība ≥5 → neskaitās.
+      expect(await storage.countSpWinsSince(id, "epic", start, until, 5000, 5)).toBe(0);
     });
 
     it("records a losing game (placement 3) with no coins", async () => {

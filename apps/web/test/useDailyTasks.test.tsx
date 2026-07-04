@@ -16,13 +16,14 @@ vi.mock("../lib/daily/dailyApi", async (importActual) => {
   return { ...actual, apiDailyTasks: vi.fn(), apiClaimDailyTask: vi.fn() };
 });
 
+/** Progress ir binārs: 0 = nav kvalificējošas uzvaras, 1 = ir (uzdevums izpildāms). */
 function view(progress: number): DailyTasksView {
   return {
     serverDay: "20260703",
     secondsUntilReset: 1000,
-    anyClaimable: progress >= 10,
+    anyClaimable: progress >= 1,
     tasks: [
-      { id: "win10_medium", difficulty: "medium", threshold: 10, rewardCoins: 2000, order: 1, progress, claimed: false, unlocked: true, claimable: progress >= 10 }
+      { id: "win10_medium", difficulty: "medium", requiredRounds: 10, rewardCoins: 2000, order: 1, progress, claimed: false, unlocked: true, claimable: progress >= 1 }
     ]
   };
 }
@@ -49,7 +50,7 @@ describe("useDailyTasks (game -> game end -> back to lobby -> available)", () =>
   });
 
   it("fetches on mount when authed and exposes anyClaimable", async () => {
-    vi.mocked(apiDailyTasks).mockResolvedValue(ok(view(5)));
+    vi.mocked(apiDailyTasks).mockResolvedValue(ok(view(0)));
     const { result } = renderHook(() => useDailyTasks(getToken, true, 0));
     await waitFor(() => expect(result.current.state).not.toBeNull());
     expect(apiDailyTasks).toHaveBeenCalledTimes(1);
@@ -57,28 +58,28 @@ describe("useDailyTasks (game -> game end -> back to lobby -> available)", () =>
   });
 
   it("refetches when refreshSignal changes (post-/sp/complete after returning to lobby)", async () => {
-    // Pirmais fetch: 5/10 (spēle vēl nav ierakstīta). Otrais: 10/10 (pēc /sp/complete).
+    // Pirmais fetch: progress 0 (kvalificējoša spēle vēl nav ierakstīta). Otrais: 1 (pēc /sp/complete).
     vi.mocked(apiDailyTasks)
-      .mockResolvedValueOnce(ok(view(5)))
-      .mockResolvedValueOnce(ok(view(10)));
+      .mockResolvedValueOnce(ok(view(0)))
+      .mockResolvedValueOnce(ok(view(1)));
 
     const { result, rerender } = renderHook(
       ({ signal }: { signal: number }) => useDailyTasks(getToken, true, signal),
       { initialProps: { signal: 0 } }
     );
-    await waitFor(() => expect(result.current.state?.tasks[0]?.progress).toBe(5));
+    await waitFor(() => expect(result.current.state?.tasks[0]?.progress).toBe(0));
     expect(result.current.anyClaimable).toBe(false);
 
     // AppShell palielina signālu pēc /sp/complete → lobija progress atsvaidzinās.
     rerender({ signal: 1 });
-    await waitFor(() => expect(result.current.state?.tasks[0]?.progress).toBe(10));
+    await waitFor(() => expect(result.current.state?.tasks[0]?.progress).toBe(1));
     expect(result.current.anyClaimable).toBe(true);
     expect(apiDailyTasks).toHaveBeenCalledTimes(2);
   });
 
   it("claim updates state from the returned server state and reports the new balance", async () => {
-    vi.mocked(apiDailyTasks).mockResolvedValue(ok(view(10)));
-    const claimedState = { ...view(10), anyClaimable: false, tasks: [{ ...view(10).tasks[0]!, claimed: true, claimable: false }] };
+    vi.mocked(apiDailyTasks).mockResolvedValue(ok(view(1)));
+    const claimedState = { ...view(1), anyClaimable: false, tasks: [{ ...view(1).tasks[0]!, claimed: true, claimable: false }] };
     vi.mocked(apiClaimDailyTask).mockResolvedValue({
       ok: true,
       data: { awarded: 2000, balance: 7000, alreadyClaimed: false, state: claimedState }
@@ -98,14 +99,14 @@ describe("useDailyTasks (game -> game end -> back to lobby -> available)", () =>
   });
 
   it("sequence guard: a slow stale refresh does not overwrite a newer response", async () => {
-    // Pirmais (signal 0) fetch ir LĒNS un atgriež 5; otrais (signal 1) ir ĀTRS un atgriež 10.
-    // Ja lēnais pabeidzas pēdējais, secības sargs to atmet → paliek 10 (ne 5).
+    // Pirmais (signal 0) fetch ir LĒNS un atgriež 0; otrais (signal 1) ir ĀTRS un atgriež 1.
+    // Ja lēnais pabeidzas pēdējais, secības sargs to atmet → paliek 1 (ne 0).
     let resolveSlow: ((v: AuthResult<DailyTasksView>) => void) | null = null;
     vi.mocked(apiDailyTasks)
       .mockImplementationOnce(
         () => new Promise<AuthResult<DailyTasksView>>((res) => { resolveSlow = res; })
       )
-      .mockResolvedValueOnce(ok(view(10)));
+      .mockResolvedValueOnce(ok(view(1)));
 
     const { result, rerender } = renderHook(
       ({ signal }: { signal: number }) => useDailyTasks(getToken, true, signal),
@@ -113,17 +114,17 @@ describe("useDailyTasks (game -> game end -> back to lobby -> available)", () =>
     );
     // Palaiž otro (ātro) fetch, kas atrisinās uzreiz.
     rerender({ signal: 1 });
-    await waitFor(() => expect(result.current.state?.tasks[0]?.progress).toBe(10));
+    await waitFor(() => expect(result.current.state?.tasks[0]?.progress).toBe(1));
     // TAGAD atrisina pirmo (lēno, novecojušo) — tam NEDRĪKST pārrakstīt jaunāko.
     await act(async () => {
-      resolveSlow?.(ok(view(5)));
+      resolveSlow?.(ok(view(0)));
       await Promise.resolve();
     });
-    expect(result.current.state?.tasks[0]?.progress).toBe(10);
+    expect(result.current.state?.tasks[0]?.progress).toBe(1);
   });
 
   it("clears state when the user logs out (enabled -> false)", async () => {
-    vi.mocked(apiDailyTasks).mockResolvedValue(ok(view(10)));
+    vi.mocked(apiDailyTasks).mockResolvedValue(ok(view(1)));
     const { result, rerender } = renderHook(
       ({ enabled }: { enabled: boolean }) => useDailyTasks(getToken, enabled, 0),
       { initialProps: { enabled: true } }

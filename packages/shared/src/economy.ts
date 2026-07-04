@@ -41,18 +41,20 @@ export const SP_REWARDS: Readonly<Record<CoinDifficulty, number>> = {
 };
 
 /**
- * Dienas uzdevums (Daily Tasks) — VIENĪGAIS autoritatīvais slieksņu + balvu avots.
+ * Dienas uzdevums (Daily Tasks) — VIENĪGAIS autoritatīvais raundu-slieksņu + balvu avots.
  * Importē GAN serveris (piespiež slieksni + summu; klients tos NEKAD nesūta), GAN web
- * (rāda). "Uzvara" = SP gala vieta 1./2. dotajā grūtībā. Ikdienas atiestatīšana pēc
- * UTC 00:00; savākšana secīga (`order` 1→4 tajā pašā UTC dienā), progress paralēls.
- * Uzdevumi 3 un 4 abi lasa TO PAŠU dienas epic uzvaru skaitu (30/30 un 50/50).
+ * (rāda). Izpilde = uzvarēt (SP gala vieta 1./2.) VIENU spēli dotajā grūtībā ar raundu
+ * skaitu `>= requiredRounds`. Raundu skaits nāk no `/sp/start` tokena (servera-
+ * autoritatīvs), tāpēc to nevar viltot. Ikdienas atiestatīšana pēc UTC 00:00; savākšana
+ * secīga (`order` 1→4 tajā pašā UTC dienā), progress paralēls un binārs (izpildīts / nav).
+ * Piez.: `>=` semantika → viena 50-raundu epic uzvara izpilda GAN order 3 (≥30), GAN 4 (≥50).
  */
 export interface DailyTask {
   /** Stabils slug — ledger `ref` daļa (`daily:{yyyymmdd}:{id}`); nemainīt pēc palaišanas. */
   readonly id: string;
   readonly difficulty: CoinDifficulty;
-  /** Uzvaru (placement ≤ 2) skaits šodien, kas atbloķē balvu. */
-  readonly threshold: number;
+  /** Minimālais raundu skaits (≥) uzvarētajā spēlē, kas atbloķē balvu. */
+  readonly requiredRounds: number;
   readonly rewardCoins: number;
   /** Secīgās savākšanas kārtība (1..4); balvu N var savākt tikai, ja N-1 šodien savākts. */
   readonly order: number;
@@ -60,10 +62,10 @@ export interface DailyTask {
 
 /** 4 dienas uzdevumu katalogs (kārtībā pēc `order`). */
 export const DAILY_TASKS = [
-  { id: "win10_medium", difficulty: "medium", threshold: 10, rewardCoins: 2000, order: 1 },
-  { id: "win20_hard", difficulty: "hard", threshold: 20, rewardCoins: 4000, order: 2 },
-  { id: "win30_epic", difficulty: "epic", threshold: 30, rewardCoins: 8000, order: 3 },
-  { id: "win50_epic", difficulty: "epic", threshold: 50, rewardCoins: 16000, order: 4 }
+  { id: "win10_medium", difficulty: "medium", requiredRounds: 10, rewardCoins: 2000, order: 1 },
+  { id: "win20_hard", difficulty: "hard", requiredRounds: 20, rewardCoins: 4000, order: 2 },
+  { id: "win30_epic", difficulty: "epic", requiredRounds: 30, rewardCoins: 8000, order: 3 },
+  { id: "win50_epic", difficulty: "epic", requiredRounds: 50, rewardCoins: 16000, order: 4 }
 ] as const satisfies readonly DailyTask[];
 
 /** Derīgie uzdevumu id (route zod-validācijai; serveris nepieņem citus). */
