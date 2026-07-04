@@ -28,8 +28,13 @@
     right: 12px;
   }
 
-  .settingsDialog {
+  .settingsDialog,
+  .alertDialog,
+  .rulesDialog {
     position: relative;
+  }
+
+  .settingsDialog {
     padding-top: 18px;
   }
 
