@@ -1,2838 +1,734 @@
 [
-  {
-    "path": "package.json",
-    "type": "config",
-    "purpose": "Root npm workspace manifest (incl. apps/admin), shared scripts, dev dependencies, and Node engine requirement.",
-    "importance": "critical",
-    "related_files": [
-      "package-lock.json",
-      ".npmrc",
-      ".nvmrc",
-      ".node-version"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "package-lock.json",
-    "type": "config",
-    "purpose": "Locked npm dependency graph for all workspaces.",
-    "importance": "high",
-    "related_files": [
-      "package.json"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": ".github/workflows/ci.yml",
-    "type": "config",
-    "purpose": "CI pipeline: install, build core/shared/server, typecheck, lint, unit tests, PostgreSQL integration tests, web build, admin build, Playwright e2e, and a dedicated opt-in theme-performance tripwire step (THEME_PERF=1).",
-    "importance": "critical",
-    "related_files": [
-      "package.json",
-      "playwright.config.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "tsconfig.base.json",
-    "type": "config",
-    "purpose": "Strict shared TypeScript compiler options used by workspace configs.",
-    "importance": "high",
-    "related_files": [
-      "tsconfig.json"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "tsconfig.json",
-    "type": "config",
-    "purpose": "Root TypeScript project references for workspace typechecking/build coordination.",
-    "importance": "medium",
-    "related_files": [
-      "tsconfig.base.json"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "eslint.config.mjs",
-    "type": "config",
-    "purpose": "ESLint 9 flat config with TypeScript recommended rules and React Hooks checks for the web app.",
-    "importance": "high",
-    "related_files": [
-      "package.json"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "playwright.config.ts",
-    "type": "config",
-    "purpose": "Serial Chromium Playwright e2e configuration; starts built `apps/server/dist/index.js` on 4000 and `apps/web` dev server on 3000, with screenshots/traces on failure/retry.",
-    "importance": "high",
-    "related_files": [
-      "tests/e2e/main-flow.spec.ts",
-      "tests/e2e/multiplayer-smoke.spec.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": ".env.example",
-    "type": "config",
-    "purpose": "Environment template for server host/port, DATABASE_URL, PG pools, turn/pacing settings, NODE_ENV, TRUST_PROXY, email (Resend key/from, APP_BASE_URL, CONTACT_EMAIL), optional Google Cloud chat translation, and MP action logging.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/config.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": ".gitignore",
-    "type": "config",
-    "purpose": "Ignore rules for dependencies, build outputs, env files, runtime SQLite data, logs, local tools, and local docs.",
-    "importance": "high",
-    "related_files": [
-      "data/.gitkeep",
-      "docs/Domino pokera Noteikumi.md"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": ".npmrc",
-    "type": "config",
-    "purpose": "npm configuration including engine-strict enforcement.",
-    "importance": "medium",
-    "related_files": [
-      "package.json",
-      ".nvmrc",
-      ".node-version"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": ".nvmrc",
-    "type": "config",
-    "purpose": "Pinned Node major version for local/CI runtime selection.",
-    "importance": "medium",
-    "related_files": [
-      ".node-version",
-      "package.json"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": ".node-version",
-    "type": "config",
-    "purpose": "Pinned Node major version for tooling that reads .node-version.",
-    "importance": "medium",
-    "related_files": [
-      ".nvmrc",
-      "package.json"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "VERSION",
-    "type": "config",
-    "purpose": "Single app version source read by the web Next config.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/next.config.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "README.md",
-    "type": "docs",
-    "purpose": "Public project overview, architecture summary, screenshots, setup commands, and contribution notes.",
-    "importance": "high",
-    "related_files": [
-      "Screenshots/Lobby-screen.png"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/package.json",
-    "type": "config",
-    "purpose": "Next.js/React workspace manifest and web scripts.",
-    "importance": "high",
-    "related_files": [
-      "apps/web/next.config.ts",
-      "apps/web/vitest.config.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/next.config.ts",
-    "type": "config",
-    "purpose": "Next config that reads root VERSION into NEXT_PUBLIC_APP_VERSION, transpiles workspace core, and sets Turbopack root.",
-    "importance": "high",
-    "related_files": [
-      "VERSION",
-      "apps/web/package.json"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/app/page.tsx",
-    "type": "entrypoint",
-    "purpose": "Single app route that renders AppShell.",
-    "importance": "critical",
-    "related_files": [
-      "apps/web/components/AppShell.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/app/layout.tsx",
-    "type": "entrypoint",
-    "purpose": "Root layout, metadata, viewport, global CSS import, and PWA registration.",
-    "importance": "high",
-    "related_files": [
-      "apps/web/app/globals.css",
-      "apps/web/components/PwaRegister.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/app/globals.css",
-    "type": "ui",
-    "purpose": "Import-only CSS entrypoint; cascade order for feature CSS partials.",
-    "importance": "high",
-    "related_files": [
-      "apps/web/styles/tokens.css",
-      "apps/web/styles/mp-game.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/app/manifest.ts",
-    "type": "entrypoint",
-    "purpose": "Next-generated web app manifest for installable PWA metadata and icons.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/public/icons/icon-192.png",
-      "apps/web/public/icons/icon-512.png"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/public/sw.js",
-    "type": "service",
-    "purpose": "Service worker for installable PWA caching/offline behavior; cache version is tied to VERSION/deploy.sh and can mask asset changes if stale.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/PwaRegister.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/AppShell.tsx",
-    "type": "ui",
-    "purpose": "Client shell for screen routing, locale, audio, selected round count, auth/profile state, stats/balance refresh, the SP coin-reward flow (request token on game start, redeem on game end), session restore, and password-reset hash flow.",
-    "importance": "critical",
-    "related_files": [
-      "apps/web/components/LobbyScreen.tsx",
-      "apps/web/components/DominoPokerGame.tsx",
-      "apps/web/components/MultiplayerLobby.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/LobbyScreen.tsx",
-    "type": "ui",
-    "purpose": "Main lobby screen with mode controls, settings/rules/leaderboard/auth/profile surfaces, and round-count selection. Settings dialog: difficulty selector with a single-player-only scope note (difficultyScopeNote); About tab renders app meta + the ContactForm.",
-    "importance": "high",
-    "related_files": [
-      "apps/web/components/LobbyWheel.tsx",
-      "apps/web/components/auth/AuthDialog.tsx",
-      "apps/web/components/LeaderboardDialog.tsx",
-      "apps/web/components/ContactForm.tsx",
-      "apps/web/components/StoreDialog.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/StoreDialog.tsx",
-    "type": "ui",
-    "purpose": "Lobby store dialog shell: controlled modal using shared Dialog/IconButton primitives, localized title/empty-state text, close audio behavior, and exported StoreIcon based on the store SVG mask. No store business logic lives here yet.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/LobbyScreen.tsx",
-      "apps/web/components/Dialog.tsx",
-      "apps/web/components/ui/IconButton.tsx",
-      "apps/web/styles/store.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/ContactForm.tsx",
-    "type": "ui",
-    "purpose": "Localized contact form in the Settings -> About panel: email + message + submit, client-side validation mirroring the server (email regex + 10..2000 chars), POST /contact via contactApi, and localized idle/sending/sent/error status (incl. 429 rate-limit). No auth required. Narrows the current 21-locale UI language to LV/EN email locale via `emailLocale()`.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/lib/contact/contactApi.ts",
-      "apps/web/components/LobbyScreen.tsx",
-      "apps/web/styles/settings.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/contact/contactApi.ts",
-    "type": "service",
-    "purpose": "Client HTTP wrapper for the contact form: apiContact (POST /contact) with email/message/locale. No token. Reuses requestJson/jsonInit from authApi (same server HTTP base).",
-    "importance": "low",
-    "related_files": [
-      "apps/web/components/ContactForm.tsx",
-      "apps/web/lib/auth/authApi.ts",
-      "apps/server/src/http/contactRoutes.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/LeaderboardDialog.tsx",
-    "type": "ui",
-    "purpose": "Global leaderboard dialog: fetches GET /auth/leaderboard, renders a fixed-column grid table (rank/avatar/nickname/badge/W/L/G/win%/lang) with loading/error/empty/ready states and a discriminated self panel; exports the lobby TrophyIcon.",
-    "importance": "high",
-    "related_files": [
-      "apps/web/lib/auth/authApi.ts",
-      "apps/web/lib/leaderboard/badgeAsset.ts",
-      "apps/web/styles/leaderboard.css",
-      "packages/shared/src/leaderboard.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/leaderboard/badgeAsset.ts",
-    "type": "utility",
-    "purpose": "Maps a RankBadgeId to its public badge asset path (/assets/Badges/<id>.png; rank icon pack, 128x128); web-side asset resolution paired with shared rankToBadge.",
-    "importance": "low",
-    "related_files": [
-      "apps/web/components/LeaderboardDialog.tsx",
-      "packages/shared/src/leaderboard.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/AvatarRankBadge.tsx",
-    "type": "ui",
-    "purpose": "Reusable decorative rank-badge overlay (RankBadgeId -> /assets/Badges/<id>.png) absolutely positioned over an avatar's top-right corner; renders null when no badge. Shared by the lobby profile, MP waiting-room seat, and both MP game tables.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/styles/avatar-badge.css",
-      "apps/web/lib/leaderboard/badgeAsset.ts",
-      "apps/web/components/auth/LobbyProfile.tsx",
-      "apps/web/components/mp/MpDesktopTable.tsx",
-      "apps/web/components/mp/MpMobileTable.tsx",
-      "apps/web/components/mp/MpDesktopLobby.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/styles/avatar-badge.css",
-    "type": "ui",
-    "purpose": "Token-only styles for the AvatarRankBadge overlay (.avatarRankBadge) and the non-clipping .avatarBadgeWrap wrapper; the badge overflows the avatar circle's top-right corner and sits above the clipped circle.",
-    "importance": "low",
-    "related_files": [
-      "apps/web/components/AvatarRankBadge.tsx",
-      "apps/web/app/globals.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/styles/leaderboard.css",
-    "type": "ui",
-    "purpose": "Token-only styles for the leaderboard dialog: shared fixed-column grid template (head/rows/self), nickname ellipsis, vertical scroll with sticky header, and mobile column tightening.",
-    "importance": "low",
-    "related_files": [
-      "apps/web/components/LeaderboardDialog.tsx",
-      "apps/web/app/globals.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/LobbyWheel.tsx",
-    "type": "ui",
-    "purpose": "Desktop circular lobby controls and compact lobby panel for constrained viewports.",
-    "importance": "high",
-    "related_files": [
-      "apps/web/components/LobbyScreen.tsx",
-      "apps/web/styles/lobby.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/DominoPokerGame.tsx",
-    "type": "ui",
-    "purpose": "Single-player game workflow around core state: bidding, AI timers, tile play, trick completion, round end, exit flow, and a once-per-game onGameEnd callback (human placement) that drives the SP coin reward.",
-    "importance": "critical",
-    "related_files": [
-      "packages/core/src/gameState.ts",
-      "apps/web/components/GameDialogs.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/GameDialogs.tsx",
-    "type": "ui",
-    "purpose": "Single-player bid, number selection, round summary, game end, and exit dialogs. GameEndDialog also shows a '+N' gold-coin reward banner (coinGainPulse) when an SP award was granted.",
-    "importance": "high",
-    "related_files": [
-      "apps/web/components/DominoPokerGame.tsx",
-      "apps/web/components/Dialog.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/Dialog.tsx",
-    "type": "ui",
-    "purpose": "Shared modal implementation with dialog semantics and focus behavior. Reads PresenceContext to apply a data-state (open|closing) on the backdrop for centralized enter/exit animations and sets `inert` on the panel during the closing phase (keyboard-safe).",
-    "importance": "high",
-    "related_files": [
-      "apps/web/components/useDialogFocus.ts",
-      "apps/web/components/usePresence.ts",
-      "apps/web/styles/dialogs.css",
-      "tests/e2e/dialog-a11y.spec.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/useDialogFocus.ts",
-    "type": "utility",
-    "purpose": "Focus trap, Escape handling, and focus restoration hook for modal dialogs.",
-    "importance": "high",
-    "related_files": [
-      "apps/web/components/Dialog.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/usePresence.ts",
-    "type": "utility",
-    "purpose": "Radix-Presence style mount/unmount transition (no library): usePresence(open, exitMs) keeps a component mounted through its CSS exit animation, then unmounts; Presence wrapper caches the last-open child element so data-coupled dialogs ({data && <X data/>}) never render with null data during close; PresenceContext provides status (open|closing) to Dialog. Reduced-motion skips the exit delay. Used at every dialog call site for smooth appear/disappear.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/Dialog.tsx",
-      "apps/web/styles/dialogs.css",
-      "apps/web/styles/animations.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/MultiplayerLobby.tsx",
-    "type": "ui",
-    "purpose": "Multiplayer UI orchestrator for lobby, room, chat, dialogs, mobile/desktop lobby views, and game table transition.",
-    "importance": "critical",
-    "related_files": [
-      "apps/web/lib/mp/useMultiplayer.ts",
-      "apps/web/components/mp/MpGameTable.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/mp/MpGameTable.tsx",
-    "type": "ui",
-    "purpose": "Multiplayer table shell that renders authoritative snapshots and sends bid/move intents.",
-    "importance": "critical",
-    "related_files": [
-      "apps/web/lib/mp/gameTableView.ts",
-      "apps/web/components/mp/MpDesktopTable.tsx",
-      "apps/web/components/mp/MpMobileTable.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/mp/MpDesktopLobby.tsx",
-    "type": "ui",
-    "purpose": "Desktop multiplayer lobby/room/chat surface, including MP lobby chat emoji input and per-message translation affordance.",
-    "importance": "high",
-    "related_files": [
-      "apps/web/components/MultiplayerLobby.tsx",
-      "apps/web/styles/mp-lobby.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/mp/MpMobileLobby.tsx",
-    "type": "ui",
-    "purpose": "Phone-portrait multiplayer lobby surface with responsive room list/chat behavior, including MP lobby chat emoji input and per-message translation affordance.",
-    "importance": "high",
-    "related_files": [
-      "apps/web/components/MultiplayerLobby.tsx",
-      "apps/web/components/mp/MpEmojiPicker.tsx",
-      "apps/web/components/mp/MpChatTranslation.tsx",
-      "apps/web/styles/mp-mobile-lobby.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/mp/MpEmojiPicker.tsx",
-    "type": "ui",
-    "purpose": "Emoji picker button for the MP lobby chat input (desktop + mobile). Inserts an emoji at the caret without exceeding CHAT_MAX_LENGTH; no protocol/server changes (sends via existing sendChat flow).",
-    "importance": "low",
-    "related_files": [
-      "apps/web/components/mp/MpDesktopLobby.tsx",
-      "apps/web/components/mp/MpMobileLobby.tsx",
-      "apps/web/styles/mp-lobby.css",
-      "apps/web/test/mp/MpEmojiPicker.test.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/mp/MpChatTranslation.tsx",
-    "type": "ui",
-    "purpose": "Reusable MP lobby chat translation button and translated/error text rendering. Calls the server-side `/chat/translate` API with the current UI locale code as target language.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/lib/mp/chatTranslation.ts",
-      "apps/web/components/mp/MpDesktopLobby.tsx",
-      "apps/web/components/mp/MpMobileLobby.tsx",
-      "apps/web/styles/mp-lobby.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/mp/chatTranslation.ts",
-    "type": "service",
-    "purpose": "Client HTTP wrapper for MP lobby chat translation requests to `/chat/translate`.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/mp/MpChatTranslation.tsx",
-      "apps/web/lib/mp/serverHttpBase.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/mp/serverHttpBase.ts",
-    "type": "utility",
-    "purpose": "Derives the HTTP server base URL from the configured MP WebSocket URL; shared by auth and chat translation clients.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/lib/mp/serverUrl.ts",
-      "apps/web/lib/auth/authApi.ts",
-      "apps/web/lib/mp/chatTranslation.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/mp/MultiplayerClient.ts",
-    "type": "service",
-    "purpose": "Browser-side WebSocket client, reconnect/session handling, protocol messages, and client-view event reduction wiring.",
-    "importance": "critical",
-    "related_files": [
-      "apps/web/lib/mp/clientView.ts",
-      "packages/shared/src/clientMessages.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/mp/useMultiplayer.ts",
-    "type": "service",
-    "purpose": "React hook that owns the multiplayer client lifecycle and exposes view/actions to UI components.",
-    "importance": "critical",
-    "related_files": [
-      "apps/web/components/MultiplayerLobby.tsx",
-      "apps/web/lib/mp/MultiplayerClient.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/mp/clientView.ts",
-    "type": "model",
-    "purpose": "Client-side reducer/view model for server events, lobby state, room state, game snapshot, and errors. Phase 4: holds `wallet.balance` from WELCOME `goldBalance` + live `WALLET_UPDATED`; every WELCOME reflects current auth state so an anonymous reconnect clears a stale balance.",
-    "importance": "high",
-    "related_files": [
-      "packages/shared/src/serverEvents.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/mp/gameTableView.ts",
-    "type": "utility",
-    "purpose": "Transforms server game snapshots into renderable table view and UI-only playable-tile hints. Phase 4: carries `pot` (from RoomView.pot) for the table pot display.",
-    "importance": "high",
-    "related_files": [
-      "apps/web/components/mp/MpGameTable.tsx",
-      "packages/core/src/multiplayer/snapshots.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/mp/RoomFeeChip.tsx",
-    "type": "component",
-    "purpose": "Phase 4 shared coin badge (icon + entry fee, aria-labeled) for paid rooms in both desktop and mobile room lists; renders nothing for free rooms. Token-only color (--coin).",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/CoinIcon.tsx",
-      "apps/web/components/mp/MpDesktopLobby.tsx",
-      "apps/web/components/mp/MpMobileLobby.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/MobilePot.tsx",
-    "type": "component",
-    "purpose": "Phase 4 gold pot indicator on the mobile MP table (MP_MOBILE_POS.pot, mirror of the round counter); renders only when pot > 0. Desktop shows the pot in MpInfoPanel instead.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/mp/MpMobileTable.tsx",
-      "apps/web/lib/mp/mobileLayout.ts",
-      "apps/web/lib/mp/gameTableView.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/auth/authApi.ts",
-    "type": "service",
-    "purpose": "Client HTTP API wrapper for optional account auth, profile, password reset, avatar upload, account language (`GameLanguage`), and `balance` in the /auth/me response. Exports requestJson/jsonInit reused by the SP reward client. Password-reset email locale remains LV/EN.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/http/authRoutes.ts",
-      "apps/web/lib/auth/useAuthUser.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/auth/useAuthUser.ts",
-    "type": "service",
-    "purpose": "Client auth-token state, profile loading, logout, refresh, avatar upload, account language (`GameLanguage`, now 21 UI locales), and gold-coin balance state (from /auth/me; optimistic STARTING_COINS on register).",
-    "importance": "high",
-    "related_files": [
-      "apps/web/lib/safeStorage.ts",
-      "apps/web/lib/auth/authApi.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/auth/avatarUpload.ts",
-    "type": "utility",
-    "purpose": "Client-side avatar image validation, canvas crop/resize, and compressed blob preparation before upload.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/auth/AuthDialog.tsx",
-      "apps/server/src/http/authRoutes.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/i18n.ts",
-    "type": "utility",
-    "purpose": "Locale registry and helpers for the 21 supported UI locales. Owns `appStrings`, the visible `locales` selector list, `Locale`, `isLocale()`, and `emailLocale()` (maps any non-LV UI locale to EN for system emails). Must stay aligned with shared `GAME_LANGUAGES`.",
-    "importance": "high",
-    "related_files": [
-      "apps/web/lib/locales/en.ts",
-      "apps/web/lib/locales/lv.ts",
-      "apps/web/lib/locales/mpRules/",
-      "packages/shared/src/leaderboard.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/locales/*.ts",
-    "type": "data",
-    "purpose": "Flat UI string catalogs for all 21 supported locales. Every locale file must match the English key set through the `AppStrings` contract; `localeCode` must match the filename and shared language code.",
-    "importance": "high",
-    "related_files": [
-      "apps/web/lib/i18n.ts",
-      "packages/shared/src/leaderboard.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/locales/mpRules/*.ts",
-    "type": "data",
-    "purpose": "Structured multiplayer-rules documents for the 19 added non-en/lv locales. Kept outside the flat `AppStrings` catalog because MP rules are sections, paragraphs, and lists rather than simple strings.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/lib/mpRulesContent.ts",
-      "apps/web/components/mp/MpLobbyDialogs.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/safeStorage.ts",
-    "type": "utility",
-    "purpose": "Best-effort localStorage/sessionStorage wrappers that avoid crashes when browser storage is unavailable or malformed.",
-    "importance": "high",
-    "related_files": [
-      "apps/web/components/AppShell.tsx",
-      "apps/web/lib/mp/clientId.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/package.json",
-    "type": "config",
-    "purpose": "Server workspace manifest, build/migrate/test scripts, and runtime dependencies.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/index.ts",
-      "apps/server/vitest.config.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/index.ts",
-    "type": "entrypoint",
-    "purpose": "Server composition root: config, storage, auth, gold-coin wallet + SP reward tokens, admin auth/audit (when enabled), room manager, chat, router, gateway, event bus, HTTP server (admin/auth/sp/stats/contact/chat handlers + authRoutes.onLoginAttempt -> login_attempts), WS upgrade, periodic cleanup (incl. admin sessions/codes), shutdown.",
-    "importance": "critical",
-    "related_files": [
-      "apps/server/src/config.ts",
-      "apps/server/src/net/WebSocketGateway.ts",
-      "apps/server/src/rooms/RoomManager.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/config.ts",
-    "type": "config",
-    "purpose": "Server env/.env loader and validator for ports, DB URL, timing, PG pools, CORS origins, proxy trust, email settings (Resend key/from, APP_BASE_URL, CONTACT_EMAIL recipient), optional chat translation settings, and the admin panel config (ADMIN_PASSWORD_HASH scrypt / ADMIN_EMAIL / ADMIN_WEB_ORIGIN; admin.enabled is derived from the password hash presence).",
-    "importance": "critical",
-    "related_files": [
-      ".env.example"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/httpServer.ts",
-    "type": "route",
-    "purpose": "Raw HTTP server for `/health`, `/metrics`, optional chat translation routes, optional admin routes (`/admin/*`), optional contact-form route (`POST /contact`), optional SP coin-reward routes (`/sp/*`), optional deep-stats route (`/stats`), optional store routes (`/store/*`), optional auth routes, and JSON error responses. API handlers are tried in order: admin -> contact -> sp -> stats -> store -> auth.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/http/authRoutes.ts",
-      "apps/server/src/chat/chatTranslateRoutes.ts",
-      "apps/server/src/index.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/http/authRoutes.ts",
-    "type": "route",
-    "purpose": "Optional `/auth/*` HTTP routes with validation, rate limits, bearer auth, CORS allowlist, password reset, avatar upload/serve, the global `GET /auth/leaderboard`, `PATCH /auth/me/language`, the gold-coin signup bonus on register, and `balance` in `GET /auth/me`. Exposes an optional onLoginAttempt hook (fire-and-forget, transport layer supplies IP) used to record player login_attempts for the admin panel. Shares raw-HTTP helpers via http/httpUtils.ts.",
-    "importance": "critical",
-    "related_files": [
-      "apps/server/src/auth/AuthService.ts",
-      "apps/server/src/leaderboard/LeaderboardService.ts",
-      "apps/server/src/http/readJsonBody.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/auth/AuthService.ts",
-    "type": "service",
-    "purpose": "Optional account service for register/login/me/logout/profile/stats, account language preference, password reset, and public auth resolution for multiplayer seats.",
-    "importance": "critical",
-    "related_files": [
-      "apps/server/src/auth/AuthStore.ts",
-      "apps/server/src/auth/passwords.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/leaderboard/LeaderboardService.ts",
-    "type": "service",
-    "purpose": "Global leaderboard service: cached rank snapshot (generation-invalidated, TTL-refreshed) over account stats; builds the top-N + discriminated self response and resolves per-user seat rank badges synchronously.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/auth/AuthStore.ts",
-      "apps/server/src/http/authRoutes.ts",
-      "packages/shared/src/leaderboard.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/auth/EmailSender.ts",
-    "type": "service",
-    "purpose": "Email abstraction (console dev sender + Resend production sender) for the password-reset email, the About-panel contact message (sendContactMessage with Resend reply_to=author), and the admin 2FA login code (sendAdminLoginCode, English-only).",
-    "importance": "medium",
-    "related_files": [
-      "apps/server/src/auth/AuthService.ts",
-      "apps/server/src/config.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/chat/LobbyChat.ts",
-    "type": "service",
-    "purpose": "Global lobby chat service with trimming, length checks, token-bucket rate limit, bounded history, and persistence callback.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/net/messageRouter.ts",
-      "apps/server/test/chat/LobbyChat.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/chat/ChatTranslationService.ts",
-    "type": "service",
-    "purpose": "MP lobby chat translation use-case: cache repeated translations and enforce in-memory daily/monthly character budgets before calling a translator provider.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/chat/GoogleCloudTranslator.ts",
-      "apps/server/src/chat/chatTranslateRoutes.ts",
-      "apps/server/test/chat/ChatTranslationService.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/chat/GoogleCloudTranslator.ts",
-    "type": "service",
-    "purpose": "Infrastructure adapter for Google Cloud Translation Advanced v3 using server-only service account credentials.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/chat/ChatTranslationService.ts",
-      "apps/server/src/config.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/chat/chatTranslateRoutes.ts",
-    "type": "route",
-    "purpose": "HTTP `/chat/translate` route with bounded JSON input, language-tag validation, CORS, IP rate limit, quota error mapping, and Google-provider failure handling.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/httpServer.ts",
-      "apps/server/src/chat/ChatTranslationService.ts",
-      "apps/server/test/chat/chatTranslateRoutes.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/http/contactRoutes.ts",
-    "type": "route",
-    "purpose": "Optional `POST /contact` route for the About-panel contact form: no auth, per-IP rate limit (5/h), CORS allowlist, bounded JSON body (8 KiB), zod validation (email regex + 10..2000 char message), delivery via EmailSender.sendContactMessage to the owner address (CONTACT_EMAIL) with reply_to=author. Mounted only when an EmailSender exists; send failure returns 502 (never silent).",
-    "importance": "medium",
-    "related_files": [
-      "apps/server/src/auth/EmailSender.ts",
-      "apps/server/src/httpServer.ts",
-      "apps/server/src/http/httpUtils.ts",
-      "apps/server/test/http/contactRoutes.integration.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/test/http/contactRoutes.integration.test.ts",
-    "type": "test",
-    "purpose": "Integration coverage for `POST /contact`: valid send with reply-to + owner recipient, default locale, invalid email/short message rejection (400), non-POST 405, and per-IP rate limit (429).",
-    "importance": "medium",
-    "related_files": [
-      "apps/server/src/http/contactRoutes.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/test/store/StoreService.test.ts",
-    "type": "test",
-    "purpose": "Unit coverage for StoreService: unknown item → unknown_item (no debit), successful buy debits + grants ownership, re-buy is idempotent (alreadyOwned, no double debit), insufficient coins → insufficient + balance, and listOwned returns ledger-derived owned itemIds.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/store/StoreService.ts",
-      "apps/server/src/wallet/WalletService.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/test/http/storeRoutes.integration.test.ts",
-    "type": "test",
-    "purpose": "Integration coverage for `/store/*`: GET /store/owned + POST /store/buy require auth (401 anon), buy succeeds (200 owned/balance) and is idempotent (alreadyOwned), unknown item → 400, insufficient coins → 402 + balance, and per-user rate limits.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/http/storeRoutes.ts",
-      "apps/server/src/store/StoreService.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/admin/AdminStore.ts",
-    "type": "service",
-    "purpose": "Admin panel storage capability (separate from AuthStore/CoinStore), implemented by both SqliteStorage and PostgresStorage. Methods for admin sessions (create/get/touch/revoke/deleteExpired), the singleton OTP login code (create=atomic upsert, consume=atomic validate+attempts), audit log (append/list), player login_attempts (append), and Phase 1 player reads (searchPlayers by id/name/email sorted by last successful login, getPlayerLoginHistory, countPlayerLoginAttempts). Exports ADMIN_LOGIN_CODE_ID and the isAdminStore guard.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/storage/schema.ts",
-      "apps/server/src/admin/AdminAuthService.ts",
-      "apps/server/src/admin/AdminAuditService.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/admin/AdminAuthService.ts",
-    "type": "service",
-    "purpose": "Admin auth logic (Phase 0): scrypt password verify (reuses auth/passwords.ts), email OTP 2FA (single active challenge, single-use, attempts-capped, TTL'd), session issue/resolve/revoke (sliding TTL). login() is constant-form (no password oracle): both paths run verifyPassword and the email is fire-and-forget off the response critical path. Sessions + OTP stored only as sha256 hash.",
-    "importance": "critical",
-    "related_files": [
-      "apps/server/src/admin/AdminStore.ts",
-      "apps/server/src/auth/passwords.ts",
-      "apps/server/src/admin/adminRoutes.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/admin/AdminAuditService.ts",
-    "type": "service",
-    "purpose": "Admin audit log writer (Phase 0, section 22). record() appends one row per admin action; list() reads newest-first for the UI. Scope: authenticated admin actions + session lifecycle (admin.login/logout) + security signals (admin.verify_failed); 2FA auth-mechanism internal state is deliberately not audited. Phase 1+ data mutations write before/after diffs.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/admin/AdminStore.ts",
-      "apps/server/src/admin/adminRoutes.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/admin/adminRoutes.ts",
-    "type": "route",
-    "purpose": "Admin HTTP routes: auth (/admin/login|verify|logout|session|audit) + Phase 1 player reads (GET /admin/players search, /admin/players/:id overview, /admin/players/:id/logins paginated). requireAdmin guard on all; session cookie HttpOnly+Secure+SameSite=Strict; CSRF double-submit (X-CSRF-Token == admin_csrf cookie) on mutating routes (reads are GET, no CSRF). Per-IP + per-identity rate limit on login/verify; CORS with credentials for ADMIN_WEB_ORIGIN. Mounted only when admin is enabled.",
-    "importance": "critical",
-    "related_files": [
-      "apps/server/src/admin/AdminAuthService.ts",
-      "apps/server/src/admin/AdminAuditService.ts",
-      "apps/server/src/admin/AdminPlayerService.ts",
-      "apps/server/src/admin/cookies.ts",
-      "apps/server/src/httpServer.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/admin/AdminPlayerService.ts",
-    "type": "service",
-    "purpose": "Admin player read service (Phase 1). Composes the player profile overview (account + email + avatar + coin balance + MP user_stats + login summary) from AuthStore + CoinStore + AdminStore via Promise.all; also exposes search and paginated login history. Read-only; mutations (Phase 2) go through separate audited paths.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/admin/AdminStore.ts",
-      "apps/server/src/auth/AuthStore.ts",
-      "apps/server/src/storage/CoinStore.ts",
-      "apps/server/src/admin/adminRoutes.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/admin/app/players/page.tsx",
-    "type": "ui",
-    "purpose": "Admin Players search + list (Phase 1.1): session-guarded; search box (id/name/email) and a table linking to each player, sorted by last successful login (server-side).",
-    "importance": "high",
-    "related_files": [
-      "apps/admin/lib/api.ts",
-      "apps/admin/app/players/[id]/page.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/admin/app/players/[id]/page.tsx",
-    "type": "ui",
-    "purpose": "Admin player profile (Phase 1.2/1.3): session-guarded; shows account info, email, avatar, coin balance, MP stats, and a paginated login history with failed attempts highlighted (suspicious signal).",
-    "importance": "high",
-    "related_files": [
-      "apps/admin/lib/api.ts",
-      "apps/server/src/admin/AdminPlayerService.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/admin/cookies.ts",
-    "type": "utility",
-    "purpose": "Cookie helpers for the admin session: parseCookies + serializeCookie (Path=/, SameSite=Strict, Max-Age, optional HttpOnly/Secure) and the ADMIN_SESSION_COOKIE / ADMIN_CSRF_COOKIE / ADMIN_CSRF_HEADER constants.",
-    "importance": "medium",
-    "related_files": [
-      "apps/server/src/admin/adminRoutes.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/test/admin/adminRoutes.integration.test.ts",
-    "type": "test",
-    "purpose": "Admin HTTP integration coverage: constant-form login (200 regardless of password / email failure), HttpOnly session + readable CSRF cookie issuance on 2FA, wrong-code 401, /admin/session 401-vs-200 guard, logout CSRF 403-vs-200 + session invalidation, audit entry on sign-in and on failed verify, audit/session blocked without a session.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/admin/adminRoutes.ts",
-      "apps/server/src/admin/AdminAuthService.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/admin/package.json",
-    "type": "config",
-    "purpose": "Admin Next.js workspace manifest (port 3001) and scripts (dev/build/start/typecheck). Separate from apps/web; deps mirror web (next 16.2.6, react 19.2.6).",
-    "importance": "high",
-    "related_files": [
-      "apps/admin/next.config.ts",
-      "package.json"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/admin/next.config.ts",
-    "type": "config",
-    "purpose": "Admin Next.js config; Turbopack root = repo root so monorepo node_modules resolve. App runs on port 3001 and talks to the server (/admin/*) at NEXT_PUBLIC_ADMIN_API_BASE (default http://localhost:4000).",
-    "importance": "medium",
-    "related_files": [
-      "apps/admin/package.json",
-      "apps/admin/lib/api.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/admin/lib/api.ts",
-    "type": "service",
-    "purpose": "Admin API client: credentials:'include' fetches to /admin/*; mutating requests add X-CSRF-Token from the readable admin_csrf cookie (double-submit). Exposes apiLogin/apiVerify/apiSession/apiLogout/apiAudit and the AuditEntry type.",
-    "importance": "high",
-    "related_files": [
-      "apps/admin/app/page.tsx",
-      "apps/admin/app/dashboard/page.tsx",
-      "apps/server/src/admin/adminRoutes.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/admin/app/page.tsx",
-    "type": "ui",
-    "purpose": "Admin login page (client): two-step flow password -> 6-digit email OTP. Redirects to /dashboard when a session is already valid or after a successful verify. English-only.",
-    "importance": "high",
-    "related_files": [
-      "apps/admin/lib/api.ts",
-      "apps/admin/app/dashboard/page.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/admin/app/dashboard/page.tsx",
-    "type": "ui",
-    "purpose": "Admin dashboard + Audit History (Phase 0, section 22): session-guarded; renders the audit log table (time/action/target/summary/IP) with an expandable JSON diff, plus sign-out.",
-    "importance": "high",
-    "related_files": [
-      "apps/admin/lib/api.ts",
-      "apps/server/src/admin/AdminAuditService.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/net/WebSocketGateway.ts",
-    "type": "service",
-    "purpose": "WebSocket connection gateway: handshake, protocol parsing, sessions, auth resolution (WELCOME also carries goldBalance when a wallet is configured), hub/fanout integration, supersede handling, backpressure, event delivery, and reconnect behavior.",
-    "importance": "critical",
-    "related_files": [
-      "apps/server/src/net/GatewayHub.ts",
-      "apps/server/src/net/GatewayConnection.ts",
-      "apps/server/src/net/wsTransport.ts",
-      "apps/server/src/net/messageRouter.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/net/messageRouter.ts",
-    "type": "service",
-    "purpose": "Post-handshake application router for lobby, room, game, snapshot, resume, chat, membership, ownership, and finalization paths. Phase 3 also orchestrates paid-room money: createPaidRoom/joinPaidRoom (debit-then-commit-seat with rollback; synchronous isUserSeated re-check before commit to close the duplicate-userId race) and leave/delete/TTL refunds via tryRefund + an in-memory pendingRefunds retry queue drained by sweepExpiredRooms.",
-    "importance": "critical",
-    "related_files": [
-      "apps/server/src/rooms/RoomManager.ts",
-      "apps/server/src/wallet/WalletService.ts",
-      "packages/shared/src/clientMessages.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/net/PostgresEventBus.ts",
-    "type": "service",
-    "purpose": "PostgreSQL LISTEN/NOTIFY-backed cross-instance fanout bus for broadcast/player/supersede messages.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/net/ServerEventBus.ts",
-      "apps/server/src/storage/schema.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/rooms/LobbyManager.ts",
-    "type": "service",
-    "purpose": "In-memory lobby room metadata, seats, visibility, TTL, room codes, and room summaries/views. Phase 3: Room carries entryFee + pot; Seat carries opaque entry{entryId,payerUserId}; owns pot bookkeeping (create/join +fee, leave −fee, forfeit/mid-game teardown unchanged so forfeited fees stay in the pot). Money-agnostic (no wallet).",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/rooms/RoomManager.ts",
-      "packages/shared/src/roomTypes.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/rooms/RoomManager.ts",
-    "type": "service",
-    "purpose": "Authoritative room workflow coordinator: lobby membership, engine/director creation, game start, snapshots, disconnect/forfeit, teardown, and persistence hooks.",
-    "importance": "critical",
-    "related_files": [
-      "apps/server/src/rooms/RoomEngine.ts",
-      "apps/server/src/rooms/GameDirector.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/rooms/RoomEngine.ts",
-    "type": "service",
-    "purpose": "Per-room single-writer state engine around core multiplayer applyCommand, request idempotency, event sequencing, snapshots, and timers.",
-    "importance": "critical",
-    "related_files": [
-      "packages/core/src/multiplayer/applyCommand.ts",
-      "apps/server/test/rooms/RoomEngine.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/rooms/GameDirector.ts",
-    "type": "service",
-    "purpose": "Server-side game progression helper for bot/timeout pacing that delegates decisions to multiplayer core helpers.",
-    "importance": "high",
-    "related_files": [
-      "packages/core/src/multiplayer/autoBid.ts",
-      "packages/core/src/multiplayer/autoMove.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/rooms/RoomOwnershipGuard.ts",
-    "type": "service",
-    "purpose": "Room ownership guard abstraction and PostgreSQL lease-backed implementation for multi-instance foundations.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/storage/RoomLeaseStore.ts",
-      "apps/server/src/net/messageRouter.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/sessions/SessionManager.ts",
-    "type": "service",
-    "purpose": "Reconnect session manager for player identity, reconnect tokens, display ids, public profiles, durable-session integration, and cleanup.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/sessions/DurableSessionStore.ts",
-      "apps/server/src/net/WebSocketGateway.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/storage/StoragePort.ts",
-    "type": "service",
-    "purpose": "Async persistence interface for matches, events, stats, chat, auth, avatars, sessions, and leases.",
-    "importance": "critical",
-    "related_files": [
-      "apps/server/src/storage/SqliteStorage.ts",
-      "apps/server/src/storage/PostgresStorage.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/storage/schema.ts",
-    "type": "database",
-    "purpose": "Single DDL source for SQLite/PostgreSQL migration rendering: auth, stats, password reset, custom avatars, user_preferences, the gold-coin wallet (0007), deep player stats (0008_player_game_results), the admin panel (0009_admin: admin_sessions, admin_login_codes [singleton id row for the OTP], admin_audit_log, login_attempts), 0010_coin_ledger_open_reason (drops coin_ledger.reason CHECK; reason now enforced by the TS LedgerReason union), 0011_bans (account/IP bans), 0012_chat_blocked_words (chat moderation), 0013_user_preferences_language_open (drops/rebuilds the old en/lv language CHECK so `GAME_LANGUAGES` is authoritative for 21 locales), and PG-only multi-instance tables. Migrations are append-only; preserve dialect parity.",
-    "importance": "critical",
-    "related_files": [
-      "apps/server/src/storage/migrations.ts",
-      "apps/server/test/storage/schema.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/storage/migrations.ts",
-    "type": "database",
-    "purpose": "PostgreSQL forward-only migration runner and exported MIGRATIONS built from schema.ts.",
-    "importance": "critical",
-    "related_files": [
-      "apps/server/src/storage/schema.ts",
-      "apps/server/src/storage/migrate.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/storage/SqliteStorage.ts",
-    "type": "database",
-    "purpose": "SQLite StoragePort/AuthStore/CoinStore/PlayerStatsStore/AdminStore implementation using node:sqlite and schema migrations; coin applyLedger and admin OTP consume use synchronous transactions; admin OTP create is an atomic singleton upsert.",
-    "importance": "critical",
-    "related_files": [
-      "apps/server/src/storage/StoragePort.ts",
-      "apps/server/test/storage/SqliteStorage.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/storage/PostgresStorage.ts",
-    "type": "database",
-    "purpose": "PostgreSQL StoragePort/AuthStore/CoinStore/PlayerStatsStore/AdminStore implementation with pool config, migrations, health checks, durable sessions, room leases, fanout, an ensure-row + FOR UPDATE transaction for atomic per-user coin ledger writes, and an atomic singleton-upsert + FOR UPDATE flow for the admin OTP login code.",
-    "importance": "critical",
-    "related_files": [
-      "apps/server/src/storage/StoragePort.ts",
-      "apps/server/test/storage/PostgresStorage.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/storage/MatchPersistence.ts",
-    "type": "service",
-    "purpose": "Fire-and-forget match/event/chat persistence coordinator behind StoragePort.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/rooms/RoomManager.ts",
-      "apps/server/src/storage/StoragePort.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/storage/OutcomeRecorder.ts",
-    "type": "service",
-    "purpose": "Server-authoritative registered-user multiplayer win/loss outcome recorder.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/rooms/RoomManager.ts",
-      "apps/server/src/storage/StoragePort.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/timers/SystemTurnTimerScheduler.ts",
-    "type": "service",
-    "purpose": "setTimeout-backed server turn timer scheduler.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/timers/TurnTimerScheduler.ts",
-      "apps/server/src/rooms/RoomManager.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/package.json",
-    "type": "config",
-    "purpose": "Core package manifest exposing root and `./multiplayer` ESM entrypoints.",
-    "importance": "high",
-    "related_files": [
-      "packages/core/src/index.ts",
-      "packages/core/src/multiplayer/index.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/dominoTile.ts",
-    "type": "model",
-    "purpose": "Authoritative domino tile helpers, trump/ace definitions, full double-six set, and shuffle entrypoint.",
-    "importance": "critical",
-    "related_files": [
-      "packages/core/src/shuffleAlgorithm.ts",
-      "packages/core/test/dominoRules.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/shuffleAlgorithm.ts",
-    "type": "model",
-    "purpose": "Human-style cut-and-overhand shuffle algorithm shared by single-player and seeded multiplayer shuffle.",
-    "importance": "critical",
-    "related_files": [
-      "packages/core/src/dominoTile.ts",
-      "packages/core/src/multiplayer/determinism.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/player.ts",
-    "type": "model",
-    "purpose": "Player construction, hand mutation helpers, legal-play invalid-reason logic, and round scoring.",
-    "importance": "critical",
-    "related_files": [
-      "packages/core/src/gameState.ts",
-      "packages/core/test/dominoRules.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/gameState.ts",
-    "type": "model",
-    "purpose": "Authoritative single-player/shared game state transitions: create, bid, play tile, complete trick, next round, standings, winner.",
-    "importance": "critical",
-    "related_files": [
-      "packages/core/src/player.ts",
-      "packages/core/src/dominoTile.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/aiService.ts",
-    "type": "service",
-    "purpose": "CPU bid, tile, and declared-number heuristics using core rule comparison.",
-    "importance": "high",
-    "related_files": [
-      "packages/core/src/gameState.ts",
-      "packages/core/src/multiplayer/autoMove.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/applyCommand.ts",
-    "type": "service",
-    "purpose": "Central deterministic multiplayer command/state transition entrypoint.",
-    "importance": "critical",
-    "related_files": [
-      "packages/core/src/multiplayer/commands.ts",
-      "packages/core/src/multiplayer/events.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/types.ts",
-    "type": "model",
-    "purpose": "Multiplayer-only game/player/turn state wrappers around core GameState.",
-    "importance": "critical",
-    "related_files": [
-      "packages/core/src/types.ts",
-      "packages/core/src/multiplayer/applyCommand.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/commands.ts",
-    "type": "model",
-    "purpose": "Typed multiplayer command contract for core state-machine inputs.",
-    "importance": "critical",
-    "related_files": [
-      "packages/core/src/multiplayer/applyCommand.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/events.ts",
-    "type": "model",
-    "purpose": "Typed multiplayer event contract emitted by core state-machine transitions.",
-    "importance": "critical",
-    "related_files": [
-      "packages/core/src/multiplayer/applyCommand.ts",
-      "packages/shared/src/serverEvents.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/snapshots.ts",
-    "type": "model",
-    "purpose": "Privacy-safe public/player snapshot builders; public snapshots omit hands while player snapshots reveal only the viewer hand.",
-    "importance": "critical",
-    "related_files": [
-      "packages/shared/src/serverEvents.ts",
-      "apps/web/lib/mp/gameTableView.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/determinism.ts",
-    "type": "model",
-    "purpose": "Seeded RNG and deterministic multiplayer domino shuffle.",
-    "importance": "critical",
-    "related_files": [
-      "packages/core/src/shuffleAlgorithm.ts",
-      "tools/simulators/src/random.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/legalMoves.ts",
-    "type": "model",
-    "purpose": "Read-only legal move helper for multiplayer turn state and UI hints.",
-    "importance": "high",
-    "related_files": [
-      "packages/core/src/player.ts",
-      "apps/web/lib/mp/gameTableView.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/legalBids.ts",
-    "type": "model",
-    "purpose": "Read-only legal bid helper for multiplayer turn state.",
-    "importance": "high",
-    "related_files": [
-      "packages/core/src/multiplayer/applyCommand.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/replay.ts",
-    "type": "service",
-    "purpose": "Rebuilds multiplayer state from deterministic seed/setup and ordered event stream.",
-    "importance": "high",
-    "related_files": [
-      "packages/core/src/multiplayer/events.ts",
-      "packages/core/test/multiplayer/replay.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/invariants.ts",
-    "type": "utility",
-    "purpose": "Read-only multiplayer invariant checks used by tests and simulators.",
-    "importance": "high",
-    "related_files": [
-      "tools/simulators/src/playGame.ts",
-      "packages/core/test/multiplayer/invariants.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/package.json",
-    "type": "config",
-    "purpose": "Shared protocol package manifest; builds core first and exposes the shared ESM entrypoint.",
-    "importance": "high",
-    "related_files": [
-      "packages/shared/src/index.ts",
-      "packages/core/package.json"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/src/clientMessages.ts",
-    "type": "model",
-    "purpose": "Zod validation and TypeScript types for all client-to-server protocol messages.",
-    "importance": "critical",
-    "related_files": [
-      "apps/server/src/net/WebSocketGateway.ts",
-      "apps/server/src/net/messageRouter.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/src/serverEvents.ts",
-    "type": "model",
-    "purpose": "Zod validation and TypeScript types for server-to-client events and fanout messages; imports core MP event/snapshot types. WelcomeEvent carries an optional `goldBalance` for logged-in users; Phase 3 adds WALLET_UPDATED (balance push) to BOTH the union and serverEventSchema so cross-instance Postgres fanout keeps it (gold-coin economy, additive).",
-    "importance": "critical",
-    "related_files": [
-      "packages/core/src/multiplayer/events.ts",
-      "packages/core/src/multiplayer/snapshots.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/src/roomTypes.ts",
-    "type": "model",
-    "purpose": "Shared room status/visibility/seat DTOs (incl. optional seat rankBadge) and round-count limits. Phase 3: RoomSummary.entryFee + RoomView.pot (required; 0 = free room).",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/rooms/LobbyManager.ts",
-      "apps/web/components/MultiplayerLobby.tsx",
-      "packages/shared/src/leaderboard.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/src/leaderboard.ts",
-    "type": "model",
-    "purpose": "Global leaderboard protocol + domain: authoritative rank->badge mapping (rankToBadge / RankBadgeId asset ids), `GAME_LANGUAGES` / `GameLanguage` list for the 21 supported UI/account languages, and the LeaderboardEntry / LeaderboardSelf / LeaderboardResponse DTOs (no internal userId — privacy).",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/leaderboard/LeaderboardService.ts",
-      "apps/server/src/http/authRoutes.ts",
-      "apps/server/src/auth/AuthStore.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/src/avatarCatalog.ts",
-    "type": "model",
-    "purpose": "Preset avatar catalog, default avatar, validation, and public asset path helper.",
-    "importance": "high",
-    "related_files": [
-      "apps/web/lib/auth/avatarUrl.ts",
-      "apps/server/src/auth/AuthService.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/src/titles.ts",
-    "type": "model",
-    "purpose": "Shared title tier and loser-badge calculations from user stats.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/lib/auth/titleLabel.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "tools/simulators/src/playGame.ts",
-    "type": "utility",
-    "purpose": "Headless multiplayer full-game simulator that drives applyCommand and asserts invariants.",
-    "importance": "high",
-    "related_files": [
-      "packages/core/src/multiplayer/applyCommand.ts",
-      "tools/simulators/test/playGame.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "tools/load-test/src/runLoadTest.ts",
-    "type": "utility",
-    "purpose": "Local load-test CLI that drives real WebSocket clients, checks `/health`, polls `/metrics`, records load-test metrics, and reports stability/latency/resource data.",
-    "importance": "high",
-    "related_files": [
-      "tools/load-test/src/VirtualClient.ts",
-      "tools/load-test/src/metrics.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "scripts/test-postgres-docker.mjs",
-    "type": "utility",
-    "purpose": "Starts disposable Docker PostgreSQL, sets TEST_POSTGRES_DATABASE_URL, runs server PostgreSQL integration tests, and cleans up.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/package.json",
-      "apps/server/test/storage/PostgresStorage.integration.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "deploy/Dockerfile",
-    "type": "config",
-    "purpose": "Server Docker image example on Node 24; builds core/shared/server and runs server dist.",
-    "importance": "high",
-    "related_files": [
-      "deploy/nginx.conf.example",
-      ".dockerignore"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "deploy/domino-poker.service",
-    "type": "config",
-    "purpose": "systemd service example for the Node multiplayer server.",
-    "importance": "medium",
-    "related_files": [
-      ".env.example",
-      "deploy/BACKUP.md"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "deploy/nginx.conf.example",
-    "type": "config",
-    "purpose": "nginx reverse proxy example for web, `/ws`, `/auth/*`, `/chat/*`, and `/contact` routing.",
-    "importance": "medium",
-    "related_files": [
-      "deploy/Caddyfile.example",
-      ".env.example"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "deploy/Caddyfile.example",
-    "type": "config",
-    "purpose": "Caddy reverse proxy example for web, `/ws`, `/auth/*`, `/chat/*`, and `/contact` routing.",
-    "importance": "medium",
-    "related_files": [
-      "deploy/nginx.conf.example",
-      ".env.example"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "deploy/BACKUP.md",
-    "type": "docs",
-    "purpose": "Operational backup/restore guidance for PostgreSQL and SQLite.",
-    "importance": "medium",
-    "related_files": [
-      "apps/server/src/storage/PostgresStorage.ts",
-      "apps/server/src/storage/SqliteStorage.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "data/.gitkeep",
-    "type": "config",
-    "purpose": "Keeps local runtime data directory present; SQLite database files here are ignored.",
-    "importance": "medium",
-    "related_files": [
-      ".gitignore",
-      "apps/server/src/storage/SqliteStorage.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "tests/e2e/main-flow.spec.ts",
-    "type": "test",
-    "purpose": "Browser smoke coverage for primary single-player flow.",
-    "importance": "high",
-    "related_files": [
-      "playwright.config.ts",
-      "apps/web/components/DominoPokerGame.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "tests/e2e/multiplayer-smoke.spec.ts",
-    "type": "test",
-    "purpose": "Browser-to-server multiplayer smoke coverage over real WebSocket/server path.",
-    "importance": "high",
-    "related_files": [
-      "playwright.config.ts",
-      "apps/server/src/index.ts",
-      "apps/web/components/MultiplayerLobby.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "tests/e2e/theme-performance.spec.ts",
-    "type": "test",
-    "purpose": "Opt-in (THEME_PERF=1) CI performance TRIPWIRE for the 6 paid animated themes: for each, forces the animated path (reducedMotion no-preference + sets data-theme directly), asserts the lobby bg is that theme's animated SVG, then probes the main thread ~3s — fails only on catastrophe (dead rAF loop, a Long Task >400ms, or a console error on the theme path). NOT an FPS gate (headless ≠ real device); runs as a dedicated CI step, skipped by the main test:web run.",
-    "importance": "medium",
-    "related_files": [
-      ".github/workflows/ci.yml",
-      "apps/web/lib/theme.ts",
-      "playwright.config.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/test/dominoRules.test.ts",
-    "type": "test",
-    "purpose": "Primary core rule tests for tiles, shuffle, legal play, scoring, trick resolution, tiebreakers, and AI behavior.",
-    "importance": "critical",
-    "related_files": [
-      "packages/core/src/gameState.ts",
-      "packages/core/src/player.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/test/multiplayer/applyCommand.test.ts",
-    "type": "test",
-    "purpose": "Multiplayer command/state transition coverage for applyCommand.",
-    "importance": "critical",
-    "related_files": [
-      "packages/core/src/multiplayer/applyCommand.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/test/storage/storageContract.ts",
-    "type": "test",
-    "purpose": "Shared storage contract suite used to keep SQLite/PostgreSQL behavior aligned (matches/events/stats/chat/outcomes/coin wallet/player game results + the admin store: sessions, singleton OTP consume, audit, login_attempts).",
-    "importance": "critical",
-    "related_files": [
-      "apps/server/src/storage/StoragePort.ts",
-      "apps/server/test/storage/storageContract.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "docs/Domino pokera Noteikumi.md",
-    "type": "docs",
-    "purpose": "Tracked human-readable Latvian game rules document.",
-    "importance": "medium",
-    "related_files": [
-      "docs/domino_poker_rules_summary.md"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "docs/domino_poker_rules_summary.md",
-    "type": "docs",
-    "purpose": "Tracked concise rules summary; implementation/tests are authoritative when docs conflict.",
-    "importance": "medium",
-    "related_files": [
-      "packages/core/test/dominoRules.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "docs/PUNKTU_SISTEMA_PIEMERI.md",
-    "type": "docs",
-    "purpose": "Tracked scoring examples.",
-    "importance": "medium",
-    "related_files": [
-      "packages/core/src/player.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "docs/game_strategy.md",
-    "type": "docs",
-    "purpose": "Tracked strategy notes for players.",
-    "importance": "low",
-    "related_files": [
-      "README.md"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": ".dockerignore",
-    "type": "config",
-    "purpose": "Docker build context exclusions for dependencies, build outputs, env files, runtime data, logs, and local-only files.",
-    "importance": "medium",
-    "related_files": [
-      "deploy/Dockerfile",
-      ".gitignore"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "deploy.sh",
-    "type": "config",
-    "purpose": "Ignored/local VPS deployment script; bumps VERSION, updates service-worker cache version, commits/pushes to main, copies code to VPS, builds production server/web, and restarts services.",
-    "importance": "high",
-    "related_files": [
-      "VERSION",
-      "apps/web/public/sw.js",
-      "apps/web/next.config.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/theme.ts",
-    "type": "utility",
-    "purpose": "Web theme registry (Phase 4/5): 7 ThemeIds (default free + 6 paid twilight/rain/pop-out/confetti/bubbles/luminous, each with itemId `theme.<slug>`), THEMES, isThemeId, isThemeUnlocked(owned), applyTheme(<html data-theme>), reconcileStoredTheme(owned) (account-bound enforcement → downgrade non-owned stored theme to Default), getThemeBootstrapScript (pre-paint stored theme + reduced-motion/deviceMemory/hardwareConcurrency static-motion heuristic), and startMotionFpsProbe (post-paint FPS<40/1.5s → data-theme-motion=static poster fallback).",
-    "importance": "high",
-    "related_files": [
-      "apps/web/styles/tokens.css",
-      "packages/shared/src/store-catalog.ts",
-      "apps/web/lib/store/storeApi.ts",
-      "apps/web/test/theme.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/glassPrefs.ts",
-    "type": "utility",
-    "purpose": "Browser-side dialog glass preference helper: both blur and dark-tint default OFF (only the ON state is persisted to localStorage), applies data-glass=on/data-dark-glass=on on the html element, and generates the pre-paint bootstrap script used to avoid first-render glass preference flicker.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/app/layout.tsx",
-      "apps/web/styles/glass.css",
-      "apps/web/styles/tokens.css",
-      "apps/web/test/glassPrefs.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/styles/tokens.css",
-    "type": "ui",
-    "purpose": "Design-token source for default colors, RGB channel pairs (incl. the --coin / --coin-rgb gold alias of --primary), spacing, radius, shadows, motion, and theme overrides.",
-    "importance": "high",
-    "related_files": [
-      "apps/web/app/globals.css",
-      "apps/web/lib/theme.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/styles/glass.css",
-    "type": "ui",
-    "purpose": "Shared premium black-glass layer styles driven by theme tokens, including shadow color tokens.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/styles/tokens.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/ui/Button.tsx",
-    "type": "ui",
-    "purpose": "Shared button primitive for web UI commands using the project style contract.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/styles/tokens.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/ui/IconButton.tsx",
-    "type": "ui",
-    "purpose": "Shared icon-button primitive for compact tool/actions and accessible labels.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/styles/tokens.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/ui/TextField.tsx",
-    "type": "ui",
-    "purpose": "Shared text-field primitive for auth/profile/settings forms.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/styles/tokens.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/ui/CloseIcon.tsx",
-    "type": "ui",
-    "purpose": "Shared dialog close (×) icon SVG, extracted from 6 dialog files (AuthDialog/LobbyScreen/RulesDialog/MpLobbyDialogs/LeaderboardDialog) to remove duplication. Presentational only; color via currentColor (.iconSvg).",
-    "importance": "low",
-    "related_files": [
-      "apps/web/components/auth/AuthDialog.tsx",
-      "apps/web/components/LobbyScreen.tsx",
-      "apps/web/components/LeaderboardDialog.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/styles/ui-button.css",
-    "type": "ui",
-    "purpose": "Token-driven CSS for shared Button primitive.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/styles/tokens.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/styles/ui-icon-button.css",
-    "type": "ui",
-    "purpose": "Token-driven CSS for shared IconButton primitive.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/styles/tokens.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/styles/ui-text-field.css",
-    "type": "ui",
-    "purpose": "Token-driven CSS for shared TextField primitive.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/styles/tokens.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/auth/AuthDialog.tsx",
-    "type": "ui",
-    "purpose": "Optional account auth dialog for login/register/reset-entry workflows.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/lib/auth/authApi.ts",
-      "apps/web/components/Dialog.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/auth/LobbyProfile.tsx",
-    "type": "ui",
-    "purpose": "Lobby profile/account surface for authenticated users: avatar, name, title, gold-coin balance (CoinBalance, under the title), and stats. Renders nothing for anonymous/loading.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/lib/auth/useAuthUser.ts",
-      "packages/shared/src/titles.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/auth/ResetPasswordScreen.tsx",
-    "type": "ui",
-    "purpose": "Password-reset screen reached from URL hash token flow.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/AppShell.tsx",
-      "apps/web/lib/auth/authApi.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/PwaRegister.tsx",
-    "type": "ui",
-    "purpose": "Client-side service-worker registration plus new-version update flow: registers with updateViaCache:'none', calls registration.update() on mount and tab focus, and on controllerchange either silently reloads (when reload-safe via reloadGate) or shows a localized soft-update prompt.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/public/sw.js",
-      "apps/web/app/layout.tsx",
-      "apps/web/lib/pwa/reloadGate.ts",
-      "apps/web/components/AppShell.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/pwa/reloadGate.ts",
-    "type": "utility",
-    "purpose": "Module-level reload-safety signal (set by AppShell from the current screen) plus the pure decideReloadAction() that maps {hadController, reloadSafe} to ignore/reload/prompt for the PWA update flow. Default is unsafe (prompt) until AppShell sets it.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/PwaRegister.tsx",
-      "apps/web/components/AppShell.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/InstallPrompt.tsx",
-    "type": "ui",
-    "purpose": "Installable PWA prompt UI and related browser event handling.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/app/manifest.ts",
-      "apps/web/public/sw.js"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/RulesDialog.tsx",
-    "type": "ui",
-    "purpose": "Localized single-player rules dialog rendered from flat `AppStrings` rules keys.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/lib/mpRulesContent.ts",
-      "apps/web/lib/locales/*.ts",
-      "apps/web/components/Dialog.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/SpMobileTable.tsx",
-    "type": "ui",
-    "purpose": "Phone-portrait single-player table layout.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/DominoPokerGame.tsx",
-      "apps/web/styles/sp-table.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/mp/ConnectionBanner.tsx",
-    "type": "ui",
-    "purpose": "Multiplayer connection/reconnect status banner.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/MultiplayerLobby.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/mp/MpDesktopTable.tsx",
-    "type": "ui",
-    "purpose": "Desktop multiplayer table layout for authoritative game snapshots.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/mp/MpGameTable.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/mp/MpMobileTable.tsx",
-    "type": "ui",
-    "purpose": "Phone-portrait multiplayer table layout for authoritative game snapshots.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/mp/MpGameTable.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/mp/MpLobbyDialogs.tsx",
-    "type": "ui",
-    "purpose": "Multiplayer lobby/room dialogs for join/create/error flows. Phase 4: CreateRoomDialog shows the gold entry-fee input only to logged-in hosts (hostBalance defined), with client-side balance validation; onCreate forwards entryFee. Server re-checks at debit.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/MultiplayerLobby.tsx",
-      "apps/web/components/Dialog.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/mp/mobileLayout.ts",
-    "type": "utility",
-    "purpose": "Mobile multiplayer layout calculations and helpers. Phase 4: adds MP_MOBILE_POS.pot (right column, mirror of the round counter) for the table pot.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/mp/MpMobileTable.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/mp/desktopStage.ts",
-    "type": "utility",
-    "purpose": "Desktop multiplayer stage sizing helpers.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/mp/MpDesktopTable.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/mp/useTrickFreeze.ts",
-    "type": "utility",
-    "purpose": "Client-side completed-trick freeze timing hook; coordinated with server TRICK_PAUSE_MS minimum.",
-    "importance": "medium",
-    "related_files": [
-      "apps/server/src/config.ts",
-      "apps/web/components/mp/MpGameTable.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/mp/useLobbyTransientErrors.ts",
-    "type": "utility",
-    "purpose": "Transient multiplayer lobby error lifecycle hook.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/MultiplayerLobby.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/mp/useTurnErrorToast.ts",
-    "type": "utility",
-    "purpose": "Turn-error toast lifecycle hook for multiplayer actions.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/mp/MpGameTable.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/net/GatewayConnection.ts",
-    "type": "model",
-    "purpose": "Gateway connection wrapper for socket identity, auth/session context, and send/close state.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/net/WebSocketGateway.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/net/GatewayHub.ts",
-    "type": "service",
-    "purpose": "Connection registry and fanout/supersede coordination for active gateway clients.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/net/WebSocketGateway.ts",
-      "apps/server/src/net/ServerEventBus.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/net/gatewayEvents.ts",
-    "type": "model",
-    "purpose": "Typed gateway event contracts used between gateway, hub, bus, and router code.",
-    "importance": "medium",
-    "related_files": [
-      "apps/server/src/net/WebSocketGateway.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/net/ServerEventBus.ts",
-    "type": "service",
-    "purpose": "In-process server-event bus abstraction used with PostgreSQL fanout implementation.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/net/PostgresEventBus.ts",
-      "packages/shared/src/serverEvents.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/net/gameUpdateDelivery.ts",
-    "type": "service",
-    "purpose": "Game update delivery helper for player-targeted snapshots/events.",
-    "importance": "medium",
-    "related_files": [
-      "apps/server/src/net/messageRouter.ts",
-      "apps/server/src/rooms/RoomManager.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/net/wsTransport.ts",
-    "type": "service",
-    "purpose": "Low-level WebSocket transport adapter for protocol parsing/sending and testable gateway behavior.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/net/WebSocketGateway.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/identity/DisplayIdRegistry.ts",
-    "type": "service",
-    "purpose": "Display-id registry for stable public player identifiers and collision handling.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/sessions/SessionManager.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/sessions/DurableSessionStore.ts",
-    "type": "service",
-    "purpose": "Durable reconnect-session abstraction backed by storage for multi-instance/session recovery foundations.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/sessions/SessionManager.ts",
-      "apps/server/src/storage/StoragePort.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/storage/RoomLeaseStore.ts",
-    "type": "database",
-    "purpose": "PostgreSQL room ownership lease helper for multi-instance room ownership foundations.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/rooms/RoomOwnershipGuard.ts",
-      "apps/server/src/storage/PostgresStorage.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/storage/migrate.ts",
-    "type": "database",
-    "purpose": "Server migration CLI entrypoint run after build with `npm run migrate --workspace apps/server`.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/storage/migrations.ts",
-      "apps/server/src/storage/schema.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/http/rateLimiter.ts",
-    "type": "service",
-    "purpose": "HTTP auth rate limiter utilities with proxy-aware IP derivation.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/http/authRoutes.ts",
-      "apps/server/src/config.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/http/readJsonBody.ts",
-    "type": "utility",
-    "purpose": "Bounded HTTP JSON body reader for auth routes and input validation boundary.",
-    "importance": "medium",
-    "related_files": [
-      "apps/server/src/http/authRoutes.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/index.ts",
-    "type": "entrypoint",
-    "purpose": "Public root export surface for core rules package.",
-    "importance": "high",
-    "related_files": [
-      "packages/core/package.json"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/index.ts",
-    "type": "entrypoint",
-    "purpose": "Public multiplayer export surface for deterministic state-machine package entrypoint.",
-    "importance": "high",
-    "related_files": [
-      "packages/core/package.json"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/gameSetup.ts",
-    "type": "model",
-    "purpose": "Seeded multiplayer game setup and player/deal initialization.",
-    "importance": "critical",
-    "related_files": [
-      "packages/core/src/multiplayer/determinism.ts",
-      "packages/core/src/multiplayer/types.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/autoBid.ts",
-    "type": "service",
-    "purpose": "Deterministic timeout/bot bid helper for multiplayer decisions.",
-    "importance": "high",
-    "related_files": [
-      "packages/core/src/multiplayer/applyCommand.ts",
-      "apps/server/src/rooms/GameDirector.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/autoMove.ts",
-    "type": "service",
-    "purpose": "Deterministic timeout/bot move helper for multiplayer decisions.",
-    "importance": "high",
-    "related_files": [
-      "packages/core/src/multiplayer/applyCommand.ts",
-      "apps/server/src/rooms/GameDirector.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/src/multiplayer/inactivity.ts",
-    "type": "model",
-    "purpose": "Multiplayer inactivity/disconnect decision helpers and thresholds.",
-    "importance": "high",
-    "related_files": [
-      "packages/core/src/multiplayer/applyCommand.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/src/index.ts",
-    "type": "entrypoint",
-    "purpose": "Public shared protocol package export surface.",
-    "importance": "high",
-    "related_files": [
-      "packages/shared/package.json"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/src/errors.ts",
-    "type": "model",
-    "purpose": "Shared protocol error code/payload definitions.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/net/messageRouter.ts",
-      "apps/web/lib/mp/clientView.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/src/protocolVersion.ts",
-    "type": "model",
-    "purpose": "Shared protocol version constant used by client handshake and server validation.",
-    "importance": "high",
-    "related_files": [
-      "packages/shared/src/clientMessages.ts",
-      "apps/server/src/net/WebSocketGateway.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "tests/e2e/layout-regression.spec.ts",
-    "type": "test",
-    "purpose": "Browser layout regression coverage for responsive game/lobby surfaces.",
-    "importance": "medium",
-    "related_files": [
-      "playwright.config.ts",
-      "apps/web/styles/"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "tests/e2e/dialog-a11y.spec.ts",
-    "type": "test",
-    "purpose": "Browser accessibility coverage for modal dialog behavior.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/Dialog.tsx",
-      "apps/web/components/useDialogFocus.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "tests/e2e/storage-resilience.spec.ts",
-    "type": "test",
-    "purpose": "Browser resilience coverage for unavailable or malformed web storage.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/lib/safeStorage.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/test/protocol.test.ts",
-    "type": "test",
-    "purpose": "Shared protocol schema/version validation tests.",
-    "importance": "medium",
-    "related_files": [
-      "packages/shared/src/clientMessages.ts",
-      "packages/shared/src/serverEvents.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/test/titles.test.ts",
-    "type": "test",
-    "purpose": "Shared account title/loser-badge calculation tests.",
-    "importance": "medium",
-    "related_files": [
-      "packages/shared/src/titles.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/test/store-catalog.test.ts",
-    "type": "test",
-    "purpose": "Store catalog tests: all 6 purchasable themes registered + priced at THEME_PRICE (kind theme, id `theme.*`), themeItemId↔getStoreItem round-trip, and getStoreItem returns undefined for unknown/empty ids (server rejects with 400).",
-    "importance": "medium",
-    "related_files": [
-      "packages/shared/src/store-catalog.ts",
-      "packages/shared/src/economy.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/test/multiplayer/determinism.test.ts",
-    "type": "test",
-    "purpose": "Multiplayer deterministic RNG/shuffle coverage.",
-    "importance": "medium",
-    "related_files": [
-      "packages/core/src/multiplayer/determinism.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/test/multiplayer/snapshots.test.ts",
-    "type": "test",
-    "purpose": "Multiplayer public/player snapshot privacy tests.",
-    "importance": "medium",
-    "related_files": [
-      "packages/core/src/multiplayer/snapshots.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/core/test/multiplayer/inactivity.test.ts",
-    "type": "test",
-    "purpose": "Multiplayer inactivity/disconnect behavior tests.",
-    "importance": "medium",
-    "related_files": [
-      "packages/core/src/multiplayer/inactivity.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/test/net/WebSocketGateway.test.ts",
-    "type": "test",
-    "purpose": "Gateway handshake/protocol/session behavior tests.",
-    "importance": "medium",
-    "related_files": [
-      "apps/server/src/net/WebSocketGateway.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/test/net/roomOwnershipRouting.test.ts",
-    "type": "test",
-    "purpose": "Room ownership routing tests for multi-instance lease boundaries.",
-    "importance": "medium",
-    "related_files": [
-      "apps/server/src/rooms/RoomOwnershipGuard.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/test/auth/AuthService.test.ts",
-    "type": "test",
-    "purpose": "Auth service unit coverage for account/profile/reset behavior.",
-    "importance": "medium",
-    "related_files": [
-      "apps/server/src/auth/AuthService.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/test/http/authRoutes.integration.test.ts",
-    "type": "test",
-    "purpose": "HTTP auth route integration coverage for CORS, rate limits, bearer auth, and upload/reset flows.",
-    "importance": "medium",
-    "related_files": [
-      "apps/server/src/http/authRoutes.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/test/theme.test.ts",
-    "type": "test",
-    "purpose": "Theme/default theme contract tests.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/lib/theme.ts",
-      "apps/web/styles/tokens.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/test/glassPrefs.test.ts",
-    "type": "test",
-    "purpose": "Glass preference contract tests: default OFF behavior, ON-only persistence, html data attribute application, bootstrap script key coverage, and CSS wiring for blur/tint gates.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/lib/glassPrefs.ts",
-      "apps/web/styles/glass.css",
-      "apps/web/styles/tokens.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/test/Button.test.tsx",
-    "type": "test",
-    "purpose": "Shared Button primitive tests.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/ui/Button.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/ai_bot/README.md",
-    "type": "docs",
-    "purpose": "Standalone strong Domino Poker bot (hidden-hand, ISMCTS max^n). Explains architecture, the search/inference/bidding math, measured performance, and the AiClient integration surface. NOT yet wired into the live game.",
-    "importance": "high",
-    "related_files": [
-      "packages/ai_bot/INTEGRATION.md",
-      "packages/ai_bot/CONNECTION-README.md",
-      "packages/ai_bot/packages/bot-adapter/src/AiClient.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/ai_bot/INTEGRATION.md",
-    "type": "docs",
-    "purpose": "Detailed integration guide for connecting the bot to the existing browser/server game.",
-    "importance": "medium",
-    "related_files": [
-      "packages/ai_bot/README.md",
-      "packages/ai_bot/packages/bot-adapter/src/AiClient.ts"
-    ],
-    "confidence": "medium"
-  },
-  {
-    "path": "packages/ai_bot/CONNECTION-README.md",
-    "type": "docs",
-    "purpose": "Connection notes / hookup checklist for replacing the current AI bots with this package.",
-    "importance": "medium",
-    "related_files": [
-      "packages/ai_bot/INTEGRATION.md"
-    ],
-    "confidence": "medium"
-  },
-  {
-    "path": "packages/ai_bot/package.json",
-    "type": "config",
-    "purpose": "Root manifest of the ai_bot pnpm workspace (independent of the root npm workspaces; uses pnpm, not npm).",
-    "importance": "medium",
-    "related_files": [
-      "packages/ai_bot/pnpm-workspace.yaml",
-      "packages/ai_bot/pnpm-lock.yaml",
-      "packages/ai_bot/tsconfig.base.json"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/ai_bot/pnpm-workspace.yaml",
-    "type": "config",
-    "purpose": "Declares the nested pnpm sub-packages (engine, ai, bot-adapter). This is a separate workspace tree; do not add it to the root npm workspaces.",
-    "importance": "medium",
-    "related_files": [
-      "packages/ai_bot/package.json"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/ai_bot/packages/engine/src/index.ts",
-    "type": "service",
-    "purpose": "Bot domain engine public API: tiles encoding, rules/legalMoves/trickWinner, scoring, GameState/PlayerView, seedable RNG. Pure and framework-free (mirrors but is independent of packages/core).",
-    "importance": "high",
-    "related_files": [
-      "packages/ai_bot/packages/engine/src/rules.ts",
-      "packages/ai_bot/packages/engine/src/state.ts",
-      "packages/ai_bot/packages/engine/src/scoring.ts",
-      "packages/ai_bot/packages/engine/src/tiles.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/ai_bot/packages/ai/src/index.ts",
-    "type": "service",
-    "purpose": "Bot intelligence public API: ISMCTS search, determinization/dealer, Monte Carlo bidding, inference (ConstraintTracker), rollout policy, opponent profiling. Imports only the bot engine; no I/O.",
-    "importance": "high",
-    "related_files": [
-      "packages/ai_bot/packages/ai/src/ismcts.ts",
-      "packages/ai_bot/packages/ai/src/bidding.ts",
-      "packages/ai_bot/packages/ai/src/inference.ts",
-      "packages/ai_bot/packages/ai/src/dealer.ts",
-      "packages/ai_bot/packages/ai/src/rollout.ts",
-      "packages/ai_bot/packages/ai/src/profiling.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/ai_bot/packages/ai/src/ismcts.ts",
-    "type": "service",
-    "purpose": "Information-Set Monte Carlo Tree Search (max^n) play engine: anytime budget, tree reuse, pondering, configurable reward (inclusion/points).",
-    "importance": "high",
-    "related_files": [
-      "packages/ai_bot/packages/ai/src/rollout.ts",
-      "packages/ai_bot/packages/ai/src/dealer.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/ai_bot/packages/bot-adapter/src/AiClient.ts",
-    "type": "service",
-    "purpose": "MAIN integration surface. AiClient = worker pool + postMessage<->Promise API (sync/requestBid/requestMove/ponder/dispose). The external game talks ONLY to this; it never imports ai/engine internals. Uses Node worker_threads; browser use needs a Web Worker swap (same protocol).",
-    "importance": "high",
-    "related_files": [
-      "packages/ai_bot/packages/bot-adapter/src/protocol.ts",
-      "packages/ai_bot/packages/bot-adapter/src/ai.worker.ts",
-      "packages/ai_bot/README.md"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/ai_bot/packages/bot-adapter/src/protocol.ts",
-    "type": "service",
-    "purpose": "Zod-validated worker message protocol shared by AiClient and the worker; stable contract for Node worker_threads or a browser Web Worker.",
-    "importance": "medium",
-    "related_files": [
-      "packages/ai_bot/packages/bot-adapter/src/AiClient.ts",
-      "packages/ai_bot/packages/bot-adapter/src/ai.worker.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/src/economy.ts",
-    "type": "model",
-    "purpose": "Single authoritative source for gold-coin economy constants (STARTING_COINS, SP_REWARDS medium/hard/epic, POT_SPLIT 70/30, MIN_ENTRY_FEE, MAX_ENTRY_FEE sanity cap, THEME_PRICE 200k for purchasable themes) and the splitPot helper (remainder→1st place, single human→100%). Imported by both server (enforces) and web (displays).",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/wallet/WalletService.ts",
-      "apps/server/src/http/spRewardRoutes.ts",
-      "packages/shared/src/store-catalog.ts",
-      "apps/web/lib/sp/spReward.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "packages/shared/src/store-catalog.ts",
-    "type": "model",
-    "purpose": "Single authoritative store catalog (Phase 4): purchasable items + prices. THEME_SLUGS (twilight/rain/pop-out/confetti/bubbles/luminous), themeItemId (slug→`theme.<slug>` = ledger ref), STORE_CATALOG (each theme priced at THEME_PRICE from economy.ts), getStoreItem (unknown→undefined → server 400). Imported by server (validates itemId + price at purchase) and web (shows price/lock). Ownership is ledger-derived (reason `theme_purchase`), no inventory table.",
-    "importance": "high",
-    "related_files": [
-      "packages/shared/src/economy.ts",
-      "apps/server/src/store/StoreService.ts",
-      "apps/web/lib/theme.ts",
-      "packages/shared/test/store-catalog.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/storage/CoinStore.ts",
-    "type": "service",
-    "purpose": "Gold-coin wallet storage interface (getBalance, atomic+idempotent applyLedger, sumLedgerSince, listLedgerRefs for ledger-derived ownership) + isCoinStore guard. LedgerReason union includes `theme_purchase` (store). Implemented by both SqliteStorage and PostgresStorage.",
-    "importance": "critical",
-    "related_files": [
-      "apps/server/src/storage/SqliteStorage.ts",
-      "apps/server/src/storage/PostgresStorage.ts",
-      "apps/server/src/wallet/WalletService.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/wallet/WalletService.ts",
-    "type": "service",
-    "purpose": "Gold-coin money application layer over CoinStore: signup bonus (repair-on-read), getBalance, SP reward credit, creditSpRewardCapped (per-user lock + daily-cap clamp), Phase 3 MP money — debitEntryFee (mp_entry, minBalance 0), refundEntryFee (mp_refund), payoutCoins (mp_payout), and Phase 4 store — purchaseItem (theme_purchase, minBalance 0; the ledger row is debit + ownership, applied=false means already owned) + listOwnedItems (ledger-derived); all reuse applyLedger (no new migration). The one place all balance changes flow through.",
-    "importance": "critical",
-    "related_files": [
-      "apps/server/src/storage/CoinStore.ts",
-      "packages/shared/src/economy.ts",
-      "apps/server/src/wallet/MatchPayoutService.ts",
-      "apps/server/src/store/StoreService.ts",
-      "apps/server/src/net/messageRouter.ts",
-      "apps/server/src/http/spRewardRoutes.ts",
-      "apps/server/src/http/authRoutes.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/wallet/MatchPayoutService.ts",
-    "type": "service",
-    "purpose": "Phase 3 MP pot payout engine (mirrors OutcomeRecorder): caches pot + start-roster for paid matches at matchStarted; at gameOver splits the pot 70/30 (splitPot) among the top-2 registered, non-forfeited humans by standings (bots + forfeiters excluded), pays each via WalletService.payoutCoins (idempotent by matchId), and returns results for WALLET_UPDATED push. Fire-and-forget; wired in index.ts only when a wallet exists.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/wallet/WalletService.ts",
-      "packages/shared/src/economy.ts",
-      "apps/server/src/index.ts",
-      "apps/server/src/storage/StoragePort.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/store/StoreService.ts",
-    "type": "service",
-    "purpose": "Store application layer (Phase 4): validates an itemId against the shared catalog (unknown→unknown_item) and orchestrates the purchase through WalletService.purchaseItem (price from catalog, server-authoritative). purchase() returns ok{alreadyOwned,balance} / unknown_item / insufficient{balance}; listOwned() returns the ledger-derived owned itemIds. No new state — ownership lives in coin_ledger (reason theme_purchase).",
-    "importance": "high",
-    "related_files": [
-      "packages/shared/src/store-catalog.ts",
-      "apps/server/src/wallet/WalletService.ts",
-      "apps/server/src/http/storeRoutes.ts",
-      "apps/server/test/store/StoreService.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/http/storeRoutes.ts",
-    "type": "route",
-    "purpose": "Optional `/store/*` HTTP routes (Phase 4): POST /store/buy (auth; zod itemId; 200 owned/alreadyOwned/balance, 402 insufficient_coins+balance, 400 unknown_item) and GET /store/owned (auth; owned itemIds). 401 for anonymous; per-user rate limits (buy 30/h, owned 120/h); CORS allowlist. Chained in httpServer before the auth handler; mounted in index.ts only when a wallet + AuthService exist. Prod: needs a Caddy `reverse_proxy /store` rule or it 404s.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/store/StoreService.ts",
-      "apps/server/src/http/httpUtils.ts",
-      "apps/server/src/httpServer.ts",
-      "apps/server/test/http/storeRoutes.integration.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/store/storeApi.ts",
-    "type": "service",
-    "purpose": "Client HTTP wrapper for the store: apiBuyItem (POST /store/buy) and apiFetchOwned (GET /store/owned). Reuses requestJson/jsonInit from authApi (same HTTP base + Bearer token). Anonymous gets 401; price comes from the server catalog, the client only displays.",
-    "importance": "medium",
-    "related_files": [
-      "apps/server/src/http/storeRoutes.ts",
-      "apps/web/lib/auth/authApi.ts",
-      "apps/web/lib/theme.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/sp/SpRewardTokens.ts",
-    "type": "service",
-    "purpose": "In-memory one-time SP reward tokens (D3 anti-cheat): issue snapshots the difficulty at game start; consume validates ownership/expiry and deletes (one-time). Per-user active limit + TTL. Single-instance.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/http/spRewardRoutes.ts",
-      "packages/shared/src/economy.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/http/spRewardRoutes.ts",
-    "type": "route",
-    "purpose": "Optional `/sp/*` HTTP routes: POST /sp/start (auth, issues a one-time token) and POST /sp/reward (auth, min duration, per-user rate limit, hard daily cap; reward derived from the token difficulty). Tried before the auth handler.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/sp/SpRewardTokens.ts",
-      "apps/server/src/wallet/WalletService.ts",
-      "apps/server/src/http/httpUtils.ts",
-      "apps/server/test/http/spRewardRoutes.integration.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/http/httpUtils.ts",
-    "type": "utility",
-    "purpose": "Shared raw-HTTP route helpers (writeJson, bearerToken, clientIp, applyCors) used by both authRoutes and spRewardRoutes to avoid duplication.",
-    "importance": "medium",
-    "related_files": [
-      "apps/server/src/http/authRoutes.ts",
-      "apps/server/src/http/spRewardRoutes.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/CoinIcon.tsx",
-    "type": "ui",
-    "purpose": "Reusable gold coin/chip SVG icon colored only via currentColor (inherits --coin), no color literals. Used by CoinBalance and the game-end reward banner.",
-    "importance": "low",
-    "related_files": [
-      "apps/web/components/CoinBalance.tsx",
-      "apps/web/components/GameDialogs.tsx",
-      "apps/web/styles/coin.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/CoinBalance.tsx",
-    "type": "ui",
-    "purpose": "Reusable gold balance display: CoinIcon + count-up number (requestAnimationFrame, animates only on change, respects prefers-reduced-motion). Token-colored via --coin.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/CoinIcon.tsx",
-      "apps/web/components/auth/LobbyProfile.tsx",
-      "apps/web/styles/coin.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/sp/spReward.ts",
-    "type": "service",
-    "purpose": "Client HTTP wrapper for the SP coin-reward flow: apiSpStart (POST /sp/start) and apiSpReward (POST /sp/reward). Reuses requestJson/jsonInit from authApi.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/AppShell.tsx",
-      "apps/server/src/http/spRewardRoutes.ts",
-      "apps/web/lib/auth/authApi.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/styles/coin.css",
-    "type": "ui",
-    "purpose": "Token-only CSS for the reusable coin UI primitives (.coinBalance/.coinBalanceIcon/.coinBalanceValue) and the game-end reward banner (.gameEndReward). Color only from --coin.",
-    "importance": "low",
-    "related_files": [
-      "apps/web/components/CoinBalance.tsx",
-      "apps/web/components/GameDialogs.tsx",
-      "apps/web/app/globals.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/storage/PlayerStatsStore.ts",
-    "type": "source",
-    "purpose": "Deep-stats storage capability port (implemented by SqliteStorage + PostgresStorage): recordGameResult (idempotent by id), getPlayerGameStats (GROUP BY aggregate rows), getGameResultOwner (for /sp/complete replay). Includes assertValidGameResult, the DB-agnostic invariant guard backing migration 0008 CHECKs.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/storage/schema.ts",
-      "apps/server/src/storage/SqliteStorage.ts",
-      "apps/server/src/storage/PostgresStorage.ts",
-      "apps/server/src/stats/PlayerStatsService.ts",
-      "apps/server/test/storage/storageContract.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/stats/PlayerStatsService.ts",
-    "type": "source",
-    "purpose": "Player-stats application service: recordSpGame (builds sp:{gameToken} id), findSpGameOwner (replay), getStats which composes GROUP-BY aggregate rows into the UI shape (bid accuracy + sp placement-by-difficulty + mp placement).",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/storage/PlayerStatsStore.ts",
-      "apps/server/src/http/statsRoutes.ts",
-      "apps/server/src/http/spRewardRoutes.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/stats/MpStatsRecorder.ts",
-    "type": "source",
-    "purpose": "Server-authoritative MP bid-accuracy writer (sibling of OutcomeRecorder, room-owner lifecycle). Accumulates from ROUND_RESULT.playerResults in onMatchEvents (before onMatchFinished), persists one idempotent mp:{matchId}:{userId} row per registered human at GAME_OVER. Records all MP games incl. with bots.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/index.ts",
-      "apps/server/src/rooms/RoomManager.ts",
-      "packages/core/src/multiplayer/events.ts",
-      "apps/server/src/storage/PlayerStatsStore.ts",
-      "apps/server/test/stats/MpStatsRecorder.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/http/statsRoutes.ts",
-    "type": "source",
-    "purpose": "GET /stats (auth, own rate limiter, lazy) returning PlayerStatsService.getStats. Wired in httpServer before the auth handler; owned by the stats module, not auth.",
-    "importance": "medium",
-    "related_files": [
-      "apps/server/src/httpServer.ts",
-      "apps/server/src/stats/PlayerStatsService.ts",
-      "apps/server/test/http/statsRoutes.integration.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/stats/playerStats.ts",
-    "type": "source",
-    "purpose": "Web client API + types for deep stats: apiGetStats (GET /stats) lazily fetched when the Statistics tab opens; PlayerStats/PlacementDistribution shapes mirror the server.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/auth/StatisticsPanel.tsx",
-      "apps/web/lib/auth/authApi.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/auth/StatisticsPanel.tsx",
-    "type": "ui",
-    "purpose": "Profile dialog Statistics tab: lazy-fetches /stats and renders hand-rolled token-only CSS segmented bars (no chart lib, no animation, reduced-motion safe) for bid accuracy, tactical tendencies, and placement distributions by difficulty + MP. Loading/error/empty states.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/auth/AuthDialog.tsx",
-      "apps/web/lib/stats/playerStats.ts",
-      "apps/web/styles/auth.css",
-      "apps/web/test/StatisticsPanel.test.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/daily/DailyTaskService.ts",
-    "type": "service",
-    "purpose": "Daily Tasks application service (registered-users-only coin faucet). DERIVES progress from player_game_results (countSpWinsSince) over the current UTC day window (windowStart = max(utcDayStart, FEATURE_LAUNCH_EPOCH_MS)); getState composes 4 tasks (parallel accrual, sequential unlock: order N unlocked only if N-1 claimed today) + secondsUntilReset + anyClaimable. claim() runs under a per-user in-process lock: validate id -> already-claimed stable success -> sequential gate -> threshold from derived count -> idempotent WalletService.creditDailyTaskReward. Owns FEATURE_LAUNCH_EPOCH_MS + DAILY_TASK_MIN_GAME_MS (anti-abuse, server-only).",
-    "importance": "high",
-    "related_files": [
-      "packages/shared/src/economy.ts",
-      "apps/server/src/http/dailyTaskRoutes.ts",
-      "apps/server/src/wallet/WalletService.ts",
-      "apps/server/src/storage/PlayerStatsStore.ts",
-      "apps/server/test/daily/DailyTaskService.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/server/src/http/dailyTaskRoutes.ts",
-    "type": "http",
-    "purpose": "Daily Tasks HTTP routes GET /daily/tasks + POST /daily/tasks/claim (auth required, anon 401, bearer-token so no CSRF, per-user rate-limited, zod enum taskId boundary validation). Chained in httpServer before the auth handler; mounted only when wallet + PlayerStatsStore + AuthService exist. Needs a Caddy reverse_proxy /daily/* rule on the VPS or it 404s in prod.",
-    "importance": "high",
-    "related_files": [
-      "apps/server/src/daily/DailyTaskService.ts",
-      "apps/server/src/httpServer.ts",
-      "apps/server/src/index.ts",
-      "apps/server/test/http/dailyTaskRoutes.integration.test.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/daily/dailyApi.ts",
-    "type": "lib",
-    "purpose": "Client-side Daily Tasks HTTP API (apiDailyTasks GET, apiClaimDailyTask POST) reusing auth requestJson/jsonInit (bearer). Client DTOs mirror the server DailyTasksState (no shared type; defined here like spReward).",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/lib/daily/useDailyTasks.ts",
-      "apps/web/lib/auth/authApi.ts"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/lib/daily/useDailyTasks.ts",
-    "type": "lib",
-    "purpose": "Lobby hook for Daily Tasks state. Fetches on mount when authed and when refreshSignal changes (AppShell bumps it after /sp/complete so progress is fresh after returning to lobby); has a reqRef sequence guard so a stale response cannot overwrite newer state; anon = no-op. Exposes state, anyClaimable (pulse), claim, refresh. Countdown is computed locally in the dialog (never re-fetched).",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/lib/daily/dailyApi.ts",
-      "apps/web/components/DailyTasksDialog.tsx",
-      "apps/web/components/LobbyScreen.tsx",
-      "apps/web/test/useDailyTasks.test.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/components/DailyTasksDialog.tsx",
-    "type": "ui",
-    "purpose": "Daily Tasks dialog (controlled: receives state + claim + onBalanceChange). Renders 4 task cards (PNG art by id, goal text from dailyGoal + difficulty labels, token progress bar, coin gif + reward) with claimed/claim/locked/progress states, a locally-ticking reset countdown, and error handling. Exports DailyTasksIcon (single currentColor calendar path). Token-only styling via styles/daily.css.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/lib/daily/useDailyTasks.ts",
-      "apps/web/components/LobbyScreen.tsx",
-      "apps/web/components/Dialog.tsx",
-      "apps/web/styles/daily.css",
-      "apps/web/test/DailyTasksDialog.test.tsx"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/styles/daily.css",
-    "type": "style",
-    "purpose": "Daily Tasks token-only styles: calendar icon pulse (@keyframes dailyPulse, --coin glow, reduced-motion-safe via the global reset), .lobbyDailyButton pointer-events:auto (the top bar is pointer-events:none so each button must re-enable it, else clicks pass through), header icon sizing (28px), task card layout/states, and mobile single-column stacking. Mobile dialog width is set in mp-mobile-table.css (.modalScale .dailyDialog).",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/DailyTasksDialog.tsx",
-      "apps/web/styles/mp-mobile-table.css",
-      "apps/web/app/globals.css",
-      "apps/web/styles/tokens.css"
-    ],
-    "confidence": "high"
-  },
-  {
-    "path": "apps/web/styles/store.css",
-    "type": "style",
-    "purpose": "Token-only styles for the lobby store button/icon and the empty StoreDialog shell, including CSS mask usage for /assets/icons/store.svg, dialog width, centered empty state, and compact mobile sizing.",
-    "importance": "medium",
-    "related_files": [
-      "apps/web/components/StoreDialog.tsx",
-      "apps/web/components/LobbyScreen.tsx",
-      "apps/web/app/globals.css",
-      "apps/web/styles/tokens.css"
-    ],
-    "confidence": "high"
-  }
+  {"path":".dockerignore","name":".dockerignore"},
+  {"path":".env.example","name":".env.example"},
+  {"path":".github/workflows/ci.yml","name":"ci.yml"},
+  {"path":".gitignore","name":".gitignore"},
+  {"path":".node-version","name":".node-version"},
+  {"path":".npmrc","name":".npmrc"},
+  {"path":".nvmrc","name":".nvmrc"},
+  {"path":"apps/admin/app/analytics/page.tsx","name":"page.tsx"},
+  {"path":"apps/admin/app/bans/page.tsx","name":"page.tsx"},
+  {"path":"apps/admin/app/dashboard/page.tsx","name":"page.tsx"},
+  {"path":"apps/admin/app/globals.css","name":"globals.css"},
+  {"path":"apps/admin/app/layout.tsx","name":"layout.tsx"},
+  {"path":"apps/admin/app/moderation/page.tsx","name":"page.tsx"},
+  {"path":"apps/admin/app/page.tsx","name":"page.tsx"},
+  {"path":"apps/admin/app/players/[id]/page.tsx","name":"page.tsx"},
+  {"path":"apps/admin/app/players/page.tsx","name":"page.tsx"},
+  {"path":"apps/admin/lib/api.ts","name":"api.ts"},
+  {"path":"apps/admin/next.config.ts","name":"next.config.ts"},
+  {"path":"apps/admin/next-env.d.ts","name":"next-env.d.ts"},
+  {"path":"apps/admin/package.json","name":"package.json"},
+  {"path":"apps/admin/public/assets/avatars/avatar-01.svg","name":"avatar-01.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-02.svg","name":"avatar-02.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-03.svg","name":"avatar-03.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-04.svg","name":"avatar-04.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-05.svg","name":"avatar-05.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-06.svg","name":"avatar-06.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-07.svg","name":"avatar-07.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-08.svg","name":"avatar-08.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-09.svg","name":"avatar-09.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-10.svg","name":"avatar-10.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-11.svg","name":"avatar-11.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-12.svg","name":"avatar-12.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-13.svg","name":"avatar-13.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-14.svg","name":"avatar-14.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-15.svg","name":"avatar-15.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-16.svg","name":"avatar-16.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-17.svg","name":"avatar-17.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-18.svg","name":"avatar-18.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-19.svg","name":"avatar-19.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-20.svg","name":"avatar-20.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-21.svg","name":"avatar-21.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-22.svg","name":"avatar-22.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-23.svg","name":"avatar-23.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-24.svg","name":"avatar-24.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-25.svg","name":"avatar-25.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-26.svg","name":"avatar-26.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-27.svg","name":"avatar-27.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-28.svg","name":"avatar-28.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-29.svg","name":"avatar-29.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-30.svg","name":"avatar-30.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-31.svg","name":"avatar-31.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-32.svg","name":"avatar-32.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-33.svg","name":"avatar-33.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-34.svg","name":"avatar-34.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-35.svg","name":"avatar-35.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-36.svg","name":"avatar-36.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-37.svg","name":"avatar-37.svg"},
+  {"path":"apps/admin/public/assets/avatars/avatar-38.svg","name":"avatar-38.svg"},
+  {"path":"apps/admin/tsconfig.json","name":"tsconfig.json"},
+  {"path":"apps/server/package.json","name":"package.json"},
+  {"path":"apps/server/src/admin/AdminAnalyticsService.ts","name":"AdminAnalyticsService.ts"},
+  {"path":"apps/server/src/admin/AdminAuditService.ts","name":"AdminAuditService.ts"},
+  {"path":"apps/server/src/admin/AdminAuthService.ts","name":"AdminAuthService.ts"},
+  {"path":"apps/server/src/admin/AdminPlayerGovernanceService.ts","name":"AdminPlayerGovernanceService.ts"},
+  {"path":"apps/server/src/admin/AdminPlayerService.ts","name":"AdminPlayerService.ts"},
+  {"path":"apps/server/src/admin/AdminPlayerWriteService.ts","name":"AdminPlayerWriteService.ts"},
+  {"path":"apps/server/src/admin/adminRoutes.ts","name":"adminRoutes.ts"},
+  {"path":"apps/server/src/admin/AdminStore.ts","name":"AdminStore.ts"},
+  {"path":"apps/server/src/admin/BanService.ts","name":"BanService.ts"},
+  {"path":"apps/server/src/admin/ChatModerationService.ts","name":"ChatModerationService.ts"},
+  {"path":"apps/server/src/admin/cookies.ts","name":"cookies.ts"},
+  {"path":"apps/server/src/admin/CountryResolver.ts","name":"CountryResolver.ts"},
+  {"path":"apps/server/src/admin/geoipCountryResolver.ts","name":"geoipCountryResolver.ts"},
+  {"path":"apps/server/src/admin/platform.ts","name":"platform.ts"},
+  {"path":"apps/server/src/auth/authFields.ts","name":"authFields.ts"},
+  {"path":"apps/server/src/auth/AuthService.ts","name":"AuthService.ts"},
+  {"path":"apps/server/src/auth/AuthStore.ts","name":"AuthStore.ts"},
+  {"path":"apps/server/src/auth/EmailSender.ts","name":"EmailSender.ts"},
+  {"path":"apps/server/src/auth/passwords.ts","name":"passwords.ts"},
+  {"path":"apps/server/src/chat/chatTranslateRoutes.ts","name":"chatTranslateRoutes.ts"},
+  {"path":"apps/server/src/chat/ChatTranslationService.ts","name":"ChatTranslationService.ts"},
+  {"path":"apps/server/src/chat/GoogleCloudTranslator.ts","name":"GoogleCloudTranslator.ts"},
+  {"path":"apps/server/src/chat/LobbyChat.ts","name":"LobbyChat.ts"},
+  {"path":"apps/server/src/config.ts","name":"config.ts"},
+  {"path":"apps/server/src/daily/DailyTaskService.ts","name":"DailyTaskService.ts"},
+  {"path":"apps/server/src/diagnostics/.gitkeep","name":".gitkeep"},
+  {"path":"apps/server/src/http/authRoutes.ts","name":"authRoutes.ts"},
+  {"path":"apps/server/src/http/contactRoutes.ts","name":"contactRoutes.ts"},
+  {"path":"apps/server/src/http/dailyTaskRoutes.ts","name":"dailyTaskRoutes.ts"},
+  {"path":"apps/server/src/http/httpUtils.ts","name":"httpUtils.ts"},
+  {"path":"apps/server/src/http/rateLimiter.ts","name":"rateLimiter.ts"},
+  {"path":"apps/server/src/http/readJsonBody.ts","name":"readJsonBody.ts"},
+  {"path":"apps/server/src/http/spRewardRoutes.ts","name":"spRewardRoutes.ts"},
+  {"path":"apps/server/src/http/statsRoutes.ts","name":"statsRoutes.ts"},
+  {"path":"apps/server/src/http/storeRoutes.ts","name":"storeRoutes.ts"},
+  {"path":"apps/server/src/httpServer.ts","name":"httpServer.ts"},
+  {"path":"apps/server/src/identity/DisplayIdRegistry.ts","name":"DisplayIdRegistry.ts"},
+  {"path":"apps/server/src/index.ts","name":"index.ts"},
+  {"path":"apps/server/src/leaderboard/LeaderboardService.ts","name":"LeaderboardService.ts"},
+  {"path":"apps/server/src/net/.gitkeep","name":".gitkeep"},
+  {"path":"apps/server/src/net/gameUpdateDelivery.ts","name":"gameUpdateDelivery.ts"},
+  {"path":"apps/server/src/net/GatewayConnection.ts","name":"GatewayConnection.ts"},
+  {"path":"apps/server/src/net/gatewayEvents.ts","name":"gatewayEvents.ts"},
+  {"path":"apps/server/src/net/GatewayHub.ts","name":"GatewayHub.ts"},
+  {"path":"apps/server/src/net/messageRouter.ts","name":"messageRouter.ts"},
+  {"path":"apps/server/src/net/PostgresEventBus.ts","name":"PostgresEventBus.ts"},
+  {"path":"apps/server/src/net/ServerEventBus.ts","name":"ServerEventBus.ts"},
+  {"path":"apps/server/src/net/WebSocketGateway.ts","name":"WebSocketGateway.ts"},
+  {"path":"apps/server/src/net/wsTransport.ts","name":"wsTransport.ts"},
+  {"path":"apps/server/src/rooms/.gitkeep","name":".gitkeep"},
+  {"path":"apps/server/src/rooms/GameDirector.ts","name":"GameDirector.ts"},
+  {"path":"apps/server/src/rooms/lobbyErrors.ts","name":"lobbyErrors.ts"},
+  {"path":"apps/server/src/rooms/LobbyManager.ts","name":"LobbyManager.ts"},
+  {"path":"apps/server/src/rooms/mpActionLog.ts","name":"mpActionLog.ts"},
+  {"path":"apps/server/src/rooms/RoomEngine.ts","name":"RoomEngine.ts"},
+  {"path":"apps/server/src/rooms/RoomManager.ts","name":"RoomManager.ts"},
+  {"path":"apps/server/src/rooms/RoomOwnershipGuard.ts","name":"RoomOwnershipGuard.ts"},
+  {"path":"apps/server/src/sessions/.gitkeep","name":".gitkeep"},
+  {"path":"apps/server/src/sessions/DurableSessionStore.ts","name":"DurableSessionStore.ts"},
+  {"path":"apps/server/src/sessions/SessionManager.ts","name":"SessionManager.ts"},
+  {"path":"apps/server/src/sp/SpRewardTokens.ts","name":"SpRewardTokens.ts"},
+  {"path":"apps/server/src/stats/MpStatsRecorder.ts","name":"MpStatsRecorder.ts"},
+  {"path":"apps/server/src/stats/PlayerStatsService.ts","name":"PlayerStatsService.ts"},
+  {"path":"apps/server/src/storage/.gitkeep","name":".gitkeep"},
+  {"path":"apps/server/src/storage/CoinStore.ts","name":"CoinStore.ts"},
+  {"path":"apps/server/src/storage/index.ts","name":"index.ts"},
+  {"path":"apps/server/src/storage/matchAnonymize.ts","name":"matchAnonymize.ts"},
+  {"path":"apps/server/src/storage/MatchPersistence.ts","name":"MatchPersistence.ts"},
+  {"path":"apps/server/src/storage/migrate.ts","name":"migrate.ts"},
+  {"path":"apps/server/src/storage/migrations.ts","name":"migrations.ts"},
+  {"path":"apps/server/src/storage/OutcomeRecorder.ts","name":"OutcomeRecorder.ts"},
+  {"path":"apps/server/src/storage/PlayerStatsStore.ts","name":"PlayerStatsStore.ts"},
+  {"path":"apps/server/src/storage/PostgresStorage.ts","name":"PostgresStorage.ts"},
+  {"path":"apps/server/src/storage/RoomLeaseStore.ts","name":"RoomLeaseStore.ts"},
+  {"path":"apps/server/src/storage/schema.ts","name":"schema.ts"},
+  {"path":"apps/server/src/storage/SqliteStorage.ts","name":"SqliteStorage.ts"},
+  {"path":"apps/server/src/storage/StoragePort.ts","name":"StoragePort.ts"},
+  {"path":"apps/server/src/store/StoreService.ts","name":"StoreService.ts"},
+  {"path":"apps/server/src/timers/.gitkeep","name":".gitkeep"},
+  {"path":"apps/server/src/timers/ManualTimerController.ts","name":"ManualTimerController.ts"},
+  {"path":"apps/server/src/timers/SystemTurnTimerScheduler.ts","name":"SystemTurnTimerScheduler.ts"},
+  {"path":"apps/server/src/timers/TurnTimerScheduler.ts","name":"TurnTimerScheduler.ts"},
+  {"path":"apps/server/src/wallet/MatchPayoutService.ts","name":"MatchPayoutService.ts"},
+  {"path":"apps/server/src/wallet/WalletService.ts","name":"WalletService.ts"},
+  {"path":"apps/server/test/admin/AdminAnalyticsService.test.ts","name":"AdminAnalyticsService.test.ts"},
+  {"path":"apps/server/test/admin/AdminPlayerGovernanceService.test.ts","name":"AdminPlayerGovernanceService.test.ts"},
+  {"path":"apps/server/test/admin/adminRoutes.integration.test.ts","name":"adminRoutes.integration.test.ts"},
+  {"path":"apps/server/test/admin/BanService.test.ts","name":"BanService.test.ts"},
+  {"path":"apps/server/test/admin/ChatModerationService.test.ts","name":"ChatModerationService.test.ts"},
+  {"path":"apps/server/test/admin/platform.test.ts","name":"platform.test.ts"},
+  {"path":"apps/server/test/auth/AuthService.test.ts","name":"AuthService.test.ts"},
+  {"path":"apps/server/test/auth/passwordReset.test.ts","name":"passwordReset.test.ts"},
+  {"path":"apps/server/test/chat/chatTranslateRoutes.test.ts","name":"chatTranslateRoutes.test.ts"},
+  {"path":"apps/server/test/chat/ChatTranslationService.test.ts","name":"ChatTranslationService.test.ts"},
+  {"path":"apps/server/test/chat/LobbyChat.test.ts","name":"LobbyChat.test.ts"},
+  {"path":"apps/server/test/config.test.ts","name":"config.test.ts"},
+  {"path":"apps/server/test/daily/DailyTaskService.test.ts","name":"DailyTaskService.test.ts"},
+  {"path":"apps/server/test/http/authRoutes.integration.test.ts","name":"authRoutes.integration.test.ts"},
+  {"path":"apps/server/test/http/contactRoutes.integration.test.ts","name":"contactRoutes.integration.test.ts"},
+  {"path":"apps/server/test/http/dailyTaskRoutes.integration.test.ts","name":"dailyTaskRoutes.integration.test.ts"},
+  {"path":"apps/server/test/http/spRewardRoutes.integration.test.ts","name":"spRewardRoutes.integration.test.ts"},
+  {"path":"apps/server/test/http/statsRoutes.integration.test.ts","name":"statsRoutes.integration.test.ts"},
+  {"path":"apps/server/test/http/storeRoutes.integration.test.ts","name":"storeRoutes.integration.test.ts"},
+  {"path":"apps/server/test/httpServer.test.ts","name":"httpServer.test.ts"},
+  {"path":"apps/server/test/identity/DisplayIdRegistry.test.ts","name":"DisplayIdRegistry.test.ts"},
+  {"path":"apps/server/test/leaderboard/LeaderboardService.test.ts","name":"LeaderboardService.test.ts"},
+  {"path":"apps/server/test/net/abandonRoom.test.ts","name":"abandonRoom.test.ts"},
+  {"path":"apps/server/test/net/authHandshake.test.ts","name":"authHandshake.test.ts"},
+  {"path":"apps/server/test/net/chatRouting.test.ts","name":"chatRouting.test.ts"},
+  {"path":"apps/server/test/net/forfeitRouting.test.ts","name":"forfeitRouting.test.ts"},
+  {"path":"apps/server/test/net/gameMoveRouting.test.ts","name":"gameMoveRouting.test.ts"},
+  {"path":"apps/server/test/net/gameOverTeardown.test.ts","name":"gameOverTeardown.test.ts"},
+  {"path":"apps/server/test/net/gameStartRouting.test.ts","name":"gameStartRouting.test.ts"},
+  {"path":"apps/server/test/net/heartbeat.test.ts","name":"heartbeat.test.ts"},
+  {"path":"apps/server/test/net/lobbyRouting.test.ts","name":"lobbyRouting.test.ts"},
+  {"path":"apps/server/test/net/paidRoom.test.ts","name":"paidRoom.test.ts"},
+  {"path":"apps/server/test/net/playerResumeRouting.test.ts","name":"playerResumeRouting.test.ts"},
+  {"path":"apps/server/test/net/PostgresEventBus.integration.test.ts","name":"PostgresEventBus.integration.test.ts"},
+  {"path":"apps/server/test/net/PostgresEventBus.test.ts","name":"PostgresEventBus.test.ts"},
+  {"path":"apps/server/test/net/reconnectRouting.test.ts","name":"reconnectRouting.test.ts"},
+  {"path":"apps/server/test/net/roomCreateRateLimit.test.ts","name":"roomCreateRateLimit.test.ts"},
+  {"path":"apps/server/test/net/roomOwnershipRouting.test.ts","name":"roomOwnershipRouting.test.ts"},
+  {"path":"apps/server/test/net/sessionRelease.test.ts","name":"sessionRelease.test.ts"},
+  {"path":"apps/server/test/net/snapshotRecoveryRouting.test.ts","name":"snapshotRecoveryRouting.test.ts"},
+  {"path":"apps/server/test/net/turnTimeoutRouting.test.ts","name":"turnTimeoutRouting.test.ts"},
+  {"path":"apps/server/test/net/WebSocketGateway.test.ts","name":"WebSocketGateway.test.ts"},
+  {"path":"apps/server/test/net/wsTransport.test.ts","name":"wsTransport.test.ts"},
+  {"path":"apps/server/test/rooms/GameDirector.test.ts","name":"GameDirector.test.ts"},
+  {"path":"apps/server/test/rooms/LobbyManager.test.ts","name":"LobbyManager.test.ts"},
+  {"path":"apps/server/test/rooms/mpActionLog.test.ts","name":"mpActionLog.test.ts"},
+  {"path":"apps/server/test/rooms/pacedAdvance.test.ts","name":"pacedAdvance.test.ts"},
+  {"path":"apps/server/test/rooms/RoomEngine.test.ts","name":"RoomEngine.test.ts"},
+  {"path":"apps/server/test/rooms/RoomManager.test.ts","name":"RoomManager.test.ts"},
+  {"path":"apps/server/test/rooms/RoomManagerPersistence.test.ts","name":"RoomManagerPersistence.test.ts"},
+  {"path":"apps/server/test/rooms/RoomOwnershipGuard.test.ts","name":"RoomOwnershipGuard.test.ts"},
+  {"path":"apps/server/test/sessions/SessionManager.test.ts","name":"SessionManager.test.ts"},
+  {"path":"apps/server/test/sp/SpRewardTokens.test.ts","name":"SpRewardTokens.test.ts"},
+  {"path":"apps/server/test/stats/MpStatsRecorder.test.ts","name":"MpStatsRecorder.test.ts"},
+  {"path":"apps/server/test/storage/authTokenCleanup.test.ts","name":"authTokenCleanup.test.ts"},
+  {"path":"apps/server/test/storage/coinConcurrency.integration.test.ts","name":"coinConcurrency.integration.test.ts"},
+  {"path":"apps/server/test/storage/coinLedgerMigration.test.ts","name":"coinLedgerMigration.test.ts"},
+  {"path":"apps/server/test/storage/customAvatar.test.ts","name":"customAvatar.test.ts"},
+  {"path":"apps/server/test/storage/leaderboard.test.ts","name":"leaderboard.test.ts"},
+  {"path":"apps/server/test/storage/MatchPersistence.test.ts","name":"MatchPersistence.test.ts"},
+  {"path":"apps/server/test/storage/migrations.test.ts","name":"migrations.test.ts"},
+  {"path":"apps/server/test/storage/OutcomeRecorder.test.ts","name":"OutcomeRecorder.test.ts"},
+  {"path":"apps/server/test/storage/PostgresStorage.integration.test.ts","name":"PostgresStorage.integration.test.ts"},
+  {"path":"apps/server/test/storage/PostgresStorage.test.ts","name":"PostgresStorage.test.ts"},
+  {"path":"apps/server/test/storage/RoomLeaseStore.test.ts","name":"RoomLeaseStore.test.ts"},
+  {"path":"apps/server/test/storage/schema.test.ts","name":"schema.test.ts"},
+  {"path":"apps/server/test/storage/SqliteStorage.test.ts","name":"SqliteStorage.test.ts"},
+  {"path":"apps/server/test/storage/storageContract.test.ts","name":"storageContract.test.ts"},
+  {"path":"apps/server/test/storage/storageContract.ts","name":"storageContract.ts"},
+  {"path":"apps/server/test/storage/userStats.test.ts","name":"userStats.test.ts"},
+  {"path":"apps/server/test/store/StoreService.test.ts","name":"StoreService.test.ts"},
+  {"path":"apps/server/test/timers/SystemTurnTimerScheduler.test.ts","name":"SystemTurnTimerScheduler.test.ts"},
+  {"path":"apps/server/test/wallet/MatchPayoutService.test.ts","name":"MatchPayoutService.test.ts"},
+  {"path":"apps/server/test/wallet/WalletService.test.ts","name":"WalletService.test.ts"},
+  {"path":"apps/server/tsconfig.build.json","name":"tsconfig.build.json"},
+  {"path":"apps/server/tsconfig.json","name":"tsconfig.json"},
+  {"path":"apps/server/vitest.config.ts","name":"vitest.config.ts"},
+  {"path":"apps/web/app/globals.css","name":"globals.css"},
+  {"path":"apps/web/app/icon.svg","name":"icon.svg"},
+  {"path":"apps/web/app/layout.tsx","name":"layout.tsx"},
+  {"path":"apps/web/app/manifest.ts","name":"manifest.ts"},
+  {"path":"apps/web/app/page.tsx","name":"page.tsx"},
+  {"path":"apps/web/components/AppShell.tsx","name":"AppShell.tsx"},
+  {"path":"apps/web/components/AudioControls.tsx","name":"AudioControls.tsx"},
+  {"path":"apps/web/components/auth/AuthDialog.tsx","name":"AuthDialog.tsx"},
+  {"path":"apps/web/components/auth/LobbyProfile.tsx","name":"LobbyProfile.tsx"},
+  {"path":"apps/web/components/auth/ResetPasswordScreen.tsx","name":"ResetPasswordScreen.tsx"},
+  {"path":"apps/web/components/auth/StatisticsPanel.tsx","name":"StatisticsPanel.tsx"},
+  {"path":"apps/web/components/AvatarRankBadge.tsx","name":"AvatarRankBadge.tsx"},
+  {"path":"apps/web/components/CoinBalance.tsx","name":"CoinBalance.tsx"},
+  {"path":"apps/web/components/CoinGif.tsx","name":"CoinGif.tsx"},
+  {"path":"apps/web/components/CoinIcon.tsx","name":"CoinIcon.tsx"},
+  {"path":"apps/web/components/ContactForm.tsx","name":"ContactForm.tsx"},
+  {"path":"apps/web/components/DailyTasksDialog.tsx","name":"DailyTasksDialog.tsx"},
+  {"path":"apps/web/components/Dialog.tsx","name":"Dialog.tsx"},
+  {"path":"apps/web/components/DominoPokerGame.tsx","name":"DominoPokerGame.tsx"},
+  {"path":"apps/web/components/DominoTileView.tsx","name":"DominoTileView.tsx"},
+  {"path":"apps/web/components/GameDialogs.tsx","name":"GameDialogs.tsx"},
+  {"path":"apps/web/components/InfoPanel.tsx","name":"InfoPanel.tsx"},
+  {"path":"apps/web/components/InstallPrompt.tsx","name":"InstallPrompt.tsx"},
+  {"path":"apps/web/components/LeaderboardDialog.tsx","name":"LeaderboardDialog.tsx"},
+  {"path":"apps/web/components/LobbyScreen.tsx","name":"LobbyScreen.tsx"},
+  {"path":"apps/web/components/LobbyWheel.tsx","name":"LobbyWheel.tsx"},
+  {"path":"apps/web/components/MobilePot.tsx","name":"MobilePot.tsx"},
+  {"path":"apps/web/components/MobileRoundCount.tsx","name":"MobileRoundCount.tsx"},
+  {"path":"apps/web/components/mp/ConnectionBanner.tsx","name":"ConnectionBanner.tsx"},
+  {"path":"apps/web/components/mp/MOBILE_LAYOUT.md","name":"MOBILE_LAYOUT.md"},
+  {"path":"apps/web/components/mp/MpChatTranslation.tsx","name":"MpChatTranslation.tsx"},
+  {"path":"apps/web/components/mp/MpDesktopLobby.tsx","name":"MpDesktopLobby.tsx"},
+  {"path":"apps/web/components/mp/MpDesktopTable.tsx","name":"MpDesktopTable.tsx"},
+  {"path":"apps/web/components/mp/MpEmojiPicker.tsx","name":"MpEmojiPicker.tsx"},
+  {"path":"apps/web/components/mp/MpGameTable.tsx","name":"MpGameTable.tsx"},
+  {"path":"apps/web/components/mp/MpLobbyDialogs.tsx","name":"MpLobbyDialogs.tsx"},
+  {"path":"apps/web/components/mp/MpMobileLobby.tsx","name":"MpMobileLobby.tsx"},
+  {"path":"apps/web/components/mp/MpMobileTable.tsx","name":"MpMobileTable.tsx"},
+  {"path":"apps/web/components/mp/RoomFeeChip.tsx","name":"RoomFeeChip.tsx"},
+  {"path":"apps/web/components/MultiplayerLobby.tsx","name":"MultiplayerLobby.tsx"},
+  {"path":"apps/web/components/PlayerSeat.tsx","name":"PlayerSeat.tsx"},
+  {"path":"apps/web/components/PwaRegister.tsx","name":"PwaRegister.tsx"},
+  {"path":"apps/web/components/RulesDialog.tsx","name":"RulesDialog.tsx"},
+  {"path":"apps/web/components/SpMobileTable.tsx","name":"SpMobileTable.tsx"},
+  {"path":"apps/web/components/StoreDialog.tsx","name":"StoreDialog.tsx"},
+  {"path":"apps/web/components/ui/Button.tsx","name":"Button.tsx"},
+  {"path":"apps/web/components/ui/CloseIcon.tsx","name":"CloseIcon.tsx"},
+  {"path":"apps/web/components/ui/IconButton.tsx","name":"IconButton.tsx"},
+  {"path":"apps/web/components/ui/TextField.tsx","name":"TextField.tsx"},
+  {"path":"apps/web/components/useDialogFocus.ts","name":"useDialogFocus.ts"},
+  {"path":"apps/web/components/usePresence.ts","name":"usePresence.ts"},
+  {"path":"apps/web/components/WinnerGif.tsx","name":"WinnerGif.tsx"},
+  {"path":"apps/web/lib/auth/authApi.ts","name":"authApi.ts"},
+  {"path":"apps/web/lib/auth/avatarUpload.ts","name":"avatarUpload.ts"},
+  {"path":"apps/web/lib/auth/avatarUrl.ts","name":"avatarUrl.ts"},
+  {"path":"apps/web/lib/auth/titleLabel.ts","name":"titleLabel.ts"},
+  {"path":"apps/web/lib/auth/useAuthUser.ts","name":"useAuthUser.ts"},
+  {"path":"apps/web/lib/bot/botBridge.ts","name":"botBridge.ts"},
+  {"path":"apps/web/lib/bot/botWorker.ts","name":"botWorker.ts"},
+  {"path":"apps/web/lib/bot/difficulty.ts","name":"difficulty.ts"},
+  {"path":"apps/web/lib/bot/liveness.ts","name":"liveness.ts"},
+  {"path":"apps/web/lib/contact/contactApi.ts","name":"contactApi.ts"},
+  {"path":"apps/web/lib/daily/dailyApi.ts","name":"dailyApi.ts"},
+  {"path":"apps/web/lib/daily/useDailyTasks.ts","name":"useDailyTasks.ts"},
+  {"path":"apps/web/lib/glassPrefs.ts","name":"glassPrefs.ts"},
+  {"path":"apps/web/lib/i18n.ts","name":"i18n.ts"},
+  {"path":"apps/web/lib/leaderboard/badgeAsset.ts","name":"badgeAsset.ts"},
+  {"path":"apps/web/lib/locales/be.ts","name":"be.ts"},
+  {"path":"apps/web/lib/locales/cs.ts","name":"cs.ts"},
+  {"path":"apps/web/lib/locales/da.ts","name":"da.ts"},
+  {"path":"apps/web/lib/locales/de.ts","name":"de.ts"},
+  {"path":"apps/web/lib/locales/en.ts","name":"en.ts"},
+  {"path":"apps/web/lib/locales/es.ts","name":"es.ts"},
+  {"path":"apps/web/lib/locales/et.ts","name":"et.ts"},
+  {"path":"apps/web/lib/locales/fi.ts","name":"fi.ts"},
+  {"path":"apps/web/lib/locales/fr.ts","name":"fr.ts"},
+  {"path":"apps/web/lib/locales/hu.ts","name":"hu.ts"},
+  {"path":"apps/web/lib/locales/it.ts","name":"it.ts"},
+  {"path":"apps/web/lib/locales/lt.ts","name":"lt.ts"},
+  {"path":"apps/web/lib/locales/lv.ts","name":"lv.ts"},
+  {"path":"apps/web/lib/locales/mpRules/be.ts","name":"be.ts"},
+  {"path":"apps/web/lib/locales/mpRules/cs.ts","name":"cs.ts"},
+  {"path":"apps/web/lib/locales/mpRules/da.ts","name":"da.ts"},
+  {"path":"apps/web/lib/locales/mpRules/de.ts","name":"de.ts"},
+  {"path":"apps/web/lib/locales/mpRules/es.ts","name":"es.ts"},
+  {"path":"apps/web/lib/locales/mpRules/et.ts","name":"et.ts"},
+  {"path":"apps/web/lib/locales/mpRules/fi.ts","name":"fi.ts"},
+  {"path":"apps/web/lib/locales/mpRules/fr.ts","name":"fr.ts"},
+  {"path":"apps/web/lib/locales/mpRules/hu.ts","name":"hu.ts"},
+  {"path":"apps/web/lib/locales/mpRules/it.ts","name":"it.ts"},
+  {"path":"apps/web/lib/locales/mpRules/lt.ts","name":"lt.ts"},
+  {"path":"apps/web/lib/locales/mpRules/nl.ts","name":"nl.ts"},
+  {"path":"apps/web/lib/locales/mpRules/no.ts","name":"no.ts"},
+  {"path":"apps/web/lib/locales/mpRules/pl.ts","name":"pl.ts"},
+  {"path":"apps/web/lib/locales/mpRules/pt.ts","name":"pt.ts"},
+  {"path":"apps/web/lib/locales/mpRules/ro.ts","name":"ro.ts"},
+  {"path":"apps/web/lib/locales/mpRules/sk.ts","name":"sk.ts"},
+  {"path":"apps/web/lib/locales/mpRules/sv.ts","name":"sv.ts"},
+  {"path":"apps/web/lib/locales/mpRules/uk.ts","name":"uk.ts"},
+  {"path":"apps/web/lib/locales/nl.ts","name":"nl.ts"},
+  {"path":"apps/web/lib/locales/no.ts","name":"no.ts"},
+  {"path":"apps/web/lib/locales/pl.ts","name":"pl.ts"},
+  {"path":"apps/web/lib/locales/pt.ts","name":"pt.ts"},
+  {"path":"apps/web/lib/locales/ro.ts","name":"ro.ts"},
+  {"path":"apps/web/lib/locales/sk.ts","name":"sk.ts"},
+  {"path":"apps/web/lib/locales/sv.ts","name":"sv.ts"},
+  {"path":"apps/web/lib/locales/uk.ts","name":"uk.ts"},
+  {"path":"apps/web/lib/mobileStage.ts","name":"mobileStage.ts"},
+  {"path":"apps/web/lib/mp/bidWon.ts","name":"bidWon.ts"},
+  {"path":"apps/web/lib/mp/chatTranslation.ts","name":"chatTranslation.ts"},
+  {"path":"apps/web/lib/mp/clientId.ts","name":"clientId.ts"},
+  {"path":"apps/web/lib/mp/clientView.ts","name":"clientView.ts"},
+  {"path":"apps/web/lib/mp/desktopStage.ts","name":"desktopStage.ts"},
+  {"path":"apps/web/lib/mp/gameTableView.ts","name":"gameTableView.ts"},
+  {"path":"apps/web/lib/mp/mobileLayout.ts","name":"mobileLayout.ts"},
+  {"path":"apps/web/lib/mp/MultiplayerClient.ts","name":"MultiplayerClient.ts"},
+  {"path":"apps/web/lib/mp/potChest.ts","name":"potChest.ts"},
+  {"path":"apps/web/lib/mp/seatLabel.ts","name":"seatLabel.ts"},
+  {"path":"apps/web/lib/mp/serverHttpBase.ts","name":"serverHttpBase.ts"},
+  {"path":"apps/web/lib/mp/serverUrl.ts","name":"serverUrl.ts"},
+  {"path":"apps/web/lib/mp/useLobbyTransientErrors.ts","name":"useLobbyTransientErrors.ts"},
+  {"path":"apps/web/lib/mp/useMultiplayer.ts","name":"useMultiplayer.ts"},
+  {"path":"apps/web/lib/mp/useTrickFreeze.ts","name":"useTrickFreeze.ts"},
+  {"path":"apps/web/lib/mp/useTurnErrorToast.ts","name":"useTurnErrorToast.ts"},
+  {"path":"apps/web/lib/mp/webSocketAdapter.ts","name":"webSocketAdapter.ts"},
+  {"path":"apps/web/lib/mpRulesContent.ts","name":"mpRulesContent.ts"},
+  {"path":"apps/web/lib/pwa/reloadGate.ts","name":"reloadGate.ts"},
+  {"path":"apps/web/lib/safeStorage.ts","name":"safeStorage.ts"},
+  {"path":"apps/web/lib/sp/spReward.ts","name":"spReward.ts"},
+  {"path":"apps/web/lib/stats/playerStats.ts","name":"playerStats.ts"},
+  {"path":"apps/web/lib/store/storeApi.ts","name":"storeApi.ts"},
+  {"path":"apps/web/lib/theme.ts","name":"theme.ts"},
+  {"path":"apps/web/lib/useAudioSettings.ts","name":"useAudioSettings.ts"},
+  {"path":"apps/web/next.config.ts","name":"next.config.ts"},
+  {"path":"apps/web/package.json","name":"package.json"},
+  {"path":"apps/web/public/assets/avatars/avatar-01.svg","name":"avatar-01.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-02.svg","name":"avatar-02.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-03.svg","name":"avatar-03.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-04.svg","name":"avatar-04.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-05.svg","name":"avatar-05.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-06.svg","name":"avatar-06.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-07.svg","name":"avatar-07.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-08.svg","name":"avatar-08.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-09.svg","name":"avatar-09.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-10.svg","name":"avatar-10.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-11.svg","name":"avatar-11.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-12.svg","name":"avatar-12.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-13.svg","name":"avatar-13.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-14.svg","name":"avatar-14.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-15.svg","name":"avatar-15.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-16.svg","name":"avatar-16.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-17.svg","name":"avatar-17.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-18.svg","name":"avatar-18.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-19.svg","name":"avatar-19.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-20.svg","name":"avatar-20.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-21.svg","name":"avatar-21.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-22.svg","name":"avatar-22.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-23.svg","name":"avatar-23.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-24.svg","name":"avatar-24.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-25.svg","name":"avatar-25.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-26.svg","name":"avatar-26.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-27.svg","name":"avatar-27.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-28.svg","name":"avatar-28.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-29.svg","name":"avatar-29.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-30.svg","name":"avatar-30.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-31.svg","name":"avatar-31.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-32.svg","name":"avatar-32.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-33.svg","name":"avatar-33.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-34.svg","name":"avatar-34.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-35.svg","name":"avatar-35.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-36.svg","name":"avatar-36.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-37.svg","name":"avatar-37.svg"},
+  {"path":"apps/web/public/assets/avatars/avatar-38.svg","name":"avatar-38.svg"},
+  {"path":"apps/web/public/assets/backgrounds/lobby.svg","name":"lobby.svg"},
+  {"path":"apps/web/public/assets/backgrounds/mp-lobby.svg","name":"mp-lobby.svg"},
+  {"path":"apps/web/public/assets/backgrounds/mp-room.svg","name":"mp-room.svg"},
+  {"path":"apps/web/public/assets/backgrounds/sp-room.svg","name":"sp-room.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/bubbles/lobby.svg","name":"lobby.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/bubbles/mp-lobby.svg","name":"mp-lobby.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/bubbles/mp-room.svg","name":"mp-room.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/bubbles/poster/lobby.jpg","name":"lobby.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/bubbles/poster/mp-lobby.jpg","name":"mp-lobby.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/bubbles/poster/mp-room.jpg","name":"mp-room.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/bubbles/poster/sp-room.jpg","name":"sp-room.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/bubbles/sp-room.svg","name":"sp-room.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/confetti/lobby.svg","name":"lobby.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/confetti/mp-lobby.svg","name":"mp-lobby.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/confetti/mp-room.svg","name":"mp-room.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/confetti/poster/lobby.jpg","name":"lobby.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/confetti/poster/mp-lobby.jpg","name":"mp-lobby.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/confetti/poster/mp-room.jpg","name":"mp-room.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/confetti/poster/sp-room.jpg","name":"sp-room.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/confetti/sp-room.svg","name":"sp-room.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/luminous/lobby.svg","name":"lobby.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/luminous/mp-lobby.svg","name":"mp-lobby.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/luminous/mp-room.svg","name":"mp-room.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/luminous/poster/lobby.jpg","name":"lobby.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/luminous/poster/mp-lobby.jpg","name":"mp-lobby.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/luminous/poster/mp-room.jpg","name":"mp-room.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/luminous/poster/sp-room.jpg","name":"sp-room.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/luminous/sp-room.svg","name":"sp-room.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/pop-out/lobby.svg","name":"lobby.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/pop-out/mp-lobby.svg","name":"mp-lobby.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/pop-out/mp-room.svg","name":"mp-room.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/pop-out/poster/lobby.jpg","name":"lobby.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/pop-out/poster/mp-lobby.jpg","name":"mp-lobby.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/pop-out/poster/mp-room.jpg","name":"mp-room.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/pop-out/poster/sp-room.jpg","name":"sp-room.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/pop-out/sp-room.svg","name":"sp-room.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/rain/lobby.svg","name":"lobby.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/rain/mp-lobby.svg","name":"mp-lobby.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/rain/mp-room.svg","name":"mp-room.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/rain/poster/lobby.jpg","name":"lobby.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/rain/poster/mp-lobby.jpg","name":"mp-lobby.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/rain/poster/mp-room.jpg","name":"mp-room.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/rain/poster/sp-room.jpg","name":"sp-room.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/rain/sp-room.svg","name":"sp-room.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/twilight/lobby.svg","name":"lobby.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/twilight/mp-lobby.svg","name":"mp-lobby.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/twilight/mp-room.svg","name":"mp-room.svg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/twilight/poster/lobby.jpg","name":"lobby.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/twilight/poster/mp-lobby.jpg","name":"mp-lobby.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/twilight/poster/mp-room.jpg","name":"mp-room.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/twilight/poster/sp-room.jpg","name":"sp-room.jpg"},
+  {"path":"apps/web/public/assets/backgrounds/themes/twilight/sp-room.svg","name":"sp-room.svg"},
+  {"path":"apps/web/public/assets/Badges/rank_1.png","name":"rank_1.png"},
+  {"path":"apps/web/public/assets/Badges/rank_10.png","name":"rank_10.png"},
+  {"path":"apps/web/public/assets/Badges/rank_11.png","name":"rank_11.png"},
+  {"path":"apps/web/public/assets/Badges/rank_12.png","name":"rank_12.png"},
+  {"path":"apps/web/public/assets/Badges/rank_13.png","name":"rank_13.png"},
+  {"path":"apps/web/public/assets/Badges/rank_14.png","name":"rank_14.png"},
+  {"path":"apps/web/public/assets/Badges/rank_15.png","name":"rank_15.png"},
+  {"path":"apps/web/public/assets/Badges/rank_16.png","name":"rank_16.png"},
+  {"path":"apps/web/public/assets/Badges/rank_17.png","name":"rank_17.png"},
+  {"path":"apps/web/public/assets/Badges/rank_18.png","name":"rank_18.png"},
+  {"path":"apps/web/public/assets/Badges/rank_19.png","name":"rank_19.png"},
+  {"path":"apps/web/public/assets/Badges/rank_2.png","name":"rank_2.png"},
+  {"path":"apps/web/public/assets/Badges/rank_20.png","name":"rank_20.png"},
+  {"path":"apps/web/public/assets/Badges/rank_21.png","name":"rank_21.png"},
+  {"path":"apps/web/public/assets/Badges/rank_22.png","name":"rank_22.png"},
+  {"path":"apps/web/public/assets/Badges/rank_23.png","name":"rank_23.png"},
+  {"path":"apps/web/public/assets/Badges/rank_24.png","name":"rank_24.png"},
+  {"path":"apps/web/public/assets/Badges/rank_25.png","name":"rank_25.png"},
+  {"path":"apps/web/public/assets/Badges/rank_26.png","name":"rank_26.png"},
+  {"path":"apps/web/public/assets/Badges/rank_27.png","name":"rank_27.png"},
+  {"path":"apps/web/public/assets/Badges/rank_28.png","name":"rank_28.png"},
+  {"path":"apps/web/public/assets/Badges/rank_29.png","name":"rank_29.png"},
+  {"path":"apps/web/public/assets/Badges/rank_3.png","name":"rank_3.png"},
+  {"path":"apps/web/public/assets/Badges/rank_30.png","name":"rank_30.png"},
+  {"path":"apps/web/public/assets/Badges/rank_4.png","name":"rank_4.png"},
+  {"path":"apps/web/public/assets/Badges/rank_5.png","name":"rank_5.png"},
+  {"path":"apps/web/public/assets/Badges/rank_6.png","name":"rank_6.png"},
+  {"path":"apps/web/public/assets/Badges/rank_7.png","name":"rank_7.png"},
+  {"path":"apps/web/public/assets/Badges/rank_8.png","name":"rank_8.png"},
+  {"path":"apps/web/public/assets/Badges/rank_9.png","name":"rank_9.png"},
+  {"path":"apps/web/public/assets/chests/pack04-suitcase0-64.png","name":"pack04-suitcase0-64.png"},
+  {"path":"apps/web/public/assets/chests/pack04-suitcase1-64.png","name":"pack04-suitcase1-64.png"},
+  {"path":"apps/web/public/assets/chests/pack04-suitcase2-64.png","name":"pack04-suitcase2-64.png"},
+  {"path":"apps/web/public/assets/chests/pack05-chest1-64.png","name":"pack05-chest1-64.png"},
+  {"path":"apps/web/public/assets/chests/pack05-chest2-64.png","name":"pack05-chest2-64.png"},
+  {"path":"apps/web/public/assets/coins/spinRight-32.gif","name":"spinRight-32.gif"},
+  {"path":"apps/web/public/assets/daily/win_epic_30.png","name":"win_epic_30.png"},
+  {"path":"apps/web/public/assets/daily/win_epic_50.png","name":"win_epic_50.png"},
+  {"path":"apps/web/public/assets/daily/win_hard.png","name":"win_hard.png"},
+  {"path":"apps/web/public/assets/daily/win_medium.png","name":"win_medium.png"},
+  {"path":"apps/web/public/assets/icons/animated_trophy.gif","name":"animated_trophy.gif"},
+  {"path":"apps/web/public/assets/icons/bot.svg","name":"bot.svg"},
+  {"path":"apps/web/public/assets/icons/circle-question_solid.svg","name":"circle-question_solid.svg"},
+  {"path":"apps/web/public/assets/icons/circle-question_solid_flip.svg","name":"circle-question_solid_flip.svg"},
+  {"path":"apps/web/public/assets/icons/login-password-svgrepo.svg","name":"login-password-svgrepo.svg"},
+  {"path":"apps/web/public/assets/icons/settings.svg","name":"settings.svg"},
+  {"path":"apps/web/public/assets/icons/square-github.svg","name":"square-github.svg"},
+  {"path":"apps/web/public/assets/icons/square-github_brands_beat.svg","name":"square-github_brands_beat.svg"},
+  {"path":"apps/web/public/assets/icons/store.svg","name":"store.svg"},
+  {"path":"apps/web/public/assets/images/animated_trophy.gif","name":"animated_trophy.gif"},
+  {"path":"apps/web/public/assets/images/domino_poker_logo.png","name":"domino_poker_logo.png"},
+  {"path":"apps/web/public/assets/images/domino_poker_logo.webp","name":"domino_poker_logo.webp"},
+  {"path":"apps/web/public/assets/sounds/background_music.mp3","name":"background_music.mp3"},
+  {"path":"apps/web/public/assets/sounds/bid_click.mp3","name":"bid_click.mp3"},
+  {"path":"apps/web/public/assets/sounds/Coin_claim.mp3","name":"Coin_claim.mp3"},
+  {"path":"apps/web/public/assets/sounds/domino_deal.wav","name":"domino_deal.wav"},
+  {"path":"apps/web/public/assets/sounds/mixkit-typewriter-soft-click.wav","name":"mixkit-typewriter-soft-click.wav"},
+  {"path":"apps/web/public/assets/sounds/round_win.mp3","name":"round_win.mp3"},
+  {"path":"apps/web/public/assets/sounds/tile_placed.mp3","name":"tile_placed.mp3"},
+  {"path":"apps/web/public/assets/sounds/trick_complete.mp3","name":"trick_complete.mp3"},
+  {"path":"apps/web/public/assets/winner/winner-number-1.gif","name":"winner-number-1.gif"},
+  {"path":"apps/web/public/assets/winner/winner-number-2.gif","name":"winner-number-2.gif"},
+  {"path":"apps/web/public/assets/winner/winner-number-3.gif","name":"winner-number-3.gif"},
+  {"path":"apps/web/public/assets/winner/winner-number-4.gif","name":"winner-number-4.gif"},
+  {"path":"apps/web/public/icons/icon-192.png","name":"icon-192.png"},
+  {"path":"apps/web/public/icons/icon-512.png","name":"icon-512.png"},
+  {"path":"apps/web/public/icons/maskable-512.png","name":"maskable-512.png"},
+  {"path":"apps/web/public/sw.js","name":"sw.js"},
+  {"path":"apps/web/styles/animations.css","name":"animations.css"},
+  {"path":"apps/web/styles/auth.css","name":"auth.css"},
+  {"path":"apps/web/styles/avatar-badge.css","name":"avatar-badge.css"},
+  {"path":"apps/web/styles/base.css","name":"base.css"},
+  {"path":"apps/web/styles/coin.css","name":"coin.css"},
+  {"path":"apps/web/styles/daily.css","name":"daily.css"},
+  {"path":"apps/web/styles/dialogs.css","name":"dialogs.css"},
+  {"path":"apps/web/styles/effects.css","name":"effects.css"},
+  {"path":"apps/web/styles/glass.css","name":"glass.css"},
+  {"path":"apps/web/styles/info-panel.css","name":"info-panel.css"},
+  {"path":"apps/web/styles/install-prompt.css","name":"install-prompt.css"},
+  {"path":"apps/web/styles/leaderboard.css","name":"leaderboard.css"},
+  {"path":"apps/web/styles/lobby.css","name":"lobby.css"},
+  {"path":"apps/web/styles/lobby-profile.css","name":"lobby-profile.css"},
+  {"path":"apps/web/styles/mp-game.css","name":"mp-game.css"},
+  {"path":"apps/web/styles/mp-lobby.css","name":"mp-lobby.css"},
+  {"path":"apps/web/styles/mp-mobile-lobby.css","name":"mp-mobile-lobby.css"},
+  {"path":"apps/web/styles/mp-mobile-table.css","name":"mp-mobile-table.css"},
+  {"path":"apps/web/styles/responsive.css","name":"responsive.css"},
+  {"path":"apps/web/styles/settings.css","name":"settings.css"},
+  {"path":"apps/web/styles/sp-table.css","name":"sp-table.css"},
+  {"path":"apps/web/styles/store.css","name":"store.css"},
+  {"path":"apps/web/styles/tiles.css","name":"tiles.css"},
+  {"path":"apps/web/styles/tokens.css","name":"tokens.css"},
+  {"path":"apps/web/styles/ui-button.css","name":"ui-button.css"},
+  {"path":"apps/web/styles/ui-icon-button.css","name":"ui-icon-button.css"},
+  {"path":"apps/web/styles/ui-text-field.css","name":"ui-text-field.css"},
+  {"path":"apps/web/test/AuthDialogPersonalization.test.tsx","name":"AuthDialogPersonalization.test.tsx"},
+  {"path":"apps/web/test/AvatarRankBadge.test.tsx","name":"AvatarRankBadge.test.tsx"},
+  {"path":"apps/web/test/botLiveness.test.ts","name":"botLiveness.test.ts"},
+  {"path":"apps/web/test/Button.test.tsx","name":"Button.test.tsx"},
+  {"path":"apps/web/test/CoinBalance.test.tsx","name":"CoinBalance.test.tsx"},
+  {"path":"apps/web/test/coinRules.test.ts","name":"coinRules.test.ts"},
+  {"path":"apps/web/test/DailyTasksDialog.test.tsx","name":"DailyTasksDialog.test.tsx"},
+  {"path":"apps/web/test/GameEndReward.test.tsx","name":"GameEndReward.test.tsx"},
+  {"path":"apps/web/test/glassPrefs.test.ts","name":"glassPrefs.test.ts"},
+  {"path":"apps/web/test/IconButton.test.tsx","name":"IconButton.test.tsx"},
+  {"path":"apps/web/test/InstallPrompt.test.tsx","name":"InstallPrompt.test.tsx"},
+  {"path":"apps/web/test/LeaderboardDialog.test.tsx","name":"LeaderboardDialog.test.tsx"},
+  {"path":"apps/web/test/mp/bidWon.test.ts","name":"bidWon.test.ts"},
+  {"path":"apps/web/test/mp/clientId.test.ts","name":"clientId.test.ts"},
+  {"path":"apps/web/test/mp/clientView.test.ts","name":"clientView.test.ts"},
+  {"path":"apps/web/test/mp/coinsWon.test.ts","name":"coinsWon.test.ts"},
+  {"path":"apps/web/test/mp/gameTableView.test.ts","name":"gameTableView.test.ts"},
+  {"path":"apps/web/test/mp/MpEmojiPicker.test.tsx","name":"MpEmojiPicker.test.tsx"},
+  {"path":"apps/web/test/mp/MultiplayerClient.test.ts","name":"MultiplayerClient.test.ts"},
+  {"path":"apps/web/test/mp/paidRoomUi.test.tsx","name":"paidRoomUi.test.tsx"},
+  {"path":"apps/web/test/mp/serverUrl.test.ts","name":"serverUrl.test.ts"},
+  {"path":"apps/web/test/mp/useLobbyTransientErrors.test.ts","name":"useLobbyTransientErrors.test.ts"},
+  {"path":"apps/web/test/mp/useLobbyTransientErrors.test.tsx","name":"useLobbyTransientErrors.test.tsx"},
+  {"path":"apps/web/test/mp/useTrickFreeze.test.tsx","name":"useTrickFreeze.test.tsx"},
+  {"path":"apps/web/test/potChest.test.ts","name":"potChest.test.ts"},
+  {"path":"apps/web/test/pwa/reloadGate.test.ts","name":"reloadGate.test.ts"},
+  {"path":"apps/web/test/rulesDialogs.test.tsx","name":"rulesDialogs.test.tsx"},
+  {"path":"apps/web/test/StatisticsPanel.test.tsx","name":"StatisticsPanel.test.tsx"},
+  {"path":"apps/web/test/TextField.test.tsx","name":"TextField.test.tsx"},
+  {"path":"apps/web/test/theme.test.ts","name":"theme.test.ts"},
+  {"path":"apps/web/test/useAuthUser.language.test.tsx","name":"useAuthUser.language.test.tsx"},
+  {"path":"apps/web/test/useDailyTasks.test.tsx","name":"useDailyTasks.test.tsx"},
+  {"path":"apps/web/tsconfig.json","name":"tsconfig.json"},
+  {"path":"apps/web/vitest.config.ts","name":"vitest.config.ts"},
+  {"path":"data/.gitkeep","name":".gitkeep"},
+  {"path":"deploy/BACKUP.md","name":"BACKUP.md"},
+  {"path":"deploy/Caddyfile.example","name":"Caddyfile.example"},
+  {"path":"deploy/Dockerfile","name":"Dockerfile"},
+  {"path":"deploy/domino-poker.service","name":"domino-poker.service"},
+  {"path":"deploy/nginx.conf.example","name":"nginx.conf.example"},
+  {"path":"docs/Domino pokera Noteikumi.md","name":"Domino pokera Noteikumi.md"},
+  {"path":"docs/domino_poker_rules_summary.md","name":"domino_poker_rules_summary.md"},
+  {"path":"docs/game_strategy.md","name":"game_strategy.md"},
+  {"path":"docs/PUNKTU_SISTEMA_PIEMERI.md","name":"PUNKTU_SISTEMA_PIEMERI.md"},
+  {"path":"eslint.config.mjs","name":"eslint.config.mjs"},
+  {"path":"LICENSE","name":"LICENSE"},
+  {"path":"package.json","name":"package.json"},
+  {"path":"package-lock.json","name":"package-lock.json"},
+  {"path":"packages/ai_bot/.gitignore","name":".gitignore"},
+  {"path":"packages/ai_bot/CONNECTION-README.md","name":"CONNECTION-README.md"},
+  {"path":"packages/ai_bot/INTEGRATION.md","name":"INTEGRATION.md"},
+  {"path":"packages/ai_bot/package.json","name":"package.json"},
+  {"path":"packages/ai_bot/packages/ai/package.json","name":"package.json"},
+  {"path":"packages/ai_bot/packages/ai/src/bidding.ts","name":"bidding.ts"},
+  {"path":"packages/ai_bot/packages/ai/src/dealer.ts","name":"dealer.ts"},
+  {"path":"packages/ai_bot/packages/ai/src/index.ts","name":"index.ts"},
+  {"path":"packages/ai_bot/packages/ai/src/inference.ts","name":"inference.ts"},
+  {"path":"packages/ai_bot/packages/ai/src/ismcts.ts","name":"ismcts.ts"},
+  {"path":"packages/ai_bot/packages/ai/src/profiling.ts","name":"profiling.ts"},
+  {"path":"packages/ai_bot/packages/ai/src/rollout.ts","name":"rollout.ts"},
+  {"path":"packages/ai_bot/packages/ai/tsconfig.json","name":"tsconfig.json"},
+  {"path":"packages/ai_bot/packages/bot-adapter/package.json","name":"package.json"},
+  {"path":"packages/ai_bot/packages/bot-adapter/src/ai.worker.ts","name":"ai.worker.ts"},
+  {"path":"packages/ai_bot/packages/bot-adapter/src/AiClient.ts","name":"AiClient.ts"},
+  {"path":"packages/ai_bot/packages/bot-adapter/src/index.ts","name":"index.ts"},
+  {"path":"packages/ai_bot/packages/bot-adapter/src/protocol.ts","name":"protocol.ts"},
+  {"path":"packages/ai_bot/packages/bot-adapter/tsconfig.json","name":"tsconfig.json"},
+  {"path":"packages/ai_bot/packages/engine/package.json","name":"package.json"},
+  {"path":"packages/ai_bot/packages/engine/src/index.ts","name":"index.ts"},
+  {"path":"packages/ai_bot/packages/engine/src/rng.ts","name":"rng.ts"},
+  {"path":"packages/ai_bot/packages/engine/src/rules.ts","name":"rules.ts"},
+  {"path":"packages/ai_bot/packages/engine/src/scoring.ts","name":"scoring.ts"},
+  {"path":"packages/ai_bot/packages/engine/src/state.ts","name":"state.ts"},
+  {"path":"packages/ai_bot/packages/engine/src/tiles.ts","name":"tiles.ts"},
+  {"path":"packages/ai_bot/packages/engine/tsconfig.json","name":"tsconfig.json"},
+  {"path":"packages/ai_bot/pnpm-lock.yaml","name":"pnpm-lock.yaml"},
+  {"path":"packages/ai_bot/pnpm-workspace.yaml","name":"pnpm-workspace.yaml"},
+  {"path":"packages/ai_bot/README.md","name":"README.md"},
+  {"path":"packages/ai_bot/tsconfig.base.json","name":"tsconfig.base.json"},
+  {"path":"packages/core/package.json","name":"package.json"},
+  {"path":"packages/core/scripts/fix-esm-imports.cjs","name":"fix-esm-imports.cjs"},
+  {"path":"packages/core/src/aiService.ts","name":"aiService.ts"},
+  {"path":"packages/core/src/dominoTile.ts","name":"dominoTile.ts"},
+  {"path":"packages/core/src/gameState.ts","name":"gameState.ts"},
+  {"path":"packages/core/src/index.ts","name":"index.ts"},
+  {"path":"packages/core/src/multiplayer/applyCommand.ts","name":"applyCommand.ts"},
+  {"path":"packages/core/src/multiplayer/autoBid.ts","name":"autoBid.ts"},
+  {"path":"packages/core/src/multiplayer/autoMove.ts","name":"autoMove.ts"},
+  {"path":"packages/core/src/multiplayer/commands.ts","name":"commands.ts"},
+  {"path":"packages/core/src/multiplayer/determinism.ts","name":"determinism.ts"},
+  {"path":"packages/core/src/multiplayer/events.ts","name":"events.ts"},
+  {"path":"packages/core/src/multiplayer/gameSetup.ts","name":"gameSetup.ts"},
+  {"path":"packages/core/src/multiplayer/inactivity.ts","name":"inactivity.ts"},
+  {"path":"packages/core/src/multiplayer/index.ts","name":"index.ts"},
+  {"path":"packages/core/src/multiplayer/invariants.ts","name":"invariants.ts"},
+  {"path":"packages/core/src/multiplayer/legalBids.ts","name":"legalBids.ts"},
+  {"path":"packages/core/src/multiplayer/legalMoves.ts","name":"legalMoves.ts"},
+  {"path":"packages/core/src/multiplayer/replay.ts","name":"replay.ts"},
+  {"path":"packages/core/src/multiplayer/snapshots.ts","name":"snapshots.ts"},
+  {"path":"packages/core/src/multiplayer/types.ts","name":"types.ts"},
+  {"path":"packages/core/src/player.ts","name":"player.ts"},
+  {"path":"packages/core/src/shuffleAlgorithm.ts","name":"shuffleAlgorithm.ts"},
+  {"path":"packages/core/src/types.ts","name":"types.ts"},
+  {"path":"packages/core/test/dominoRules.test.ts","name":"dominoRules.test.ts"},
+  {"path":"packages/core/test/multiplayer/applyCommand.test.ts","name":"applyCommand.test.ts"},
+  {"path":"packages/core/test/multiplayer/autoBid.test.ts","name":"autoBid.test.ts"},
+  {"path":"packages/core/test/multiplayer/autoMove.test.ts","name":"autoMove.test.ts"},
+  {"path":"packages/core/test/multiplayer/commandsEvents.test.ts","name":"commandsEvents.test.ts"},
+  {"path":"packages/core/test/multiplayer/determinism.test.ts","name":"determinism.test.ts"},
+  {"path":"packages/core/test/multiplayer/disconnect.test.ts","name":"disconnect.test.ts"},
+  {"path":"packages/core/test/multiplayer/eventCoverage.test.ts","name":"eventCoverage.test.ts"},
+  {"path":"packages/core/test/multiplayer/gameSetup.test.ts","name":"gameSetup.test.ts"},
+  {"path":"packages/core/test/multiplayer/inactivity.test.ts","name":"inactivity.test.ts"},
+  {"path":"packages/core/test/multiplayer/invariants.test.ts","name":"invariants.test.ts"},
+  {"path":"packages/core/test/multiplayer/legalBids.test.ts","name":"legalBids.test.ts"},
+  {"path":"packages/core/test/multiplayer/legalMoves.test.ts","name":"legalMoves.test.ts"},
+  {"path":"packages/core/test/multiplayer/phaseFlow.test.ts","name":"phaseFlow.test.ts"},
+  {"path":"packages/core/test/multiplayer/replay.test.ts","name":"replay.test.ts"},
+  {"path":"packages/core/test/multiplayer/snapshots.test.ts","name":"snapshots.test.ts"},
+  {"path":"packages/core/test/multiplayer/types.test.ts","name":"types.test.ts"},
+  {"path":"packages/core/tsconfig.json","name":"tsconfig.json"},
+  {"path":"packages/shared/package.json","name":"package.json"},
+  {"path":"packages/shared/src/avatarCatalog.ts","name":"avatarCatalog.ts"},
+  {"path":"packages/shared/src/clientMessages.ts","name":"clientMessages.ts"},
+  {"path":"packages/shared/src/economy.ts","name":"economy.ts"},
+  {"path":"packages/shared/src/errors.ts","name":"errors.ts"},
+  {"path":"packages/shared/src/index.ts","name":"index.ts"},
+  {"path":"packages/shared/src/leaderboard.ts","name":"leaderboard.ts"},
+  {"path":"packages/shared/src/protocolVersion.ts","name":"protocolVersion.ts"},
+  {"path":"packages/shared/src/roomTypes.ts","name":"roomTypes.ts"},
+  {"path":"packages/shared/src/serverEvents.ts","name":"serverEvents.ts"},
+  {"path":"packages/shared/src/store-catalog.ts","name":"store-catalog.ts"},
+  {"path":"packages/shared/src/titles.ts","name":"titles.ts"},
+  {"path":"packages/shared/test/daily-tasks.test.ts","name":"daily-tasks.test.ts"},
+  {"path":"packages/shared/test/leaderboard.test.ts","name":"leaderboard.test.ts"},
+  {"path":"packages/shared/test/protocol.test.ts","name":"protocol.test.ts"},
+  {"path":"packages/shared/test/store-catalog.test.ts","name":"store-catalog.test.ts"},
+  {"path":"packages/shared/test/titles.test.ts","name":"titles.test.ts"},
+  {"path":"packages/shared/tsconfig.json","name":"tsconfig.json"},
+  {"path":"packages/shared/tsconfig.typecheck.json","name":"tsconfig.typecheck.json"},
+  {"path":"playwright.config.ts","name":"playwright.config.ts"},
+  {"path":"project_context/ai_rules.md","name":"ai_rules.md"},
+  {"path":"project_context/module_map.json","name":"module_map.json"},
+  {"path":"project_context/repo_map.json","name":"repo_map.json"},
+  {"path":"project_context/repo_overview.md","name":"repo_overview.md"},
+  {"path":"README.md","name":"README.md"},
+  {"path":"Screenshots/gameplay-bidding.png","name":"gameplay-bidding.png"},
+  {"path":"Screenshots/gameplay-trick.png","name":"gameplay-trick.png"},
+  {"path":"Screenshots/leaderboard.png","name":"leaderboard.png"},
+  {"path":"Screenshots/main-menu.png","name":"main-menu.png"},
+  {"path":"Screenshots/multiplayer-lobby.png","name":"multiplayer-lobby.png"},
+  {"path":"Screenshots/profile-avatars.png","name":"profile-avatars.png"},
+  {"path":"Screenshots/rules-multiplayer.png","name":"rules-multiplayer.png"},
+  {"path":"Screenshots/rules-singleplayer.png","name":"rules-singleplayer.png"},
+  {"path":"Screenshots/settings.png","name":"settings.png"},
+  {"path":"Screenshots/statistics.png","name":"statistics.png"},
+  {"path":"Screenshots/store-themes.png","name":"store-themes.png"},
+  {"path":"scripts/dev-admin-otp.mjs","name":"dev-admin-otp.mjs"},
+  {"path":"scripts/seed-leaderboard-demo.mjs","name":"seed-leaderboard-demo.mjs"},
+  {"path":"scripts/test-postgres-docker.mjs","name":"test-postgres-docker.mjs"},
+  {"path":"start-domino-poker.bat","name":"start-domino-poker.bat"},
+  {"path":"tests/e2e/dialog-a11y.spec.ts","name":"dialog-a11y.spec.ts"},
+  {"path":"tests/e2e/layout-regression.spec.ts","name":"layout-regression.spec.ts"},
+  {"path":"tests/e2e/main-flow.spec.ts","name":"main-flow.spec.ts"},
+  {"path":"tests/e2e/multiplayer-smoke.spec.ts","name":"multiplayer-smoke.spec.ts"},
+  {"path":"tests/e2e/storage-resilience.spec.ts","name":"storage-resilience.spec.ts"},
+  {"path":"tests/e2e/theme-performance.spec.ts","name":"theme-performance.spec.ts"},
+  {"path":"tools/bot-benchmark/package.json","name":"package.json"},
+  {"path":"tools/bot-benchmark/src/runBenchmark.ts","name":"runBenchmark.ts"},
+  {"path":"tools/bot-benchmark/tsconfig.build.json","name":"tsconfig.build.json"},
+  {"path":"tools/bot-benchmark/tsconfig.json","name":"tsconfig.json"},
+  {"path":"tools/load-test/package.json","name":"package.json"},
+  {"path":"tools/load-test/src/metrics.ts","name":"metrics.ts"},
+  {"path":"tools/load-test/src/runLoadTest.ts","name":"runLoadTest.ts"},
+  {"path":"tools/load-test/src/VirtualClient.ts","name":"VirtualClient.ts"},
+  {"path":"tools/load-test/test/metrics.test.ts","name":"metrics.test.ts"},
+  {"path":"tools/load-test/tsconfig.build.json","name":"tsconfig.build.json"},
+  {"path":"tools/load-test/tsconfig.json","name":"tsconfig.json"},
+  {"path":"tools/load-test/vitest.config.ts","name":"vitest.config.ts"},
+  {"path":"tools/simulators/package.json","name":"package.json"},
+  {"path":"tools/simulators/src/playGame.ts","name":"playGame.ts"},
+  {"path":"tools/simulators/src/random.ts","name":"random.ts"},
+  {"path":"tools/simulators/src/runSimulations.ts","name":"runSimulations.ts"},
+  {"path":"tools/simulators/test/playGame.test.ts","name":"playGame.test.ts"},
+  {"path":"tools/simulators/test/volume.test.ts","name":"volume.test.ts"},
+  {"path":"tools/simulators/tsconfig.build.json","name":"tsconfig.build.json"},
+  {"path":"tools/simulators/tsconfig.json","name":"tsconfig.json"},
+  {"path":"tools/simulators/vitest.config.ts","name":"vitest.config.ts"},
+  {"path":"tsconfig.base.json","name":"tsconfig.base.json"},
+  {"path":"tsconfig.json","name":"tsconfig.json"},
+  {"path":"VERSION","name":"VERSION"}
 ]
