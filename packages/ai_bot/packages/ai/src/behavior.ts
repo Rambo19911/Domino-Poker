@@ -9,9 +9,10 @@
 import type { GameState, Seat } from "@domino-poker/engine";
 import { computePointsReward, seatInclusionReward, type RewardFn } from "./ismcts.js";
 
-// Trīs cilvēku-mērķējošas uzvedības. NAV "inclusion"/"points" — tie jau pastāv kā RewardKind un
-// paliek noklusējuma, uz cilvēku neorientētais spēles režīms.
-export type BotObjective = "denyHuman" | "aggressiveVsHuman" | "supportHuman";
+// Divas cilvēku-mērķējošas uzvedības. NAV "inclusion"/"points" — tie jau pastāv kā RewardKind un
+// paliek noklusējuma, uz cilvēku neorientētais spēles režīms. (`supportHuman` mērķi piegādā veikala
+// hint bots caur `inclusion` — sk. docs/bot-behaviors.md; tāpēc tas šeit nav.)
+export type BotObjective = "denyHuman" | "aggressiveVsHuman";
 
 // Uzvedības konfigurācija. `botSeat` ir pati bota sēdvieta (view.seat), `targetSeat` ir cilvēka
 // sēdvieta, uz kuru uzvedība ir vērsta. `weight` (0..1) sabalansē paša bota mērķi pret uz cilvēku
@@ -25,7 +26,6 @@ export type BotBehaviorConfig = {
 
 // Uz cilvēku vērstās komponentes noklusējuma svars katram mērķim.
 const DEFAULT_WEIGHT: Record<BotObjective, number> = {
-  supportHuman: 0.6,
   denyHuman: 0.5,
   aggressiveVsHuman: 0.6
 };
@@ -62,12 +62,6 @@ export function createBehaviorReward(config: BotBehaviorConfig): RewardFn {
     }
     const selfIncl = out[botSeat] as number;
     const targetIncl = out[targetSeat] as number;
-
-    if (objective === "supportHuman") {
-      // Palīdz cilvēkam trāpīt solījumu: jo augstāks cilvēka inclusion, jo augstāks bota reward.
-      out[botSeat] = (1 - weight) * selfIncl + weight * targetIncl;
-      return;
-    }
 
     if (objective === "denyHuman") {
       // Kavē cilvēku trāpīt solījumu (1 - cilvēka inclusion), vienlaikus turot savu solījumu.
