@@ -259,6 +259,14 @@ export function LobbyScreen({
           audio={audio}
           labels={t}
           onClose={() => setStoreOpen(false)}
+          getToken={auth.getToken}
+          balance={auth.balance}
+          isAuthed={isAuthed}
+          onBalanceChange={auth.applyBalance}
+          onRequireLogin={() => {
+            setStoreOpen(false);
+            openAuth();
+          }}
         />
       </Presence>
 

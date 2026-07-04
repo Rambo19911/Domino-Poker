@@ -90,6 +90,31 @@ describe("WalletService", () => {
     expect([...(await wallet.listOwnedItems("u1"))].sort()).toEqual(["theme.bubbles", "theme.rain"]);
   });
 
+  it("purchaseItem with bot_purchase reason is idempotent and unions into owned items", async () => {
+    await wallet.grantSignupBonus("u1"); // 5000
+    await wallet.adminAdjust("u1", "topup", 6_000_000); // 6_005_000
+    // Tēma (noklusējuma reason theme_purchase).
+    expect(await wallet.purchaseItem("u1", "theme.bubbles", 2000)).toEqual({
+      ok: true,
+      applied: true,
+      balance: 6_003_000
+    });
+    // Bots (bot_purchase reason) — atsevišķa īpašumtiesību dimensija.
+    expect(await wallet.purchaseItem("u1", "bot.supportHuman", 5_000_000, "bot_purchase")).toEqual({
+      ok: true,
+      applied: true,
+      balance: 1_003_000
+    });
+    // Atkārtots bota pirkums = idempotents (applied:false), NEdebetē divreiz.
+    expect(await wallet.purchaseItem("u1", "bot.supportHuman", 5_000_000, "bot_purchase")).toEqual({
+      ok: true,
+      applied: false,
+      balance: 1_003_000
+    });
+    // listOwnedItems apvieno theme + bot ledger iemeslus.
+    expect([...(await wallet.listOwnedItems("u1"))].sort()).toEqual(["bot.supportHuman", "theme.bubbles"]);
+  });
+
   it("purchaseItem rejects when balance is insufficient (no debit, not owned)", async () => {
     await wallet.grantSignupBonus("u1"); // 5000
     expect(await wallet.purchaseItem("u1", "theme.bubbles", 6000)).toEqual({

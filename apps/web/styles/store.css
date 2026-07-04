@@ -31,41 +31,180 @@
   vertical-align: -6px;
 }
 
-/* Tukšais stāvoklis — centrēts placeholder, kamēr saturs vēl nav pievienots. */
-.storeEmpty {
+/* --- Preču režģis (pagaidām viena prece, centrēta) --- */
+.storeGrid {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 0 0.25rem;
+}
+
+/* Flip-card konteiners — fiksēts augstums (puses ir absolūtas), 3D perspektīva. */
+.storeCard {
+  width: 100%;
+  max-width: 20rem;
+  height: 23rem;
+  perspective: 1200px;
+}
+
+.storeCardInner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform var(--motion-slow) var(--ease-standard);
+}
+
+.storeCard.flipped .storeCardInner {
+  transform: rotateY(180deg);
+}
+
+/* Abas puses — kartes virsma; slēptā puse (backface) neuztver klikšķus. */
+.storeCardFace {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 0.85rem;
-  padding: 2.5rem 1rem;
+  gap: 0.6rem;
+  padding: 1.25rem 1.15rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--dialog-surface);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+}
+
+.storeCardBack {
+  transform: rotateY(180deg);
+  justify-content: flex-start;
+}
+
+/* Bota māksla — inline SVG (fill=currentColor), tonēts ar tēmas --primary. */
+.storeBotArt {
+  width: 120px;
+  height: 120px;
+  margin-top: 0.25rem;
+  color: var(--primary);
+}
+
+.storeCardName {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+}
+
+.storeCardTagline {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
   text-align: center;
 }
 
-.storeEmptyIcon {
-  width: 64px;
-  height: 64px;
-  background: currentColor;
-  color: var(--text-secondary);
-  opacity: 0.5;
-  mask: url("/assets/icons/store.svg") center / contain no-repeat;
-  -webkit-mask: url("/assets/icons/store.svg") center / contain no-repeat;
+.storeCardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  margin-top: auto;
 }
 
-.storeEmptyText {
-  margin: 0;
+.storeCardPrice {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+  color: var(--coin);
+  font-variant-numeric: tabular-nums;
+}
+
+.storeCardPriceCoin {
+  width: 1.15em;
+  height: 1.15em;
+}
+
+.storeBuyButton {
+  border: 1px solid var(--primary);
+  background: rgb(var(--primary-rgb) / 0.14);
+  color: var(--primary);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 1rem;
   font-size: 0.95rem;
-  color: var(--text-secondary);
+  font-weight: 600;
+  cursor: pointer;
 }
 
-/* Mobilais: kompaktāks tukšā stāvokļa attēls šaurās joslās. */
+.storeBuyButton:hover:not(:disabled) {
+  background: rgb(var(--primary-rgb) / 0.24);
+}
+
+.storeBuyButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.storeOwnedBadge {
+  border: 1px solid rgb(var(--primary-rgb) / 0.6);
+  border-radius: var(--radius-md);
+  padding: 0.45rem 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.storeFlipButton {
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0.15rem 0.3rem;
+}
+
+.storeFlipButton:hover {
+  color: var(--text-primary);
+}
+
+/* Aug/ritinās, lai garākas valodas (vācu/ukraiņu) neapgrieztu tekstu fiksētā augstumā. */
+.storeCardDesc {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0.35rem 0;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.storeBuyError {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--error);
+  text-align: center;
+}
+
+/* Reduced-motion: bez flip animācijas (puse pārslēdzas uzreiz, bez rotācijas). */
+@media (prefers-reduced-motion: reduce) {
+  .storeCardInner {
+    transition: none;
+  }
+}
+
+/* Mobilais: kompaktāka karte + māksla šaurās joslās. */
 @media (max-width: 420px) {
-  .storeEmpty {
-    padding: 2rem 0.75rem;
+  .storeCard {
+    height: 21rem;
   }
 
-  .storeEmptyIcon {
-    width: 52px;
-    height: 52px;
+  .storeBotArt {
+    width: 96px;
+    height: 96px;
+  }
+
+  .storeCardName {
+    font-size: 1.2rem;
   }
 }

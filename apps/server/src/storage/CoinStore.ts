@@ -24,6 +24,7 @@ export type LedgerReason =
   | "mp_payout"
   | "admin_adjust"
   | "theme_purchase"
+  | "bot_purchase"
   | "daily_task_reward";
 
 /** Viena (idempotenta) naudas kustība, ko piemēro `applyLedger`. */

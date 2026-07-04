@@ -48,7 +48,13 @@ export function PlayerSeat({
   onTileClick,
   player,
   seatIndex,
-  validTileKeys = []
+  validTileKeys = [],
+  recommendedTileKey = null,
+  recommendedDeclaredNumber,
+  onUseHint,
+  hintsRemaining = 0,
+  hintEnabled = false,
+  hintComputing = false
 }: {
   readonly gameState: GameState;
   readonly humanAvatarUrl?: string | null;
@@ -59,6 +65,15 @@ export function PlayerSeat({
   readonly player: Player | undefined;
   readonly seatIndex: 0 | 1 | 2 | 3;
   readonly validTileKeys?: readonly string[];
+  /** A4: izgaismotais ieteiktais kauliņš (supportHuman padoms); `null` = nav. */
+  readonly recommendedTileKey?: string | null;
+  /** A4: ieteiktais pieteiktais pips vedumam (rādīts uz ieteiktā kauliņa); undefined = nav. */
+  readonly recommendedDeclaredNumber?: number | undefined;
+  /** A4: padoma izmantošana (tikai cilvēkam, ja pieder prece); undefined = poga slēpta. */
+  readonly onUseHint?: (() => void) | undefined;
+  readonly hintsRemaining?: number;
+  readonly hintEnabled?: boolean;
+  readonly hintComputing?: boolean;
 }) {
   if (!player) return null;
 
@@ -73,6 +88,12 @@ export function PlayerSeat({
         onTileClick={onTileClick}
         player={player}
         validTileKeys={validTileKeys}
+        recommendedTileKey={recommendedTileKey}
+        recommendedDeclaredNumber={recommendedDeclaredNumber}
+        onUseHint={onUseHint}
+        hintsRemaining={hintsRemaining}
+        hintEnabled={hintEnabled}
+        hintComputing={hintComputing}
       />
     );
   }
@@ -128,7 +149,13 @@ function HumanSeat({
   labels,
   onTileClick,
   player,
-  validTileKeys
+  validTileKeys,
+  recommendedTileKey,
+  recommendedDeclaredNumber,
+  onUseHint,
+  hintsRemaining,
+  hintEnabled,
+  hintComputing
 }: {
   readonly gameState: GameState;
   readonly humanAvatarUrl: string | null;
@@ -138,6 +165,12 @@ function HumanSeat({
   readonly onTileClick: ((tile: DominoTile) => void) | undefined;
   readonly player: Player;
   readonly validTileKeys: readonly string[];
+  readonly recommendedTileKey: string | null;
+  readonly recommendedDeclaredNumber: number | undefined;
+  readonly onUseHint: (() => void) | undefined;
+  readonly hintsRemaining: number;
+  readonly hintEnabled: boolean;
+  readonly hintComputing: boolean;
 }) {
   const isActive = gameState.currentPlayerIndex === 0;
 
@@ -153,6 +186,15 @@ function HumanSeat({
         isWinnerGlow={isWinnerGlow}
         style={{ left: seatLayout.player0ProfileLeft, top: seatLayout.player0ProfileTop }}
       />
+      {onUseHint ? (
+        <HintButton
+          labels={labels}
+          remaining={hintsRemaining}
+          enabled={hintEnabled}
+          computing={hintComputing}
+          onUse={onUseHint}
+        />
+      ) : null}
       <PlayerStats
         labels={labels}
         player={player}
@@ -162,9 +204,12 @@ function HumanSeat({
       {player.hand.map((tile, index) => {
         const key = tileKey(tile);
         const isValid = validTileKeys.includes(key);
+        const isRecommended = key === recommendedTileKey;
         return (
           <button
-            className={`humanTileButton ${isValid && isActive ? "valid" : ""}`}
+            className={`humanTileButton ${isValid && isActive ? "valid" : ""} ${
+              isRecommended && isActive ? "recommended" : ""
+            }`}
             key={`${key}-${index}`}
             type="button"
             aria-label={formatTemplate(labels.playTile, { tile: `${tile.side1}-${tile.side2}` })}
@@ -176,10 +221,59 @@ function HumanSeat({
             }}
           >
             <DominoTileView tile={tile} isPlayable={isValid && isActive} />
+            {isRecommended && isActive && recommendedDeclaredNumber !== undefined ? (
+              <span className="hintDeclare" aria-hidden="true">
+                {recommendedDeclaredNumber}
+              </span>
+            ) : null}
           </button>
         );
       })}
     </>
+  );
+}
+
+/**
+ * A4: SupportHuman padoma poga uz cilvēka profila apļa augšējās-labās malas. Rāda atlikušo
+ * padomu skaitu; kamēr worker rēķina — pulsē. Redzama tikai preces īpašniekam (`onUse` dots).
+ */
+function HintButton({
+  labels,
+  remaining,
+  enabled,
+  computing,
+  onUse
+}: {
+  readonly labels: AppStrings;
+  readonly remaining: number;
+  readonly enabled: boolean;
+  readonly computing: boolean;
+  readonly onUse: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`hintButton ${computing ? "computing" : ""}`}
+      style={{
+        left: seatLayout.player0ProfileLeft + profileSize - 40,
+        top: seatLayout.player0ProfileTop - 8
+      }}
+      onClick={onUse}
+      disabled={!enabled}
+      aria-label={formatTemplate(labels.hintButtonAria, { count: String(remaining) })}
+      title={computing ? labels.hintComputing : formatTemplate(labels.hintButtonAria, { count: String(remaining) })}
+    >
+      <BulbIcon />
+      <span className="hintCount">{remaining}</span>
+    </button>
+  );
+}
+
+function BulbIcon() {
+  return (
+    <svg className="hintBulbIcon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.2 1 2.5h6c0-1.3.3-1.8 1-2.5A6 6 0 0 0 12 3z" />
+    </svg>
   );
 }
 

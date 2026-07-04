@@ -5,6 +5,13 @@ import { STARTING_COINS } from "@domino-poker/shared";
 import type { CoinStore } from "../storage/CoinStore.js";
 import type { Clock } from "../timers/TurnTimerScheduler.js";
 
+/**
+ * Ledger iemesli, kas apzīmē pērkamas preces īpašumtiesības (kataloga `kind` → reason).
+ * Īpašumtiesības tiek atvasinātas no ŠIEM iemesliem (`listOwnedItems` apvieno visus).
+ */
+export type PurchaseReason = "theme_purchase" | "bot_purchase";
+const OWNERSHIP_REASONS: readonly PurchaseReason[] = ["theme_purchase", "bot_purchase"];
+
 export interface WalletServiceOptions {
   readonly coins: CoinStore;
   readonly clock: Clock;
@@ -193,23 +200,25 @@ export class WalletService {
   }
 
   /**
-   * Pērk kataloga preci (kosmētika, piem. tēma) par `price` monētām (Fāze 4). Atomiski
-   * atskaita, ja pietiek (`minBalance: 0`). Idempotents pēc `(userId, theme_purchase,
-   * itemId)` — atkārtots/vienlaicīgs pirkums NEdebetē divreiz un paliek īpašumā. Ledger
-   * rinda VIENLAIKUS ir debets UN īpašumtiesību ieraksts (exactly-once, bez atsevišķas
+   * Pērk kataloga preci (kosmētika/palīgs) par `price` monētām (Fāze 4). `reason` nāk no
+   * preces veida (`kind` → reason, sk. `StoreService`); noklusējums `theme_purchase`
+   * saderībai. Atomiski atskaita, ja pietiek (`minBalance: 0`). Idempotents pēc `(userId,
+   * reason, itemId)` — atkārtots/vienlaicīgs pirkums NEdebetē divreiz un paliek īpašumā.
+   * Ledger rinda VIENLAIKUS ir debets UN īpašumtiesību ieraksts (exactly-once, bez atsevišķas
    * inventāra tabulas; `UNIQUE(user_id,reason,ref)`). `applied=false` = jau piederēja.
    * `{ ok:false }` ja bilance nepietiek.
    */
   async purchaseItem(
     userId: string,
     itemId: string,
-    price: number
+    price: number,
+    reason: PurchaseReason = "theme_purchase"
   ): Promise<{ ok: true; applied: boolean; balance: number } | { ok: false; reason: "insufficient" }> {
     const result = await this.coins.applyLedger({
       id: this.createId(),
       userId,
       delta: -price,
-      reason: "theme_purchase",
+      reason,
       ref: itemId,
       minBalance: 0,
       now: this.clock()
@@ -217,9 +226,16 @@ export class WalletService {
     return result.ok ? { ok: true, applied: result.applied, balance: result.balance } : result;
   }
 
-  /** Lietotāja piederošās preces (itemId), atvasinātas no ledger `theme_purchase` ierakstiem. */
+  /**
+   * Lietotāja piederošās preces (itemId), atvasinātas no VISIEM īpašumtiesību ledger
+   * iemesliem (tēmas + boti). Klients filtrē pēc veida (tēmu UI pēc theme itemId), tāpēc
+   * apvienotais saraksts nesajauc — bota ref vienkārši neatbilst nevienai tēmai.
+   */
   async listOwnedItems(userId: string): Promise<readonly string[]> {
-    return this.coins.listLedgerRefs(userId, "theme_purchase");
+    const refsByReason = await Promise.all(
+      OWNERSHIP_REASONS.map((reason) => this.coins.listLedgerRefs(userId, reason))
+    );
+    return refsByReason.flat();
   }
 
   /**

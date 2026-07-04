@@ -15,9 +15,11 @@ import {
   tileKey
 } from "@domino-poker/core";
 import type { DominoTile, GameState, InvalidMoveReason } from "@domino-poker/core";
+import { ownsSupportHuman } from "@domino-poker/shared";
 import { decideBid as botDecideBid, decideMove as botDecideMove } from "../lib/bot/botBridge";
 import type { BotDifficulty } from "../lib/bot/difficulty";
 import { resolveAiMove, tryAdvance, type SimpleMove } from "../lib/bot/liveness";
+import { apiFetchOwned } from "../lib/store/storeApi";
 import type { SpGameResult } from "../lib/sp/spReward";
 import { AudioControls, VolumeIcon, VolumeOffIcon } from "./AudioControls";
 import { DominoTileView } from "./DominoTileView";
@@ -42,6 +44,18 @@ import type { AudioSettings } from "../lib/useAudioSettings";
 const CANVAS_WIDTH = 1920;
 const CANVAS_HEIGHT = 1080;
 
+/** SP cilvēka sēdvieta (bots aizņem 1..3). */
+const HUMAN_SEAT = 0;
+/** SupportHuman palīga padomu skaits katrā raundā (A4; kataloga preces efekts). */
+const HINTS_PER_ROUND = 3;
+
+// Precīzs lēmuma punkta identifikators (fāze + raunds + kārta + stiķu progress). Async
+// rezultātu (bota gājiens VAI hint) pielieto TIKAI, ja dzīvais stāvoklis joprojām ir tieši
+// šajā punktā — sargā pret jebkuru stale-pielietojumu (D11).
+function turnKey(s: GameState): string {
+  return `${s.phase}|${s.currentRound}|${s.currentPlayerIndex}|${s.completedTricks.length}|${s.currentTrick.length}`;
+}
+
 type StageContainLayout = {
   readonly scale: number;
   readonly left: number;
@@ -55,6 +69,8 @@ export function DominoPokerGame({
   labels,
   numberOfRounds,
   spAward,
+  isAuthed = false,
+  getToken,
   onGameEnd,
   onExitToLobby
 }: {
@@ -71,6 +87,10 @@ export function DominoPokerGame({
   readonly numberOfRounds: number;
   /** Fāze 2: SP balvā piešķirtās monētas (vai `null`); GameEndDialog rāda "+N". */
   readonly spAward?: number | null;
+  /** A4: vai cilvēks ir reģistrēts+ielogots (supportHuman padoms pieejams tikai tādiem). */
+  readonly isAuthed?: boolean;
+  /** A4: bearer tokens ownership pārbaudei (`/store/owned`); anonīmam undefined. */
+  readonly getToken?: () => string | undefined;
   /** Fāze 2: izsaukts VIENREIZ pie spēles beigām ar cilvēka vietu (1..4). */
   readonly onGameEnd?: (result: SpGameResult) => void;
   readonly onExitToLobby: () => void;
@@ -106,6 +126,18 @@ export function DominoPokerGame({
   // izmaiņa nesatricina jau-darbā esošu bota lēmumu. UI to maina tikai lobby, ne spēles laikā.
   const difficultyRef = useRef(difficulty);
   const stageLayout = useStageContainLayout();
+
+  // A4: SupportHuman padoms. `hintOwned` — vai kontam pieder prece (ledger-atvasināts, svaigs
+  // uz spēles mount). `hintsRemaining` — 3/raundā (React state, kodols paliek tīrs; D6).
+  // `recommendedMove` — PILNS ieteiktais gājiens (kauliņš + pieteiktais pips vedumam; ne tikai
+  // kauliņš, citādi vedumam ar jauktu ne-trumpja kauliņu trūktu pieteiktā pipa). `hintComputing`
+  // — kamēr worker rēķina.
+  const [hintOwned, setHintOwned] = useState(false);
+  const [hintsRemaining, setHintsRemaining] = useState(HINTS_PER_ROUND);
+  const [hintComputing, setHintComputing] = useState(false);
+  const [recommendedMove, setRecommendedMove] = useState<
+    { readonly key: string; readonly declaredNumber: number | undefined } | null
+  >(null);
 
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -144,6 +176,67 @@ export function DominoPokerGame({
     audio.play("uiClick");
     setShowExitDialog(true);
   }, [audio]);
+
+  // A4: ielādē īpašumtiesības uz spēles mount (svaigākais — ietver tikko nopirktu preci). Anonīmam
+  // vai bez preces poga neparādās. Ledger-atvasināts, account-bound; serveris ir autoritatīvs.
+  useEffect(() => {
+    if (!isAuthed) {
+      setHintOwned(false);
+      return;
+    }
+    const token = getToken?.();
+    if (!token) return;
+    let cancelled = false;
+    void apiFetchOwned(token).then((result) => {
+      if (cancelled || !result.ok) return;
+      setHintOwned(ownsSupportHuman(result.data.owned));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthed, getToken]);
+
+  // A4: padomu kvota atjaunojas KATRĀ raundā (3) + notīra ieteikumu.
+  useEffect(() => {
+    setHintsRemaining(HINTS_PER_ROUND);
+    setRecommendedMove(null);
+  }, [gameState.currentRound]);
+
+  // A4: notīra ieteikto gājienu, tiklīdz pozīcija mainās (gājiens/kārta/fāze) — izgaismojums
+  // ir derīgs tikai konkrētajā lēmuma punktā (D11).
+  const decisionPoint = turnKey(gameState);
+  useEffect(() => {
+    setRecommendedMove(null);
+  }, [decisionPoint]);
+
+  // A4: izmanto vienu padomu — epic ISMCTS uz cilvēka PAŠA skata (inclusion reward = palīdz trāpīt
+  // solījumu) atgriež PILNU gājienu (kauliņš + pieteiktais pips), ko izgaismo. Aprēķins iet
+  // worker-ī (async). Kvotu atskaita TIKAI pēc DERĪGA (legāla, ne-stale) rezultāta — stale/kļūda/
+  // nelegāls netērē padomu.
+  const useHint = useCallback(async () => {
+    const snapshot = gameStateRef.current;
+    const active =
+      snapshot.phase === "playing" &&
+      snapshot.currentPlayerIndex === HUMAN_SEAT &&
+      !snapshot.players[HUMAN_SEAT]?.isAI;
+    if (!active || hintComputing || hintsRemaining <= 0) return;
+    audio.play("uiClick");
+    const key = turnKey(snapshot);
+    setHintComputing(true);
+    let move: SimpleMove | null = null;
+    try {
+      move = await botDecideMove(snapshot, HUMAN_SEAT, "epic");
+    } catch (error) {
+      console.error("SupportHuman hint failed.", error);
+    }
+    setHintComputing(false);
+    const latest = gameStateRef.current;
+    // Pielieto TIKAI, ja tas pats lēmuma punkts (D11) UN ieteiktais gājiens ir legāls pilns
+    // gājiens (tryAdvance virza spēli) — citādi netērē padomu.
+    if (!move || turnKey(latest) !== key || !tryAdvance(latest, move)) return;
+    setRecommendedMove({ key: tileKey(move.tile), declaredNumber: move.declaredNumber });
+    setHintsRemaining((remaining) => remaining - 1);
+  }, [audio, hintComputing, hintsRemaining]);
 
   const clearTimer = (timerRef: React.MutableRefObject<number | null>) => {
     if (timerRef.current !== null) {
@@ -282,12 +375,6 @@ export function DominoPokerGame({
     // rezultātu, kas pienāktu pēc šī efekta noārdīšanas (stāvoklis aizgājis tālāk / unmount).
     let cancelled = false;
 
-    // Precīzs lēmuma punkta identifikators. Async rezultātu pielieto TIKAI, ja dzīvais
-    // stāvoklis joprojām ir tieši šajā punktā — sargā pret jebkuru stale-pielietojumu, pat
-    // ja tā pati sēdvieta/fāze atkārtojas citā pozīcijā.
-    const turnKey = (s: GameState): string =>
-      `${s.phase}|${s.currentRound}|${s.currentPlayerIndex}|${s.completedTricks.length}|${s.currentTrick.length}`;
-
     const runAiTurn = async () => {
       const snapshot = gameStateRef.current;
       const seat = snapshot.currentPlayerIndex;
@@ -415,9 +502,15 @@ export function DominoPokerGame({
           gameState={gameState}
           humanProfile={humanProfile}
           validTileKeys={validTileKeySet}
+          recommendedTileKey={recommendedMove?.key ?? null}
+          recommendedDeclaredNumber={recommendedMove?.declaredNumber}
           isViewerTurn={isViewerTurn}
           onTileClick={handleTileClick}
           onLeave={openExitDialog}
+          onUseHint={hintOwned && isAuthed ? useHint : undefined}
+          hintsRemaining={hintsRemaining}
+          hintEnabled={isViewerTurn && hintsRemaining > 0 && !hintComputing}
+          hintComputing={hintComputing}
         />
       ) : (
       <div className="stageClip">
@@ -462,8 +555,14 @@ export function DominoPokerGame({
             player={gameState.players[0]}
             seatIndex={0}
             validTileKeys={validHumanTiles}
+            recommendedTileKey={recommendedMove?.key ?? null}
+            recommendedDeclaredNumber={recommendedMove?.declaredNumber}
             isWinnerGlow={showWinnerGlow && lastTrickWinner === 0}
             onTileClick={handleTileClick}
+            onUseHint={hintOwned && isAuthed ? useHint : undefined}
+            hintsRemaining={hintsRemaining}
+            hintEnabled={isViewerTurn && hintsRemaining > 0 && !hintComputing}
+            hintComputing={hintComputing}
           />
 
           <InfoPanel gameState={gameState} labels={labels} />

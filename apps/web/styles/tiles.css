@@ -38,6 +38,56 @@
   transform: scale(1.04);
 }
 
+/* A4: SupportHuman ieteiktais kauliņš — spilgtāks + pulsējošs glow (izceļas starp derīgajiem).
+   Nāk PĒC `.valid` (vienāda specifika) → ieteiktais uzvar. Token-only. */
+.humanTileButton.recommended .dominoTile {
+  border-color: rgb(var(--primary-rgb) / 1);
+  box-shadow:
+    0 4px 8px rgb(var(--overlay-rgb) / 0.4),
+    0 0 24px 5px rgb(var(--primary-rgb) / 0.85);
+  animation: hintTilePulse 1.1s ease-in-out infinite;
+}
+
+@keyframes hintTilePulse {
+  0%,
+  100% {
+    box-shadow:
+      0 4px 8px rgb(var(--overlay-rgb) / 0.4),
+      0 0 20px 3px rgb(var(--primary-rgb) / 0.6);
+  }
+  50% {
+    box-shadow:
+      0 4px 8px rgb(var(--overlay-rgb) / 0.4),
+      0 0 32px 7px rgb(var(--primary-rgb) / 0.95);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .humanTileButton.recommended .dominoTile {
+    animation: none;
+  }
+}
+
+/* A4: ieteiktais pieteiktais pips vedumam — nozīmīte ieteiktā kauliņa augšējā-labajā stūrī. */
+.hintDeclare {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  border-radius: 11px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 0 8px 2px rgb(var(--primary-rgb) / 0.7);
+}
+
 .dominoTile {
   display: grid;
   width: 80px;

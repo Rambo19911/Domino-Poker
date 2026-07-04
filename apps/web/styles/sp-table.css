@@ -275,3 +275,74 @@
   font-weight: 700;
 }
 
+/* A4: SupportHuman padoma poga uz cilvēka profila apļa augšējās-labās malas (token-only). */
+.hintButton {
+  position: absolute;
+  z-index: var(--z-floating);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 2px solid var(--primary);
+  border-radius: 50%;
+  background: rgb(var(--overlay-rgb) / 0.92);
+  color: var(--primary);
+  cursor: pointer;
+  box-shadow: 0 0 12px 2px rgb(var(--primary-rgb) / 0.45);
+  transition:
+    transform var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard);
+}
+
+.hintButton:hover:not(:disabled) {
+  transform: scale(1.1);
+  box-shadow: 0 0 18px 4px rgb(var(--primary-rgb) / 0.7);
+}
+
+.hintButton:disabled {
+  opacity: 0.45;
+  cursor: default;
+  box-shadow: none;
+}
+
+.hintButton.computing {
+  animation: hintButtonPulse 1s ease-in-out infinite;
+}
+
+.hintBulbIcon {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hintCount {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--primary);
+}
+
+@keyframes hintButtonPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 12px 2px rgb(var(--primary-rgb) / 0.45);
+  }
+  50% {
+    box-shadow: 0 0 20px 6px rgb(var(--primary-rgb) / 0.85);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hintButton.computing {
+    animation: none;
+  }
+}
+

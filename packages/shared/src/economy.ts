@@ -16,6 +16,13 @@ export const STARTING_COINS = 5000;
  */
 export const THEME_PRICE = 200_000;
 
+/**
+ * "supportHuman" bota palīga cena (monētu izlietne — dod 3 padomus/raundā, NE pay-to-win:
+ * padoms tikai iesaka cilvēka PAŠA labāko gājienu no info, kas jau viņam ir). VIENĪGAIS
+ * cenas avots; lieto `store-catalog.ts`. Mainot, mainās visur.
+ */
+export const BOT_ASSISTANT_PRICE = 5_000_000;
+
 /** SP grūtības līmeņi, kas dod balvu (atbilst web `BotDifficulty`). */
 export type CoinDifficulty = "medium" | "hard" | "epic";
 

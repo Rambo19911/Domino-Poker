@@ -310,6 +310,8 @@ export function AppShell() {
         labels={t}
         numberOfRounds={selectedRoundCount}
         spAward={spAward}
+        isAuthed={auth.status === "authenticated"}
+        getToken={auth.getToken}
         onGameEnd={handleSpGameEnd}
         onExitToLobby={() => {
           setScreen("lobby");

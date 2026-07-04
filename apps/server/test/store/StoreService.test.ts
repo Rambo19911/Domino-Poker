@@ -1,4 +1,4 @@
-import { THEME_PRICE } from "@domino-poker/shared";
+import { BOT_ASSISTANT_PRICE, SUPPORT_HUMAN_ITEM_ID, THEME_PRICE } from "@domino-poker/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { UserRecord } from "../../src/auth/AuthStore.js";
@@ -65,5 +65,29 @@ describe("StoreService", () => {
     expect(await storage.getBalance("u1")).toBe(expectedBalance);
 
     expect(await store.listOwned("u1")).toEqual(["theme.bubbles"]);
+  });
+
+  it("purchases the supportHuman bot at the catalog price, is idempotent, and lists it", async () => {
+    await wallet.grantSignupBonus("u1"); // 5000
+    await wallet.adminAdjust("u1", "topup-bot", BOT_ASSISTANT_PRICE); // 5_005_000
+
+    const first = await store.purchase("u1", SUPPORT_HUMAN_ITEM_ID);
+    expect(first).toEqual({ ok: true, alreadyOwned: false, balance: 5000 });
+
+    // Atkārtots pirkums = alreadyOwned, bez dubulta debeta.
+    const second = await store.purchase("u1", SUPPORT_HUMAN_ITEM_ID);
+    expect(second).toEqual({ ok: true, alreadyOwned: true, balance: 5000 });
+
+    expect(await store.listOwned("u1")).toEqual([SUPPORT_HUMAN_ITEM_ID]);
+  });
+
+  it("rejects the bot purchase when the balance is below its 5M price (no debit)", async () => {
+    await wallet.grantSignupBonus("u1"); // 5000 < BOT_ASSISTANT_PRICE
+    expect(await store.purchase("u1", SUPPORT_HUMAN_ITEM_ID)).toEqual({
+      ok: false,
+      reason: "insufficient",
+      balance: 5000
+    });
+    expect(await store.listOwned("u1")).toEqual([]);
   });
 });
