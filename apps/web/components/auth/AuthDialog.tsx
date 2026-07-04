@@ -35,6 +35,12 @@ import {
   type ThemeOption
 } from "../../lib/theme";
 import { apiBuyItem, apiFetchOwned } from "../../lib/store/storeApi";
+import {
+  readDarkGlassEnabled,
+  readGlassEnabled,
+  setDarkGlassEnabled,
+  setGlassEnabled
+} from "../../lib/glassPrefs";
 import { CoinGif } from "../CoinGif";
 import { Dialog } from "../Dialog";
 
@@ -322,6 +328,22 @@ function PersonalizationPanel({
   const [buying, setBuying] = useState<string | null>(null);
   const [buyError, setBuyError] = useState<string | null>(null);
 
+  // Dialogu stikla pārslēdzēji (glabāti `localStorage` + pielietoti uz `<html>`; sk.
+  // `lib/glassPrefs`). Noklusējums ON. React stāvoklis tikai lai UI atspoguļo checkbox.
+  const [darkGlass, setDarkGlass] = useState<boolean>(() => readDarkGlassEnabled());
+  const [glassBlur, setGlassBlur] = useState<boolean>(() => readGlassEnabled());
+
+  const toggleDarkGlass = (next: boolean) => {
+    playClick?.();
+    setDarkGlassEnabled(next);
+    setDarkGlass(next);
+  };
+  const toggleGlassBlur = (next: boolean) => {
+    playClick?.();
+    setGlassEnabled(next);
+    setGlassBlur(next);
+  };
+
   const selectTheme = (next: ThemeId) => {
     if (next === theme) return;
     playClick?.();
@@ -378,6 +400,27 @@ function PersonalizationPanel({
   return (
     <div className="personalizationPanel">
       <p className="settingsTabDescription">{t.personalizationDescription}</p>
+      <fieldset className="glassPrefs">
+        {/* Virsraksts noņemts pēc lietotāja lūguma (aizņēma rindu); `srOnly` legend
+            saglabā piekļūstamības grupas nosaukumu. */}
+        <legend className="srOnly">{t.glassSectionTitle}</legend>
+        <label className="glassPrefRow">
+          <span>{t.darkGlassLabel}</span>
+          <input
+            type="checkbox"
+            checked={darkGlass}
+            onChange={(event) => toggleDarkGlass(event.target.checked)}
+          />
+        </label>
+        <label className="glassPrefRow">
+          <span>{t.glassBlurLabel}</span>
+          <input
+            type="checkbox"
+            checked={glassBlur}
+            onChange={(event) => toggleGlassBlur(event.target.checked)}
+          />
+        </label>
+      </fieldset>
       <fieldset className="themeOptions">
         <legend className="srOnly">{t.themeLabel}</legend>
         {THEMES.map((option) => {

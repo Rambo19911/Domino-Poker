@@ -148,3 +148,48 @@ describe("AuthDialog — Personalization tab (theme switcher + store)", () => {
     });
   });
 });
+
+describe("AuthDialog — Personalization tab (glass toggles)", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    delete document.documentElement.dataset.glass;
+    delete document.documentElement.dataset.darkGlass;
+    mockStoreFetch({ owned: [] });
+  });
+  afterEach(() => {
+    cleanup();
+    delete document.documentElement.dataset.glass;
+    delete document.documentElement.dataset.darkGlass;
+    vi.unstubAllGlobals();
+  });
+
+  it("both glass toggles are shown and unchecked (OFF) by default", () => {
+    render(<AuthDialog {...makeProps()} />);
+    openPersonalization();
+    expect((screen.getByRole("checkbox", { name: en.darkGlassLabel }) as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByRole("checkbox", { name: en.glassBlurLabel }) as HTMLInputElement).checked).toBe(false);
+  });
+
+  it("turning Dark Glass on sets data-dark-glass and persists 'on'", () => {
+    render(<AuthDialog {...makeProps()} />);
+    openPersonalization();
+    act(() => (screen.getByRole("checkbox", { name: en.darkGlassLabel }) as HTMLInputElement).click());
+    expect(document.documentElement.dataset.darkGlass).toBe("on");
+    expect(window.localStorage.getItem("domino-poker-dark-glass")).toBe("on");
+  });
+
+  it("turning Glass (blur) on sets data-glass and persists 'on'", () => {
+    render(<AuthDialog {...makeProps()} />);
+    openPersonalization();
+    act(() => (screen.getByRole("checkbox", { name: en.glassBlurLabel }) as HTMLInputElement).click());
+    expect(document.documentElement.dataset.glass).toBe("on");
+    expect(window.localStorage.getItem("domino-poker-glass")).toBe("on");
+  });
+
+  it("reflects a stored 'on' state as a checked toggle on open", () => {
+    window.localStorage.setItem("domino-poker-dark-glass", "on");
+    render(<AuthDialog {...makeProps()} />);
+    openPersonalization();
+    expect((screen.getByRole("checkbox", { name: en.darkGlassLabel }) as HTMLInputElement).checked).toBe(true);
+  });
+});

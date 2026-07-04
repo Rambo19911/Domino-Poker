@@ -34,7 +34,9 @@
   .glass,
   .soundPanel,
   .mpGameConnection .mpConnBanner:not(.mpConn-connected) {
-    /* Balts atspīduma sheen (augšā spilgtāks) virs caurspīdīgās melnās virsmas. */
+    /* Balts atspīduma sheen (augšā spilgtāks) virs caurspīdīgās melnās virsmas.
+       Caurspīdīgā virsma pati (sheen + `--glass-bg`) paliek NEATKARĪGI no "Glass"
+       pārslēdzēja — tāpēc blur izslēgšana NENOŅEM caurspīdīgumu, tikai aizmiglojumu. */
     background:
       linear-gradient(
         180deg,
@@ -43,6 +45,13 @@
         rgb(var(--glass-highlight-rgb) / 0.015) 100%
       ),
       var(--glass-bg);
+  }
+
+  /* Aizmiglojums (blur) — vada "Glass" personalizācijas pārslēdzējs. Noklusējums = OFF
+     (nav `data-glass` → bez blur, caurspīdīgā virsma paliek); `data-glass="on"` → blur. */
+  :root[data-glass="on"] .glass,
+  :root[data-glass="on"] .soundPanel,
+  :root[data-glass="on"] .mpGameConnection .mpConnBanner:not(.mpConn-connected) {
     -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   }

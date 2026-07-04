@@ -31,6 +31,10 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  scrollbar-width: none; /* Firefox: paslēpj ritjoslu (saglabā ritināšanu) */
+}
+.authDialogAuthenticated .authDialogBody::-webkit-scrollbar {
+  display: none; /* WebKit/Chromium: paslēpj ritjoslu */
 }
 
 /* Auth dialoga tabi (Login/Register vai Profile/Personalization): mazāki un ne
@@ -194,6 +198,32 @@
   flex-direction: column;
   gap: 12px;
   margin-top: 10px;
+}
+
+/* Dialogu stikla pārslēdzēji (Dark Glass / Glass-blur). Novietoti VIRS tēmu režģa un
+   atdalīti no tā ar apakšmalu; rindas stils seko `.audioControls` konvencijai (nosaukums
+   pa kreisi, checkbox pa labi). `<fieldset>` noklusējumi nullēti (kā `.themeOptions`). */
+.glassPrefs {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0 0 12px;
+  border: 0;
+  border-bottom: 1px solid rgb(var(--primary-rgb) / 0.18);
+  min-width: 0;
+}
+.glassPrefRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+}
+.glassPrefRow input[type="checkbox"] {
+  accent-color: var(--primary);
 }
 .themeOptions {
   display: grid;

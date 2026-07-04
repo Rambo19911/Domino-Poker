@@ -181,18 +181,31 @@
      ir REDZAMS; glancējumu dod balts top-highlight + gaiša mala + dziļa ēna.
      `*-fallback` = necaurspīdīgs variants pārlūkiem bez backdrop-filter (lasāms).
      `saturate` zems (1.35) — lai zaļais galds nespīd cauri pārāk un nepievelk uz zaļu. */
-  --glass-bg: rgb(var(--overlay-rgb) / 0.34);
-  --glass-bg-strong: rgb(var(--overlay-rgb) / 0.44);
-  --glass-bg-fallback: rgb(var(--overlay-rgb) / 0.92);
-  --glass-bg-strong-fallback: rgb(var(--overlay-rgb) / 0.96);
+  /* NOKLUSĒJUMS = "Dark Glass" IZSLĒGTS → bez toņa (dzidrs). Izteikto tumšo toni ieslēdz
+     `:root[data-dark-glass="on"]` zemāk. `*-fallback` = variants pārlūkiem bez backdrop-filter. */
+  --glass-bg: rgb(var(--overlay-rgb) / 0);
+  --glass-bg-strong: rgb(var(--overlay-rgb) / 0);
+  --glass-bg-fallback: rgb(var(--overlay-rgb) / 0);
+  --glass-bg-strong-fallback: rgb(var(--overlay-rgb) / 0);
   --glass-border: rgb(var(--text-primary-rgb) / 0.22);
   --glass-border-strong: rgb(var(--text-primary-rgb) / 0.28);
   --glass-highlight-rgb: 255 255 255;
   --glass-shadow-color: rgb(0 0 0 / 0.48);
   --glass-inset-shadow-color: rgb(0 0 0 / 0.34);
-  --glass-blur: 22px;
-  --glass-saturate: 1.35;
+  --glass-blur: 40px;
+  --glass-saturate: 1.5;
   --modal-scrim: rgb(0 0 0 / 0.30);
+}
+
+/* "Dark Glass" IESLĒGTS (personalizācija) — izteikts tumšs frosted tonis (daudz spēcīgāks
+   par iepriekšējo noklusējumu). Aizmiglojums (ja "Glass" ieslēgts) papildus frostē fonu;
+   balts sheen + mala + ēna dod formu. Specifiskāks par per-ekrāna scope
+   (`:root[...]` (0,2,0) uzvar `.lobbyShell` (0,1,0) u.c.). */
+:root[data-dark-glass="on"] {
+  --glass-bg: rgb(var(--overlay-rgb) / 0.66);
+  --glass-bg-strong: rgb(var(--overlay-rgb) / 0.76);
+  --glass-bg-fallback: rgb(var(--overlay-rgb) / 0.94);
+  --glass-bg-strong-fallback: rgb(var(--overlay-rgb) / 0.97);
 }
 
 /* ── PER-EKRĀNA KRĀSU SASKAŅOŠANA AR SVG FONA PALETI ──────────────────────────

@@ -1672,6 +1672,19 @@
     "confidence": "high"
   },
   {
+    "path": "apps/web/lib/glassPrefs.ts",
+    "type": "utility",
+    "purpose": "Browser-side dialog glass preference helper: both blur and dark-tint default OFF (only the ON state is persisted to localStorage), applies data-glass=on/data-dark-glass=on on the html element, and generates the pre-paint bootstrap script used to avoid first-render glass preference flicker.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/app/layout.tsx",
+      "apps/web/styles/glass.css",
+      "apps/web/styles/tokens.css",
+      "apps/web/test/glassPrefs.test.ts"
+    ],
+    "confidence": "high"
+  },
+  {
     "path": "apps/web/styles/tokens.css",
     "type": "ui",
     "purpose": "Design-token source for default colors, RGB channel pairs (incl. the --coin / --coin-rgb gold alias of --primary), spacing, radius, shadows, motion, and theme overrides.",
@@ -2310,6 +2323,18 @@
     "importance": "medium",
     "related_files": [
       "apps/web/lib/theme.ts",
+      "apps/web/styles/tokens.css"
+    ],
+    "confidence": "high"
+  },
+  {
+    "path": "apps/web/test/glassPrefs.test.ts",
+    "type": "test",
+    "purpose": "Glass preference contract tests: default OFF behavior, ON-only persistence, html data attribute application, bootstrap script key coverage, and CSS wiring for blur/tint gates.",
+    "importance": "medium",
+    "related_files": [
+      "apps/web/lib/glassPrefs.ts",
+      "apps/web/styles/glass.css",
       "apps/web/styles/tokens.css"
     ],
     "confidence": "high"

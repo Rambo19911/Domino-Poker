@@ -3,6 +3,7 @@ import Script from "next/script";
 import "./globals.css";
 import { appStrings, defaultLocale } from "../lib/i18n";
 import { getThemeBootstrapScript } from "../lib/theme";
+import { getGlassBootstrapScript } from "../lib/glassPrefs";
 import { PwaRegister } from "../components/PwaRegister";
 
 export const metadata: Metadata = {
@@ -44,6 +45,11 @@ export default function RootLayout({
             konstantēm. `beforeInteractive` to pacels pirms pārējā JS. */}
         <Script id="theme-bootstrap" strategy="beforeInteractive">
           {getThemeBootstrapScript()}
+        </Script>
+        {/* Dialogu stikla personalizācija PIRMS krāsošanas (FOUC): uzstāda `data-glass` /
+            `data-dark-glass` no saglabātajām izvēlēm. Ģenerēts no `lib/glassPrefs` atslēgām. */}
+        <Script id="glass-bootstrap" strategy="beforeInteractive">
+          {getGlassBootstrapScript()}
         </Script>
         {/* Agrīna `beforeinstallprompt` notveršana: Chromium to izšauj nedeterministiskā
             brīdī (parasti pie ielādes, PIRMS React hidratācijas), tāpēc React `useEffect`

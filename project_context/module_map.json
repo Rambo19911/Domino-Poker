@@ -147,6 +147,7 @@
       "apps/web/components/mp/MpMobileTable.tsx",
       "apps/web/components/mp/MpLobbyDialogs.tsx",
       "apps/web/lib/theme.ts",
+      "apps/web/lib/glassPrefs.ts",
       "apps/web/lib/mp/mobileLayout.ts",
       "apps/web/lib/mp/desktopStage.ts",
       "apps/web/lib/mp/useTrickFreeze.ts",
