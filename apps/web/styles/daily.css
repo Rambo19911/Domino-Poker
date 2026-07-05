@@ -270,13 +270,23 @@
 }
 
 /* Mobilais: kompaktāks attēls + darbība nolaižas zem satura šaurās joslās. */
-@media (max-width: 420px) {
-  /* Tooltip atveras pa KREISI (right:0), lai neizplūstu pāri labajai malai šauros
-     ekrānos (piem. 320px), kur `.modalBackdrop` overflow:hidden to nogrieztu. */
-  .dailyTooltip {
-    left: auto;
-    right: 0;
+@media (max-width: 560px) {
+  /* Lai novērstu tooltip iziešanu ārpus ekrāna malām mobilajās ierīcēs,
+     padarām vecāku static un centrējam tooltipu horizontāli pret visu dialogu. */
+  .dailyInfoWrap {
+    position: static;
   }
+  .dailyTooltip {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    top: 5.25rem;
+    width: calc(100% - 40px);
+    max-width: 280px;
+  }
+}
+
+@media (max-width: 420px) {
 
   .dailyCard {
     flex-wrap: wrap;
