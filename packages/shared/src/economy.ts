@@ -72,6 +72,86 @@ export const DAILY_TASKS = [
 export type DailyTaskId = (typeof DAILY_TASKS)[number]["id"];
 
 /**
+ * SP spēles variants — marķē speciālās istabas rezultātu `player_game_results.variant`.
+ * `undefined`/NULL = parasta (standard) istaba; `"weekly_bosses"` = nedēļas uzdevumu
+ * speciālā istaba ar jauktajiem botiem (inclusion/denyHuman/aggressiveVsHuman). Nāk no
+ * `/sp/start` tokena (servera-autoritatīvs snapshot), tāpēc to nevar viltot pēc spēles.
+ * Paplašināms nākotnē (piem. citiem speciālajiem režīmiem).
+ */
+export type SpVariant = "weekly_bosses";
+
+/** Nedēļas uzdevuma tips — nosaka, kuru atvasināto skaitītāju serveris lieto. */
+export type WeeklyTaskKind = "mp_finish" | "sp_win";
+
+/**
+ * Nedēļas uzdevums (Weekly Tasks) — VIENĪGAIS autoritatīvais slieksņu + balvu + kritēriju
+ * avots. Importē GAN serveris (piespiež; klients NEKAD nesūta summu/slieksni), GAN web (rāda).
+ * Atiestatīšana katru pirmdienu 00:00 UTC; balvu savākšana NEATKARĪGA (nav secīga kā dienas
+ * uzdevumos); progress ir count-based (`min(threshold, count)`), atvasināts no
+ * `player_game_results`. "Uzvara" = `placement <= WEEKLY_TASK_PLACEMENT_MAX` (top-2).
+ *
+ * - `mp_finish` (uzd. 1): skaita jebkuru pabeigtu MP spēli (mode='mp' rinda logā).
+ * - `sp_win` (uzd. 2/3/4): SP uzvara ar TIEŠU `exactRounds` raundu skaitu; `variant`
+ *   undefined = tikai standard istaba (`variant IS NULL`), `"weekly_bosses"` = tikai speciālā.
+ */
+export interface WeeklyTask {
+  /** Stabils slug — ledger `ref` daļa (`weekly:{yyyymmdd}:{id}`); nemainīt pēc palaišanas. */
+  readonly id: string;
+  readonly kind: WeeklyTaskKind;
+  /** Tikai `sp_win`: SP grūtība, ko skaita. */
+  readonly difficulty?: CoinDifficulty;
+  /** Tikai `sp_win`: `undefined` = standard (`variant IS NULL`); `"weekly_bosses"` = speciālā istaba. */
+  readonly variant?: SpVariant;
+  /** Tikai `sp_win`: TIEŠS raundu skaits (`round_count == exactRounds`). */
+  readonly exactRounds?: number;
+  /** Cik reižu jāizpilda (count-based progress mērķis). */
+  readonly threshold: number;
+  readonly rewardCoins: number;
+  /** Vai uzdevumam ir `[Play]` poga, kas palaiž speciālo istabu (uzd. 3/4). */
+  readonly hasPlayButton: boolean;
+}
+
+/** "Uzvaras vieta" = top-2 (placement ≤ 2) — konsekventi ar SP "uzvaras" definīciju. */
+export const WEEKLY_TASK_PLACEMENT_MAX = 2;
+
+/** 4 nedēļas uzdevumu katalogs. */
+export const WEEKLY_TASKS = [
+  { id: "mp_finish_20", kind: "mp_finish", threshold: 20, rewardCoins: 40000, hasPlayButton: false },
+  {
+    id: "sp_epic50_x2",
+    kind: "sp_win",
+    difficulty: "epic",
+    exactRounds: 50,
+    threshold: 2,
+    rewardCoins: 100000,
+    hasPlayButton: false
+  },
+  {
+    id: "boss30",
+    kind: "sp_win",
+    difficulty: "epic",
+    variant: "weekly_bosses",
+    exactRounds: 30,
+    threshold: 1,
+    rewardCoins: 150000,
+    hasPlayButton: true
+  },
+  {
+    id: "boss50",
+    kind: "sp_win",
+    difficulty: "epic",
+    variant: "weekly_bosses",
+    exactRounds: 50,
+    threshold: 1,
+    rewardCoins: 400000,
+    hasPlayButton: true
+  }
+] as const satisfies readonly WeeklyTask[];
+
+/** Derīgie nedēļas uzdevumu id (route zod-validācijai; serveris nepieņem citus). */
+export type WeeklyTaskId = (typeof WEEKLY_TASKS)[number]["id"];
+
+/**
  * MP poda dalījums starp top-2 reģistrētajiem cilvēkiem (botus izlaiž): 1. vieta
  * 70%, 2. vieta 30%. Noapaļošanas atlikums (pēc `Math.floor`) → 1. vietai.
  */

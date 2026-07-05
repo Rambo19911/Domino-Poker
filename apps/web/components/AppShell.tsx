@@ -4,10 +4,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { titleForWins } from "@domino-poker/shared";
 
+import type { SeatTuple } from "@domino-poker/engine";
+
 import { ResetPasswordScreen } from "./auth/ResetPasswordScreen";
 import { LobbyScreen } from "./LobbyScreen";
 import { MultiplayerLobby } from "./MultiplayerLobby";
-import { DEFAULT_DIFFICULTY, isBotDifficulty, type BotDifficulty } from "../lib/bot/difficulty";
+import {
+  DEFAULT_DIFFICULTY,
+  isBotDifficulty,
+  type BotBehaviorChoice,
+  type BotDifficulty
+} from "../lib/bot/difficulty";
 import type { RegisterInput } from "../lib/auth/authApi";
 import { avatarUrl } from "../lib/auth/avatarUrl";
 import { titleLabel } from "../lib/auth/titleLabel";
@@ -42,6 +49,24 @@ const DominoPokerGame = dynamic(
 type AppScreen = "lobby" | "game" | "mp-lobby";
 
 const defaultRoundCount = 7;
+/**
+ * Nedēļas uzdevumu speciālās "weekly bosses" istabas botu sastāvs (per-seat uzvedības; seat 0 =
+ * cilvēks, ignorēts). Seat 1 = parasts epic (inclusion), seat 2 = denyHuman, seat 3 =
+ * aggressiveVsHuman — visi mērķē uz cilvēku ISMCTS gājienos (sk. `docs/bot-behaviors.md`).
+ */
+const WEEKLY_BOSS_BEHAVIORS: SeatTuple<BotBehaviorChoice> = [
+  { objective: "inclusion" },
+  { objective: "inclusion" },
+  { objective: "denyHuman" },
+  { objective: "aggressiveVsHuman" }
+];
+
+/** Speciālās SP istabas konfigurācija (nedēļas boss uzdevumi). `null` = parasta SP spēle. */
+type SpSpecial = {
+  readonly rounds: number;
+  readonly behaviors: SeatTuple<BotBehaviorChoice>;
+};
+
 const localeStorageKey = "domino-poker-locale";
 /** SP botu grūtība saglabāta `localStorage` (kā locale), lai izvēle pārdzīvo lapas pārlādes. */
 const difficultyStorageKey = "domino-poker-difficulty";
@@ -69,9 +94,13 @@ export function AppShell() {
   // ir piešķirtās monētas, ko GameEndDialog rāda kā "+N".
   const spStartRef = useRef<Promise<AuthResult<SpStartResponse>> | null>(null);
   const [spAward, setSpAward] = useState<number | null>(null);
-  // Palielinās PĒC katras veiksmīgas /sp/complete → lobija dienas uzdevumu progress
-  // atsvaidzinās, pat ja ekrāns atgriezās (remontējās) pirms ieraksta pabeigšanas.
-  const [dailyRefreshSignal, setDailyRefreshSignal] = useState(0);
+  // Speciālā SP istaba (nedēļas boss uzdevumi): `null` = parasta spēle. Nosaka botu uzvedības +
+  // raundus + epic budžetu, NEpārrakstot lietotāja pastāvīgo grūtību/raundu izvēli.
+  const [spSpecial, setSpSpecial] = useState<SpSpecial | null>(null);
+  // Palielinās PĒC katras veiksmīgas /sp/complete → lobija dienas UN nedēļas uzdevumu progress
+  // atsvaidzinās, pat ja ekrāns atgriezās (remontējās) pirms ieraksta pabeigšanas. (MP progress
+  // atsvaidzinās, atgriežoties lobijā → LobbyScreen remounts → hooki fetcho pie mount.)
+  const [tasksRefreshSignal, setTasksRefreshSignal] = useState(0);
   const audio = useAudioSettings();
   const auth = useAuthUser();
   const refreshAuth = auth.refresh;
@@ -218,8 +247,25 @@ export function AppShell() {
     // serverī). Glabājam PAŠU pieprasījumu, lai to var sagaidīt pie spēles beigām, pat
     // ja īsa spēle beidzas pirms atbildes. Anonīmam izlaižam — spēlē, bet nesaņem neko.
     setSpAward(null);
+    setSpSpecial(null); // parasta spēle → notīra jebkuru iepriekšēju boss konfigurāciju
     const token = getAuthToken();
     spStartRef.current = token ? apiSpStart(token, selectedDifficulty, selectedRoundCount) : null;
+    setScreen("game");
+  };
+
+  /**
+   * Palaiž nedēļas uzdevumu speciālo "weekly bosses" istabu (uzd. 3/4 `[Play]`): epic budžets,
+   * `weekly_bosses` variants (→ servera skaits) + jauktie boti. Cilvēkam vienmēr epic; NEpārraksta
+   * pastāvīgo grūtības/raundu izvēli (glabā `spSpecial`). Anonīmam — spēlē, bet bez balvas tokena.
+   */
+  const startWeeklyBossRoom = (rounds: number) => {
+    audio.play("uiClick");
+    setSpAward(null);
+    setSpSpecial({ rounds, behaviors: WEEKLY_BOSS_BEHAVIORS });
+    const token = getAuthToken();
+    spStartRef.current = token
+      ? apiSpStart(token, "epic", rounds, "weekly_bosses")
+      : null;
     setScreen("game");
   };
 
@@ -251,8 +297,8 @@ export function AppShell() {
             if (completeRes.data.coinsAwarded > 0) {
               setSpAward(completeRes.data.coinsAwarded);
             }
-            // Spēle ierakstīta → paziņo lobijam atsvaidzināt dienas uzdevumu progresu.
-            setDailyRefreshSignal((n) => n + 1);
+            // Spēle ierakstīta → paziņo lobijam atsvaidzināt dienas + nedēļas uzdevumu progresu.
+            setTasksRefreshSignal((n) => n + 1);
           }
         });
     },
@@ -302,13 +348,15 @@ export function AppShell() {
             title: titleLabel(t, titleForWins(auth.stats?.wins ?? 0))
           }
         : { avatarUrl: null, displayName: t.you, title: null };
+    // Speciālā istaba: epic budžets + jauktie boti + fiksēti raundi (NEpārraksta lietotāja izvēli).
     return (
       <DominoPokerGame
         audio={audio}
-        difficulty={selectedDifficulty}
+        difficulty={spSpecial ? "epic" : selectedDifficulty}
+        {...(spSpecial ? { behaviors: spSpecial.behaviors } : {})}
         humanProfile={humanProfile}
         labels={t}
-        numberOfRounds={selectedRoundCount}
+        numberOfRounds={spSpecial ? spSpecial.rounds : selectedRoundCount}
         spAward={spAward}
         isAuthed={auth.status === "authenticated"}
         getToken={auth.getToken}
@@ -328,13 +376,14 @@ export function AppShell() {
       labels={t}
       locale={locale}
       auth={authForLobby}
-      dailyRefreshSignal={dailyRefreshSignal}
+      tasksRefreshSignal={tasksRefreshSignal}
       selectedRoundCount={selectedRoundCount}
       onRoundCountChange={setSelectedRoundCount}
       difficulty={selectedDifficulty}
       onDifficultyChange={changeDifficulty}
       onStartSinglePlayer={startSinglePlayer}
       onStartMultiplayer={openMultiplayerLobby}
+      onPlayWeeklyBoss={startWeeklyBossRoom}
       onLocaleChange={changeLocale}
     />
   );

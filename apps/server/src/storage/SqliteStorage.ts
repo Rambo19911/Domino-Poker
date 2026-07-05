@@ -4,7 +4,7 @@ import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import type { MultiplayerEvent } from "@domino-poker/core/multiplayer";
-import type { ChatMessage } from "@domino-poker/shared";
+import type { ChatMessage, SpVariant } from "@domino-poker/shared";
 
 import type {
   MatchEventRecord,
@@ -798,8 +798,8 @@ export class SqliteStorage
       .prepare(
         `INSERT OR IGNORE INTO player_game_results
            (id, user_id, mode, difficulty, placement, round_count,
-            bid_met, bid_exceeded, bid_missed, completed_at, duration_ms)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            bid_met, bid_exceeded, bid_missed, completed_at, duration_ms, variant)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         record.id,
@@ -812,7 +812,8 @@ export class SqliteStorage
         record.bidExceeded,
         record.bidMissed,
         record.completedAt,
-        record.durationMs ?? null
+        record.durationMs ?? null,
+        record.variant ?? null
       );
     return Number(inserted.changes) > 0;
   }
@@ -837,6 +838,48 @@ export class SqliteStorage
       .get(userId, difficulty, sinceMs, untilMs, minDurationMs, minRounds) as {
       wins: number | bigint;
     };
+    return Number(row.wins);
+  }
+
+  async countMpFinishedSince(userId: string, sinceMs: number, untilMs: number): Promise<number> {
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS games
+           FROM player_game_results
+          WHERE user_id = ? AND mode = 'mp'
+            AND completed_at >= ? AND completed_at < ?`
+      )
+      .get(userId, sinceMs, untilMs) as { games: number | bigint };
+    return Number(row.games);
+  }
+
+  async countSpTaskWins(
+    userId: string,
+    difficulty: GameDifficulty,
+    variant: SpVariant | null,
+    exactRounds: number,
+    sinceMs: number,
+    untilMs: number,
+    minDurationMs: number,
+    placementMax: number
+  ): Promise<number> {
+    // `variant IS NULL` un `variant = ?` NAV apvienojami vienā `=` izteiksmē (NULL nav salīdzināms),
+    // tāpēc SQL zars atšķiras: standard (null) → `variant IS NULL`; speciālā → `variant = ?`.
+    const variantClause = variant === null ? "variant IS NULL" : "variant = ?";
+    const stmt = this.db.prepare(
+      `SELECT COUNT(*) AS wins
+         FROM player_game_results
+        WHERE user_id = ? AND mode = 'sp' AND difficulty = ? AND placement <= ?
+          AND round_count = ?
+          AND completed_at >= ? AND completed_at < ?
+          AND duration_ms IS NOT NULL AND duration_ms >= ?
+          AND ${variantClause}`
+    );
+    const params =
+      variant === null
+        ? [userId, difficulty, placementMax, exactRounds, sinceMs, untilMs, minDurationMs]
+        : [userId, difficulty, placementMax, exactRounds, sinceMs, untilMs, minDurationMs, variant];
+    const row = stmt.get(...params) as { wins: number | bigint };
     return Number(row.wins);
   }
 

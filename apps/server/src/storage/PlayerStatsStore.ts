@@ -12,6 +12,8 @@
  * leaderboard — tāpēc SP klienta-ziņotie skaitļi ir pieņemami (sk. plānu).
  */
 
+import type { SpVariant } from "@domino-poker/shared";
+
 /** Spēles režīms: single-player vai multiplayer. */
 export type GameMode = "sp" | "mp";
 
@@ -44,6 +46,13 @@ export interface GameResultRecord {
    * rindām (pirms migrācijas `0014`) NULL. Idempotentā INSERT dublikātā NEatjaunina.
    */
   readonly durationMs?: number | undefined;
+  /**
+   * SP spēles variants (`weekly_bosses` = nedēļas speciālā istaba; `undefined`/NULL = parasta
+   * standard istaba). Tikai SP; MP = `undefined`. Nāk no `/sp/start` tokena (servera-autoritatīvs).
+   * Lieto nedēļas uzdevumu 3/4 skaitīšanā (`countSpTaskWins` variant vārti). Vecām rindām (pirms
+   * migrācijas `0015`) NULL. Idempotentā INSERT dublikātā NEatjaunina.
+   */
+  readonly variant?: SpVariant | undefined;
 }
 
 /**
@@ -100,6 +109,31 @@ export interface PlayerStatsStore {
     minDurationMs: number,
     minRounds: number
   ): Promise<number>;
+
+  /**
+   * Nedēļas uzdevums 1: skaita PABEIGTAS MP spēles (jebkura vieta = `GAME_OVER`-sasniegta rinda)
+   * laika logā `[sinceMs, untilMs)`. Atvasināts no `mode='mp'` rindām. Bez min-ilguma/raundu
+   * vārtiem (īpašnieka lēmums — maza balva). Identisks SQLite + PostgreSQL (kontrakta tests).
+   */
+  countMpFinishedSince(userId: string, sinceMs: number, untilMs: number): Promise<number>;
+
+  /**
+   * Nedēļas uzdevumi 2/3/4: skaita SP UZVARAS (`placement <= placementMax`) dotajā grūtībā ar
+   * TIEŠU raundu skaitu (`round_count == exactRounds`) laika logā `[sinceMs, untilMs)` ar
+   * `duration_ms >= minDurationMs` (anti-abuse; NULL/legacy izslēgtas). `variant` filtrs:
+   * `null` = tikai standard istaba (`variant IS NULL`); `"weekly_bosses"` = tikai speciālā istaba
+   * (`variant = 'weekly_bosses'`). Atvasināts. Identisks SQLite + PostgreSQL (kontrakta tests).
+   */
+  countSpTaskWins(
+    userId: string,
+    difficulty: GameDifficulty,
+    variant: SpVariant | null,
+    exactRounds: number,
+    sinceMs: number,
+    untilMs: number,
+    minDurationMs: number,
+    placementMax: number
+  ): Promise<number>;
 }
 
 /** Runtime pārbaude, vai glabātuve atbalsta statistiku (abas to dara; sargs `index.ts`). */
@@ -110,7 +144,9 @@ export function isPlayerStatsStore(value: unknown): value is PlayerStatsStore {
     typeof (value as PlayerStatsStore).recordGameResult === "function" &&
     typeof (value as PlayerStatsStore).getPlayerGameStats === "function" &&
     typeof (value as PlayerStatsStore).getGameResultOwner === "function" &&
-    typeof (value as PlayerStatsStore).countSpWinsSince === "function"
+    typeof (value as PlayerStatsStore).countSpWinsSince === "function" &&
+    typeof (value as PlayerStatsStore).countMpFinishedSince === "function" &&
+    typeof (value as PlayerStatsStore).countSpTaskWins === "function"
   );
 }
 
@@ -120,6 +156,7 @@ const GAME_DIFFICULTIES: ReadonlySet<string> = new Set<GameDifficulty>([
   "hard",
   "epic"
 ]);
+const SP_VARIANTS: ReadonlySet<string> = new Set<SpVariant>(["weekly_bosses"]);
 
 function assertNonNegativeInt(label: string, value: number): void {
   if (!Number.isInteger(value) || value < 0) {
@@ -156,6 +193,16 @@ export function assertValidGameResult(record: GameResultRecord): void {
     }
   } else if (record.difficulty !== undefined) {
     throw new Error(`player_game_results: mp result must not have a difficulty (got ${record.difficulty})`);
+  }
+  // `variant` ir opcionāls (standard/legacy = undefined→NULL). Tikai SP drīkst nest variantu, un tam
+  // jābūt derīgam `SpVariant`. MP nekad nav speciālā istaba → variant jābūt undefined.
+  if (record.variant !== undefined) {
+    if (record.mode !== "sp") {
+      throw new Error(`player_game_results: mp result must not have a variant (got ${record.variant})`);
+    }
+    if (!SP_VARIANTS.has(record.variant)) {
+      throw new Error(`player_game_results: invalid sp variant (got ${record.variant})`);
+    }
   }
   // `durationMs` ir opcionāls (MP/legacy = undefined→NULL); ja dots, ne-negatīvs vesels
   // skaitlis (aizsargā pret NaN/frakcionālu/negatīvu ilgumu; SQLite/PG noraida identiski).

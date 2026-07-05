@@ -12,11 +12,45 @@
 
 import type { DominoTile, GameState } from "@domino-poker/core";
 
-import type { Move, PlayerView, SeatTuple } from "@domino-poker/engine";
+import type { Move, PlayerView, Seat, SeatTuple } from "@domino-poker/engine";
 import { getTile } from "@domino-poker/engine";
 
-import { BOT_DIFFICULTIES, type BotDifficulty } from "./difficulty";
+import { BOT_DIFFICULTIES, type BotBehaviorChoice, type BotDifficulty } from "./difficulty";
 import { assemblePlayerView, seedFor } from "./playerView";
+
+/**
+ * Uz cilvēku vērstas uzvedības payload worker-im (sk. `docs/bot-behaviors.md`). Tikai
+ * ne-`inclusion` mērķiem; `targetSeat` = cilvēka sēdvieta (aprēķināta no `GameState`).
+ * Tips ar string-literāļiem (bez `@domino-poker/ai` importa), lai šis modulis nepievelk botu bundle.
+ */
+type WorkerMoveBehavior = {
+  readonly objective: "denyHuman" | "aggressiveVsHuman";
+  readonly targetSeat: Seat;
+  readonly weight?: number;
+};
+
+/**
+ * Atrisina per-seat uzvedības izvēli uz worker payload. `inclusion` / nav izvēles / nav cilvēka
+ * pie galda → `undefined` (worker uzvedas kā šobrīd). Citādi — mērķē uz cilvēka sēdvietu.
+ * `targetSeat` prasa pilnu `GameState`, tāpēc to dara TIKAI šeit (NE `decideMoveFromView` hint ceļā).
+ */
+function resolveWorkerBehavior(
+  state: GameState,
+  choice: BotBehaviorChoice | undefined
+): WorkerMoveBehavior | undefined {
+  if (choice === undefined || choice.objective === "inclusion") {
+    return undefined;
+  }
+  const targetSeat = state.players.findIndex((p) => !p.isAI);
+  if (targetSeat < 0) {
+    return undefined; // nav cilvēka (nevajadzētu SP) → drošs fallback uz inclusion
+  }
+  return {
+    objective: choice.objective,
+    targetSeat: targetSeat as Seat,
+    ...(choice.weight === undefined ? {} : { weight: choice.weight })
+  };
+}
 
 // Grūtības budžeti (bidSamples / moveIterations) dzīvo vieglajā `difficulty.ts`, lai lobby
 // to var importēt, neievelkot šo moduli (sk. AppShell code-split komentāru). Smago meklēšanu
@@ -116,7 +150,13 @@ function getWorker(): Worker {
 // Solījuma/gājiena pieprasījums worker-im (bez `id`; to pievieno requestFromWorker).
 type BotWorkerRequest =
   | { kind: "bid"; view: PlayerView; bidSamples: number; seed: number }
-  | { kind: "move"; view: PlayerView; moveIterations: number; seed: number };
+  | {
+      kind: "move";
+      view: PlayerView;
+      moveIterations: number;
+      seed: number;
+      behavior?: WorkerMoveBehavior;
+    };
 
 function requestFromWorker(message: BotWorkerRequest): Promise<WorkerResponse> {
   const id = nextRequestId++;
@@ -159,16 +199,21 @@ export type BotMove = {
  * MP no servera snapshot). Vienīgais worker-move ceļš — konversija atpakaļ uz {side1,side2}
  * + calledPip → declaredNumber notiek te, tāpēc abi izsaucēji dala identisku semantiku.
  */
-export async function decideMoveFromView(
+// Vienīgais worker-move ceļš: sūta pieprasījumu (ar opcionālu uzvedību) un konvertē atbildi
+// atpakaļ uz {side1,side2} + declaredNumber. `decideMoveFromView` (hint/MP) un `decideMove` (SP)
+// abi šo lieto ar identisku semantiku; atšķiras tikai uzvedība (hint to nekad nepadod).
+async function runMove(
   view: PlayerView,
-  difficulty: BotDifficulty
+  difficulty: BotDifficulty,
+  behavior?: WorkerMoveBehavior
 ): Promise<BotMove> {
   const { moveIterations } = BOT_DIFFICULTIES[difficulty];
   const response = await requestFromWorker({
     kind: "move",
     view,
     moveIterations,
-    seed: seedFor(view)
+    seed: seedFor(view),
+    ...(behavior === undefined ? {} : { behavior })
   });
   if (!response.move) throw new Error("bot worker: invalid move response");
   const tile = getTile(response.move.tile);
@@ -178,10 +223,19 @@ export async function decideMoveFromView(
   };
 }
 
+export async function decideMoveFromView(
+  view: PlayerView,
+  difficulty: BotDifficulty
+): Promise<BotMove> {
+  // Hint / MP ceļš — NEKAD nepadod uzvedību (nav `GameState`; uzvedas kā `inclusion`).
+  return runMove(view, difficulty);
+}
+
 export async function decideMove(
   state: GameState,
   seat: number,
-  difficulty: BotDifficulty
+  difficulty: BotDifficulty,
+  behavior?: BotBehaviorChoice
 ): Promise<BotMove> {
-  return decideMoveFromView(buildPlayerView(state, seat), difficulty);
+  return runMove(buildPlayerView(state, seat), difficulty, resolveWorkerBehavior(state, behavior));
 }

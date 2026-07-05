@@ -380,6 +380,99 @@ export function runStoragePortContract(label: string, setup: ContractSetup): voi
         // Ja oriģinālais 8000 tiktu pārrakstīts uz 1, šis skaits būtu 0.
         expect(await storage.countSpWinsSince("user-1", "epic", 1000, 2000, 5000, 1)).toBe(1);
       });
+
+      it("countMpFinishedSince: counts mp rows (any placement) in [since,until), excluding sp", async () => {
+        const mp = (id: string, placement: number, completedAt: number) =>
+          storage.recordGameResult({
+            id, userId: "user-1", mode: "mp",
+            placement, roundCount: 5, bidMet: 5, bidExceeded: 0, bidMissed: 0, completedAt
+          });
+        await mp("mp:m1:user-1", 1, 1000); // skaitās
+        await mp("mp:m2:user-1", 4, 1500); // skaitās (jebkura vieta = pabeigta)
+        await mp("mp:m3:user-1", 2, 999);  // NE (pirms loga)
+        await mp("mp:m4:user-1", 2, 2000); // NE (untilMs ekskluzīvs)
+        // SP spēle logā — NEskaitās mp vaicājumam.
+        await storage.recordGameResult({
+          id: "sp:x", userId: "user-1", mode: "sp", difficulty: "epic",
+          placement: 1, roundCount: 4, bidMet: 4, bidExceeded: 0, bidMissed: 0, completedAt: 1200
+        });
+
+        expect(await storage.countMpFinishedSince("user-1", 1000, 2000)).toBe(2);
+        expect(await storage.countMpFinishedSince("user-2", 1000, 2000)).toBe(0);
+      });
+
+      it("countSpTaskWins: exact rounds, placement<=max, min duration, and variant NULL vs weekly_bosses", async () => {
+        const win = (
+          id: string,
+          placement: number,
+          rounds: number,
+          completedAt: number,
+          durationMs: number,
+          variant?: "weekly_bosses"
+        ) =>
+          storage.recordGameResult({
+            id, userId: "user-1", mode: "sp", difficulty: "epic",
+            placement, roundCount: rounds, bidMet: rounds, bidExceeded: 0, bidMissed: 0,
+            completedAt, durationMs, ...(variant === undefined ? {} : { variant })
+          });
+
+        // Logs = [1000, 2000). Min ilgums = 5000.
+        await win("sp:s1", 1, 50, 1000, 9000);                    // standard, 50r, uzvara
+        await win("sp:s2", 2, 50, 1100, 9000);                    // standard, 50r, uzvara (placement 2)
+        await win("sp:s3", 1, 30, 1200, 9000);                    // standard, 30r (NE 50-vaicājumam)
+        await win("sp:b1", 1, 50, 1300, 9000, "weekly_bosses");   // speciālā, 50r, uzvara
+        await win("sp:b2", 1, 30, 1400, 9000, "weekly_bosses");   // speciālā, 30r, uzvara
+        await win("sp:s4", 3, 50, 1500, 9000);                    // standard, placement 3 (NE)
+        await win("sp:s5", 1, 50, 1600, 4000);                    // standard, ilgums < min (NE)
+
+        const max = 2;
+        // Uzd. 2: standard (variant=null), epic, tieši 50 raundi, placement<=2 → s1, s2.
+        expect(await storage.countSpTaskWins("user-1", "epic", null, 50, 1000, 2000, 5000, max)).toBe(2);
+        // Uzd. 4: speciālā, tieši 50 → b1.
+        expect(await storage.countSpTaskWins("user-1", "epic", "weekly_bosses", 50, 1000, 2000, 5000, max)).toBe(1);
+        // Uzd. 3: speciālā, tieši 30 → b2.
+        expect(await storage.countSpTaskWins("user-1", "epic", "weekly_bosses", 30, 1000, 2000, 5000, max)).toBe(1);
+        // Standard 30 → tikai s3.
+        expect(await storage.countSpTaskWins("user-1", "epic", null, 30, 1000, 2000, 5000, max)).toBe(1);
+        // Cits lietotājs.
+        expect(await storage.countSpTaskWins("user-2", "epic", null, 50, 1000, 2000, 5000, max)).toBe(0);
+      });
+
+      it("persists variant and preserves it on idempotent duplicate; rejects invalid variants", async () => {
+        // Speciālās istabas rinda ar variantu.
+        expect(
+          await storage.recordGameResult({
+            id: "sp:v1", userId: "user-1", mode: "sp", difficulty: "epic",
+            placement: 1, roundCount: 50, bidMet: 50, bidExceeded: 0, bidMissed: 0,
+            completedAt: 1500, durationMs: 9000, variant: "weekly_bosses"
+          })
+        ).toBe(true);
+        // Atkārtots ieraksts BEZ varianta → no-op; oriģinālais variant paliek (citādi skaits būtu 0).
+        expect(
+          await storage.recordGameResult({
+            id: "sp:v1", userId: "user-1", mode: "sp", difficulty: "epic",
+            placement: 1, roundCount: 50, bidMet: 50, bidExceeded: 0, bidMissed: 0,
+            completedAt: 1500, durationMs: 9000
+          })
+        ).toBe(false);
+        expect(await storage.countSpTaskWins("user-1", "epic", "weekly_bosses", 50, 1000, 2000, 5000, 2)).toBe(1);
+
+        const base = {
+          id: "sp:vbad", userId: "user-1", mode: "sp" as const, difficulty: "epic" as const,
+          placement: 1, roundCount: 4, bidMet: 4, bidExceeded: 0, bidMissed: 0, completedAt: 1
+        };
+        // MP ar variantu — noraidīts.
+        await expect(
+          storage.recordGameResult({
+            ...base, id: "mp:vbad1", mode: "mp", difficulty: undefined,
+            variant: "weekly_bosses"
+          })
+        ).rejects.toThrow();
+        // Nederīgs SP variants — noraidīts.
+        await expect(
+          storage.recordGameResult({ ...base, id: "sp:vbad2", variant: "nope" as never })
+        ).rejects.toThrow();
+      });
     });
 
     describe("coin wallet (atomic, idempotent)", () => {

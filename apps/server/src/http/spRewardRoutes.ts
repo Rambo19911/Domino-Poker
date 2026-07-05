@@ -35,7 +35,10 @@ const startSchema = z.object({
   // Raundu skaits momentuzņemts tokenā (bid-accuracy validācijai pie /sp/complete).
   // `.default(7)` saglabā /sp/start atpakaļsaderību (vecs payload bez `rounds` joprojām
   // izdod tokenu /sp/reward plūsmai); jaunais klients vienmēr sūta īsto skaitu.
-  rounds: z.number().int().min(1).max(SP_MAX_ROUNDS).default(7)
+  rounds: z.number().int().min(1).max(SP_MAX_ROUNDS).default(7),
+  // Nedēļas uzdevumu speciālā istaba (jauktie boti). Neobligāts; nav = parasta istaba.
+  // Momentuzņemts tokenā → nedēļas uzdevumu 3/4 skaits balstās uz ŠO, ne klienta apgalvojumu.
+  variant: z.enum(["weekly_bosses"]).optional()
 });
 const rewardSchema = z.object({
   gameToken: z.string().min(1).max(64),
@@ -137,7 +140,12 @@ async function handleStart(
     writeJson(response, 400, { error: "invalid_input" });
     return;
   }
-  const gameToken = options.tokens.issue(user.id, parsed.data.difficulty, parsed.data.rounds);
+  const gameToken = options.tokens.issue(
+    user.id,
+    parsed.data.difficulty,
+    parsed.data.rounds,
+    parsed.data.variant
+  );
   writeJson(response, 200, { gameToken });
 }
 
@@ -275,7 +283,9 @@ async function handleComplete(
     bidExceeded,
     bidMissed,
     now,
-    durationMs
+    durationMs,
+    // Variants no TOKENA (serverī uzticams) → nedēļas uzdevumu 3/4 speciālās istabas skaits.
+    variant: claimed.variant
   });
 
   // 2) Monētas (idempotents pēc gameToken ledger ref). Tikai 1./2. vieta UN min ilgums

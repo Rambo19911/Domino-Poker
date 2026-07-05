@@ -9,8 +9,9 @@
 /// <reference lib="webworker" />
 
 import { mulberry32 } from "@domino-poker/engine";
-import type { Move, PlayerView } from "@domino-poker/engine";
-import { chooseInclusionBid, IsmctsSearcher } from "@domino-poker/ai";
+import type { Move, PlayerView, Seat } from "@domino-poker/engine";
+import { chooseInclusionBid, createBehaviorReward, IsmctsSearcher } from "@domino-poker/ai";
+import type { BotObjective } from "@domino-poker/ai";
 
 type BidRequest = {
   readonly id: number;
@@ -26,6 +27,16 @@ type MoveRequest = {
   readonly view: PlayerView;
   readonly moveIterations: number;
   readonly seed: number;
+  /**
+   * Opcionāla uz cilvēku vērsta uzvedība (sk. `docs/bot-behaviors.md`). Kad padota, būvē
+   * `RewardFn`, kas pārraksta `rewardKind` TIKAI šī bota sēdvietai. Kad NAV (parasta spēle /
+   * MP hint) → `inclusion` kā šobrīd (regression-safe). `botSeat` = `view.seat` (nav jāsūta).
+   */
+  readonly behavior?: {
+    readonly objective: BotObjective;
+    readonly targetSeat: Seat;
+    readonly weight?: number;
+  };
 };
 
 type WorkerRequest = BidRequest | MoveRequest;
@@ -46,7 +57,22 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
       return;
     }
 
-    const searcher = new IsmctsSearcher(mulberry32(request.seed), { rewardKind: "inclusion" });
+    // Uz cilvēku vērsta uzvedība (ja padota) būvē RewardFn, kas pārraksta `rewardKind` tikai šī
+    // bota sēdvietai. Bez tās → `inclusion` kā šobrīd. `weight` padod tikai, ja definēts.
+    const behavior = request.behavior;
+    const searcher = new IsmctsSearcher(mulberry32(request.seed), {
+      rewardKind: "inclusion",
+      ...(behavior === undefined
+        ? {}
+        : {
+            reward: createBehaviorReward({
+              objective: behavior.objective,
+              botSeat: request.view.seat,
+              targetSeat: behavior.targetSeat,
+              ...(behavior.weight === undefined ? {} : { weight: behavior.weight })
+            })
+          })
+    });
     searcher.sync(request.view);
     // Fiksēts iterāciju budžets (NE pulksteņa) → reproducējams spēks neatkarīgi no ierīces. Cilpa
     // vienmēr beidzas; off-thread tā nevar iesaldēt UI, tāpēc nav vajadzīgi pulksteņa griesti.

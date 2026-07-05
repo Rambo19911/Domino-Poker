@@ -909,7 +909,50 @@
       "Migration 0014_player_game_results_duration is ADDITIVE (duration_ms nullable + index). SchemaMigration.selfTransaction marks SQLite self-managed-tx rebuilds (0010/0013); the SQLite migrate() runner wraps every other migration up + schema_migrations record in ONE BEGIN IMMEDIATE tx so 0014 ADD COLUMN (no IF NOT EXISTS) is crash-rerun safe. /sp/complete stores duration_ms = now - token.issuedAt (clamp>=0) on the same idempotent insert (dup does NOT update it).",
       "ANTI-ABUSE: min-game-duration-per-difficulty gate (DAILY_TASK_MIN_GAME_MS, server-only) on what counts + natural 30000/day/user cap (once per UTC day per task) + per-user rate limits + per-user in-process claim lock (ledger UNIQUE is the real guard). RESIDUAL (accepted, like existing SP rewards): placement is still client-asserted at /sp/complete; duration gate blocks instant scripts, not fabricated placements (full fix = server-side replay, out of scope).",
       "Routes GET /daily/tasks + POST /daily/tasks/claim require auth (anon 401), bearer-token (no CSRF), rate-limited, chained before the auth handler, mounted only when wallet + PlayerStatsStore + AuthService exist. Needs a Caddy reverse_proxy /daily/* rule on the VPS or it 404s in prod.",
-      "Web: useDailyTasks fetches on lobby mount + on dailyRefreshSignal change (AppShell bumps it after /sp/complete) with a reqRef sequence guard (stale fetch cannot overwrite newer state); calendar icon shows only when authed and pulses (--coin, reduced-motion-safe) when anyClaimable; countdown computed locally (never re-fetched). 9 i18n keys across all 21 locales (EN+LV proper, 19 EN fallback). Token-only CSS. FEATURE_LAUNCH_EPOCH_MS must be set to the real deploy date."
+      "Web: useDailyTasks fetches on lobby mount + on tasksRefreshSignal change (AppShell bumps it after /sp/complete; the signal is SHARED with Weekly Tasks, renamed from dailyRefreshSignal) with a reqRef sequence guard (stale fetch cannot overwrite newer state); the calendar icon opens a tabbed Daily|Weekly dialog, shows only when authed, and pulses (--coin, reduced-motion-safe) when daily OR weekly anyClaimable; countdown computed locally (never re-fetched). Token-only CSS. FEATURE_LAUNCH_EPOCH_MS must be set to the real deploy date."
+    ],
+    "confidence": "high"
+  },
+  {
+    "name": "Weekly Tasks",
+    "folder": ".",
+    "purpose": "Second tab in the SAME lobby dialog as Daily Tasks (calendar icon opens a tabbed Daily|Weekly dialog), registered-users-only. 4 INDEPENDENT tasks (claim any order, NO sequential lock), WEEKLY reset Monday 00:00 UTC, COUNT-based progress min(threshold,count): mp_finish_20 (finish 20 MP games, any placement -> 40000), sp_epic50_x2 (win 2 standard epic 50-round games -> 100000), boss30 (top-2 in a 30-round SPECIAL-room game -> 150000), boss50 (same at 50 rounds -> 400000). win/winning-place = placement<=2; round match is EXACT. Special room = mixed-bot 'weekly bosses' SP room (marked player_game_results.variant='weekly_bosses', migration 0015) whose 3 bots run different behaviors (inclusion/denyHuman/aggressiveVsHuman) -> this wired docs/bot-behaviors.md. Progress DERIVED from player_game_results (countMpFinishedSince + countSpTaskWins), claims idempotent ledger rows (reason weekly_task_reward, ref weekly:{mondayYYYYMMDD}:{taskId}). Plan: docs/TODO/weekly-tasks-plan.md.",
+    "main_files": [
+      "packages/shared/src/economy.ts",
+      "apps/server/src/weekly/WeeklyTaskService.ts",
+      "apps/server/src/http/weeklyTaskRoutes.ts",
+      "apps/server/src/wallet/WalletService.ts",
+      "apps/server/src/storage/PlayerStatsStore.ts",
+      "apps/server/src/storage/schema.ts",
+      "apps/server/src/sp/SpRewardTokens.ts",
+      "apps/server/src/http/spRewardRoutes.ts",
+      "apps/web/lib/weekly/weeklyApi.ts",
+      "apps/web/lib/weekly/useWeeklyTasks.ts",
+      "apps/web/components/DailyTasksDialog.tsx",
+      "apps/web/components/AppShell.tsx",
+      "apps/web/components/LobbyScreen.tsx",
+      "apps/web/styles/daily.css"
+    ],
+    "depends_on": [
+      "Shared Protocol",
+      "Coin Economy (Gold)",
+      "Player Statistics (Deep Stats)",
+      "AI Bot Package",
+      "Server Auth",
+      "Web App"
+    ],
+    "used_by": [
+      "Web App",
+      "Multiplayer Server"
+    ],
+    "risks": [
+      "economy.ts WEEKLY_TASKS + WEEKLY_TASK_PLACEMENT_MAX + SpVariant are the single source of thresholds/rewards/rounds/variant (server enforces; client never sends them). A shared invariant test guards catalog shape (sp_win has difficulty+exactRounds, mp_finish has neither, variant<=>hasPlayButton<=>weekly_bosses).",
+      "UTC-Monday window: utcWeekStart = utcDayStart - ((getUTCDay()+6)%7)*DAY; windowStart = max(weekStart, FEATURE_LAUNCH_EPOCH_MS); weekEnd = weekStart+7d. INVARIANT: the weekly FEATURE_LAUNCH_EPOCH_MS MUST be a Monday <= the current week, else the current-week window is EMPTY (windowStart==weekEnd) and NOTHING counts. This was a real bug (constant was next-Monday 2026-07-06 vs test date 2026-07-05 -> empty); fixed to 2026-06-29. On DEPLOY set it to the deploy week's Monday.",
+      "Migration 0015_player_game_results_variant is ADDITIVE (variant nullable TEXT + two indexes: idx_pgr_sp_weekly (user_id,mode,difficulty,variant,round_count,completed_at) and idx_pgr_mp_completed (user_id,mode,completed_at)). PG uses ADD COLUMN IF NOT EXISTS (runner runs up + schema_migrations in SEPARATE tx, so a crash between them must be rerun-safe); SQLite omits it (runner wraps both in one BEGIN IMMEDIATE tx). countSpTaskWins splits SQL on variant IS NULL vs variant = ? (NULL is not =-comparable). Variant is snapshotted server-side from the /sp/start token, never read from /sp/complete body.",
+      "ANTI-ABUSE (risk model identical to daily/SP; placement+variant client-declared): SP tasks use a ROUND-SCALED min-duration gate max(WEEKLY_TASK_MIN_GAME_MS_FLOOR=8000, WEEKLY_TASK_MIN_MS_PER_ROUND=1000*exactRounds) -> 30s/50s (owner's real epic-50 ~72s passes). MP task has NO min gate (owner decision: small 40k reward; free MP rooms make mp_entry an unreliable limiter; 1-round games count). Natural cap 690000/week/user (4 once-per-week claims). RESIDUAL (accepted, like SP rewards): placement AND variant are client-asserted; the duration gate blocks instant scripts, not fabricated placement/variant (full fix = server-side replay, out of scope).",
+      "Routes GET /weekly/tasks + POST /weekly/tasks/claim (auth, anon 401, bearer-token, rate-limited) chain in httpServer.ts AFTER daily and BEFORE auth; mounted only when wallet + PlayerStatsStore + AuthService exist. Needs a Caddy reverse_proxy /weekly/* rule on the VPS or it 404s in prod (owner authorized editing the Caddyfile).",
+      "Web: useWeeklyTasks + useDailyTasks both read the shared tasksRefreshSignal (bumped after /sp/complete). MP-finish progress refreshes via LobbyScreen remount-fetch on returning from mp-lobby (no separate MP GAME_OVER bump). Tabbed dialog reuses .settingsTab (role=group + aria-pressed) + a shared TaskCard (parametrized progress/threshold bar); boss tasks show a [Play] button -> startWeeklyBossRoom (spSpecial state: epic budget + WEEKLY_BOSS_BEHAVIORS, without overwriting the user's difficulty/round choice). 11 i18n keys NATIVELY translated across all 21 locales; the orphaned dailyTasks key was removed. NOTE: the shared package must be rebuilt before the server so runtime WEEKLY_TASKS resolves.",
+      "TESTS: WeeklyTaskService.test.ts (unit), weeklyTaskRoutes.integration.test.ts, packages/shared/test/weekly-tasks.test.ts (catalog), weeklyTaskFlow.integration.test.ts (end-to-end sim: real /auth+/sp+/weekly handlers + controllable clock using the REAL default epoch; covers all 4 tasks incl. boss 2nd-place + 1-round MP + a fixed-date epoch-regression guard). Live smoke script scripts/sim-weekly-tasks.mjs (real delays vs a running server)."
     ],
     "confidence": "high"
   }

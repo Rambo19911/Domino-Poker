@@ -22,6 +22,7 @@ import { loadServerConfig } from "./config.js";
 import { createAuthHandler } from "./http/authRoutes.js";
 import { createContactHandler } from "./http/contactRoutes.js";
 import { createDailyTaskHandler } from "./http/dailyTaskRoutes.js";
+import { createWeeklyTaskHandler } from "./http/weeklyTaskRoutes.js";
 import { createSpRewardHandler } from "./http/spRewardRoutes.js";
 import { createStatsHandler } from "./http/statsRoutes.js";
 import { createStoreHandler } from "./http/storeRoutes.js";
@@ -41,6 +42,7 @@ import { isCoinStore } from "./storage/CoinStore.js";
 import { isPlayerStatsStore } from "./storage/PlayerStatsStore.js";
 import { MpStatsRecorder } from "./stats/MpStatsRecorder.js";
 import { DailyTaskService } from "./daily/DailyTaskService.js";
+import { WeeklyTaskService } from "./weekly/WeeklyTaskService.js";
 import { PlayerStatsService } from "./stats/PlayerStatsService.js";
 import { PostgresStorage } from "./storage/PostgresStorage.js";
 import { openStorage } from "./storage/index.js";
@@ -206,6 +208,12 @@ const mpStats = isPlayerStatsStore(storage)
 const dailyTasks =
   wallet && isPlayerStatsStore(storage)
     ? new DailyTaskService({ stats: storage, wallet, clock })
+    : undefined;
+// Nedēļas uzdevumi (atvasināts progress no player_game_results + ledger savākšana). Tāpat kā
+// dienas — tikai ar maku + stats-store; reģistrētiem lietotājiem, anonīmiem 401.
+const weeklyTasks =
+  wallet && isPlayerStatsStore(storage)
+    ? new WeeklyTaskService({ stats: storage, wallet, clock })
     : undefined;
 // Fāze 3: MP poda izmaksas dzinējs (atsevišķs no OutcomeRecorder; tikai ar maku).
 const payouts = wallet ? new MatchPayoutService({ wallet }) : undefined;
@@ -518,6 +526,17 @@ const server = createHealthHttpServer({
         dailyHandler: createDailyTaskHandler({
           auth: authService,
           daily: dailyTasks,
+          webOrigins: config.webOrigins,
+          clock,
+          dev: config.nodeEnv !== "production"
+        })
+      }
+    : {}),
+  ...(authService && weeklyTasks
+    ? {
+        weeklyHandler: createWeeklyTaskHandler({
+          auth: authService,
+          weekly: weeklyTasks,
           webOrigins: config.webOrigins,
           clock,
           dev: config.nodeEnv !== "production"

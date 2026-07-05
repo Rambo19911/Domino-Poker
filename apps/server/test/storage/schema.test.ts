@@ -16,7 +16,8 @@ const EXPECTED_IDS = [
   "0011_bans",
   "0012_chat_blocked_words",
   "0013_user_preferences_language_open",
-  "0014_player_game_results_duration"
+  "0014_player_game_results_duration",
+  "0015_player_game_results_variant"
 ];
 
 const SHARED_TABLES = [

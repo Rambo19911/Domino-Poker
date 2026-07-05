@@ -22,3 +22,14 @@ export const DEFAULT_DIFFICULTY: BotDifficulty = "medium";
 export function isBotDifficulty(value: string): value is BotDifficulty {
   return value === "medium" || value === "hard" || value === "epic";
 }
+
+/**
+ * Bota UZVEDĪBA (personība) — atsevišķa ass no grūtības (budžeta). Vada, KO bots optimizē
+ * ISMCTS gājienu meklēšanā (sk. `docs/bot-behaviors.md`). `inclusion` = esošais noklusējums
+ * (precīzs paša solījums, bez cilvēka mērķa); pārējie ir uz cilvēku vērsti. APZINĀTI viegls
+ * tips šeit (bez `@domino-poker/ai` importa), lai lobby to var padot bez botu bundle ievilkšanas.
+ * `weight` (0..1) sabalansē paša mērķi pret uz cilvēku vērsto komponenti (mērķa noklusējums, ja nav).
+ */
+export type BotBehaviorChoice =
+  | { readonly objective: "inclusion" }
+  | { readonly objective: "denyHuman" | "aggressiveVsHuman"; readonly weight?: number };

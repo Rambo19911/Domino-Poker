@@ -15,6 +15,7 @@ import { DailyTasksDialog, DailyTasksIcon } from "./DailyTasksDialog";
 import { StoreDialog, StoreIcon } from "./StoreDialog";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
 import { useDailyTasks } from "../lib/daily/useDailyTasks";
+import { useWeeklyTasks } from "../lib/weekly/useWeeklyTasks";
 import { Presence } from "./usePresence";
 import { CloseIcon } from "./ui/CloseIcon";
 import { IconButton } from "./ui/IconButton";
@@ -66,27 +67,30 @@ export function LobbyScreen({
   labels: t,
   locale,
   auth,
-  dailyRefreshSignal,
+  tasksRefreshSignal,
   selectedRoundCount,
   onRoundCountChange,
   difficulty,
   onDifficultyChange,
   onStartSinglePlayer,
   onStartMultiplayer,
+  onPlayWeeklyBoss,
   onLocaleChange
 }: {
   readonly audio: AudioSettings;
   readonly labels: AppStrings;
   readonly locale: Locale;
   readonly auth: LobbyAuth;
-  /** Palielinās pēc katras SP spēles pabeigšanas → dienas uzdevumu progress atsvaidzinās. */
-  readonly dailyRefreshSignal: number;
+  /** Palielinās pēc katras SP spēles pabeigšanas → dienas + nedēļas uzdevumu progress atsvaidzinās. */
+  readonly tasksRefreshSignal: number;
   readonly selectedRoundCount: number;
   readonly onRoundCountChange: (count: number) => void;
   readonly difficulty: BotDifficulty;
   readonly onDifficultyChange: (difficulty: BotDifficulty) => void;
   readonly onStartSinglePlayer: () => void;
   readonly onStartMultiplayer: () => void;
+  /** Palaiž nedēļas boss uzdevuma speciālo istabu ar doto raundu skaitu (30/50). */
+  readonly onPlayWeeklyBoss: (rounds: number) => void;
   readonly onLocaleChange: (locale: Locale) => void;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -99,7 +103,10 @@ export function LobbyScreen({
   const isAuthed = auth.status === "authenticated";
   // Dienas uzdevumi tikai ielogotiem. Fetch pie mount (lobija atgriešanās pēc SP spēles
   // remontē šo ekrānu → progress atsvaidzinās); ikona pulsē, kad kāda balva savācama.
-  const daily = useDailyTasks(auth.getToken, isAuthed, dailyRefreshSignal);
+  const daily = useDailyTasks(auth.getToken, isAuthed, tasksRefreshSignal);
+  const weekly = useWeeklyTasks(auth.getToken, isAuthed, tasksRefreshSignal);
+  // Ikona pulsē, ja KĀDA no dienas/nedēļas balvām ir savācama.
+  const anyTaskClaimable = daily.anyClaimable || weekly.anyClaimable;
 
   const openAuth = () => {
     audio.play("uiClick");
@@ -144,11 +151,11 @@ export function LobbyScreen({
         {isAuthed ? (
           <IconButton
             className={
-              daily.anyClaimable ? "lobbyDailyButton dailyPulse" : "lobbyDailyButton"
+              anyTaskClaimable ? "lobbyDailyButton dailyPulse" : "lobbyDailyButton"
             }
-            label={t.dailyTasks}
-            title={t.dailyTasks}
-            data-claimable={daily.anyClaimable || undefined}
+            label={t.tasks}
+            title={t.tasks}
+            data-claimable={anyTaskClaimable || undefined}
             onClick={() => {
               audio.play("uiClick");
               setDailyOpen(true);
@@ -249,6 +256,12 @@ export function LobbyScreen({
           labels={t}
           state={daily.state}
           claim={daily.claim}
+          weeklyState={weekly.state}
+          weeklyClaim={weekly.claim}
+          onPlayWeekly={(rounds) => {
+            setDailyOpen(false);
+            onPlayWeeklyBoss(rounds);
+          }}
           onBalanceChange={auth.applyBalance}
           onClose={() => setDailyOpen(false)}
         />

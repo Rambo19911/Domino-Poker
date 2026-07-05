@@ -6,6 +6,7 @@ import type { ChatTranslateHandler } from "./chat/chatTranslateRoutes.js";
 import type { AuthHandler } from "./http/authRoutes.js";
 import type { ContactHandler } from "./http/contactRoutes.js";
 import type { DailyTaskHandler } from "./http/dailyTaskRoutes.js";
+import type { WeeklyTaskHandler } from "./http/weeklyTaskRoutes.js";
 import type { SpRewardHandler } from "./http/spRewardRoutes.js";
 import type { StatsHandler } from "./http/statsRoutes.js";
 import type { StoreHandler } from "./http/storeRoutes.js";
@@ -58,6 +59,11 @@ export interface HealthHttpServerOptions {
    * + auth. Mēģināts PIRMS `authHandler`; atgriež `true`, ja apstrādāja ceļu.
    */
   readonly dailyHandler?: DailyTaskHandler;
+  /**
+   * Opcionāls nedēļas uzdevumu maršruts (`/weekly/*`). Injicē `index.ts`, ja ir maks + stats
+   * + auth. Mēģināts PIRMS `authHandler`; atgriež `true`, ja apstrādāja ceļu.
+   */
+  readonly weeklyHandler?: WeeklyTaskHandler;
   /**
    * Opcionāls veikala maršruts (`/store/*`, Fāze 4 — tēmu pirkšana par monētām). Injicē
    * `index.ts` no `createStoreHandler`. Mēģināts API ķēdē; atgriež `true`, ja apstrādāja.
@@ -135,7 +141,7 @@ function routeAuthOr404(
   void routeApiHandlers(request, response, options);
 }
 
-/** Mēģina API apstrādātājus secīgi (admin → contact → sp → stats → daily → store → auth); pirmais, kas atgriež `true`, beidz. */
+/** Mēģina API apstrādātājus secīgi (admin → contact → sp → stats → daily → weekly → store → auth); pirmais, kas atgriež `true`, beidz. */
 async function routeApiHandlers(
   request: IncomingMessage,
   response: ServerResponse,
@@ -155,6 +161,9 @@ async function routeApiHandlers(
       return;
     }
     if (options.dailyHandler !== undefined && (await options.dailyHandler(request, response))) {
+      return;
+    }
+    if (options.weeklyHandler !== undefined && (await options.weeklyHandler(request, response))) {
       return;
     }
     if (options.storeHandler !== undefined && (await options.storeHandler(request, response))) {

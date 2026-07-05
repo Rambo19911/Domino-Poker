@@ -41,9 +41,13 @@ export interface SpCompleteResponse {
 export function apiSpStart(
   token: string,
   difficulty: CoinDifficulty,
-  rounds: number
+  rounds: number,
+  variant?: "weekly_bosses"
 ): Promise<AuthResult<SpStartResponse>> {
-  return requestJson<SpStartResponse>("/sp/start", jsonInit("POST", { difficulty, rounds }, token));
+  return requestJson<SpStartResponse>(
+    "/sp/start",
+    jsonInit("POST", { difficulty, rounds, ...(variant === undefined ? {} : { variant }) }, token)
+  );
 }
 
 /**

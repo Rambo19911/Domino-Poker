@@ -1,4 +1,4 @@
-import type { CoinDifficulty } from "@domino-poker/shared";
+import type { CoinDifficulty, SpVariant } from "@domino-poker/shared";
 
 import type { Clock } from "../timers/TurnTimerScheduler.js";
 
@@ -13,6 +13,12 @@ interface SpToken {
    * (nevis ar klienta apgalvojumu), tāpēc to nevar uzpūst.
    */
   readonly roundCount: number;
+  /**
+   * Spēles variants momentuzņemts SĀKUMĀ (`weekly_bosses` = nedēļas speciālā istaba;
+   * `undefined` = parasta istaba). Serverī-autoritatīvs → nedēļas uzdevumu 3/4 skaits
+   * balstās uz ŠO, ne uz klienta apgalvojumu spēles beigās.
+   */
+  readonly variant?: SpVariant;
   readonly issuedAt: number;
 }
 
@@ -20,6 +26,7 @@ interface SpToken {
 export interface SpTokenSnapshot {
   readonly difficulty: CoinDifficulty;
   readonly roundCount: number;
+  readonly variant?: SpVariant;
   readonly issuedAt: number;
 }
 
@@ -56,13 +63,19 @@ export class SpRewardTokens {
     this.createId = options.createId;
   }
 
-  /** Izsniedz jaunu vienreizēju tokenu lietotājam, momentuzņemot grūtību + raundu skaitu. */
-  issue(userId: string, difficulty: CoinDifficulty, roundCount: number): string {
+  /** Izsniedz jaunu vienreizēju tokenu lietotājam, momentuzņemot grūtību + raundu skaitu + variantu. */
+  issue(userId: string, difficulty: CoinDifficulty, roundCount: number, variant?: SpVariant): string {
     const now = this.clock();
     this.prune(now);
     this.enforcePerUserLimit(userId);
     const token = this.createId();
-    this.tokens.set(token, { userId, difficulty, roundCount, issuedAt: now });
+    this.tokens.set(token, {
+      userId,
+      difficulty,
+      roundCount,
+      ...(variant === undefined ? {} : { variant }),
+      issuedAt: now
+    });
     return token;
   }
 
@@ -78,7 +91,12 @@ export class SpRewardTokens {
     if (!entry || entry.userId !== userId) {
       return null;
     }
-    return { difficulty: entry.difficulty, roundCount: entry.roundCount, issuedAt: entry.issuedAt };
+    return {
+      difficulty: entry.difficulty,
+      roundCount: entry.roundCount,
+      ...(entry.variant === undefined ? {} : { variant: entry.variant }),
+      issuedAt: entry.issuedAt
+    };
   }
 
   /**
@@ -93,7 +111,12 @@ export class SpRewardTokens {
       return null;
     }
     this.tokens.delete(token);
-    return { difficulty: entry.difficulty, roundCount: entry.roundCount, issuedAt: entry.issuedAt };
+    return {
+      difficulty: entry.difficulty,
+      roundCount: entry.roundCount,
+      ...(entry.variant === undefined ? {} : { variant: entry.variant }),
+      issuedAt: entry.issuedAt
+    };
   }
 
   /** Izstumj beigušos tokenus (slinki, pie katra issue/consume). */

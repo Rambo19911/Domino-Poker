@@ -43,6 +43,13 @@ tavs-domens.lv {
         header_up X-Forwarded-For {http.request.remote.host}
     }
 
+    # Nedēļas uzdevumi: /weekly/* -> MP serveris (GET /weekly/tasks, POST /weekly/tasks/claim).
+    # Auth obligāts. BEZ šī kārtulas nedēļas uzdevumi 404 prodā. (Tāpat daily/sp/stats route ir
+    # jāproksē; sk. dzīvo VPS Caddyfile — šis piemērs var atpalikt.)
+    reverse_proxy /weekly/* 127.0.0.1:4000 {
+        header_up X-Forwarded-For {http.request.remote.host}
+    }
+
     # (pēc izvēles) metrikas tikai lokāli:
     # @metrics path /metrics
     # respond @metrics 403

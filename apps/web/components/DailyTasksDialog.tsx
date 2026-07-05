@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { Dialog } from "./Dialog";
 import { Button } from "./ui/Button";
@@ -12,15 +12,23 @@ import type {
   DailyTasksView,
   DailyTaskView
 } from "../lib/daily/dailyApi";
+import type { WeeklyClaimView, WeeklyTasksView, WeeklyTaskView } from "../lib/weekly/weeklyApi";
 import type { AppStrings } from "../lib/i18n";
 import type { AudioSettings } from "../lib/useAudioSettings";
 
 /** Uzdevuma id → PNG attēls (assets/daily). Katalogs ir servera puses; attēli ir web puses. */
-const TASK_ART: Record<string, string> = {
+const DAILY_TASK_ART: Record<string, string> = {
   win10_medium: "win_medium",
   win20_hard: "win_hard",
   win30_epic: "win_epic_30",
   win50_epic: "win_epic_50"
+};
+
+const WEEKLY_TASK_ART: Record<string, string> = {
+  mp_finish_20: "Play-and-finish-20-multiplayer-games",
+  sp_epic50_x2: "Win-twice-50-round-game-on-Epic",
+  boss30: "Take-winning-place-in-30-rounds",
+  boss50: "Take-winning-place-in-50-rounds"
 };
 
 const DIFFICULTY_LABEL: Record<DailyDifficulty, keyof AppStrings> = {
@@ -28,6 +36,11 @@ const DIFFICULTY_LABEL: Record<DailyDifficulty, keyof AppStrings> = {
   hard: "difficultyHard",
   epic: "difficultyEpic"
 };
+
+type TasksTab = "daily" | "weekly";
+
+/** Claim rezultāts, kas der GAN daily, GAN weekly (abiem ir `balance` + `awarded`). */
+type AnyClaimResult = { readonly balance: number; readonly awarded: number };
 
 /** HH:MM:SS no sekundēm (countdown līdz UTC atiestatīšanai). */
 function formatCountdown(totalSeconds: number): string {
@@ -39,11 +52,65 @@ function formatCountdown(totalSeconds: number): string {
   return `${pad(h)}:${pad(m)}:${pad(sec)}`;
 }
 
+/**
+ * Viena uzdevuma kartīte (dala daily + weekly). Tikai izkārtojums; darbības mezglu (claim poga /
+ * play poga / nozīme) padod izsaucējs. Progress ir parametrizēts (`progress/threshold`), tāpēc
+ * daily binārais (threshold=1) izskatās identiski kā agrāk, bet weekly rāda īsto skaitītāju.
+ */
+function TaskCard({
+  artSrc,
+  title,
+  progress,
+  threshold,
+  rewardCoins,
+  status,
+  action
+}: {
+  readonly artSrc: string;
+  readonly title: string;
+  readonly progress: number;
+  readonly threshold: number;
+  readonly rewardCoins: number;
+  readonly status: "claimed" | "claimable" | "open" | "locked";
+  readonly action: ReactNode;
+}) {
+  const pct = threshold > 0 ? Math.min(100, (progress / threshold) * 100) : 0;
+  return (
+    <div className="dailyCard" data-status={status}>
+      <img className="dailyCardArt" src={artSrc} alt="" aria-hidden="true" />
+      <div className="dailyCardBody">
+        <h3 className="dailyCardTitle">{title}</h3>
+        <div className="dailyProgress" aria-label={`${progress}/${threshold}`}>
+          <div className="dailyProgressTrack">
+            <span className="dailyProgressFill" style={{ width: `${pct}%` }} />
+          </div>
+          <span className="dailyProgressText">
+            {progress}/{threshold}
+          </span>
+        </div>
+        <div className="dailyReward">
+          <img
+            className="dailyCoin"
+            src="/assets/coins/spinRight-32.gif"
+            alt=""
+            aria-hidden="true"
+          />
+          <span>{rewardCoins.toLocaleString()}</span>
+        </div>
+      </div>
+      <div className="dailyCardAction">{action}</div>
+    </div>
+  );
+}
+
 export function DailyTasksDialog({
   audio,
   labels: t,
   state,
   claim,
+  weeklyState,
+  weeklyClaim,
+  onPlayWeekly,
   onBalanceChange,
   onClose
 }: {
@@ -51,20 +118,28 @@ export function DailyTasksDialog({
   readonly labels: AppStrings;
   readonly state: DailyTasksView | null;
   readonly claim: (taskId: string) => Promise<DailyClaimView | null>;
+  readonly weeklyState: WeeklyTasksView | null;
+  readonly weeklyClaim: (taskId: string) => Promise<WeeklyClaimView | null>;
+  /** Palaiž nedēļas boss uzdevuma speciālo istabu (uzd. 3/4 `[Play]`) ar doto raundu skaitu. */
+  readonly onPlayWeekly: (rounds: number) => void;
   readonly onBalanceChange: (balance: number) => void;
   readonly onClose: () => void;
 }) {
+  const [tab, setTab] = useState<TasksTab>("daily");
   const [claiming, setClaiming] = useState<string | null>(null);
   const [error, setError] = useState(false);
-  // Info tooltip atveras TIKAI uz "?" klikšķi (NE hover/focus — dialogs auto-fokusē,
-  // tāpēc focus-within to atvērtu uzreiz pie dialoga atvēršanas).
   const [infoOpen, setInfoOpen] = useState(false);
-  // Countdown atskaitās LOKĀLI no servera `secondsUntilReset` (nav re-fetch — Codex).
-  const [secondsLeft, setSecondsLeft] = useState(state?.secondsUntilReset ?? 0);
+
+  // Countdown atskaitās LOKĀLI no aktīvās cilnes `secondsUntilReset` (nav re-fetch — Codex).
+  const activeSeconds =
+    tab === "daily"
+      ? (state?.secondsUntilReset ?? 0)
+      : (weeklyState?.secondsUntilReset ?? 0);
+  const [secondsLeft, setSecondsLeft] = useState(activeSeconds);
 
   useEffect(() => {
-    setSecondsLeft(state?.secondsUntilReset ?? 0);
-  }, [state?.secondsUntilReset]);
+    setSecondsLeft(activeSeconds);
+  }, [activeSeconds]);
 
   useEffect(() => {
     if (secondsLeft <= 0) {
@@ -74,16 +149,27 @@ export function DailyTasksDialog({
     return () => clearInterval(id);
   }, [secondsLeft]);
 
+  const selectTab = (next: TasksTab) => {
+    if (next === tab) return;
+    audio.play("uiClick");
+    setError(false);
+    setInfoOpen(false);
+    setTab(next);
+  };
+
   const handleClose = () => {
     audio.play("uiClick");
     onClose();
   };
 
-  const handleClaim = async (task: DailyTaskView) => {
+  const handleClaim = async (
+    taskId: string,
+    claimFn: (id: string) => Promise<AnyClaimResult | null>
+  ) => {
     setError(false);
-    setClaiming(task.id);
+    setClaiming(taskId);
     audio.play("uiClick");
-    const result = await claim(task.id);
+    const result = await claimFn(taskId);
     setClaiming(null);
     if (result) {
       onBalanceChange(result.balance);
@@ -95,6 +181,77 @@ export function DailyTasksDialog({
     }
   };
 
+  const dailyAction = (task: DailyTaskView): ReactNode => {
+    if (task.claimed) {
+      return <span className="dailyBadge dailyBadgeClaimed">{t.dailyClaimed}</span>;
+    }
+    if (task.claimable) {
+      return (
+        <Button
+          variant="primary"
+          size="sm"
+          loading={claiming === task.id}
+          onClick={() => void handleClaim(task.id, claim)}
+        >
+          {t.dailyClaim}
+        </Button>
+      );
+    }
+    if (!task.unlocked) {
+      return <span className="dailyBadge dailyBadgeLocked">{t.dailyLocked}</span>;
+    }
+    return (
+      <span className="dailyBadge">
+        {task.progress}/1
+      </span>
+    );
+  };
+
+  const weeklyGoal = (task: WeeklyTaskView): string => {
+    if (task.kind === "mp_finish") {
+      return t.weeklyGoalMp.replace("{count}", String(task.threshold));
+    }
+    if (task.variant === "weekly_bosses") {
+      return t.weeklyGoalPlace.replace("{rounds}", String(task.exactRounds ?? 0));
+    }
+    return t.weeklyGoalWinEpic
+      .replace("{count}", String(task.threshold))
+      .replace("{rounds}", String(task.exactRounds ?? 0));
+  };
+
+  const weeklyAction = (task: WeeklyTaskView): ReactNode => {
+    if (task.claimed) {
+      return <span className="dailyBadge dailyBadgeClaimed">{t.dailyClaimed}</span>;
+    }
+    if (task.claimable) {
+      return (
+        <Button
+          variant="primary"
+          size="sm"
+          loading={claiming === task.id}
+          onClick={() => void handleClaim(task.id, weeklyClaim)}
+        >
+          {t.dailyClaim}
+        </Button>
+      );
+    }
+    if (task.hasPlayButton && task.exactRounds !== undefined) {
+      const rounds = task.exactRounds;
+      return (
+        <Button variant="secondary" size="sm" onClick={() => onPlayWeekly(rounds)}>
+          {t.weeklyPlay}
+        </Button>
+      );
+    }
+    return (
+      <span className="dailyBadge">
+        {task.progress}/{task.threshold}
+      </span>
+    );
+  };
+
+  const infoLabel = tab === "daily" ? t.dailyInfoLabel : t.weeklyInfoLabel;
+
   return (
     <Dialog
       ariaLabelledBy="daily-title"
@@ -103,14 +260,14 @@ export function DailyTasksDialog({
       resetScrollOnMount
     >
       <div className="settingsHeader">
-        <div>
+        <div className="dailyHeaderMain">
           <h2 id="daily-title">
-            <DailyTasksIcon /> {t.dailyTasks}
+            <DailyTasksIcon /> {t.tasks}
             <span className="dailyInfoWrap">
               <button
                 className="dailyInfoButton"
                 type="button"
-                aria-label={t.dailyInfoLabel}
+                aria-label={infoLabel}
                 aria-controls="daily-info-tip"
                 aria-expanded={infoOpen}
                 onClick={() => {
@@ -120,8 +277,6 @@ export function DailyTasksDialog({
               >
                 ?
               </button>
-              {/* Klikšķa-toggle "disclosure" (NE īsts tooltip): role=note + aria-hidden
-                  kad aizvērts, lai SR to nenolasa, kamēr tas ir vizuāli slēpts. */}
               <span
                 className="dailyTooltip"
                 role="note"
@@ -129,13 +284,40 @@ export function DailyTasksDialog({
                 data-open={infoOpen}
                 aria-hidden={!infoOpen}
               >
-                <span>{t.dailyInfoConditions}</span>
-                <span>{t.dailyInfoDifficulty}</span>
-                <span>{t.dailyInfoSpOnly}</span>
+                {tab === "daily" ? (
+                  <>
+                    <span>{t.dailyInfoConditions}</span>
+                    <span>{t.dailyInfoDifficulty}</span>
+                    <span>{t.dailyInfoSpOnly}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{t.weeklyInfoConditions}</span>
+                    <span>{t.weeklyInfoReset}</span>
+                  </>
+                )}
               </span>
             </span>
           </h2>
-          <p>{t.dailyTasksSubtitle}</p>
+          <div className="settingsTabs dailyTabs" role="group" aria-label={t.tasks}>
+            <button
+              className="settingsTab"
+              type="button"
+              aria-pressed={tab === "daily"}
+              onClick={() => selectTab("daily")}
+            >
+              {t.dailyTab}
+            </button>
+            <button
+              className="settingsTab"
+              type="button"
+              aria-pressed={tab === "weekly"}
+              onClick={() => selectTab("weekly")}
+            >
+              {t.weeklyTab}
+            </button>
+          </div>
+          <p>{tab === "daily" ? t.dailyTasksSubtitle : t.weeklyTasksSubtitle}</p>
         </div>
         <IconButton className="settingsCloseButton" label={t.close} onClick={handleClose}>
           <CloseIcon />
@@ -143,65 +325,50 @@ export function DailyTasksDialog({
       </div>
 
       <div className="dailyList">
-        {(state?.tasks ?? []).map((task) => {
-          const goal = t.dailyGoal
-            .replace("{count}", String(task.requiredRounds))
-            .replace("{difficulty}", t[DIFFICULTY_LABEL[task.difficulty]]);
-          // Progress ir binārs (0/1): josla ir pilna, kad kvalificējoša spēle uzvarēta.
-          const pct = task.progress >= 1 ? 100 : 0;
-          const status = task.claimed
-            ? "claimed"
-            : task.claimable
-              ? "claimable"
-              : task.unlocked
-                ? "open"
-                : "locked";
-          return (
-            <div className="dailyCard" data-status={status} key={task.id}>
-              <img
-                className="dailyCardArt"
-                src={`/assets/daily/${TASK_ART[task.id] ?? "win_medium"}.png`}
-                alt=""
-                aria-hidden="true"
-              />
-              <div className="dailyCardBody">
-                <h3 className="dailyCardTitle">{goal}</h3>
-                <div className="dailyProgress" aria-label={`${task.progress}/1`}>
-                  <div className="dailyProgressTrack">
-                    <span className="dailyProgressFill" style={{ width: `${pct}%` }} />
-                  </div>
-                  <span className="dailyProgressText">
-                    {task.progress}/1
-                  </span>
-                </div>
-                <div className="dailyReward">
-                  <img className="dailyCoin" src="/assets/coins/spinRight-32.gif" alt="" aria-hidden="true" />
-                  <span>{task.rewardCoins.toLocaleString()}</span>
-                </div>
-              </div>
-              <div className="dailyCardAction">
-                {task.claimed ? (
-                  <span className="dailyBadge dailyBadgeClaimed">{t.dailyClaimed}</span>
-                ) : task.claimable ? (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    loading={claiming === task.id}
-                    onClick={() => void handleClaim(task)}
-                  >
-                    {t.dailyClaim}
-                  </Button>
-                ) : !task.unlocked ? (
-                  <span className="dailyBadge dailyBadgeLocked">{t.dailyLocked}</span>
-                ) : (
-                  <span className="dailyBadge">
-                    {task.progress}/1
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        {tab === "daily"
+          ? (state?.tasks ?? []).map((task) => {
+              const goal = t.dailyGoal
+                .replace("{count}", String(task.requiredRounds))
+                .replace("{difficulty}", t[DIFFICULTY_LABEL[task.difficulty]]);
+              const status = task.claimed
+                ? "claimed"
+                : task.claimable
+                  ? "claimable"
+                  : task.unlocked
+                    ? "open"
+                    : "locked";
+              return (
+                <TaskCard
+                  key={task.id}
+                  artSrc={`/assets/daily/${DAILY_TASK_ART[task.id] ?? "win_medium"}.png`}
+                  title={goal}
+                  progress={task.progress}
+                  threshold={1}
+                  rewardCoins={task.rewardCoins}
+                  status={status}
+                  action={dailyAction(task)}
+                />
+              );
+            })
+          : (weeklyState?.tasks ?? []).map((task) => {
+              const status = task.claimed
+                ? "claimed"
+                : task.claimable
+                  ? "claimable"
+                  : "open";
+              return (
+                <TaskCard
+                  key={task.id}
+                  artSrc={`/assets/daily/${WEEKLY_TASK_ART[task.id] ?? "win_epic_50"}.png`}
+                  title={weeklyGoal(task)}
+                  progress={task.progress}
+                  threshold={task.threshold}
+                  rewardCoins={task.rewardCoins}
+                  status={status}
+                  action={weeklyAction(task)}
+                />
+              );
+            })}
       </div>
 
       {error ? <p className="dailyError">{t.dailyClaimError}</p> : null}

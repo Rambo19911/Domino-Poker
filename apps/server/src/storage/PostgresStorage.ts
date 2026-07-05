@@ -3,7 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { Pool, type QueryResult, type QueryResultRow } from "pg";
 
 import type { MultiplayerEvent } from "@domino-poker/core/multiplayer";
-import type { ChatMessage } from "@domino-poker/shared";
+import type { ChatMessage, SpVariant } from "@domino-poker/shared";
 
 import {
   ADMIN_LOGIN_CODE_ID,
@@ -930,8 +930,8 @@ export class PostgresStorage
     const result = await this.pool.query(
       `INSERT INTO player_game_results
          (id, user_id, mode, difficulty, placement, round_count,
-          bid_met, bid_exceeded, bid_missed, completed_at, duration_ms)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          bid_met, bid_exceeded, bid_missed, completed_at, duration_ms, variant)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        ON CONFLICT (id) DO NOTHING`,
       [
         record.id,
@@ -944,7 +944,8 @@ export class PostgresStorage
         record.bidExceeded,
         record.bidMissed,
         record.completedAt,
-        record.durationMs ?? null
+        record.durationMs ?? null,
+        record.variant ?? null
       ]
     );
     return (result.rowCount ?? 0) > 0;
@@ -966,6 +967,46 @@ export class PostgresStorage
           AND duration_ms IS NOT NULL AND duration_ms >= $5
           AND round_count >= $6`,
       [userId, difficulty, sinceMs, untilMs, minDurationMs, minRounds]
+    );
+    return Number(result.rows[0]?.wins ?? 0);
+  }
+
+  async countMpFinishedSince(userId: string, sinceMs: number, untilMs: number): Promise<number> {
+    const result = await this.pool.query<{ games: number }>(
+      `SELECT COUNT(*)::int AS games
+         FROM player_game_results
+        WHERE user_id = $1 AND mode = 'mp'
+          AND completed_at >= $2 AND completed_at < $3`,
+      [userId, sinceMs, untilMs]
+    );
+    return Number(result.rows[0]?.games ?? 0);
+  }
+
+  async countSpTaskWins(
+    userId: string,
+    difficulty: GameDifficulty,
+    variant: SpVariant | null,
+    exactRounds: number,
+    sinceMs: number,
+    untilMs: number,
+    minDurationMs: number,
+    placementMax: number
+  ): Promise<number> {
+    // `variant IS NULL` (standard) vs `variant = $8` (speciālā) — NULL nav salīdzināms ar `=`.
+    const variantClause = variant === null ? "variant IS NULL" : "variant = $8";
+    const params =
+      variant === null
+        ? [userId, difficulty, placementMax, exactRounds, sinceMs, untilMs, minDurationMs]
+        : [userId, difficulty, placementMax, exactRounds, sinceMs, untilMs, minDurationMs, variant];
+    const result = await this.pool.query<{ wins: number }>(
+      `SELECT COUNT(*)::int AS wins
+         FROM player_game_results
+        WHERE user_id = $1 AND mode = 'sp' AND difficulty = $2 AND placement <= $3
+          AND round_count = $4
+          AND completed_at >= $5 AND completed_at < $6
+          AND duration_ms IS NOT NULL AND duration_ms >= $7
+          AND ${variantClause}`,
+      params
     );
     return Number(result.rows[0]?.wins ?? 0);
   }

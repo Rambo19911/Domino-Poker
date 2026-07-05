@@ -69,8 +69,17 @@ describe("SP reward HTTP routes (integration)", () => {
     return { token: body.token, id: body.user.id };
   }
 
-  async function startGame(token: string, difficulty: string, rounds = 7): Promise<string> {
-    const res = await post("/sp/start", { difficulty, rounds }, token);
+  async function startGame(
+    token: string,
+    difficulty: string,
+    rounds = 7,
+    variant?: "weekly_bosses"
+  ): Promise<string> {
+    const res = await post(
+      "/sp/start",
+      { difficulty, rounds, ...(variant === undefined ? {} : { variant }) },
+      token
+    );
     const body = (await res.json()) as { gameToken: string };
     return body.gameToken;
   }
@@ -197,6 +206,34 @@ describe("SP reward HTTP routes (integration)", () => {
       expect(res.status).toBe(200);
       expect(await res.json()).toEqual({ recorded: true, coinsAwarded: 0, balance: 5000 });
       expect(await storage.getPlayerGameStats(id)).toHaveLength(1);
+    });
+
+    it("snapshots the START variant (weekly_bosses) onto the result for weekly-task counting", async () => {
+      const { token, id } = await registerUser("BossRoom");
+      // Speciālā istaba (weekly_bosses), tieši 50 raundi.
+      const gameToken = await startGame(token, "epic", 50, "weekly_bosses");
+      const start = nowMs;
+      nowMs += 60_000;
+      const res = await complete(token, gameToken, { placement: 1, bidMet: 50, bidExceeded: 0, bidMissed: 0 });
+      expect(res.status).toBe(200);
+      const until = nowMs + 1;
+      // Uzd. 4: speciālā istaba, tieši 50, placement≤2 → skaitās.
+      expect(await storage.countSpTaskWins(id, "epic", "weekly_bosses", 50, start, until, 5000, 2)).toBe(1);
+      // Standard vaicājums (variant IS NULL) šo NEskaita — variants no tokena, ne klienta.
+      expect(await storage.countSpTaskWins(id, "epic", null, 50, start, until, 5000, 2)).toBe(0);
+    });
+
+    it("defaults to no variant (standard room) when /sp/start omits it", async () => {
+      const { token, id } = await registerUser("StdRoom");
+      const gameToken = await startGame(token, "epic", 50); // bez variant → standard
+      const start = nowMs;
+      nowMs += 60_000;
+      const res = await complete(token, gameToken, { placement: 2, bidMet: 50, bidExceeded: 0, bidMissed: 0 });
+      expect(res.status).toBe(200);
+      const until = nowMs + 1;
+      // Uzd. 2: standard epic-50 uzvara → skaitās; speciālā vaicājums NE.
+      expect(await storage.countSpTaskWins(id, "epic", null, 50, start, until, 5000, 2)).toBe(1);
+      expect(await storage.countSpTaskWins(id, "epic", "weekly_bosses", 50, start, until, 5000, 2)).toBe(0);
     });
 
     it("rejects when bid counts do not sum to the token round count (400)", async () => {

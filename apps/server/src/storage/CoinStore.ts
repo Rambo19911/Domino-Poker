@@ -25,7 +25,8 @@ export type LedgerReason =
   | "admin_adjust"
   | "theme_purchase"
   | "bot_purchase"
-  | "daily_task_reward";
+  | "daily_task_reward"
+  | "weekly_task_reward";
 
 /** Viena (idempotenta) naudas kustība, ko piemēro `applyLedger`. */
 export interface LedgerEntryInput {

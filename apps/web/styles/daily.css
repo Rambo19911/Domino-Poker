@@ -66,6 +66,18 @@
   max-width: 30rem;
 }
 
+/* Cilņu josla (Daily | Weekly) — atkārtoti lieto `.settingsTab` tokenus, tikai kompaktāka
+   šim dialogam. `flex-wrap` → mobilajā @375px pogas pārceļas, nekad neizplūst pāri malai. */
+.dailyTabs {
+  margin: 0.5rem 0 0.15rem;
+  flex-wrap: wrap;
+}
+
+.dailyTabs .settingsTab {
+  font-size: 0.9rem;
+  padding: 5px 14px;
+}
+
 /* Galvenes kalendāra ikona (inline SVG bez intrinsic izmēra — jāizmēro, kā trophy/help). */
 .dailyDialog h2 svg {
   display: inline-block;
@@ -177,10 +189,12 @@
   min-width: 0;
 }
 
+/* Uzdevuma nosaukums: samazināts + ne-treknraksts (īpašnieka prasība), lai atbrīvotu vertikālo
+   vietu ciļņu joslai (Daily | Weekly). */
 .dailyCardTitle {
   margin: 0 0 0.35rem;
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 0.85rem;
+  font-weight: 400;
   color: var(--text-primary);
 }
 

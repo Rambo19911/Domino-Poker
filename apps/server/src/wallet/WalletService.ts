@@ -270,6 +270,38 @@ export class WalletService {
       : { applied: false, balance: await this.coins.getBalance(userId) };
   }
 
+  /**
+   * Lietotāja jau savāktās nedēļas uzdevumu balvas — ledger `ref` (`weekly:{yyyymmdd}:{taskId}`,
+   * kur `yyyymmdd` = pirmdienas datums), atvasinātas no `weekly_task_reward` ierakstiem.
+   * `WeeklyTaskService` no tā atvasina claimed (filtrē pēc nedēļas atslēgas).
+   */
+  async listWeeklyTaskClaims(userId: string): Promise<readonly string[]> {
+    return this.coins.listLedgerRefs(userId, "weekly_task_reward");
+  }
+
+  /**
+   * Ieskaita nedēļas uzdevuma balvu. Idempotents pēc `ref` (`weekly:{yyyymmdd}:{taskId}`) —
+   * atkārtots/vienlaicīgs savākums NEieskaita divreiz (`applied=false` = jau savākts).
+   * Summa nāk no `WEEKLY_TASKS` kataloga (serveris piespiež; klients to nesūta).
+   */
+  async creditWeeklyTaskReward(
+    userId: string,
+    ref: string,
+    amount: number
+  ): Promise<{ applied: boolean; balance: number }> {
+    const result = await this.coins.applyLedger({
+      id: this.createId(),
+      userId,
+      delta: amount,
+      reason: "weekly_task_reward",
+      ref,
+      now: this.clock()
+    });
+    return result.ok
+      ? { applied: result.applied, balance: result.balance }
+      : { applied: false, balance: await this.coins.getBalance(userId) };
+  }
+
   /** Kopā SP balvās nopelnītās monētas pēdējās 24h (dienas griestu pārbaudei). */
   async spRewardLast24h(userId: string, now: number): Promise<number> {
     return this.coins.sumLedgerSince(userId, "sp_reward", now - 24 * 60 * 60 * 1000);

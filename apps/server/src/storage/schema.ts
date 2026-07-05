@@ -583,6 +583,36 @@ function playerGameResultsDurationSchema(t: DialectTypes, dialect: SchemaDialect
 }
 
 /**
+ * 0015: nedēļas uzdevumiem (sk. `docs/TODO/weekly-tasks-plan.md`) pievieno SP spēles
+ * VARIANTA marķieri `player_game_results` tabulai + divus indeksus atvasinātajiem
+ * skaitītājiem. TIKAI ADDITĪVS (bez tabulas pārbūves): jauna NULLABLE kolonna + 2 indeksi.
+ *   - `variant` (nullable TEXT) = SP spēles variants no `/sp/start` tokena (servera-
+ *     autoritatīvs snapshot). NULL = parasta (standard) istaba; `'weekly_bosses'` = nedēļas
+ *     speciālā istaba (jauktie boti). Vecām rindām + MP = NULL. BEZ DB CHECK: derīgās vērtības
+ *     piespiež TS `SpVariant` union (kā `reason`/`language` pēc 0010/0013).
+ *   - Indekss `idx_pgr_sp_weekly (user_id, mode, difficulty, variant, round_count, completed_at)`
+ *     SP exact-round + variant COUNT vaicājumam (uzd. 2/3/4). `difficulty` prefiksā, jo skaita epic.
+ *   - Indekss `idx_pgr_mp_completed (user_id, mode, completed_at)` MP finish COUNT vaicājumam (uzd. 1).
+ * Abi dialekti ir vienkārši, self-contained (BEZ savas tx). PG idempotence prasa
+ * `ADD COLUMN IF NOT EXISTS` (runner izpilda `up` un `schema_migrations` ATSEVIŠĶĀS tx —
+ * bez `IF NOT EXISTS` crash pēc DDL salauztu rerun); SQLite crash-rerun drošību dod runner
+ * (BEGIN IMMEDIATE ietin `up` + ierakstu vienā tx), tāpēc tur `IF NOT EXISTS` nav vajadzīgs.
+ */
+function playerGameResultsVariantSchema(dialect: SchemaDialect): string {
+  const addColumn =
+    dialect === "pg"
+      ? `ALTER TABLE player_game_results ADD COLUMN IF NOT EXISTS variant TEXT;`
+      : `ALTER TABLE player_game_results ADD COLUMN variant TEXT;`;
+  return `
+  ${addColumn}
+  CREATE INDEX IF NOT EXISTS idx_pgr_sp_weekly
+    ON player_game_results (user_id, mode, difficulty, variant, round_count, completed_at);
+  CREATE INDEX IF NOT EXISTS idx_pgr_mp_completed
+    ON player_game_results (user_id, mode, completed_at);
+`;
+}
+
+/**
  * Renderē sakārtoto migrāciju sarakstu dotajam dialektam. ID un secība ir
  * STABILA un identiska abiem dialektiem (versionēšanas paritāte); atšķiras tikai
  * kolonnu tipi un PG-only tabulu klātbūtne (tikai 0001).
@@ -618,6 +648,10 @@ export function buildMigrations(dialect: SchemaDialect): readonly SchemaMigratio
     {
       id: "0014_player_game_results_duration",
       up: playerGameResultsDurationSchema(t, dialect)
+    },
+    {
+      id: "0015_player_game_results_variant",
+      up: playerGameResultsVariantSchema(dialect)
     }
   ];
 }

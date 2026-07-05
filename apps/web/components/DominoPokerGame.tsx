@@ -16,8 +16,9 @@ import {
 } from "@domino-poker/core";
 import type { DominoTile, GameState, InvalidMoveReason } from "@domino-poker/core";
 import { HINTS_PER_ROUND, ownsSupportHuman } from "@domino-poker/shared";
+import type { SeatTuple } from "@domino-poker/engine";
 import { decideBid as botDecideBid, decideMove as botDecideMove } from "../lib/bot/botBridge";
-import type { BotDifficulty } from "../lib/bot/difficulty";
+import type { BotBehaviorChoice, BotDifficulty } from "../lib/bot/difficulty";
 import { resolveAiMove, tryAdvance, type SimpleMove } from "../lib/bot/liveness";
 import { apiFetchOwned } from "../lib/store/storeApi";
 import type { SpGameResult } from "../lib/sp/spReward";
@@ -63,6 +64,7 @@ type StageContainLayout = {
 export function DominoPokerGame({
   audio,
   difficulty,
+  behaviors,
   humanProfile,
   labels,
   numberOfRounds,
@@ -75,6 +77,11 @@ export function DominoPokerGame({
   readonly audio: AudioSettings;
   /** Botu grūtība (Medium/Hard/Epic) — vada ISMCTS iterāciju/solījumu budžetu. */
   readonly difficulty: BotDifficulty;
+  /**
+   * Opcionāls per-seat botu uzvedību tuple (speciālā "weekly bosses" istaba). Seat 0 = cilvēks
+   * (ignorēts). Nav padots (parasta spēle) → visi boti `inclusion` kā šobrīd. Sk. `docs/bot-behaviors.md`.
+   */
+  readonly behaviors?: SeatTuple<BotBehaviorChoice>;
   readonly humanProfile: {
     readonly avatarUrl: string | null;
     readonly displayName: string;
@@ -123,6 +130,9 @@ export function DominoPokerGame({
   // Grūtību lasām async AI efektā caur ref, lai (a) tā nav efekta atkarība un (b) iespējama
   // izmaiņa nesatricina jau-darbā esošu bota lēmumu. UI to maina tikai lobby, ne spēles laikā.
   const difficultyRef = useRef(difficulty);
+  // Per-seat botu uzvedības (speciālā istaba) — lasām async AI efektā caur ref, kā grūtību.
+  // Parastā spēlē `undefined` → boti uzvedas kā šobrīd (inclusion). Nemainās spēles laikā.
+  const behaviorsRef = useRef(behaviors);
   const stageLayout = useStageContainLayout();
 
   // A4: SupportHuman padoms. `hintOwned` — vai kontam pieder prece (ledger-atvasināts, svaigs
@@ -144,6 +154,10 @@ export function DominoPokerGame({
   useEffect(() => {
     difficultyRef.current = difficulty;
   }, [difficulty]);
+
+  useEffect(() => {
+    behaviorsRef.current = behaviors;
+  }, [behaviors]);
 
   useEffect(() => {
     if (!didInitializeGameRef.current) {
@@ -406,7 +420,7 @@ export function DominoPokerGame({
       // playing
       let chosen: SimpleMove | null;
       try {
-        chosen = await botDecideMove(snapshot, seat, level);
+        chosen = await botDecideMove(snapshot, seat, level, behaviorsRef.current?.[seat]);
       } catch (error) {
         console.error("Bot move failed; using liveness safety move.", error);
         chosen = null; // resolveAiMove izvēlēsies drošības gājienu

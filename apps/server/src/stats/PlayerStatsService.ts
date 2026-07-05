@@ -1,3 +1,5 @@
+import type { SpVariant } from "@domino-poker/shared";
+
 import type {
   GameDifficulty,
   GameStatsAggregateRow,
@@ -48,6 +50,8 @@ export interface RecordSpGameInput {
   readonly now: number;
   /** Spēles ilgums ms (`now - token.issuedAt`) — dienas uzdevumu anti-abuse min-ilguma vārtiem. */
   readonly durationMs: number;
+  /** No tokena (NE klienta) — SP variants (`weekly_bosses` = nedēļas speciālā istaba); nav = parasta. */
+  readonly variant?: SpVariant | undefined;
 }
 
 export class PlayerStatsService {
@@ -83,7 +87,8 @@ export class PlayerStatsService {
       bidExceeded: input.bidExceeded,
       bidMissed: input.bidMissed,
       completedAt: input.now,
-      durationMs: input.durationMs
+      durationMs: input.durationMs,
+      variant: input.variant
     });
   }
 
