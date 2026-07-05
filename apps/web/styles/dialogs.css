@@ -184,6 +184,9 @@
   margin: 0 0 20px;
   border-collapse: separate;
   border-spacing: 0;
+  /* Necaurspīdīgs tumšs fons (tāpat kā `settings` panelim), lai zaļie "+" punkti
+     izceltos, nevis izplūstu caur stikla dialogu uz gaišā fona attēla. */
+  background: var(--overlay);
   border: 1px solid rgb(var(--text-primary-rgb) / 0.25);
   border-radius: var(--radius-sm);
   overflow: hidden;
