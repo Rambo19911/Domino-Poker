@@ -4,10 +4,15 @@
  * The server supplies a RandomSource and owns settlement; the web client uses
  * the same modules to render an outcome the server already decided.
  *
- * Comments below cite "docs/01" section numbers — that is the Latvian math
- * specification at docs/01-algoritmi-un-aprekini.md, ported verbatim from the
- * standalone game in integration phase 8 (T8.2). It is the authoritative source
- * for RTP and the combination rules; this code must not diverge from it.
+ * Comments below cite "docs/01" section numbers — the Latvian math specification
+ * at docs/01-algoritmi-un-aprekini.md, ported verbatim from the standalone game in
+ * integration phase 8 (T8.2). It is the authoritative source for RTP and the
+ * combination rules; this code must not diverge from it.
+ *
+ * NOTE: docs/ is gitignored (only four rules files are published), so that file is
+ * NOT in a clean checkout — it lives in the working copy and on the deploy target.
+ * The exact-RTP audit (packages/core/test/slots/exactAudit.math.test.ts) is what
+ * actually enforces the spec in CI; the document explains it.
  */
 export * from "./domain/symbols";
 export * from "./domain/domino";
