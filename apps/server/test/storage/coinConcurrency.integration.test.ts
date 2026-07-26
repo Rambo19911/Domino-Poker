@@ -80,7 +80,7 @@ describeIfPostgres("Coin wallet concurrency (real PostgreSQL, multi-instance)", 
   }
 
   function walletFor(storage: PostgresStorage): WalletService {
-    return new WalletService({ coins: storage, clock: () => NOW });
+    return new WalletService({ coins: storage, slots: storage, clock: () => NOW });
   }
 
   /** Reģistrē lietotāju un piešķir starta bonusu (5000) caur doto instanci. */
@@ -249,5 +249,110 @@ describeIfPostgres("Coin wallet concurrency (real PostgreSQL, multi-instance)", 
     expect(results.every((r) => r.status === "fulfilled")).toBe(true);
     expect(await storage.getBalance("u1")).toBe(5000); // refundēts tieši vienreiz
     expect(await ledgerRowCount("u1", "mp_refund", "e1")).toBe(1);
+  });
+
+  /**
+   * Domino Slots. Atšķirībā no visa pārējā šajā failā, grieziens ir DIVAS naudas
+   * kustības vienā transakcijā (likme + izmaksa) plus audita rinda, tāpēc šeit tiek
+   * pierādīts arī tas, ka konkurence nekad neatstāj paņemtu likmi bez izmaksas.
+   */
+  const spin = (
+    wallet: WalletService,
+    overrides: Partial<Parameters<WalletService["settleSlotSpin"]>[0]> = {}
+  ) =>
+    wallet.settleSlotSpin({
+      userId: "u1",
+      spinId: "spin-1",
+      lineBet: 20,
+      totalBet: 220,
+      payout: 0,
+      gridJson: '["WILD"]',
+      winsJson: "[]",
+      mathVersion: "domino-slots-math-v3",
+      ...overrides
+    });
+
+  /** Skaita `slot_spins` rindas — dubulta-norēķina pārbaudei. */
+  async function spinRowCount(userId: string, spinId: string): Promise<number> {
+    const result = await admin.query<{ count: string }>(
+      `SELECT count(*)::int AS count FROM slot_spins WHERE user_id = $1 AND spin_id = $2`,
+      [userId, spinId]
+    );
+    return Number(result.rows[0]?.count ?? 0);
+  }
+
+  it("never overdrafts under many concurrent distinct-spinId slot bets", async () => {
+    const storage = await openInstance();
+    const wallet = walletFor(storage);
+    await seedUser(storage, "u1"); // 5000
+
+    // 40 vienlaicīgi zaudējoši griezieni pa 220 (kopā 8800 > 5000).
+    const results = await Promise.all(
+      Array.from({ length: 40 }, (_unused, i) => spin(wallet, { spinId: `s-${i}` }))
+    );
+    const settled = results.filter((r) => r.ok).length;
+
+    expect(settled).toBe(22); // tieši floor(5000/220)
+    expect(await storage.getBalance("u1")).toBe(5000 - 22 * 220); // 160, nekad negatīva
+  });
+
+  it("settles the same spinId exactly once under concurrency (single instance)", async () => {
+    const storage = await openInstance();
+    const wallet = walletFor(storage);
+    await seedUser(storage, "u1"); // 5000
+
+    const results = await Promise.allSettled(
+      Array.from({ length: 16 }, () => spin(wallet, { payout: 500 }))
+    );
+    // Neviena unique-violation avārija — FOR UPDATE serializē.
+    expect(results.every((r) => r.status === "fulfilled")).toBe(true);
+    expect(await storage.getBalance("u1")).toBe(5000 - 220 + 500); // 5280
+    expect(await spinRowCount("u1", "spin-1")).toBe(1);
+    expect(await ledgerRowCount("u1", "slot_bet", "spin-1")).toBe(1);
+    expect(await ledgerRowCount("u1", "slot_payout", "spin-1")).toBe(1);
+  });
+
+  it("settles the same spinId once across TWO instances (the realistic client retry)", async () => {
+    const a = await openInstance();
+    const b = await openInstance();
+    await seedUser(a, "u1"); // 5000
+
+    const results = await Promise.allSettled([
+      ...Array.from({ length: 8 }, () => spin(walletFor(a), { payout: 500 })),
+      ...Array.from({ length: 8 }, () => spin(walletFor(b), { payout: 500 }))
+    ]);
+    expect(results.every((r) => r.status === "fulfilled")).toBe(true);
+    expect(await a.getBalance("u1")).toBe(5280);
+    expect(await spinRowCount("u1", "spin-1")).toBe(1);
+    expect(await ledgerRowCount("u1", "slot_bet", "spin-1")).toBe(1);
+    expect(await ledgerRowCount("u1", "slot_payout", "spin-1")).toBe(1);
+  });
+
+  it("never leaves a bet taken without its payout (atomicity across instances)", async () => {
+    const a = await openInstance();
+    const b = await openInstance();
+    await seedUser(a, "u1"); // 5000
+
+    // 30 atšķirīgi UZVAROŠI griezieni, sadalīti starp divām instancēm. Katrs, kas
+    // norēķinājās, MUZ būt ierakstījis ABAS kustības — bilancei jāsakrīt precīzi.
+    const results = await Promise.all(
+      Array.from({ length: 30 }, (_unused, i) =>
+        spin(walletFor(i % 2 === 0 ? a : b), { spinId: `w-${i}`, payout: 300 })
+      )
+    );
+    const settled = results.filter((r) => r.ok).length;
+    expect(settled).toBe(30); // 220 - 300 = neto +80 katrs, tāpēc nekad nepietrūkst
+    expect(await a.getBalance("u1")).toBe(5000 + 30 * (300 - 220)); // 7400
+
+    const bets = await admin.query<{ total: string }>(
+      `SELECT COALESCE(SUM(delta), 0)::int AS total FROM coin_ledger
+         WHERE user_id = 'u1' AND reason = 'slot_bet'`
+    );
+    const payouts = await admin.query<{ total: string }>(
+      `SELECT COALESCE(SUM(delta), 0)::int AS total FROM coin_ledger
+         WHERE user_id = 'u1' AND reason = 'slot_payout'`
+    );
+    expect(Number(bets.rows[0]?.total)).toBe(-30 * 220);
+    expect(Number(payouts.rows[0]?.total)).toBe(30 * 300);
   });
 });

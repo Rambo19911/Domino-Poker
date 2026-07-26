@@ -7,6 +7,7 @@ export const hu = {
   storeLoginRequired: "Jelentkezz be a vásárláshoz",
   storeDetails: "Részletek",
   storeFlipBack: "Vissza",
+  slots: "Nyerőgép",
   hintButtonAria: "Tipp használata, {count} maradt",
   hintComputing: "Gondolkodom…",
   hintNoneLeft: "Nincs több tipp ebben a körben",

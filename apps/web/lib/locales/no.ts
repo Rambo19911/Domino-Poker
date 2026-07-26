@@ -7,6 +7,7 @@ export const no = {
   storeLoginRequired: "Logg inn for å kjøpe",
   storeDetails: "Detaljer",
   storeFlipBack: "Tilbake",
+  slots: "Spilleautomat",
   hintButtonAria: "Bruk et hint, {count} igjen",
   hintComputing: "Tenker…",
   hintNoneLeft: "Ingen hint igjen denne runden",

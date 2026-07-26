@@ -7,6 +7,7 @@ export const nl = {
   storeLoginRequired: "Log in om te kopen",
   storeDetails: "Details",
   storeFlipBack: "Terug",
+  slots: "Gokkast",
   hintButtonAria: "Gebruik een hint, {count} over",
   hintComputing: "Aan het denken…",
   hintNoneLeft: "Geen hints meer deze ronde",

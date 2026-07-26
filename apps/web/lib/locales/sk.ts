@@ -7,6 +7,7 @@ export const sk = {
   storeLoginRequired: "Prihlás sa na nákup",
   storeDetails: "Podrobnosti",
   storeFlipBack: "Späť",
+  slots: "Automaty",
   hintButtonAria: "Použiť nápovedu, zostáva {count}",
   hintComputing: "Rozmýšľam…",
   hintNoneLeft: "V tomto kole už nie sú žiadne nápovede",

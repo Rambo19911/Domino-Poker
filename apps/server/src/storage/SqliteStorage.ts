@@ -53,6 +53,14 @@ import {
   type SuspiciousPlayer
 } from "../admin/AdminStore.js";
 import type { ApplyLedgerResult, CoinStore, LedgerEntryInput } from "./CoinStore.js";
+import {
+  slotSpinRowToRecord,
+  type SlotSpinRecord,
+  type SlotSpinRow,
+  type SlotSpinSettleInput,
+  type SlotSpinSettleResult,
+  type SlotStore
+} from "./SlotStore.js";
 import { scrubSeats } from "./matchAnonymize.js";
 import {
   assertValidGameResult,
@@ -82,7 +90,7 @@ export interface SqliteStorageOptions {
  * restartu). Nekādu dzīvu objektu vai spēles state šeit.
  */
 export class SqliteStorage
-  implements StoragePort, AuthStore, CoinStore, PlayerStatsStore, AdminStore
+  implements StoragePort, AuthStore, CoinStore, SlotStore, PlayerStatsStore, AdminStore
 {
   private readonly db: DatabaseSync;
 
@@ -750,6 +758,108 @@ export class SqliteStorage
         .run(entry.userId, next, entry.now, next, entry.now);
       this.db.exec("COMMIT");
       return { ok: true, applied: true, balance: next };
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  async getSlotSpin(userId: string, spinId: string): Promise<SlotSpinRecord | undefined> {
+    const row = this.db
+      .prepare(
+        `SELECT spin_id, line_bet, total_bet, payout, grid_json, wins_json, math_version, created_at
+           FROM slot_spins WHERE user_id = ? AND spin_id = ?`
+      )
+      .get(userId, spinId) as SlotSpinRow | undefined;
+    return row ? slotSpinRowToRecord(row) : undefined;
+  }
+
+  async settleSlotSpin(input: SlotSpinSettleInput): Promise<SlotSpinSettleResult> {
+    // node:sqlite ir sinhrons → visa transakcija ir droša bez interleaving.
+    this.db.exec("BEGIN");
+    try {
+      const balanceRow = this.db
+        .prepare(`SELECT balance FROM coin_balances WHERE user_id = ?`)
+        .get(input.userId) as { balance: number | bigint } | undefined;
+      const current = balanceRow ? Number(balanceRow.balance) : 0;
+
+      // Idempotence: jau norēķināts grieziens atgriež IERAKSTĪTO iznākumu. Tikko
+      // ģenerētais režģis tiek izmests — atkārtojums nav kauliņu pārmešana.
+      const existing = this.db
+        .prepare(
+          `SELECT spin_id, line_bet, total_bet, payout, grid_json, wins_json, math_version, created_at
+             FROM slot_spins WHERE user_id = ? AND spin_id = ?`
+        )
+        .get(input.userId, input.spinId) as SlotSpinRow | undefined;
+      if (existing) {
+        this.db.exec("COMMIT");
+        return { ok: true, applied: false, balance: current, spin: slotSpinRowToRecord(existing) };
+      }
+
+      const afterBet = current - input.totalBet;
+      if (afterBet < 0) {
+        // Nepietiek likmei — nekas netiek ierakstīts.
+        this.db.exec("ROLLBACK");
+        return { ok: false, reason: "insufficient", balance: current };
+      }
+      const next = afterBet + input.payout;
+
+      this.db
+        .prepare(
+          `INSERT INTO slot_spins
+             (user_id, spin_id, line_bet, total_bet, payout, grid_json, wins_json, math_version, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          input.userId,
+          input.spinId,
+          input.lineBet,
+          input.totalBet,
+          input.payout,
+          input.gridJson,
+          input.winsJson,
+          input.mathVersion,
+          input.now
+        );
+      this.db
+        .prepare(
+          `INSERT INTO coin_ledger (id, user_id, delta, reason, ref, created_at)
+           VALUES (?, ?, ?, 'slot_bet', ?, ?)`
+        )
+        .run(input.betLedgerId, input.userId, -input.totalBet, input.spinId, input.now);
+      if (input.payout > 0) {
+        // delta <> 0 CHECK: nulles izmaksai rindu neveido; grieziena ieraksts jau ir.
+        this.db
+          .prepare(
+            `INSERT INTO coin_ledger (id, user_id, delta, reason, ref, created_at)
+             VALUES (?, ?, ?, 'slot_payout', ?, ?)`
+          )
+          .run(input.payoutLedgerId, input.userId, input.payout, input.spinId, input.now);
+      }
+      this.db
+        .prepare(
+          `INSERT INTO coin_balances (user_id, balance, updated_at)
+           VALUES (?, ?, ?)
+           ON CONFLICT(user_id) DO UPDATE SET balance = ?, updated_at = ?`
+        )
+        .run(input.userId, next, input.now, next, input.now);
+
+      this.db.exec("COMMIT");
+      return {
+        ok: true,
+        applied: true,
+        balance: next,
+        spin: {
+          spinId: input.spinId,
+          lineBet: input.lineBet,
+          totalBet: input.totalBet,
+          payout: input.payout,
+          gridJson: input.gridJson,
+          winsJson: input.winsJson,
+          mathVersion: input.mathVersion,
+          createdAt: input.now
+        }
+      };
     } catch (error) {
       this.db.exec("ROLLBACK");
       throw error;

@@ -7,6 +7,7 @@ export const uk = {
   storeLoginRequired: "Увійди, щоб купити",
   storeDetails: "Докладніше",
   storeFlipBack: "Назад",
+  slots: "Слоти",
   hintButtonAria: "Використати підказку, лишилось {count}",
   hintComputing: "Думаю…",
   hintNoneLeft: "У цьому раунді підказок більше немає",

@@ -7,6 +7,7 @@ import type { AdminStore } from "../../src/admin/AdminStore.js";
 import type { AuthStore, UserRecord } from "../../src/auth/AuthStore.js";
 import type { CoinStore } from "../../src/storage/CoinStore.js";
 import type { PlayerStatsStore } from "../../src/storage/PlayerStatsStore.js";
+import type { SlotStore } from "../../src/storage/SlotStore.js";
 import type { MatchStartedRecord, StoragePort } from "../../src/storage/StoragePort.js";
 
 /**
@@ -20,7 +21,12 @@ import type { MatchStartedRecord, StoragePort } from "../../src/storage/StorageP
  * prasa esošu lietotāju — tāpēc `Setup` atgriež `StoragePort & AuthStore & CoinStore &
  * PlayerStatsStore` (visi backendi implementē visus).
  */
-export type ContractStorage = StoragePort & AuthStore & CoinStore & PlayerStatsStore & AdminStore;
+export type ContractStorage = StoragePort &
+  AuthStore &
+  CoinStore &
+  SlotStore &
+  PlayerStatsStore &
+  AdminStore;
 
 /** sha256-garuma (64 hex) palīgs admin OTP/sesijas hash testiem. */
 function hex(seed: string): string {
@@ -626,6 +632,173 @@ export function runStoragePortContract(label: string, setup: ContractSetup): voi
         });
         expect(overdraw).toEqual({ ok: false, reason: "insufficient" });
         expect(await storage.getBalance("user-1")).toBe(250);
+      });
+    });
+
+    describe("slot spins (single-transaction bet + payout, idempotent)", () => {
+      /** Ērtības apvalks: fiksēts režģis/laiks, tikai mainīgie parametri atklāti. */
+      const settle = (
+        overrides: Partial<Parameters<ContractStorage["settleSlotSpin"]>[0]> = {}
+      ): Promise<Awaited<ReturnType<ContractStorage["settleSlotSpin"]>>> =>
+        storage.settleSlotSpin({
+          spinId: "spin-1",
+          userId: "user-1",
+          lineBet: 20,
+          totalBet: 220,
+          payout: 0,
+          gridJson: '["WILD"]',
+          winsJson: "[]",
+          mathVersion: "domino-slots-math-v3",
+          betLedgerId: "lb-1",
+          payoutLedgerId: "lp-1",
+          now: 1000,
+          ...overrides
+        });
+
+      beforeEach(async () => {
+        expect(await storage.createUser(makeUser())).toBe("created");
+        await storage.applyLedger({
+          id: "seed",
+          userId: "user-1",
+          delta: 5000,
+          reason: "signup",
+          ref: "user-1",
+          now: 1
+        });
+      });
+
+      it("debits the bet and credits the payout in one settlement", async () => {
+        const result = await settle({ payout: 500 });
+        expect(result).toMatchObject({ ok: true, applied: true, balance: 5000 - 220 + 500 });
+        expect(await storage.getBalance("user-1")).toBe(5280);
+        // Abas kustības ir atsevišķas ledger rindas ar `ref = spinId`.
+        expect(await storage.listLedgerRefs("user-1", "slot_bet")).toEqual(["spin-1"]);
+        expect(await storage.listLedgerRefs("user-1", "slot_payout")).toEqual(["spin-1"]);
+      });
+
+      it("writes no payout ledger row for a losing spin (delta <> 0 CHECK)", async () => {
+        const result = await settle({ payout: 0 });
+        expect(result).toMatchObject({ ok: true, applied: true, balance: 4780 });
+        expect(await storage.listLedgerRefs("user-1", "slot_bet")).toEqual(["spin-1"]);
+        expect(await storage.listLedgerRefs("user-1", "slot_payout")).toEqual([]);
+        // Grieziens joprojām ir ierakstīts — zaudējums ir auditējams.
+        expect(await storage.getSlotSpin("user-1", "spin-1")).toMatchObject({ payout: 0 });
+      });
+
+      it("replays the recorded spin instead of settling again", async () => {
+        const first = await settle({ payout: 500, gridJson: '["FIRST"]' });
+        expect(first).toMatchObject({ ok: true, applied: true, balance: 5280 });
+        // Tas pats spinId ar CITU režģi: naudai nav jākustas, un atgriežas PIRMAIS režģis.
+        const replay = await settle({
+          payout: 999999,
+          gridJson: '["SECOND"]',
+          betLedgerId: "lb-2",
+          payoutLedgerId: "lp-2",
+          now: 2000
+        });
+        expect(replay).toMatchObject({ ok: true, applied: false, balance: 5280 });
+        if (!replay.ok) throw new Error("unreachable");
+        expect(replay.spin.gridJson).toBe('["FIRST"]');
+        expect(replay.spin.payout).toBe(500);
+        expect(replay.spin.createdAt).toBe(1000);
+        expect(await storage.getBalance("user-1")).toBe(5280);
+      });
+
+      it("rejects a bet larger than the balance and writes nothing at all", async () => {
+        const result = await settle({ totalBet: 99999, payout: 500 });
+        expect(result).toEqual({ ok: false, reason: "insufficient", balance: 5000 });
+        expect(await storage.getBalance("user-1")).toBe(5000);
+        // Kritiski: neviena daļēja rinda — ne audits, ne likme, ne izmaksa.
+        expect(await storage.getSlotSpin("user-1", "spin-1")).toBeUndefined();
+        expect(await storage.listLedgerRefs("user-1", "slot_bet")).toEqual([]);
+        expect(await storage.listLedgerRefs("user-1", "slot_payout")).toEqual([]);
+      });
+
+      it("allows a spin that spends the balance down to exactly zero", async () => {
+        const result = await settle({ totalBet: 5000, payout: 0 });
+        expect(result).toMatchObject({ ok: true, applied: true, balance: 0 });
+        expect(await storage.getBalance("user-1")).toBe(0);
+      });
+
+      it("scopes the spin id per user so one account cannot read another's spin", async () => {
+        expect(
+          await storage.createUser(
+            makeUser({ id: "user-2", username: "Second", usernameNorm: "second" })
+          )
+        ).toBe("created");
+        await storage.applyLedger({
+          id: "seed-2",
+          userId: "user-2",
+          delta: 5000,
+          reason: "signup",
+          ref: "user-2",
+          now: 1
+        });
+        await settle({ payout: 500, gridJson: '["USER1"]' });
+        // Tas pats spinId, cits lietotājs → JAUNS grieziens, ne user-1 ieraksts.
+        const other = await settle({
+          userId: "user-2",
+          payout: 0,
+          gridJson: '["USER2"]',
+          betLedgerId: "lb-u2",
+          payoutLedgerId: "lp-u2"
+        });
+        expect(other).toMatchObject({ ok: true, applied: true, balance: 4780 });
+        if (!other.ok) throw new Error("unreachable");
+        expect(other.spin.gridJson).toBe('["USER2"]');
+        expect(await storage.getSlotSpin("user-1", "spin-1")).toMatchObject({
+          gridJson: '["USER1"]'
+        });
+      });
+
+      it("returns undefined for an unknown spin", async () => {
+        expect(await storage.getSlotSpin("user-1", "nope")).toBeUndefined();
+      });
+
+      it("rolls back the audit row and the bet when the payout insert fails", async () => {
+        // ŠIS ir viss Fāzes 2 iemesls: likme, izmaksa un audits ir VIENĀ transakcijā,
+        // tāpēc kļūme PĒC pirmajiem diviem ierakstiem nedrīkst atstāt paņemtu likmi.
+        // Kļūmi izraisām, aizņemot `payoutLedgerId` (coin_ledger.id ir PK) — izmaksas
+        // INSERT tad krīt ar PK pārkāpumu, kad audits un likme jau ir ierakstīti.
+        await storage.applyLedger({
+          id: "collide",
+          userId: "user-1",
+          delta: 10,
+          reason: "admin_adjust",
+          ref: "unrelated",
+          now: 1
+        });
+        const balanceBefore = await storage.getBalance("user-1");
+
+        await expect(settle({ payout: 500, payoutLedgerId: "collide" })).rejects.toThrow();
+
+        expect(await storage.getBalance("user-1")).toBe(balanceBefore);
+        expect(await storage.getSlotSpin("user-1", "spin-1")).toBeUndefined();
+        expect(await storage.listLedgerRefs("user-1", "slot_bet")).toEqual([]);
+        expect(await storage.listLedgerRefs("user-1", "slot_payout")).toEqual([]);
+        // Glabātuve paliek lietojama pēc atritināšanas (transakcija tika korekti aizvērta).
+        const retry = await settle({ payout: 500, payoutLedgerId: "lp-retry" });
+        expect(retry).toMatchObject({ ok: true, applied: true });
+      });
+
+      it("keeps concurrent settlements of one spinId to a single applied winner", async () => {
+        // Katrs pretendents piedāvā CITU režģi; tikai viens drīkst tikt piemērots, un
+        // visiem pārējiem jāatgriež tieši tas pats ierakstītais iznākums.
+        const attempts = await Promise.all(
+          Array.from({ length: 8 }, (_unused, i) =>
+            settle({
+              payout: 500,
+              gridJson: `["G${i}"]`,
+              betLedgerId: `lb-${i}`,
+              payoutLedgerId: `lp-${i}`
+            })
+          )
+        );
+        const applied = attempts.filter((r) => r.ok && r.applied);
+        expect(applied).toHaveLength(1);
+        const grids = new Set(attempts.map((r) => (r.ok ? r.spin.gridJson : "rejected")));
+        expect(grids.size).toBe(1);
+        expect(await storage.getBalance("user-1")).toBe(5280);
       });
     });
 

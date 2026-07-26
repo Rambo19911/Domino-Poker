@@ -13,11 +13,16 @@
     "./multiplayer": {
       "types": "./dist/multiplayer/index.d.ts",
       "import": "./dist/multiplayer/index.js"
+    },
+    "./slots": {
+      "types": "./dist/slots/index.d.ts",
+      "import": "./dist/slots/index.js"
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/fix-esm-imports.cjs",
     "test": "vitest run",
+    "test:math": "vitest run --config vitest.math.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

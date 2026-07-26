@@ -7,6 +7,7 @@ export const et = {
   storeLoginRequired: "Ostmiseks logi sisse",
   storeDetails: "Üksikasjad",
   storeFlipBack: "Tagasi",
+  slots: "Mänguautomaat",
   hintButtonAria: "Kasuta vihjet, jäänud {count}",
   hintComputing: "Mõtlen…",
   hintNoneLeft: "Selles voorus pole vihjeid enam",

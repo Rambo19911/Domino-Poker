@@ -7,6 +7,7 @@ export const fi = {
   storeLoginRequired: "Kirjaudu ostaaksesi",
   storeDetails: "Tiedot",
   storeFlipBack: "Takaisin",
+  slots: "Peliautomaatti",
   hintButtonAria: "Käytä vihje, {count} jäljellä",
   hintComputing: "Mietin…",
   hintNoneLeft: "Ei vihjeitä jäljellä tällä kierroksella",

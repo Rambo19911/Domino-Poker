@@ -8,6 +8,9 @@ export default defineConfig({
     alias: {
       "@domino-poker/core/multiplayer": fileURLToPath(
         new URL("../../packages/core/src/multiplayer/index.ts", import.meta.url)
+      ),
+      "@domino-poker/core/slots": fileURLToPath(
+        new URL("../../packages/core/src/slots/index.ts", import.meta.url)
       )
     }
   }

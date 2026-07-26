@@ -7,6 +7,7 @@ export const ro = {
   storeLoginRequired: "Conectează-te pentru a cumpăra",
   storeDetails: "Detalii",
   storeFlipBack: "Înapoi",
+  slots: "Sloturi",
   hintButtonAria: "Folosește un indiciu, au rămas {count}",
   hintComputing: "Mă gândesc…",
   hintNoneLeft: "Nu mai sunt indicii în această rundă",

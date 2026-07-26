@@ -1,0 +1,23 @@
+/*
+ * Slot game reset, SCOPED to `.slotsGameRoot`.
+ *
+ * The standalone game shipped this as a global reset. In DominoPoker that would be a
+ * defect, not a reset: a bare `button { border: none; background: none }` strips every
+ * lobby button, and `html, body { height: 100% }` fights the host layout. Those two
+ * rules are dropped entirely; only the box-sizing normalisation and the button reset
+ * survive, both confined to the game subtree.
+ */
+.slotsGameRoot,
+.slotsGameRoot *,
+.slotsGameRoot *::before,
+.slotsGameRoot *::after {
+  box-sizing: border-box;
+}
+
+.slotsGameRoot button {
+  font: inherit;
+  color: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+}

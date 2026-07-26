@@ -27,6 +27,7 @@ describe("WalletService", () => {
     ids = 0;
     wallet = new WalletService({
       coins: storage,
+      slots: storage,
       clock: () => 5000,
       createId: () => `led-${++ids}`
     });
@@ -199,6 +200,69 @@ describe("WalletService", () => {
       expect(await wallet.payoutCoins("u1", "match-X", 700)).toBe(5700);
       // Cits match → izmaksā.
       expect(await wallet.payoutCoins("u1", "match-Y", 300)).toBe(6000);
+    });
+  });
+
+  describe("settleSlotSpin", () => {
+    const input = {
+      userId: "u1",
+      spinId: "spin-1",
+      lineBet: 20,
+      totalBet: 220,
+      payout: 0,
+      gridJson: '["WILD"]',
+      winsJson: "[]",
+      mathVersion: "domino-slots-math-v3"
+    };
+
+    it("applies the bet and the payout in a single settlement", async () => {
+      await wallet.grantSignupBonus("u1"); // 5000
+      const result = await wallet.settleSlotSpin({ ...input, payout: 500 });
+      expect(result).toMatchObject({ ok: true, applied: true, balance: 5280 });
+      expect(await storage.getBalance("u1")).toBe(5280);
+    });
+
+    it("is idempotent by spinId and replays the recorded grid", async () => {
+      await wallet.grantSignupBonus("u1");
+      await wallet.settleSlotSpin({ ...input, payout: 500, gridJson: '["FIRST"]' });
+      // Atkārtojums ar citu režģi un citu izmaksu nedrīkst ne kustināt naudu, ne
+      // aizstāt ierakstīto iznākumu — klients nevar pārmest kauliņus ar retry.
+      const replay = await wallet.settleSlotSpin({
+        ...input,
+        payout: 9999,
+        gridJson: '["SECOND"]'
+      });
+      expect(replay).toMatchObject({ ok: true, applied: false, balance: 5280 });
+      if (!replay.ok) throw new Error("unreachable");
+      expect(replay.spin.gridJson).toBe('["FIRST"]');
+      expect(await storage.getBalance("u1")).toBe(5280);
+    });
+
+    it("rejects a bet the balance cannot cover without writing anything", async () => {
+      await wallet.grantSignupBonus("u1");
+      const result = await wallet.settleSlotSpin({ ...input, totalBet: 99_999 });
+      expect(result).toEqual({ ok: false, reason: "insufficient", balance: 5000 });
+      expect(await storage.getBalance("u1")).toBe(5000);
+      expect(await wallet.getSlotSpin("u1", "spin-1")).toBeUndefined();
+    });
+
+    it("rejects fractional or non-finite amounts before they reach the database", async () => {
+      // SQLite nav STRICT: bez šī sarga daļskaitlis/Infinity klusi nonāktu INTEGER kolonnā.
+      await wallet.grantSignupBonus("u1");
+      await expect(wallet.settleSlotSpin({ ...input, totalBet: 220.5 })).rejects.toThrow(
+        /safe integer/u
+      );
+      await expect(wallet.settleSlotSpin({ ...input, payout: Number.POSITIVE_INFINITY })).rejects.toThrow(
+        /safe integer/u
+      );
+      await expect(wallet.settleSlotSpin({ ...input, payout: -1 })).rejects.toThrow(/safe integer/u);
+      expect(await storage.getBalance("u1")).toBe(5000);
+    });
+
+    it("reports unsupported when the storage has no slot capability", async () => {
+      const noSlots = new WalletService({ coins: storage, clock: () => 5000 });
+      expect(await noSlots.settleSlotSpin(input)).toEqual({ ok: false, reason: "unsupported" });
+      expect(await noSlots.getSlotSpin("u1", "spin-1")).toBeUndefined();
     });
   });
 });

@@ -613,6 +613,47 @@ function playerGameResultsVariantSchema(dialect: SchemaDialect): string {
 }
 
 /**
+ * 0016: Domino Slots griezienu audita žurnāls (sk. `docs/TODO/domino-slots-integration-plan.md`).
+ *
+ * Šī tabula ir grieziena DURABLE ieraksts UN idempotences atslēga. To raksta TĀ PATI
+ * transakcija, kas ieraksta `slot_bet` + `slot_payout` ledger rindas un atjauno bilanci
+ * (`SlotStore.settleSlotSpin`), tāpēc avārija nevar atstāt paņemtu likmi bez izmaksas.
+ * Atkārtots pieprasījums ar to pašu `spin_id` atgriež ŠO ierakstīto rezultātu, nevis
+ * ģenerē jaunu griezienu — klients nevar pārmest kauliņus, atkārtojot pieprasījumu.
+ *
+ * `PRIMARY KEY (user_id, spin_id)`, NE `spin_id` viens pats: `spin_id` nāk no klienta,
+ * tāpēc globāla PK ļautu lietotājam B trāpīt lietotāja A ierakstā un saņemt sveša
+ * grieziena rezultātu. Salikta atslēga to padara strukturāli neiespējamu un sakrīt ar
+ * ledger `UNIQUE (user_id, reason, ref)` lietotāja-tvēruma idempotenci.
+ *
+ * `grid_json`/`wins_json` ir TEXT, NE `t.json`: tie ir necaurspīdīga atkārtošanas krava,
+ * ko atdodam verbatim. TEXT izvairās no PG JSONB vs SQLite TEXT lasīšanas asimetrijas
+ * (JSONB atgriež parsētu objektu) un padara DDL identisku abiem dialektiem.
+ *
+ * Tikai `CREATE TABLE IF NOT EXISTS` + indekss → viena DDL virkne bez dialekta zarošanas
+ * un bez savas transakcijas (šablons: 0007). FK CASCADE.
+ */
+function slotSpinsSchema(t: DialectTypes): string {
+  return `
+  CREATE TABLE IF NOT EXISTS slot_spins (
+    user_id      TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    spin_id      TEXT NOT NULL,
+    line_bet     INTEGER NOT NULL CHECK (line_bet > 0),
+    total_bet    INTEGER NOT NULL CHECK (total_bet > 0),
+    payout       INTEGER NOT NULL CHECK (payout >= 0),
+    grid_json    TEXT NOT NULL,
+    wins_json    TEXT NOT NULL,
+    math_version TEXT NOT NULL,
+    created_at   ${t.bigint} NOT NULL,
+    PRIMARY KEY (user_id, spin_id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_slot_spins_user_created
+    ON slot_spins (user_id, created_at);
+`;
+}
+
+/**
  * Renderē sakārtoto migrāciju sarakstu dotajam dialektam. ID un secība ir
  * STABILA un identiska abiem dialektiem (versionēšanas paritāte); atšķiras tikai
  * kolonnu tipi un PG-only tabulu klātbūtne (tikai 0001).
@@ -652,6 +693,7 @@ export function buildMigrations(dialect: SchemaDialect): readonly SchemaMigratio
     {
       id: "0015_player_game_results_variant",
       up: playerGameResultsVariantSchema(dialect)
-    }
+    },
+    { id: "0016_slot_spins", up: slotSpinsSchema(t) }
   ];
 }

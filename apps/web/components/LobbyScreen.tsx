@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { AudioControls } from "./AudioControls";
 import { ContactForm } from "./ContactForm";
@@ -13,6 +13,7 @@ import { CoinGif } from "./CoinGif";
 import { CompactLobbyPanel, LobbyWheel } from "./LobbyWheel";
 import { DailyTasksDialog, DailyTasksIcon } from "./DailyTasksDialog";
 import { StoreDialog, StoreIcon } from "./StoreDialog";
+import { SlotsDialog, SlotsIcon, useSlotsAvailable } from "./SlotsDialog";
 import { HelpIcon, RulesDialog } from "./RulesDialog";
 import { useDailyTasks } from "../lib/daily/useDailyTasks";
 import { useWeeklyTasks } from "../lib/weekly/useWeeklyTasks";
@@ -98,9 +99,17 @@ export function LobbyScreen({
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [dailyOpen, setDailyOpen] = useState(false);
   const [storeOpen, setStoreOpen] = useState(false);
+  const [slotsOpen, setSlotsOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
 
   const isAuthed = auth.status === "authenticated";
+  // Slots ir darbvirsmas-tikai un tikai reģistrētiem. Ikonu jau paslēpj CSS/`isAuthed`,
+  // bet JAU ATVĒRTS dialogs jāaizver arī tad, ja logs sarūk vai sesija beidzas — spēle
+  // liek īstas monētas, tāpēc to nedrīkst atstāt lietojamu ārpus saviem vārtiem.
+  const slotsAvailable = useSlotsAvailable();
+  useEffect(() => {
+    if (slotsOpen && (!slotsAvailable || !isAuthed)) setSlotsOpen(false);
+  }, [slotsOpen, slotsAvailable, isAuthed]);
   // Dienas uzdevumi tikai ielogotiem. Fetch pie mount (lobija atgriešanās pēc SP spēles
   // remontē šo ekrānu → progress atsvaidzinās); ikona pulsē, kad kāda balva savācama.
   const daily = useDailyTasks(auth.getToken, isAuthed, tasksRefreshSignal);
@@ -175,6 +184,19 @@ export function LobbyScreen({
         >
           <StoreIcon />
         </IconButton>
+        {isAuthed ? (
+          <IconButton
+            className="lobbySlotsButton"
+            label={t.slots}
+            title={t.slots}
+            onClick={() => {
+              audio.play("uiClick");
+              setSlotsOpen(true);
+            }}
+          >
+            <SlotsIcon />
+          </IconButton>
+        ) : null}
         <IconButton
           className="lobbySettingsButton"
           label={t.settings}
@@ -283,10 +305,21 @@ export function LobbyScreen({
         />
       </Presence>
 
+      <Presence open={slotsOpen}>
+        <SlotsDialog
+          audio={audio}
+          labels={t}
+          getToken={auth.getToken}
+          balance={auth.balance}
+          onBalanceChange={auth.applyBalance}
+          onClose={() => setSlotsOpen(false)}
+        />
+      </Presence>
+
       {/* PWA instalēšanas piedāvājums — tikai galvenajā lobby, nekad spēles laikā.
           Paslēpts, kamēr atvērts kāds dialogs (banneris ir virs modālā fona slāņa
           un citādi paliktu klikšķināms ārpus modālā konteksta). */}
-      {!settingsOpen && !rulesOpen && !leaderboardOpen && !dailyOpen && !storeOpen && !authOpen ? (
+      {!settingsOpen && !rulesOpen && !leaderboardOpen && !dailyOpen && !storeOpen && !slotsOpen && !authOpen ? (
         <InstallPrompt labels={t} />
       ) : null}
 

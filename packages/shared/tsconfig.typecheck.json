@@ -5,6 +5,9 @@
     "paths": {
       "@domino-poker/core/multiplayer": [
         "../../packages/core/src/multiplayer/index.ts"
+      ],
+      "@domino-poker/core/slots": [
+        "../../packages/core/src/slots/index.ts"
       ]
     }
   },

@@ -7,6 +7,7 @@ export const en = {
   storeLoginRequired: "Log in to buy",
   storeDetails: "Details",
   storeFlipBack: "Back",
+  slots: "Slots",
   hintButtonAria: "Use a hint, {count} remaining",
   hintComputing: "Thinking…",
   hintNoneLeft: "No hints left this round",

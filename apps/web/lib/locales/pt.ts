@@ -7,6 +7,7 @@ export const pt = {
   storeLoginRequired: "Inicia sessão para comprar",
   storeDetails: "Detalhes",
   storeFlipBack: "Voltar",
+  slots: "Slots",
   hintButtonAria: "Usar uma dica, {count} restantes",
   hintComputing: "A pensar…",
   hintNoneLeft: "Sem dicas nesta ronda",

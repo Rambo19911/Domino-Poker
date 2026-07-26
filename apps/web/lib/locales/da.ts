@@ -7,6 +7,7 @@ export const da = {
   storeLoginRequired: "Log ind for at købe",
   storeDetails: "Detaljer",
   storeFlipBack: "Tilbage",
+  slots: "Spillemaskine",
   hintButtonAria: "Brug et hint, {count} tilbage",
   hintComputing: "Tænker…",
   hintNoneLeft: "Ingen hints tilbage i denne runde",

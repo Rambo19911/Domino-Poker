@@ -29,7 +29,18 @@ export interface UserStats {
 
 export type AuthResult<T> =
   | { readonly ok: true; readonly data: T }
-  | { readonly ok: false; readonly status: number; readonly error: string };
+  | {
+      readonly ok: false;
+      readonly status: number;
+      readonly error: string;
+      /**
+       * Neapstrādāts ne-2xx korpuss. Papildinājums (nevis izmaiņa): esošie izsaucēji
+       * to neizmanto un nav skarti. Vajadzīgs, jo daži maršruti kļūdas atbildē sūta
+       * autoritatīvus datus — piem. `/slots/spin` 402 nes patieso bilanci, kas ir
+       * VIENĪGAIS ceļš, kā izlabot novecojušu lokālo skaitli.
+       */
+      readonly body?: unknown;
+    };
 
 export interface TokenUser {
   readonly token: string;
@@ -78,7 +89,7 @@ export async function requestJson<T>(
       typeof body === "object" && body !== null && typeof (body as { error?: unknown }).error === "string"
         ? (body as { error: string }).error
         : "request_failed";
-    return { ok: false, status: response.status, error };
+    return { ok: false, status: response.status, error, body };
   }
   return { ok: true, data: body as T };
 }

@@ -7,6 +7,7 @@ export const es = {
   storeLoginRequired: "Inicia sesión para comprar",
   storeDetails: "Detalles",
   storeFlipBack: "Atrás",
+  slots: "Tragaperras",
   hintButtonAria: "Usar una pista, quedan {count}",
   hintComputing: "Pensando…",
   hintNoneLeft: "No quedan pistas en esta ronda",

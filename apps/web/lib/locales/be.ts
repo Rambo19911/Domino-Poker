@@ -7,6 +7,7 @@ export const be = {
   storeLoginRequired: "Увайдзі, каб купіць",
   storeDetails: "Падрабязней",
   storeFlipBack: "Назад",
+  slots: "Слоты",
   hintButtonAria: "Скарыстаць падказку, засталося {count}",
   hintComputing: "Думаю…",
   hintNoneLeft: "У гэтым раўндзе падказак больш няма",

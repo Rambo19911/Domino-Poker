@@ -25,6 +25,7 @@ import { createDailyTaskHandler } from "./http/dailyTaskRoutes.js";
 import { createWeeklyTaskHandler } from "./http/weeklyTaskRoutes.js";
 import { createSpRewardHandler } from "./http/spRewardRoutes.js";
 import { createStatsHandler } from "./http/statsRoutes.js";
+import { createSlotHandler } from "./http/slotRoutes.js";
 import { createStoreHandler } from "./http/storeRoutes.js";
 import { createHealthHttpServer } from "./httpServer.js";
 import { DisplayIdRegistry } from "./identity/DisplayIdRegistry.js";
@@ -39,6 +40,8 @@ import { MatchPersistence } from "./storage/MatchPersistence.js";
 import { OutcomeRecorder } from "./storage/OutcomeRecorder.js";
 import { SpRewardTokens } from "./sp/SpRewardTokens.js";
 import { isCoinStore } from "./storage/CoinStore.js";
+import { SlotService } from "./slots/SlotService.js";
+import { isSlotStore } from "./storage/SlotStore.js";
 import { isPlayerStatsStore } from "./storage/PlayerStatsStore.js";
 import { MpStatsRecorder } from "./stats/MpStatsRecorder.js";
 import { DailyTaskService } from "./daily/DailyTaskService.js";
@@ -152,9 +155,19 @@ const authService = isAuthStore(storage)
   : undefined;
 // Fāze 0: zelta monētu maks (virtuālā valūta). Gan SqliteStorage, gan PostgresStorage
 // implementē CoinStore. Anonīmā spēle to neizmanto. Starta bonuss + bilance.
-const wallet = isCoinStore(storage) ? new WalletService({ coins: storage, clock }) : undefined;
+const wallet = isCoinStore(storage)
+  ? new WalletService({
+      coins: storage,
+      // Slotu spēja ir atsevišķa saskarne, ko implementē tā pati klase; ja tās nav,
+      // `settleSlotSpin` atgriež `unsupported` un slotu maršruts netiek reģistrēts.
+      ...(isSlotStore(storage) ? { slots: storage } : {}),
+      clock
+    })
+  : undefined;
 // Fāze 4: veikals (tēmu pirkšana par monētām) virs maka. Īpašumtiesības atvasinātas no ledger.
 const store = wallet ? new StoreService(wallet) : undefined;
+// Domino Slots: servera puses RNG + norēķins vienā transakcijā (sk. domino-slots-integration-plan.md).
+const slots = wallet && isSlotStore(storage) ? new SlotService({ wallet }) : undefined;
 // Admin panelis (sk. docs/TODO/admin-panel-plan.md, Fāze 0). Iespējots TIKAI ja ir admin
 // parole (config.admin.enabled), e-pasta senderis (2FA OTP) UN admin-spējīga glabātuve
 // (abas to ir). Citādi `/admin/*` maršruti netiek mounted (404). Pilnīgi atsevišķa no
@@ -548,6 +561,17 @@ const server = createHealthHttpServer({
         storeHandler: createStoreHandler({
           auth: authService,
           store,
+          webOrigins: config.webOrigins,
+          clock,
+          dev: config.nodeEnv !== "production"
+        })
+      }
+    : {}),
+  ...(authService && slots
+    ? {
+        slotsHandler: createSlotHandler({
+          auth: authService,
+          slots,
           webOrigins: config.webOrigins,
           clock,
           dev: config.nodeEnv !== "production"

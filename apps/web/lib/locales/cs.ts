@@ -7,6 +7,7 @@ export const cs = {
   storeLoginRequired: "Přihlas se pro nákup",
   storeDetails: "Podrobnosti",
   storeFlipBack: "Zpět",
+  slots: "Automaty",
   hintButtonAria: "Použít nápovědu, zbývá {count}",
   hintComputing: "Přemýšlím…",
   hintNoneLeft: "V tomto kole už nejsou žádné nápovědy",

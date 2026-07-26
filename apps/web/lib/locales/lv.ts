@@ -11,6 +11,7 @@ export const lv = {
   storeLoginRequired: "Ielogojies, lai pirktu",
   storeDetails: "Sīkāk",
   storeFlipBack: "Atpakaļ",
+  slots: "Spēļu automāts",
   hintButtonAria: "Izmantot padomu, atlikuši {count}",
   hintComputing: "Domāju…",
   hintNoneLeft: "Šajā raundā padomu vairs nav",

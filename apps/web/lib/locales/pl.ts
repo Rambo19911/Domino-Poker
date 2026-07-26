@@ -7,6 +7,7 @@ export const pl = {
   storeLoginRequired: "Zaloguj się, aby kupić",
   storeDetails: "Szczegóły",
   storeFlipBack: "Wstecz",
+  slots: "Automaty",
   hintButtonAria: "Użyj podpowiedzi, pozostało {count}",
   hintComputing: "Myślę…",
   hintNoneLeft: "Brak podpowiedzi w tej rundzie",

@@ -12,7 +12,8 @@
     ],
     "paths": {
       "@/*": ["./*"],
-      "@domino-poker/core": ["../../packages/core/src/index.ts"]
+      "@domino-poker/core": ["../../packages/core/src/index.ts"],
+      "@domino-poker/core/slots": ["../../packages/core/src/slots/index.ts"]
     }
   },
   "include": [

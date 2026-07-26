@@ -169,6 +169,19 @@ export const MIN_ENTRY_FEE = 1;
 export const MAX_ENTRY_FEE = 1_000_000_000;
 
 /**
+ * Domino Slots likmes. IZŅĒMUMS no šī faila "vienīgā avota" likuma: definīcija
+ * dzīvo `@domino-poker/core/slots` (`SLOT_MATH_CONFIG`), jo `core` NEDRĪKST
+ * importēt `shared` — tas būtu cikls (`shared` jau ir atkarīgs no `core`). Šeit
+ * tikai re-eksports, lai ekonomikas audits atrod visas monētu summas vienuviet.
+ *
+ * Soļi ir 20/40/60/100/200; kopējā likme = 11 x lineBet = 220..2200 monētas.
+ * Mērogs ir 5x lejup no standalone spēles, nevis 10x, jo katram solim jādalās ar
+ * 20 — citādi Major boost dod daļskaitļa monētas un `multiplyByHundredths` met
+ * kļūdu. Pierādījums: `packages/core/test/slots/betScale.test.ts`.
+ */
+export { SLOT_MATH_CONFIG } from "@domino-poker/core/slots";
+
+/**
  * Sadala podu starp diviem labākajiem cilvēkiem (70/30), atlikumu pievienojot
  * 1. vietai. Ja ir tikai viens cilvēks, viņš saņem visu podu. Atgriež veselus
  * skaitļus, kas vienmēr summējas līdz `pot`.

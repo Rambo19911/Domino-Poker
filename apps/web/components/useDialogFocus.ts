@@ -32,6 +32,12 @@ export function useDialogFocus<T extends HTMLElement>(
     initialFocus.focus({ preventScroll: true });
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Ligzdots native `<dialog open>` (Domino Slots Rules/Auto Spin lieto `showModal()`)
+      // jau pats slazdo fokusu un apstrādā Escape. Šis klausītājs ir uz `document`
+      // CAPTURE fāzē, tāpēc bez šī vārta tas nostrādātu PIRMS iekšējā dialoga un
+      // aizvērtu VISU ārējo dialogu, nevis tikai augšējo.
+      if (dialog.querySelector("dialog[open]") !== null) return;
+
       if (event.key === "Tab") {
         trapTabFocus(event, dialog);
         return;

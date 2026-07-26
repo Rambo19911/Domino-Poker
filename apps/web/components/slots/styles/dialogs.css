@@ -1,0 +1,584 @@
+/*
+ * Step 7 DOM layer: accessibility proxies, toasts, dialogs and the rotate
+ * overlay (UI/UX sections 13-18). Everything scales with the same 16:9
+ * letterbox as the canvas: a .design-layer box mirrors the fitViewport()
+ * result in pure CSS and defines --px, one design pixel of the 1920x1080
+ * coordinate system, via container query units.
+ */
+
+.slotsGameRoot .design-layer {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(100cqw, calc(100cqh * 16 / 9));
+  aspect-ratio: 16 / 9;
+  transform: translate(-50%, -50%);
+  container-type: size;
+}
+
+.slotsGameRoot .design-layer > * {
+  --px: calc(100cqw / 1920);
+}
+
+/* ---- Accessibility layer over the canvas -------------------------------- */
+
+.slotsGameRoot .ui-layer {
+  position: fixed;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* Visually hidden but exposed to assistive technology (UI/UX 18.1). */
+.slotsGameRoot .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * Transparent keyboard/AT proxy for a canvas control. Pointer input stays on
+ * the canvas (pointer-events: none) so the PixiJS hover/pressed states keep
+ * working; keyboard activation still fires the click handler. Each proxy is
+ * centred on its control and never shrinks below 44 CSS px (UI/UX 18.3).
+ */
+.slotsGameRoot .proxy {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: transparent;
+  pointer-events: none;
+  border-radius: calc(14 * var(--px));
+}
+
+.slotsGameRoot .proxy:focus-visible {
+  outline: 3px solid var(--cyan-400);
+  outline-offset: 4px;
+}
+
+.slotsGameRoot .proxy-spin {
+  border-radius: calc(70 * var(--px));
+}
+
+.slotsGameRoot .proxy-minus,
+.slotsGameRoot .proxy-plus {
+  border-radius: 50%;
+}
+
+/*
+ * When the uniform scale drops a control's canvas hit area under 44 CSS px,
+ * its transparent DOM target (always >= 44 px) takes over pointer input
+ * (UI/UX 18.3). Thresholds: container width where hit * scale = 44 px.
+ */
+@container (max-width: 1206px) {
+  /* 70 px hit areas */
+  .slotsGameRoot .proxy-minus:not(:disabled),
+.slotsGameRoot .proxy-plus:not(:disabled) {
+    pointer-events: auto;
+  }
+}
+
+@container (max-width: 880px) {
+  /* 96-104 px hit areas (Rules, Auto, Max Bet) */
+  .slotsGameRoot .proxy-rules:not(:disabled),
+.slotsGameRoot .proxy-auto:not(:disabled),
+.slotsGameRoot .proxy-max:not(:disabled),
+.slotsGameRoot /*
+   * Spin's own 260x136 hit area stays >= 44 px down to 621 px,
+.slotsGameRoot but it joins
+   * the takeover here so its DOM box (stacked above via z-index) shields the
+   * Spin canvas region from the neighbours' expanded 44 px boxes,
+.slotsGameRoot which
+   * otherwise overlap it at this density.
+   */
+  .proxy-spin:not(:disabled) {
+    pointer-events: auto;
+  }
+}
+
+.slotsGameRoot .proxy-spin {
+  z-index: 1;
+}
+
+/* ---- Toast (UI/UX 15.1) ------------------------------------------------- */
+
+.slotsGameRoot .toast-slot {
+  position: absolute;
+  left: calc(660 / 1920 * 100%);
+  top: calc(842 / 1080 * 100%);
+  width: calc(600 * var(--px));
+  height: calc(64 * var(--px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: calc(12 * var(--px));
+  font-family: Arial, sans-serif;
+  font-size: calc(22 * var(--px));
+  font-weight: 700;
+  letter-spacing: 1px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .slotsGameRoot .toast-slot {
+    transition: opacity var(--motion-control) var(--ease-standard);
+  }
+}
+
+.slotsGameRoot .toast-slot.toast-visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.slotsGameRoot .toast-info {
+  background: var(--blue-800);
+  color: #ffffff;
+}
+
+.slotsGameRoot .toast-warning {
+  background: #7a4b12;
+  color: var(--gold-100);
+}
+
+.slotsGameRoot .toast-error {
+  background: #7b211b;
+  color: #ffffff;
+}
+
+/* ---- Rotate Device overlay (UI/UX 15.4) --------------------------------- */
+
+.slotsGameRoot .rotate-overlay {
+  display: none;
+}
+
+@media (orientation: portrait) {
+  .slotsGameRoot .rotate-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    background: var(--page-bg);
+    color: var(--gold-100);
+    text-align: center;
+    font-family: Arial, sans-serif;
+    pointer-events: auto;
+  }
+}
+
+.slotsGameRoot .rotate-overlay img {
+  width: min(60vw, 418px);
+  height: auto;
+}
+
+.slotsGameRoot .rotate-overlay h2 {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 32px;
+  letter-spacing: 2px;
+}
+
+.slotsGameRoot .rotate-overlay p {
+  margin: 0;
+  font-size: 18px;
+}
+
+/* ---- Modal dialogs (UI/UX 13, 14, 16) ----------------------------------- */
+
+/* Native <dialog> renders in the top layer, which is always viewport-sized, so
+   these deliberately stay in viewport units even though the game itself is
+   host-sized. The inner .design-layer re-establishes the 16:9 letterbox. */
+.slotsGameRoot dialog.modal {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: hidden;
+  color: var(--gold-100);
+  font-family: Arial, sans-serif;
+}
+
+.slotsGameRoot dialog.modal::backdrop {
+  background: var(--scrim);
+}
+
+.slotsGameRoot dialog.modal-auto::backdrop {
+  background: rgba(7, 3, 12, 0.62);
+}
+
+.slotsGameRoot dialog.modal-reset::backdrop {
+  background: rgba(7, 3, 12, 0.5);
+}
+
+.slotsGameRoot .modal-panel {
+  position: absolute;
+  background: rgba(22, 12, 18, 0.96);
+  border: calc(4 * var(--px)) solid #d99b2b;
+  border-radius: calc(18 * var(--px));
+  box-shadow: inset 0 0 calc(24 * var(--px)) rgba(242, 193, 78, 0.45);
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .slotsGameRoot dialog.modal[open] .modal-panel {
+    animation: slots-modal-panel-in var(--motion-panel) var(--ease-standard);
+  }
+}
+
+@keyframes slots-modal-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.slotsGameRoot .modal h2 {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  color: var(--gold-400);
+  letter-spacing: 2px;
+  text-align: center;
+}
+
+/*
+ * Dialog buttons anchor on their design-rect centre and never shrink below
+ * 44x44 CSS px (UI/UX 18.3); at small scales they grow symmetrically past the
+ * documented rect instead of drifting downward.
+ */
+.slotsGameRoot .modal-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  min-width: 44px;
+  min-height: 44px;
+  background: var(--brown-900);
+  border: 2px solid var(--gold-400);
+  border-radius: calc(12 * var(--px));
+  color: var(--gold-100);
+  font-family: Arial, sans-serif;
+  font-size: max(12px, calc(24 * var(--px)));
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+
+.slotsGameRoot .modal-button:hover {
+  background: var(--gold-700);
+}
+
+.slotsGameRoot .modal-button:focus-visible {
+  outline: 3px solid var(--cyan-400);
+  outline-offset: 4px;
+}
+
+/* ---- Rules dialog (UI/UX 13) -------------------------------------------- */
+
+.slotsGameRoot .rules-panel {
+  left: calc(320 * var(--px));
+  top: calc(140 / 1080 * 100%);
+  width: calc(1280 * var(--px));
+  height: calc(800 / 1080 * 100%);
+}
+
+.slotsGameRoot .rules-title {
+  position: absolute;
+  left: calc(80 * var(--px));
+  top: calc(35 * var(--px));
+  width: calc(1120 * var(--px));
+  height: calc(72 * var(--px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(48 * var(--px));
+}
+
+/* CloseButton.png background, white X drawn programmatically (UI/UX 13.1). */
+.slotsGameRoot .rules-close {
+  position: absolute;
+  left: calc(1256 * var(--px));
+  top: calc(67 * var(--px));
+  transform: translate(-50%, -50%);
+  width: max(44px, calc(82 * var(--px)));
+  height: max(44px, calc(84 * var(--px)));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background-color: transparent;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  color: #ffffff;
+  font-size: max(16px, calc(36 * var(--px)));
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+.slotsGameRoot .rules-close:focus-visible {
+  outline: 3px solid var(--cyan-400);
+  outline-offset: 4px;
+}
+
+.slotsGameRoot .rules-body {
+  position: absolute;
+  left: calc(80 * var(--px));
+  top: calc(130 * var(--px));
+  width: calc(1120 * var(--px));
+  height: calc(590 * var(--px));
+  overflow-y: auto;
+  padding-right: calc(16 * var(--px));
+  font-size: calc(26 * var(--px));
+  line-height: 1.5;
+  color: var(--gold-100);
+  scrollbar-color: var(--gold-700) transparent;
+}
+
+.slotsGameRoot .rules-body:focus-visible {
+  outline: 3px solid var(--cyan-400);
+  outline-offset: -3px;
+}
+
+.slotsGameRoot .rules-body img.section-plate {
+  display: block;
+  margin: calc(28 * var(--px)) auto calc(14 * var(--px));
+  height: auto;
+}
+
+.slotsGameRoot .rules-body h3.section-title {
+  margin: calc(32 * var(--px)) 0 calc(12 * var(--px));
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: calc(38 * var(--px));
+  color: var(--gold-400);
+  letter-spacing: 2px;
+  text-align: center;
+}
+
+.slotsGameRoot .rules-body p {
+  margin: 0 0 calc(12 * var(--px));
+}
+
+.slotsGameRoot .rules-body .paylines-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(10 * var(--px));
+  margin: calc(8 * var(--px)) auto calc(12 * var(--px));
+}
+
+.slotsGameRoot .rules-body .payline-figure {
+  width: calc(210 * var(--px));
+  height: auto;
+}
+
+.slotsGameRoot .tier-row {
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--px));
+  margin-bottom: calc(10 * var(--px));
+}
+
+.slotsGameRoot .tier-row .tier-label {
+  flex: 0 0 calc(280 * var(--px));
+  font-weight: 700;
+  color: var(--gold-400);
+}
+
+.slotsGameRoot .tier-row img {
+  height: calc(86 * var(--px));
+  width: auto;
+}
+
+.slotsGameRoot .symbol-row {
+  display: flex;
+  align-items: center;
+  gap: calc(18 * var(--px));
+  margin-bottom: calc(14 * var(--px));
+}
+
+.slotsGameRoot .symbol-row img {
+  height: calc(130 * var(--px));
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.slotsGameRoot .rules-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 calc(18 * var(--px));
+}
+
+.slotsGameRoot .rules-body th,
+.slotsGameRoot .rules-body td {
+  padding: calc(6 * var(--px)) calc(10 * var(--px));
+  border-bottom: 1px solid rgba(242, 193, 78, 0.25);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.slotsGameRoot .rules-body th:first-child,
+.slotsGameRoot .rules-body td:first-child {
+  text-align: left;
+}
+
+.slotsGameRoot .rules-body th {
+  color: var(--gold-400);
+  font-weight: 700;
+}
+
+/*
+ * Below the width where the 44 px reset control no longer fits the fixed 13.1
+ * footer band, the Rules panel reflows into a flex column: the body shrinks,
+ * the footer reserves at least 44 px inside the panel (UI/UX 18.3, 20.5).
+ */
+@container (max-width: 1242px) {
+  .slotsGameRoot .rules-panel {
+    display: flex;
+    flex-direction: column;
+    gap: calc(6 * var(--px));
+    padding: calc(16 * var(--px)) calc(60 * var(--px));
+  }
+
+  .slotsGameRoot .rules-title {
+    position: static;
+    width: auto;
+    height: auto;
+    flex: 0 0 auto;
+    padding: 0 48px;
+    font-size: max(18px, calc(48 * var(--px)));
+  }
+
+  .slotsGameRoot .rules-body {
+    position: static;
+    width: auto;
+    height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    font-size: max(14px, calc(26 * var(--px)));
+  }
+
+  /* Headings keep a floor above the 14px body floor so hierarchy holds. */
+  .slotsGameRoot .rules-body h3.section-title {
+    font-size: max(18px, calc(38 * var(--px)));
+  }
+}
+
+/* ---- Auto Spin dialog (UI/UX 14) ---------------------------------------- */
+
+.slotsGameRoot .auto-panel {
+  left: calc(690 * var(--px));
+  top: calc(330 / 1080 * 100%);
+  width: calc(540 * var(--px));
+  height: calc(420 / 1080 * 100%);
+}
+
+.slotsGameRoot .auto-title {
+  position: absolute;
+  left: calc(60 * var(--px));
+  top: calc(40 * var(--px));
+  width: calc(420 * var(--px));
+  height: calc(60 * var(--px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(42 * var(--px));
+}
+
+.slotsGameRoot .auto-option {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: calc(180 * var(--px));
+  height: max(44px, calc(80 * var(--px)));
+  font-size: max(14px, calc(28 * var(--px)));
+}
+
+.slotsGameRoot .auto-cancel {
+  position: absolute;
+  left: calc(270 * var(--px));
+  top: calc(386 * var(--px));
+  transform: translate(-50%, -50%);
+  width: calc(180 * var(--px));
+  height: max(44px, calc(52 * var(--px)));
+  font-size: max(12px, calc(22 * var(--px)));
+}
+
+/* At design scale the grid wrapper is layout-transparent (UI/UX 14.1). */
+.slotsGameRoot .auto-grid {
+  display: contents;
+}
+
+/*
+ * Below the width where an 80 px option scaled under 44 CSS px, the fixed
+ * 14.1 geometry cannot hold non-overlapping 44 px targets (UI/UX 18.3, 20.5);
+ * the panel reflows into a centred column with a 2x2 option grid.
+ */
+@container (max-width: 1056px) {
+  .slotsGameRoot .auto-panel {
+    left: 50%;
+    top: 50%;
+    /* The translate property composes with the entry animation's transform. */
+    translate: -50% -50%;
+    width: min(90cqw, max(320px, calc(540 * var(--px))));
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .slotsGameRoot .auto-title {
+    position: static;
+    width: auto;
+    height: auto;
+    font-size: max(20px, calc(42 * var(--px)));
+  }
+
+  .slotsGameRoot .auto-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    width: 100%;
+  }
+
+  .slotsGameRoot .auto-option,
+.slotsGameRoot .auto-cancel {
+    position: static;
+    transform: none;
+    width: auto;
+    height: 44px;
+  }
+
+  .slotsGameRoot .auto-cancel {
+    width: 60%;
+  }
+}

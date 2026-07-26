@@ -17,7 +17,8 @@ const EXPECTED_IDS = [
   "0012_chat_blocked_words",
   "0013_user_preferences_language_open",
   "0014_player_game_results_duration",
-  "0015_player_game_results_variant"
+  "0015_player_game_results_variant",
+  "0016_slot_spins"
 ];
 
 const SHARED_TABLES = [
@@ -40,7 +41,8 @@ const SHARED_TABLES = [
   "admin_audit_log",
   "login_attempts",
   "bans",
-  "chat_blocked_words"
+  "chat_blocked_words",
+  "slot_spins"
 ];
 
 const PG_ONLY_TABLES = ["player_sessions", "room_leases", "server_event_fanout"];

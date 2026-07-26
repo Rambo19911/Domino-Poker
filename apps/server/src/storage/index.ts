@@ -16,7 +16,21 @@ export type {
 export { PostgresStorage } from "./PostgresStorage.js";
 export type { DbHealthReport, PgPoolOptions } from "./PostgresStorage.js";
 export { isCoinStore } from "./CoinStore.js";
-export type { ApplyLedgerResult, CoinStore, LedgerEntryInput, LedgerReason } from "./CoinStore.js";
+export type {
+  ApplyLedgerResult,
+  CoinStore,
+  LedgerEntryInput,
+  LedgerReason,
+  LedgerWriteReason
+} from "./CoinStore.js";
+export { isSlotStore, slotSpinRowToRecord } from "./SlotStore.js";
+export type {
+  SlotSpinRecord,
+  SlotSpinRow,
+  SlotSpinSettleInput,
+  SlotSpinSettleResult,
+  SlotStore
+} from "./SlotStore.js";
 export { MIGRATIONS, runMigrations } from "./migrations.js";
 export type { Migration, MigratablePool, RunMigrationsOptions } from "./migrations.js";
 export { InMemoryRoomLeaseStore, toLeaseRecord } from "./RoomLeaseStore.js";

@@ -26,7 +26,24 @@ export type LedgerReason =
   | "theme_purchase"
   | "bot_purchase"
   | "daily_task_reward"
-  | "weekly_task_reward";
+  | "weekly_task_reward"
+  // Domino Slots: likme un izmaksa. ABI `ref` = `spinId`, un abus raksta VIENA
+  // `SlotStore.settleSlotSpin` transakcija kopā ar `slot_spins` audita rindu —
+  // NEKAD divi atsevišķi `applyLedger` izsaukumi (avārija starp tiem paņemtu
+  // likmi bez izmaksas). Izmaksas rinda tiek izlaista, ja payout = 0
+  // (`CHECK (delta <> 0)`); `slot_spins` rinda ir grieziena ieraksts abos gadījumos.
+  | "slot_bet"
+  | "slot_payout";
+
+/**
+ * Iemesli, ko drīkst rakstīt caur `applyLedger` (VIENA kustība). Slotu iemesli ir
+ * apzināti IZSLĒGTI: grieziens ir divas kustības + audita rinda, un tās drīkst rakstīt
+ * TIKAI `SlotStore.settleSlotSpin` vienā transakcijā. Bez šī izslēguma tipu sistēma
+ * pieļautu `applyLedger({ reason: "slot_bet" })`, kas apietu tieši to invariantu, kura
+ * dēļ `SlotStore` eksistē. Lasīšanas puse (`sumLedgerSince`/`listLedgerRefs`) turpina
+ * lietot pilno `LedgerReason`, jo slotu rindas ir jāvar vaicāt.
+ */
+export type LedgerWriteReason = Exclude<LedgerReason, "slot_bet" | "slot_payout">;
 
 /** Viena (idempotenta) naudas kustība, ko piemēro `applyLedger`. */
 export interface LedgerEntryInput {
@@ -35,7 +52,7 @@ export interface LedgerEntryInput {
   readonly userId: string;
   /** + kredīts / − debets; nedrīkst būt 0. */
   readonly delta: number;
-  readonly reason: LedgerReason;
+  readonly reason: LedgerWriteReason;
   /** Per-darbības konteksts (signup→userId, sp_reward→gameToken, mp_*→entryId/matchId). */
   readonly ref: string;
   /**

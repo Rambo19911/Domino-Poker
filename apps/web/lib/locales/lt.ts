@@ -7,6 +7,7 @@ export const lt = {
   storeLoginRequired: "Prisijunk, kad pirktum",
   storeDetails: "Išsamiau",
   storeFlipBack: "Atgal",
+  slots: "Lošimo automatas",
   hintButtonAria: "Naudoti patarimą, liko {count}",
   hintComputing: "Galvoju…",
   hintNoneLeft: "Šiame raunde patarimų nebeliko",

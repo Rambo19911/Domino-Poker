@@ -76,6 +76,12 @@ export function useAuthUser(): UseAuthUser {
   // (kas startēja PIRMS maiņas) NEPĀRRAKSTA jaunāku user intent (race aizsardzība).
   const languageWriteSeq = useRef(0);
 
+  // Tas pats race-aizsardzības paraugs bilancei: `applyBalance` (slotu norēķins, veikala
+  // pirkums, dienas balva) raksta JAUNĀKU summu nekā `/auth/me` momentuzņēmums, kas
+  // startēja agrāk. Bez šī novēlota `/auth/me` atbilde uzrakstītu veco skaitli pāri
+  // svaigākajam norēķinam. Tokena pārbaude to nesedz — tokens abos gadījumos ir tas pats.
+  const balanceWriteSeq = useRef(0);
+
   const applyToken = useCallback((next: string | null): void => {
     tokenRef.current = next;
     setToken(next);
@@ -105,6 +111,7 @@ export function useAuthUser(): UseAuthUser {
       options: { applyLanguage: boolean; clearOnFailure: boolean }
     ): Promise<void> => {
       const seqAtStart = languageWriteSeq.current;
+      const balanceSeqAtStart = balanceWriteSeq.current;
       const result = await apiMe(currentToken);
       // Novecojusi atbilde pēc logout/login maiņas — ignorē.
       if (tokenRef.current !== currentToken) return;
@@ -112,7 +119,11 @@ export function useAuthUser(): UseAuthUser {
         setUser(result.data.user);
         setStats(result.data.stats);
         setRankBadge(result.data.rankBadge ?? null);
-        setBalance(result.data.balance ?? null);
+        // Bilanci pieņem TIKAI tad, ja neviens jaunāks autoritatīvs raksts (norēķins,
+        // pirkums, balva) nav noticis, kamēr šis `/auth/me` lidoja.
+        if (balanceSeqAtStart === balanceWriteSeq.current) {
+          setBalance(result.data.balance ?? null);
+        }
         // Valodu pielieto TIKAI ja prasīts UN lietotājs to nav mainījis šī izsaukuma laikā.
         if (options.applyLanguage && result.data.language && seqAtStart === languageWriteSeq.current) {
           setLanguageState(result.data.language);
@@ -242,7 +253,10 @@ export function useAuthUser(): UseAuthUser {
 
   const getToken = useCallback((): string | undefined => tokenRef.current ?? undefined, []);
 
-  const applyBalance = useCallback((next: number): void => setBalance(next), []);
+  const applyBalance = useCallback((next: number): void => {
+    balanceWriteSeq.current += 1;
+    setBalance(next);
+  }, []);
 
   return {
     status,

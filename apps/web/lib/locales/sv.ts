@@ -7,6 +7,7 @@ export const sv = {
   storeLoginRequired: "Logga in för att köpa",
   storeDetails: "Detaljer",
   storeFlipBack: "Tillbaka",
+  slots: "Spelautomat",
   hintButtonAria: "Använd en ledtråd, {count} kvar",
   hintComputing: "Tänker…",
   hintNoneLeft: "Inga ledtrådar kvar denna runda",

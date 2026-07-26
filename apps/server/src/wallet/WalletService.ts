@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { STARTING_COINS } from "@domino-poker/shared";
 
 import type { CoinStore } from "../storage/CoinStore.js";
+import type { SlotSpinRecord, SlotStore } from "../storage/SlotStore.js";
 import type { Clock } from "../timers/TurnTimerScheduler.js";
 
 /**
@@ -17,6 +18,12 @@ export interface WalletServiceOptions {
   readonly clock: Clock;
   /** Ledger rindas id ģenerators (injicējams testiem); noklusējums `randomUUID`. */
   readonly createId?: () => string;
+  /**
+   * Slotu griezienu glabātuve (tā pati instance, kas `coins` — atsevišķa saskarne
+   * tikai tipēšanai). Nav obligāta: ja glabātuve to neatbalsta, `settleSlotSpin`
+   * nav pieejams un `index.ts` slotu maršrutu nereģistrē.
+   */
+  readonly slots?: SlotStore;
 }
 
 /**
@@ -32,6 +39,7 @@ export interface WalletServiceOptions {
  */
 export class WalletService {
   private readonly coins: CoinStore;
+  private readonly slots: SlotStore | undefined;
   private readonly clock: Clock;
   private readonly createId: () => string;
   /** Per-lietotāja secības ķēde (serializē griestu-pārbaudi + kreditēšanu; pašattīrās). */
@@ -39,6 +47,7 @@ export class WalletService {
 
   constructor(options: WalletServiceOptions) {
     this.coins = options.coins;
+    this.slots = options.slots;
     this.clock = options.clock;
     this.createId = options.createId ?? (() => randomUUID());
   }
@@ -231,6 +240,63 @@ export class WalletService {
    * iemesliem (tēmas + boti). Klients filtrē pēc veida (tēmu UI pēc theme itemId), tāpēc
    * apvienotais saraksts nesajauc — bota ref vienkārši neatbilst nevienai tēmai.
    */
+  /**
+   * Norēķina vienu Domino Slots griezienu: likme + izmaksa + audita rinda VIENĀ
+   * transakcijā (`SlotStore.settleSlotSpin`). Apzināti NELIETO `applyLedger` divreiz —
+   * tas ir atomisks tikai vienai kustībai, tāpēc avārija starp diviem izsaukumiem
+   * paņemtu likmi bez izmaksas.
+   *
+   * Idempotents pēc `(userId, spinId)`: atkārtots izsaukums atgriež IERAKSTĪTO griezienu
+   * ar `applied: false` un nemaina bilanci. Izsaucējam JĀLIETO atgrieztais `spin`, nevis
+   * paša ģenerētais režģis — citādi atkārtojums parādītu klientam citu iznākumu, nekā
+   * tika samaksāts.
+   *
+   * `summas` (`totalBet`, `payout`) aprēķina izsaucējs no servera puses RNG un
+   * `@domino-poker/core/slots` evaluatora; klients tās NEKAD nesūta.
+   *
+   * NB: `withUserLock` šeit NAV vajadzīgs — atšķirībā no `creditSpRewardCapped`, kas
+   * lasa griestus pirms rakstīšanas, visa check-then-act loģika notiek DB transakcijā.
+   */
+  async settleSlotSpin(input: {
+    readonly userId: string;
+    readonly spinId: string;
+    readonly lineBet: number;
+    readonly totalBet: number;
+    readonly payout: number;
+    readonly gridJson: string;
+    readonly winsJson: string;
+    readonly mathVersion: string;
+  }): Promise<
+    | { ok: true; applied: boolean; balance: number; spin: SlotSpinRecord }
+    | { ok: false; reason: "insufficient"; balance: number }
+    | { ok: false; reason: "unsupported" }
+  > {
+    if (!this.slots) return { ok: false, reason: "unsupported" };
+    // SQLite nav STRICT režīmā, tāpēc INTEGER kolonna klusi pieņemtu daļskaitli vai
+    // Infinity kā REAL (PG to noraidītu). Naudas ceļā tas ir par klusu, tāpēc summas
+    // tiek pārbaudītas šeit, pirms tās sasniedz jebkuru backendu.
+    for (const [name, value] of [
+      ["lineBet", input.lineBet],
+      ["totalBet", input.totalBet],
+      ["payout", input.payout]
+    ] as const) {
+      if (!Number.isSafeInteger(value) || value < 0) {
+        throw new Error(`Slot spin ${name} must be a non-negative safe integer, received ${value}`);
+      }
+    }
+    return this.slots.settleSlotSpin({
+      ...input,
+      betLedgerId: this.createId(),
+      payoutLedgerId: this.createId(),
+      now: this.clock()
+    });
+  }
+
+  /** Ierakstītais grieziens atkārtošanai/auditam, vai `undefined`. */
+  async getSlotSpin(userId: string, spinId: string): Promise<SlotSpinRecord | undefined> {
+    return this.slots ? this.slots.getSlotSpin(userId, spinId) : undefined;
+  }
+
   async listOwnedItems(userId: string): Promise<readonly string[]> {
     const refsByReason = await Promise.all(
       OWNERSHIP_REASONS.map((reason) => this.coins.listLedgerRefs(userId, reason))

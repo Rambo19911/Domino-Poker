@@ -7,6 +7,7 @@ export const it = {
   storeLoginRequired: "Accedi per acquistare",
   storeDetails: "Dettagli",
   storeFlipBack: "Indietro",
+  slots: "Slot",
   hintButtonAria: "Usa un suggerimento, {count} rimasti",
   hintComputing: "Sto pensando…",
   hintNoneLeft: "Nessun suggerimento rimasto in questo round",

@@ -38,6 +38,14 @@ import type {
   UserStatsRecord
 } from "./StoragePort.js";
 import type { ApplyLedgerResult, CoinStore, LedgerEntryInput } from "./CoinStore.js";
+import {
+  slotSpinRowToRecord,
+  type SlotSpinRecord,
+  type SlotSpinRow,
+  type SlotSpinSettleInput,
+  type SlotSpinSettleResult,
+  type SlotStore
+} from "./SlotStore.js";
 import { scrubSeats } from "./matchAnonymize.js";
 import {
   assertValidGameResult,
@@ -132,6 +140,7 @@ export class PostgresStorage
     DurableSessionStore,
     AuthStore,
     CoinStore,
+    SlotStore,
     PlayerStatsStore,
     AdminStore
 {
@@ -880,6 +889,120 @@ export class PostgresStorage
       ]);
       await client.query("COMMIT");
       return { ok: true, applied: true, balance: next };
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async getSlotSpin(userId: string, spinId: string): Promise<SlotSpinRecord | undefined> {
+    const result = await this.pool.query<SlotSpinRow>(
+      `SELECT spin_id, line_bet, total_bet, payout, grid_json, wins_json, math_version, created_at
+         FROM slot_spins WHERE user_id = $1 AND spin_id = $2`,
+      [userId, spinId]
+    );
+    const row = result.rows[0];
+    return row ? slotSpinRowToRecord(row) : undefined;
+  }
+
+  async settleSlotSpin(input: SlotSpinSettleInput): Promise<SlotSpinSettleResult> {
+    // Viena transakcija ar FOR UPDATE (tā pati stratēģija kā `applyLedger`): grieziens
+    // ir DIVAS naudas kustības, un abām kopā ar audita rindu jābūt vienā tx, citādi
+    // avārija starp tām paņemtu likmi bez izmaksas. `INSERT ON CONFLICT DO NOTHING`
+    // vispirms NODROŠINA bilances rindu, lai `SELECT ... FOR UPDATE` vienmēr to bloķē →
+    // serializē vienlaicīgus tā paša lietotāja griezienus arī starp instancēm.
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(
+        `INSERT INTO coin_balances (user_id, balance, updated_at) VALUES ($1, 0, $2)
+         ON CONFLICT (user_id) DO NOTHING`,
+        [input.userId, input.now]
+      );
+      const locked = await client.query<{ balance: number }>(
+        `SELECT balance FROM coin_balances WHERE user_id = $1 FOR UPDATE`,
+        [input.userId]
+      );
+      const current = locked.rows[0] ? Number(locked.rows[0].balance) : 0;
+
+      // Idempotence: jau norēķināts grieziens atgriež IERAKSTĪTO iznākumu. Tikko
+      // ģenerētais režģis tiek izmests — atkārtojums nav kauliņu pārmešana.
+      const existing = await client.query<SlotSpinRow>(
+        `SELECT spin_id, line_bet, total_bet, payout, grid_json, wins_json, math_version, created_at
+           FROM slot_spins WHERE user_id = $1 AND spin_id = $2`,
+        [input.userId, input.spinId]
+      );
+      const existingRow = existing.rows[0];
+      if (existingRow) {
+        await client.query("COMMIT");
+        return {
+          ok: true,
+          applied: false,
+          balance: current,
+          spin: slotSpinRowToRecord(existingRow)
+        };
+      }
+
+      const afterBet = current - input.totalBet;
+      if (afterBet < 0) {
+        // Nepietiek likmei — atritina arī ensure-row.
+        await client.query("ROLLBACK");
+        return { ok: false, reason: "insufficient", balance: current };
+      }
+      const next = afterBet + input.payout;
+
+      await client.query(
+        `INSERT INTO slot_spins
+           (user_id, spin_id, line_bet, total_bet, payout, grid_json, wins_json, math_version, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          input.userId,
+          input.spinId,
+          input.lineBet,
+          input.totalBet,
+          input.payout,
+          input.gridJson,
+          input.winsJson,
+          input.mathVersion,
+          input.now
+        ]
+      );
+      await client.query(
+        `INSERT INTO coin_ledger (id, user_id, delta, reason, ref, created_at)
+         VALUES ($1, $2, $3, 'slot_bet', $4, $5)`,
+        [input.betLedgerId, input.userId, -input.totalBet, input.spinId, input.now]
+      );
+      if (input.payout > 0) {
+        // delta <> 0 CHECK: nulles izmaksai rindu neveido; grieziena ieraksts jau ir.
+        await client.query(
+          `INSERT INTO coin_ledger (id, user_id, delta, reason, ref, created_at)
+           VALUES ($1, $2, $3, 'slot_payout', $4, $5)`,
+          [input.payoutLedgerId, input.userId, input.payout, input.spinId, input.now]
+        );
+      }
+      await client.query(
+        `UPDATE coin_balances SET balance = $2, updated_at = $3 WHERE user_id = $1`,
+        [input.userId, next, input.now]
+      );
+
+      await client.query("COMMIT");
+      return {
+        ok: true,
+        applied: true,
+        balance: next,
+        spin: {
+          spinId: input.spinId,
+          lineBet: input.lineBet,
+          totalBet: input.totalBet,
+          payout: input.payout,
+          gridJson: input.gridJson,
+          winsJson: input.winsJson,
+          mathVersion: input.mathVersion,
+          createdAt: input.now
+        }
+      };
     } catch (error) {
       await client.query("ROLLBACK").catch(() => undefined);
       throw error;

@@ -26,6 +26,7 @@
 @import "../styles/leaderboard.css";
 @import "../styles/daily.css";
 @import "../styles/store.css";
+@import "../styles/slots.css";
 @import "../styles/avatar-badge.css";
 /* Glass slānis pēdējais — `.glass`/`.glass-strong` jāpārraksta chrome elementu foni. */
 @import "../styles/glass.css";

@@ -7,6 +7,7 @@ export const fr = {
   storeLoginRequired: "Connectez-vous pour acheter",
   storeDetails: "Détails",
   storeFlipBack: "Retour",
+  slots: "Machine à sous",
   hintButtonAria: "Utiliser un indice, {count} restant",
   hintComputing: "Réflexion…",
   hintNoneLeft: "Plus d'indices pour cette manche",

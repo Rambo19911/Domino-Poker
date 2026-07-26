@@ -9,6 +9,7 @@ import type { DailyTaskHandler } from "./http/dailyTaskRoutes.js";
 import type { WeeklyTaskHandler } from "./http/weeklyTaskRoutes.js";
 import type { SpRewardHandler } from "./http/spRewardRoutes.js";
 import type { StatsHandler } from "./http/statsRoutes.js";
+import type { SlotHandler } from "./http/slotRoutes.js";
 import type { StoreHandler } from "./http/storeRoutes.js";
 
 interface PoolCounts {
@@ -69,6 +70,11 @@ export interface HealthHttpServerOptions {
    * `index.ts` no `createStoreHandler`. Mēģināts API ķēdē; atgriež `true`, ja apstrādāja.
    */
   readonly storeHandler?: StoreHandler;
+  /**
+   * Opcionāls Domino Slots maršruts (`/slots/*`). Injicē `index.ts`, ja ir auth + maks ar
+   * slotu spēju. Mēģināts API ķēdē PIRMS `authHandler`; atgriež `true`, ja apstrādāja ceļu.
+   */
+  readonly slotsHandler?: SlotHandler;
   /**
    * Opcionāls kontaktformas maršruts (`POST /contact`). Injicē `index.ts`, ja serverim
    * ir e-pasta senderis. Mēģināts API ķēdē; atgriež `true`, ja apstrādāja ceļu.
@@ -167,6 +173,9 @@ async function routeApiHandlers(
       return;
     }
     if (options.storeHandler !== undefined && (await options.storeHandler(request, response))) {
+      return;
+    }
+    if (options.slotsHandler !== undefined && (await options.slotsHandler(request, response))) {
       return;
     }
     if (options.authHandler !== undefined && (await options.authHandler(request, response))) {
