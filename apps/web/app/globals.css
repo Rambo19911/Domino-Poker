@@ -28,5 +28,7 @@
 @import "../styles/store.css";
 @import "../styles/slots.css";
 @import "../styles/avatar-badge.css";
+/* Publiskās satura lapas — atsevišķs, no spēles UI neatkarīgs slānis. */
+@import "../styles/public-pages.css";
 /* Glass slānis pēdējais — `.glass`/`.glass-strong` jāpārraksta chrome elementu foni. */
 @import "../styles/glass.css";

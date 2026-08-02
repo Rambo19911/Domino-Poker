@@ -35,7 +35,8 @@ export const en = {
   weeklyInfoReset: "Progress resets every Monday at 00:00 UTC. Claim each reward independently.",
   localeCode: "en",
   metadataTitle: "Domino Poker",
-  metadataDescription: "Single-player Domino Poker rebuilt with Next.js and TypeScript.",
+  metadataDescription:
+    "Play Domino Poker in your browser — a trick-taking domino game with solo play against bots and real-time four-player multiplayer.",
   appTitle: "Domino Poker",
   lobbyTitle: "Domino Poker",
   lobbySubtitle: "Choose a game mode to begin.",

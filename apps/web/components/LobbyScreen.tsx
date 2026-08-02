@@ -31,6 +31,8 @@ import {
   type AppStrings,
   type Locale
 } from "../lib/i18n";
+import { getPublicChrome } from "../lib/publicNav";
+import { PUBLIC_PAGES, PUBLIC_ROUTES, publicLocaleFor } from "../lib/site";
 import type { AudioSettings } from "../lib/useAudioSettings";
 
 const minRoundCount = 1;
@@ -103,6 +105,9 @@ export function LobbyScreen({
   const [authOpen, setAuthOpen] = useState(false);
 
   const isAuthed = auth.status === "authenticated";
+  // Publiskā satura valoda: 21 UI valoda sašaurināta uz divām indeksējamām (sk. 8.3).
+  const publicLocale = publicLocaleFor(locale);
+  const publicChrome = getPublicChrome(publicLocale);
   // Slots ir darbvirsmas-tikai un tikai reģistrētiem. Ikonu jau paslēpj CSS/`isAuthed`,
   // bet JAU ATVĒRTS dialogs jāaizver arī tad, ja logs sarūk vai sesija beidzas — spēle
   // liek īstas monētas, tāpēc to nedrīkst atstāt lietojamu ārpus saviem vārtiem.
@@ -241,7 +246,38 @@ export function LobbyScreen({
           onStartMultiplayer={onStartMultiplayer}
           selectedRoundCount={selectedRoundCount}
         />
+
       </section>
+
+      {/* Redzams apraksts + rāpojamas saites uz publisko sadaļu (plāna 8.3).
+          Renderēts VIENU reizi — gan `LobbyWheel` (desktop), gan `CompactLobbyPanel`
+          (mobilais) ir virs tā, un CSS izšķir, kurš no tiem ir redzams.
+
+          Novietots ĀRPUS `.lobbyContent` un piestiprināts čaulas apakšā: `.lobbyShell`
+          ir `overflow: hidden`, tāpēc bloks parastā plūsmā izstumtu centrēto saturu
+          ārpus skata un tiktu nogriezts. Nogriezts teksts būtu slēpšana, ko plāna 8.3
+          tieši aizliedz, un tas lauztu `layout-regression` testus.
+
+          Publiskās lapas ir tikai EN/LV, tāpēc UI valoda tiek sašaurināta ar
+          `publicLocaleFor`: `lv` → `/lv`, pārējās 19 → `/en`. Saišu etiķetes ir
+          galamērķa valodā, jo tur arī saturs būs tajā valodā. */}
+      <aside className="lobbyAbout" aria-labelledby="lobby-about-title">
+        {/* Virsraksts un saites ir galamērķa valodā, apraksts — lietotāja UI valodā,
+            tāpēc `lang` ir tikai uz tiem, kas patiešām maina valodu. */}
+        <h2 className="lobbyAboutTitle" id="lobby-about-title" lang={publicLocale}>
+          {publicChrome.lobbyLinksLabel}
+        </h2>
+        <p className="lobbyAboutText">{t.aboutDescription}</p>
+        <ul className="lobbyAboutLinks">
+          {PUBLIC_PAGES.map((page) => (
+            <li key={page}>
+              <a href={PUBLIC_ROUTES[publicLocale][page]} lang={publicLocale}>
+                {publicChrome.nav[page]}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </aside>
 
       <Presence open={settingsOpen}>
         <SettingsDialog

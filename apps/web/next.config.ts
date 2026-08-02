@@ -19,6 +19,13 @@ const noStoreHeaders = [{ key: "Cache-Control", value: "no-cache, max-age=0, mus
 const nextConfig: NextConfig = {
   env: { NEXT_PUBLIC_APP_VERSION: appVersion },
   transpilePackages: ["@domino-poker/core"],
+  experimental: {
+    // `app/global-not-found.tsx` prasa šo karogu (Next 16 tas joprojām ir eksperimentāls,
+    // noklusējums `false`). Bez tā Turbopack komponentu gan paņem, bet Webpack ceļš to
+    // ignorē — un mums tas ir obligāts: ar diviem root layout (`(game)` / `(public)`)
+    // saknē nav `layout.tsx`, tāpēc 404 čaulai pašai jānes `<html>` un `<body>`.
+    globalNotFound: true
+  },
   turbopack: {
     root: join(configDir, "../..")
   },

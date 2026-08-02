@@ -39,7 +39,8 @@ export const lv = {
   weeklyInfoReset: "Progress atiestatās katru pirmdienu plkst. 00:00 UTC. Katru balvu savāc atsevišķi.",
   localeCode: "lv",
   metadataTitle: "Domino Poker",
-  metadataDescription: "Domino Poker vienam spēlētājam, pārbūvēts ar Next.js un TypeScript.",
+  metadataDescription:
+    "Spēlē Domino Poker pārlūkā — stiķu domino spēle ar viena spēlētāja režīmu pret botiem un reāllaika četru spēlētāju galdiem.",
   appTitle: "Domino Poker",
   lobbyTitle: "Domino Poker",
   lobbySubtitle: "Izvēlies spēles režīmu, lai sāktu.",
