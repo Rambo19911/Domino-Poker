@@ -6,11 +6,15 @@ import { SITE_URL } from "../lib/site";
  * Tehniskie same-origin maršruti, ko nav vērts rāpot (Fāze 5, 11.1).
  *
  * Atvasināts no REĀLĀ servera maršrutu inventāra (`apps/server/src/httpServer.ts`
- * dispatch + `net/wsTransport.ts`) — nevis no minējuma. Vai katrs no tiem tiešām ir
- * sasniedzams uz publiskā hosta, nosaka dzīvā Caddy konfigurācija, kas repozitorijā
- * NAV (`deploy/Caddyfile.example` pats atzīst, ka var atpalikt). Neproksēts ceļš šeit
- * ir nekaitīgs bezdarbīgs ieraksts, tāpēc saraksts ir apzināti pilns pēc servera, ne
- * pēc proksija; publiskā origin pārbaude paliek 14.1.
+ * dispatch + `net/wsTransport.ts`) — nevis no minējuma. Neproksēts ceļš šeit ir nekaitīgs
+ * bezdarbīgs ieraksts, tāpēc saraksts ir apzināti pilns pēc servera, ne pēc proksija.
+ *
+ * Publiskā origin pārbaude IZPILDĪTA 2026-08-02 (Fāze 8, 14.1) pret dzīvo Caddy:
+ * 10 no 12 ceļiem sasniedz MP serveri, `/health` krīt uz Next.js catch-all un tāpēc
+ * publiski NAV sasniedzams, `/metrics` ir bloķēts ar Caddy `403`. Abi paliek sarakstā —
+ * tie ir bezdarbīgi, nevis nepareizi. `deploy/Caddyfile.example` tajā pašā dienā tika
+ * sinhronizēts ar dzīvo konfigurāciju, tāpēc tas vairs nav zināmi novecojis; ja to
+ * pārstāj uzturēt, dzīvais `/etc/caddy/Caddyfile` paliek vienīgais patiesības avots.
  *
  * Slīpsvītra beigās atbilst servera maršruta veidam: prefiksu maršrutus (`/auth/login`,
  * `/daily/tasks`, …) raksta ar to, bet vienceļa maršrutus (`/contact`, `/stats`, `/ws`,
