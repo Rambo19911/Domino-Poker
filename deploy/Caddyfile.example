@@ -28,23 +28,40 @@ tavs-domens.lv {
     # ka Googlebot/bingbot/OAI-SearchBot netiek bloķēti, ne izpildīt 14.5 prasību
     # periodiski pārbaudīt robotu statusus un kļūdas.
     #
-    # PRIVĀTUMS: žurnalē TIKAI rāpotājus. `log_skip` ar noliegtu UA sakritinātāju izmet
-    # visu pārējo, tāpēc parasto lietotāju IP adreses (personas dati) netiek uzkrātas.
+    # PRIVĀTUMS: `log_skip` ar noliegtu UA sakritinātāju nozīmē, ka **pieprasījumi bez
+    # rāpotāja `User-Agent` netiek žurnalēti**, tāpēc parasto pārlūku satiksme (un līdz ar
+    # to lietotāju IP) žurnālā nenonāk. Sakritība ir pēc UA apakšvirknes, ko neviens
+    # neverificē, tāpēc klients ar VILTOTU rāpotāja UA žurnālā nonāks — sk. piezīmi pie
+    # `@notcrawler` zemāk.
     #
     # UZSTĀDOT: žurnāla failam JĀPIEDER `caddy` lietotājam. Ja pirms tam palaid
     # `sudo caddy validate` ar šo konfigurāciju, validācija pati izveido failu kā `root`
     # ar režīmu 600, un tad `systemctl reload caddy` krīt ar `permission denied` —
     # konfigurācija ir derīga, bet fails nav atverams. Labojums:
     #   sudo chown caddy:caddy /var/log/caddy/crawlers.log && sudo chmod 640 $_
+    # ROTĀCIJA: `roll_interval` ir obligāts, ne papildinājums. `roll_keep_for` un
+    # `roll_keep` attiecas TIKAI uz jau rotētiem failiem, tāpēc ar `roll_size` vien zemas
+    # plūsmas žurnālā aktīvais fails var nekad nesasniegt 10 MiB, un robotu IP tajā paliktu
+    # bezgalīgi.
+    # GODĪGI PAR ROBEŽU: arī ar `roll_interval` rotācija notiek pie NĀKAMĀ ieraksta pēc 24 h,
+    # nevis pēc taimera. Ja robotu satiksmes nav vispār, aktīvais fails paliek. Tātad tā ir
+    # no aktivitātes atkarīga, nevis stingra 30 dienu garantija. Stingrai garantijai
+    # vajadzētu ārēju vecuma tīrītāju (cron/systemd timer), kas šeit apzināti nav ieviests.
     log {
         output file /var/log/caddy/crawlers.log {
             roll_size 10MiB
-            roll_keep 5
+            roll_interval 24h
+            roll_keep 30
             roll_keep_for 720h
         }
         format json
     }
-    @notcrawler not header_regexp User-Agent "(?i)(googlebot|bingbot|oai-searchbot|gptbot|chatgpt-user|applebot|duckduckbot|yandexbot|slurp|petalbot|amazonbot|claudebot|perplexitybot|bytespider|meta-externalagent)"
+    # `Google-InspectionTool` ir Search Console URL Inspection aģents — bez tā manuālās
+    # pārbaudes žurnālā nebūtu redzamas.
+    # PRECIZITĀTE: sakritība ir pēc UA apakšvirknes, ko neviens neverificē. Tāpēc pareizais
+    # formulējums ir "pieprasījumi BEZ robota UA netiek žurnalēti", nevis "lietotāju IP
+    # netiek uzkrāti nekad" — klients ar viltotu robota UA žurnālā nonāks.
+    @notcrawler not header_regexp User-Agent "(?i)(googlebot|google-inspectiontool|bingbot|oai-searchbot|gptbot|chatgpt-user|applebot|duckduckbot|yandexbot|slurp|petalbot|amazonbot|claudebot|perplexitybot|bytespider|meta-externalagent)"
     log_skip @notcrawler
 
     # Metrikas neizpaust publiski (Prometheus galapunkts autentifikāciju NEPRASA).
@@ -64,16 +81,17 @@ tavs-domens.lv {
     # proxy will ignore their values from incoming requests, to prevent spoofing."
     # Ienākošā vērtība tiek IGNORĒTA, un Caddy ieliek īsto klienta IP.
     #
-    # Tāpēc `header_up X-Forwarded-For {http.request.remote.host}` ir LIEKS, nevis
-    # nesošs. Tas ir nekaitīgs un tiek atstāts kā skaidra nodoma deklarācija, bet:
+    # Tāpēc ŠAJĀ topoloģijā (Caddy tieši pieejams internetam, CDN nav)
+    # `header_up X-Forwarded-For {http.request.remote.host}` ir LIEKS, nevis nesošs. Tas ir
+    # nekaitīgs un tiek atstāts kā skaidra nodoma deklarācija, bet:
     #   - tā noņemšana NEATVĒRTU viltošanas caurumu;
     #   - Caddy `validate` brīdinājums "Unnecessary header_up X-Forwarded-For" ir
     #     PAREIZS, nevis kļūdains — agrākais komentārs lika to ignorēt bez pamata.
     #
-    # Kas ŠEIT tiešām būtu kritiski: ja kādreiz priekšā liek CDN vai citu proksiju,
-    # jākonfigurē globālais `servers > trusted_proxies`. Bez tā Caddy pareizi neuzticēsies
-    # CDN sūtītajam XFF, un visi klienti sabruks uz CDN izejas IP. Šobrīd CDN NAV
-    # (pārbaudīts 2026-08-02: nav Cloudflare, nav nodrošinātāja ugunsmūra).
+    # BRĪDINĀJUMS NĀKOTNEI: ja priekšā liek CDN, NEPIETIEK ar `servers > trusted_proxies`
+    # pievienošanu. Šīs `header_up` rindas tad kļūst KAITĪGAS: tās pārrakstītu uzticamo
+    # XFF ķēdi ar CDN izejas IP, un īstais klienta IP pazustu. Pievienojot CDN, tās
+    # jānoņem vai jāpārprojektē VIENLAIKUS ar `trusted_proxies`.
     reverse_proxy /auth/* 127.0.0.1:4000 {
         header_up X-Forwarded-For {http.request.remote.host}
     }
