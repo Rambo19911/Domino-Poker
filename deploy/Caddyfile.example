@@ -4,9 +4,29 @@
 #
 # Uzstādīšana:
 #   sudo cp deploy/Caddyfile.example /etc/caddy/Caddyfile
-#   # pielāgo domēnu, tad: sudo systemctl reload caddy
+#   # pielāgo domēnu, tad:
+#   sudo caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+#   sudo systemctl reload caddy
+#
+# Sinhronizēts ar dzīvo VPS konfigurāciju 2026-08-02 (SEO plāna Fāze 8, 14.1). Ja
+# turpmāk pievieno servera HTTP maršrutu, tas jāpievieno GAN šeit, GAN dzīvajā
+# Caddyfile — citādi produkcijā ceļš atgriež 404.
+
+# --- www -> apex, viens 301 lēciens -----------------------------------------------
+# Abus hostus vienā site blokā (`tavs-domens.lv, www.tavs-domens.lv { … }`) likt NEDRĪKST:
+# tad `www` apkalpo baitu-identisku saturu ar 200 un neviena adrese nenorāda kanonisko
+# formu. `{uri}` saglabā ceļu UN query. `permanent` = 301, jo hosta izvēle ir galīga.
+www.tavs-domens.lv {
+    redir https://tavs-domens.lv{uri} permanent
+}
 
 tavs-domens.lv {
+    encode zstd gzip
+
+    # Metrikas neizpaust publiski (Prometheus galapunkts autentifikāciju NEPRASA).
+    @metrics path /metrics
+    respond @metrics 403
+
     # Multiplayer WebSocket: /ws -> MP serveris (Caddy upgrade automātiski).
     reverse_proxy /ws* 127.0.0.1:4000
 
@@ -16,6 +36,10 @@ tavs-domens.lv {
     # X-Forwarded-For. `header_up` PĀRRAKSTA XFF ar īsto klienta IP, lai klients
     # nevar to viltot (Caddy pēc noklusējuma PIEVIENO, tāpēc bez šī kreisā vērtība
     # būtu klienta kontrolēta un per-IP limits — apejams).
+    #
+    # Caddy `validate` par katru šādu rindu izdod brīdinājumu "Unnecessary header_up
+    # X-Forwarded-For". Tas ir GAIDĪTS un to NEDRĪKST "salabot", izņemot rindas: Caddy
+    # brīdina par galvenes PADOŠANU augšup, bet mums vajag tieši PĀRRAKSTĪŠANU.
     reverse_proxy /auth/* 127.0.0.1:4000 {
         header_up X-Forwarded-For {http.request.remote.host}
     }
@@ -28,24 +52,41 @@ tavs-domens.lv {
         header_up X-Forwarded-For {http.request.remote.host}
     }
 
+    # SP balvas: /sp/* -> MP serveris (/sp/start, /sp/complete, /sp/reward).
+    # Serveris uztur per-lietotāja limitus, tāpēc XFF pārrakstīšana kā /auth.
+    reverse_proxy /sp/* 127.0.0.1:4000 {
+        header_up X-Forwarded-For {http.request.remote.host}
+    }
+
+    # Padziļinātā spēlētāju statistika: GET /stats -> MP serveris.
+    reverse_proxy /stats* 127.0.0.1:4000 {
+        header_up X-Forwarded-For {http.request.remote.host}
+    }
+
     # About paneļa kontaktforma: POST /contact -> MP serveris (Resend e-pasts).
-    # Maršruts vajadzīgs tikai tad, ja serverim ir e-pasta senderis (RESEND_API_KEY +
+    # Maršruts vajadzīgs tikai tad, ja serverim ir e-pasta sendēris (RESEND_API_KEY +
     # EMAIL_FROM); citādi serveris atbild 404 — nekaitīgi. Tāda pati XFF pārrakstīšana
     # kā /auth (serveris rate-limito kontaktformu pēc IP).
     reverse_proxy /contact 127.0.0.1:4000 {
         header_up X-Forwarded-For {http.request.remote.host}
     }
 
-    # Veikals (kosmētika/tēmas): /store/* -> MP serveris (POST /store/buy, GET /store/owned).
+    # Dienas uzdevumi: /daily/* -> MP serveris (GET /daily/tasks, POST /daily/tasks/claim).
+    reverse_proxy /daily/* 127.0.0.1:4000 {
+        header_up X-Forwarded-For {http.request.remote.host}
+    }
+
+    # Veikals (kosmētika/tēmas): /store* -> MP serveris (POST /store/buy, GET /store/owned).
     # Auth obligāts; serveris rate-limito pēc IP. BEZ šī kārtulas tēmu pirkšana 404 prodā.
-    # Tāda pati XFF pārrakstīšana kā /auth.
+    # Ievēro: sakritinātājs ir `/store*`, NEVIS `/store/*`, tāpēc uz publiskā origin
+    # sasniedzams arī `/store` un `/store-x`. Tieši tāpēc `apps/web/app/robots.ts` liedz
+    # `/store` BEZ slīpsvītras (Fāze 8, 14.1) — abām formām jāpaliek saskaņotām.
     reverse_proxy /store* 127.0.0.1:4000 {
         header_up X-Forwarded-For {http.request.remote.host}
     }
 
     # Nedēļas uzdevumi: /weekly/* -> MP serveris (GET /weekly/tasks, POST /weekly/tasks/claim).
-    # Auth obligāts. BEZ šī kārtulas nedēļas uzdevumi 404 prodā. (Tāpat daily/sp/stats route ir
-    # jāproksē; sk. dzīvo VPS Caddyfile — šis piemērs var atpalikt.)
+    # Auth obligāts. BEZ šīs kārtulas nedēļas uzdevumi 404 prodā.
     reverse_proxy /weekly/* 127.0.0.1:4000 {
         header_up X-Forwarded-For {http.request.remote.host}
     }
@@ -53,15 +94,45 @@ tavs-domens.lv {
     # Domino Slots: /slots/* -> MP serveris (POST /slots/spin). Auth obligāts; serveris
     # rate-limito 600/h uz LIETOTĀJU (Auto Spin) un pats ģenerē režģi + norēķinās atomiski.
     # BEZ šīs kārtulas grieziens produkcijā ir 404 — dokumentētais kļūmes režīms.
-    # Tāda pati XFF pārrakstīšana kā /auth.
     reverse_proxy /slots/* 127.0.0.1:4000 {
         header_up X-Forwarded-For {http.request.remote.host}
     }
 
-    # (pēc izvēles) metrikas tikai lokāli:
-    # @metrics path /metrics
-    # respond @metrics 403
-
     # Viss pārējais -> web klients (Next.js).
+    # SEO: šis catch-all ir tas, kas /en/*, /lv/*, /robots.txt un /sitemap.xml aizved līdz
+    # web servisam. NEDZĒST un NEPĀRVĒRST par eksplicītu prefiksu sarakstu — tad visas
+    # publiskās lapas produkcijā atgrieztu 404.
     reverse_proxy 127.0.0.1:3000
+}
+
+# --- Admin portāls uz atsevišķa subdomēna -----------------------------------------
+admin.tavs-domens.lv {
+    encode zstd gzip
+
+    # Admin portālam ir SAVS origin, tāpēc apex /robots.txt uz to NEATTIECAS (RFC 9309:
+    # politika ir per-origin). Bez šī bloka admin sakne atgriež 200 bez jebkādas noindex
+    # norādes. Galvene sedz VISAS atbildes (arī proksētās /admin/*), jo Caddy noklusējuma
+    # direktīvu secībā `header` iet pirms `reverse_proxy`.
+    header X-Robots-Tag "noindex, nofollow, noarchive"
+
+    # Papildus galvenei arī eksplicīts robots.txt: daļa rāpotāju to pieprasa pirms jebkuras
+    # lapas un tāpēc galveni nemaz neredz. `respond` pats uzliek Content-Type
+    # `text/plain; utf-8` un nostrādā pirms `reverse_proxy`.
+    respond /robots.txt <<ROBOTS
+        User-agent: *
+        Disallow: /
+        ROBOTS 200
+
+    # Admin API -> MP serveris (ar īsto klienta IP rate-limit/audit vajadzībām).
+    reverse_proxy /admin/* 127.0.0.1:4000 {
+        header_up X-Forwarded-For {http.request.remote.host}
+    }
+
+    # Custom avataru serve -> MP serveris (preset avatāri nāk no admin portāla public/).
+    reverse_proxy /auth/avatar/* 127.0.0.1:4000 {
+        header_up X-Forwarded-For {http.request.remote.host}
+    }
+
+    # Viss pārējais -> admin portāls (Next.js).
+    reverse_proxy 127.0.0.1:3001
 }

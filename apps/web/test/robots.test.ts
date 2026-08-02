@@ -34,7 +34,7 @@ const EXPECTED_TECHNICAL_PATHS = [
   "/stats",
   "/daily/",
   "/weekly/",
-  "/store/",
+  "/store",
   "/slots/",
   "/ws",
   "/health",
@@ -138,6 +138,13 @@ describe("robots.txt", () => {
     }
     for (const path of ["/contact-us", "/stats-2026"]) {
       expect(isAllowed("*", path), `brālis ar to pašu prefiksu nav segts: ${path}`).toBe(false);
+    }
+    // Fāze 8, 14.1 regresija. Caddy proksē `/store*` BEZ slīpsvītras, tāpēc uz publiskā
+    // origin `/store` un `/store-x` sasniedz MP serveri (mērīts 2026-08-02). Ar agrāko
+    // `/store/` ierakstu tie bija sasniedzami, bet neuzskaitīti. Ja kāds atgriež
+    // slīpsvītru "konsekvences dēļ", šis tests krīt un parāda, kāpēc to nedrīkst.
+    for (const path of ["/store", "/store-x", "/store/buy", "/store/owned"]) {
+      expect(isAllowed("*", path), `sasniedzams /store variants nav segts: ${path}`).toBe(false);
     }
     // Sarga robeža: neviens no šiem prefiksiem nesakrīt ar reālu publisku ceļu.
     for (const path of PUBLIC_PATHS) {

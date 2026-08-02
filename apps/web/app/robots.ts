@@ -13,12 +13,20 @@ import { SITE_URL } from "../lib/site";
  * pēc proksija; publiskā origin pārbaude paliek 14.1.
  *
  * Slīpsvītra beigās atbilst servera maršruta veidam: prefiksu maršrutus (`/auth/login`,
- * `/store/buy`, …) raksta ar to, bet vienceļa maršrutus (`/contact`, `/stats`, `/ws`,
+ * `/daily/tasks`, …) raksta ar to, bet vienceļa maršrutus (`/contact`, `/stats`, `/ws`,
  * `/health`, `/metrics`) — bez, lai prefiksa sakritība sedz arī pašu ceļu un tā query
  * variantus. APZINĀTA sekas: bez slīpsvītras aizliegums sedz arī brāļus ar to pašu
  * prefiksu (`/contact-us`, `/stats-2026`). `$` enkurs to novērstu, bet tad ceļš ar query
  * (`/stats?x=1`) vairs nesakristu; tādu publisku lapu nav un nav plānotu, tāpēc plašākā
  * sakritība ir izdevīgākais kompromiss.
+ *
+ * `/store` ir IZŅĒMUMS no slīpsvītras konvencijas, un tam ir mērīts iemesls. Servera
+ * maršruti (`/store/buy`, `/store/owned`) ir prefiksu maršruti, tāpēc konvencija prasītu
+ * `/store/`. Bet dzīvā Caddy proksē `/store*` — BEZ slīpsvītras — tāpēc uz publiskā
+ * origin `/store` un `/store-x` arī aiziet līdz MP serverim (Fāze 8, 14.1 zonde
+ * 2026-08-02: abi atgriež `application/json` 404, nevis Next.js catch-all 14 036 baitu
+ * HTML). Ar `/store/` tie būtu sasniedzami, bet neuzskaitīti. `/store` bez slīpsvītras ir
+ * strikts virskopums un noņem neatbilstību starp proksija un servera maršruta formu.
  *
  * ŠIS NAV DROŠĪBAS SLĀNIS: piekļuves kontrole un rate-limits ir gala punkta un proksija
  * atbildība, `robots.txt` nedod ne vienu, ne otru. Daļa šo ceļu (`/metrics`, `/health`)
@@ -34,7 +42,7 @@ const TECHNICAL_PATHS = [
   "/stats",
   "/daily/",
   "/weekly/",
-  "/store/",
+  "/store",
   "/slots/",
   "/ws",
   "/health",
