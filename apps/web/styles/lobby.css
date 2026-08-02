@@ -31,7 +31,10 @@
   min-height: 100vh;
   place-items: center;
   overflow: hidden;
-  padding: 96px 24px 48px;
+  /* Apakšējais padding tur vietu `.lobbyAbout` blokam (publiskās sadaļas apraksts +
+     saites), kas ir absolūti piestiprināts čaulas apakšā. Bez šīs vietas tas pārklātu
+     spēles vadīklas. */
+  padding: 96px 24px 108px;
   /* Swappable SVG fons (sk. --bg-lobby tokenu). `cover` aizpilda ekrānu; `--overlay`
      ir bāzes krāsa zem SVG. Nākotnē SVG aizvieto ar domino tekstūru. */
   background:

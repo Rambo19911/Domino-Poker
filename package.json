@@ -20,6 +20,7 @@
     "test": "npm run test --workspaces --if-present",
     "test:postgres:docker": "node scripts/test-postgres-docker.mjs",
     "test:web": "playwright test",
+    "check:seo-build": "node scripts/check-seo-build.mjs",
     "lint": "eslint .",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "dev": "npm run dev --workspace apps/web",

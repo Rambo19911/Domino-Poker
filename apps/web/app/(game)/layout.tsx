@@ -1,13 +1,21 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import "./globals.css";
-import { appStrings, defaultLocale } from "../lib/i18n";
-import { getThemeBootstrapScript } from "../lib/theme";
-import { getGlassBootstrapScript } from "../lib/glassPrefs";
-import { PwaRegister } from "../components/PwaRegister";
+import "../globals.css";
+import { appStrings, defaultLocale } from "../../lib/i18n";
+import { BootstrapScripts } from "../../components/BootstrapScripts";
+import { PwaRegister } from "../../components/PwaRegister";
+import { SITE_NAME, SITE_URL } from "../../lib/site";
 
 export const metadata: Metadata = {
-  title: appStrings[defaultLocale].metadataTitle,
+  // Bāze relatīvo metadatu URL atrisināšanai (canonical, Open Graph). Nāk no
+  // `lib/site.ts`, lai kanoniskais domēns paliktu vienā vietā.
+  metadataBase: SITE_URL,
+  title: {
+    // Spēles saknei — pilns, dabisks nosaukums; veidne attiecas uz iespējamām
+    // nākamajām šīs saknes lapām.
+    default: appStrings[defaultLocale].metadataTitle,
+    template: `%s | ${SITE_NAME}`
+  },
   description: appStrings[defaultLocale].metadataDescription,
   applicationName: "Domino Poker",
   appleWebApp: {
@@ -40,17 +48,9 @@ export default function RootLayout({
     // izņēmums (escape hatch), neslēpj bērnu mezglu neatbilstības.
     <html lang={appStrings[defaultLocale].localeCode} suppressHydrationWarning>
       <body>
-        {/* Tēmas pielietošana PIRMS krāsošanas (FOUC): uzstāda `data-theme` no
-            saglabātās izvēles, pirms React hidratē. Ģenerēts no `lib/theme`
-            konstantēm. `beforeInteractive` to pacels pirms pārējā JS. */}
-        <Script id="theme-bootstrap" strategy="beforeInteractive">
-          {getThemeBootstrapScript()}
-        </Script>
-        {/* Dialogu stikla personalizācija PIRMS krāsošanas (FOUC): uzstāda `data-glass` /
-            `data-dark-glass` no saglabātajām izvēlēm. Ģenerēts no `lib/glassPrefs` atslēgām. */}
-        <Script id="glass-bootstrap" strategy="beforeInteractive">
-          {getGlassBootstrapScript()}
-        </Script>
+        {/* Tēmas un stikla bootstrap PIRMS krāsošanas (FOUC). Kopīgs ar publisko
+            sakni, tāpēc dzīvo atsevišķā komponentā, nevis kopēts divreiz. */}
+        <BootstrapScripts />
         {/* Agrīna `beforeinstallprompt` notveršana: Chromium to izšauj nedeterministiskā
             brīdī (parasti pie ielādes, PIRMS React hidratācijas), tāpēc React `useEffect`
             klausītājs to var nokavēt. `beforeInteractive` skripts notver eventu uz

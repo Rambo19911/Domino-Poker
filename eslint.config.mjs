@@ -28,6 +28,10 @@ export default tseslint.config(
       // failus (piem. `.remember/tmp/*.ts`), kas citādi lauztu lint vārtu lokāli.
       ".remember/**",
       ".claude/**",
+      // Vienreizēji SEO bāzlīnijas mērījumu skripti (gitignorētā `docs/` kokā) —
+      // mērījuma pierādījums, nevis projekta avots. Ignorēts tieši šis katalogs,
+      // nevis viss `docs/`, lai lint politika nepaplašinātos vairāk nekā vajag.
+      "docs/TODO/seo-baseline-scripts/**",
       "logs/**",
       "**/*.cjs"
     ]

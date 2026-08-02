@@ -1,0 +1,267 @@
+/* Publiskās, indeksējamās satura lapas (`app/(public)/[locale]/*`).
+   Tikai tokeni — nekādu tematisku krāsu literāļu. Izkārtojums ir apzināti vienkāršs:
+   šīs lapas ir teksts, nevis spēles UI. */
+
+.publicPage {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  color: var(--text-primary);
+  background: var(--background);
+}
+
+.publicHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  padding: 1rem clamp(1rem, 4vw, 2.5rem);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.publicBrand {
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.publicNav {
+  flex: 1 1 auto;
+}
+
+.publicNav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.publicNav a,
+.publicLangLink {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.publicNav a:hover,
+.publicNav a:focus-visible,
+.publicLangLink:hover,
+.publicLangLink:focus-visible {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.publicNav a[aria-current="page"] {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.publicMain {
+  flex: 1 1 auto;
+  width: min(70ch, 100%);
+  margin: 0 auto;
+  padding: clamp(1.5rem, 5vw, 3rem) clamp(1rem, 4vw, 2.5rem);
+  line-height: 1.65;
+}
+
+.publicMain h1 {
+  margin-top: 0;
+  line-height: 1.2;
+}
+
+.publicMain h2 {
+  margin-top: 2.25rem;
+}
+
+.publicMain h3 {
+  margin-top: 1.5rem;
+}
+
+.publicMain a {
+  color: var(--text-primary);
+}
+
+.publicLead {
+  font-size: 1.125rem;
+  color: var(--text-primary);
+}
+
+.publicNote {
+  color: var(--text-secondary);
+  border-left: 2px solid var(--border);
+  padding-left: 1rem;
+}
+
+.publicToc {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--surface-floating);
+}
+
+.publicToc h2 {
+  margin-top: 0;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.publicToc ul {
+  list-style: none;
+  padding-left: 1rem;
+}
+
+.publicSubSection {
+  scroll-margin-top: 1rem;
+}
+
+.publicSteps {
+  padding-left: 1.25rem;
+}
+
+.publicSteps h2 {
+  margin-top: 0.5rem;
+  font-size: 1.125rem;
+}
+
+.publicGallery {
+  display: grid;
+  gap: 1.75rem;
+}
+
+.publicFigure {
+  margin: 0;
+}
+
+.publicFigure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+.publicFigure figcaption {
+  margin-top: 0.5rem;
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+}
+
+.publicFacts {
+  margin: 1.5rem 0;
+}
+
+.publicFact {
+  display: grid;
+  grid-template-columns: minmax(8rem, 14rem) 1fr;
+  gap: 0.5rem 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.publicFact dt {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.publicFact dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.publicPlayCta {
+  margin-top: 2.5rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.publicFooter {
+  padding: 1rem clamp(1rem, 4vw, 2.5rem);
+  border-top: 1px solid var(--border);
+  color: var(--text-secondary);
+  background: var(--surface);
+}
+
+/* Lobija informācijas bloks: redzams apraksts + saites uz publisko sadaļu (plāna 8.3).
+   Dzīvo šeit, nevis `lobby.css`, jo tas ir publiskā slāņa daļa, ne spēles vadīklas.
+   Apzināti NEIZMANTO slēpšanu — teksts un saites ir redzamas visos izmēros. */
+/* Piestiprināts `.lobbyShell` apakšā (tā ir `position: relative`), lai centrēto
+   `.lobbyContent` neizstumtu ārpus skata — sk. komentāru `LobbyScreen.tsx`.
+   `.lobbyShell` apakšējais padding ir attiecīgi palielināts, lai bloks nepārklātu
+   spēles vadīklas. */
+.lobbyAbout {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 1;
+  width: min(70ch, 100%);
+  margin: 0 auto;
+  padding: 0 1rem 0.75rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.lobbyAboutText {
+  margin: 0 0 0.25rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.lobbyAboutTitle {
+  margin: 0 0 0.125rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.lobbyAboutLinks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.125rem 0.875rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+}
+
+.lobbyAboutLinks a {
+  color: var(--text-secondary);
+  text-decoration: underline;
+}
+
+.lobbyAboutLinks a:hover,
+.lobbyAboutLinks a:focus-visible {
+  color: var(--text-primary);
+}
+
+/* Tie paši nosacījumi, kuros `responsive.css` pārslēdz `.lobbyShell` uz
+   `overflow: auto` un samazina apakšējo padding. Tur saturs RITINĀS, nevis tiek
+   griezts, tāpēc bloks drīkst būt parastā plūsmā — tas ir noturīgāks pret gariem
+   tulkojumiem un teksta tālummaiņu nekā absolūti pozicionēta josla virs
+   samazinātas rezerves. */
+@media (max-width: 820px), (max-height: 680px) {
+  .lobbyAbout {
+    position: static;
+    margin-top: 1.25rem;
+    padding-bottom: 1.25rem;
+  }
+}
+
+.notFoundPage {
+  width: min(70ch, 100%);
+  margin: 0 auto;
+  padding: clamp(2rem, 8vw, 5rem) clamp(1rem, 4vw, 2.5rem);
+  color: var(--text-primary);
+}
+
+@media (max-width: 640px) {
+  .publicFact {
+    grid-template-columns: 1fr;
+    gap: 0.125rem;
+  }
+}

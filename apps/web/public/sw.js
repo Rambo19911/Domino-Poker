@@ -50,6 +50,17 @@ self.addEventListener("fetch", (event) => {
 
   // Navigācijas (HTML dokumenti): network-first BEZ kešošanas — tiešsaistē svaiga
   // čaula ar aktuālajiem chunk hash; bezsaistē pre-kešotā sākumlapa.
+  //
+  // APZINĀTS LĒMUMS (SEO plāna 8.5, 2026-08-01): arī publiskās satura lapas
+  // (`/en/*`, `/lv/*`) bezsaistē atkāpjas uz kešoto `/`, nevis rāda kļūdas lapu.
+  //   - Indeksēšanai būtiskie meklētāju rāpotāji service worker neizpilda, tāpēc
+  //     indeksētais saturs vienmēr nāk no tīkla.
+  //   - Lietotājam spēles čaula ir DERĪGĀKS bezsaistes galamērķis nekā kļūdas lapa:
+  //     viena spēlētāja režīms anonīmi darbojas bez servera izsaukumiem, tāpēc
+  //     bezsaistē spēlēt var (ciktāl vajadzīgie chunk jau ir kešā).
+  //   - Cena: bezsaistē adrese paliek `/lv/rules`, bet saturs ir lobijs. Pieņemts
+  //     apzināti; alternatīva prasītu papildu bezsaistes lapu un SW loģikas izmaiņu,
+  //     un SW ir šī projekta riskantākais fails (stale-shell/chunk-mismatch vēsture).
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request).catch(() => caches.match("/").then((cached) => cached || caches.match(request)))

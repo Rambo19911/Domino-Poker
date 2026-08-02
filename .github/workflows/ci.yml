@@ -61,6 +61,12 @@ jobs:
       # ko vitest neaptver. @domino-poker/shared+core jau uzbūvēti augstāk.
       - run: npm run build --workspace apps/web
 
+      # SEO būves artefaktu pārbaude (seo-ai-discoverability-plan.md, Fāze 6 / Gate 3).
+      # Prasa TIKKO uzbūvēto `apps/web/.next`: pārbauda, ka visas indeksējamās adreses ir
+      # statiskas bez revalidācijas un ka publiskās lapas neievelk spēles čaulu. Dev serverī
+      # to pārbaudīt nevar — moduļi tur netiek bundlēti tāpat kā produkcijā.
+      - run: npm run check:seo-build
+
       # Admin paneļa production build (admin-panel-plan.md, Fāze 0): noķer Next build
       # kļūdas atsevišķajā admin lietotnē (port 3001), ko typecheck/vitest neaptver.
       - run: npm run build --workspace apps/admin

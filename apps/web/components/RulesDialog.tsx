@@ -4,6 +4,7 @@ import { Dialog } from "./Dialog";
 import { CloseIcon } from "./ui/CloseIcon";
 import { IconButton } from "./ui/IconButton";
 import type { AppStrings } from "../lib/i18n";
+import { getSpRulesSections } from "../lib/rulesContent";
 import type { AudioSettings } from "../lib/useAudioSettings";
 
 export function RulesDialog({
@@ -20,55 +21,7 @@ export function RulesDialog({
     onClose();
   };
 
-  const sections = [
-    {
-      title: labels.rulesObjectiveTitle,
-      body: [labels.rulesObjectiveBody]
-    },
-    {
-      title: labels.rulesSetupTitle,
-      body: [labels.rulesSetupBody]
-    },
-    {
-      title: labels.rulesRoundFlowTitle,
-      body: [labels.rulesRoundFlowBody]
-    },
-    {
-      title: labels.rulesBiddingTitle,
-      body: [
-        labels.rulesBiddingBody,
-        labels.rulesBiddingExact,
-        labels.rulesBiddingOver,
-        labels.rulesBiddingUnder,
-        labels.rulesBiddingSeven
-      ]
-    },
-    {
-      title: labels.rulesTileRanksTitle,
-      body: [labels.rulesTrumpsBody, labels.rulesAcesBody, labels.rulesRegularTilesBody]
-    },
-    {
-      title: labels.rulesPlayTitle,
-      body: [
-        labels.rulesPlayLeadBody,
-        labels.rulesPlayTrumpBody,
-        labels.rulesPlayAceBody,
-        labels.rulesPlayRegularBody
-      ]
-    },
-    {
-      title: labels.rulesWinTitle,
-      body: [labels.rulesWinBody]
-    },
-    {
-      title: labels.rulesCoinsTitle,
-      body: [labels.rulesCoinsIntro, labels.rulesCoinsSpBody, labels.rulesCoinsMpBody]
-    },
-    {
-      title: labels.rulesStatsTitle,
-      body: [labels.rulesStatsBody]
-    }
-  ] as const;
+  const sections = getSpRulesSections(labels);
 
   return (
     <Dialog
