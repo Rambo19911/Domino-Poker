@@ -23,6 +23,30 @@ www.tavs-domens.lv {
 tavs-domens.lv {
     encode zstd gzip
 
+    # --- Robotu access žurnāls (SEO plāns, Fāze 8, 14.2 un 14.5) ------------------
+    # Bez `log` direktīvas Caddy access žurnālus NEVEIDO vispār. Tad nevar ne pierādīt,
+    # ka Googlebot/bingbot/OAI-SearchBot netiek bloķēti, ne izpildīt 14.5 prasību
+    # periodiski pārbaudīt robotu statusus un kļūdas.
+    #
+    # PRIVĀTUMS: žurnalē TIKAI rāpotājus. `log_skip` ar noliegtu UA sakritinātāju izmet
+    # visu pārējo, tāpēc parasto lietotāju IP adreses (personas dati) netiek uzkrātas.
+    #
+    # UZSTĀDOT: žurnāla failam JĀPIEDER `caddy` lietotājam. Ja pirms tam palaid
+    # `sudo caddy validate` ar šo konfigurāciju, validācija pati izveido failu kā `root`
+    # ar režīmu 600, un tad `systemctl reload caddy` krīt ar `permission denied` —
+    # konfigurācija ir derīga, bet fails nav atverams. Labojums:
+    #   sudo chown caddy:caddy /var/log/caddy/crawlers.log && sudo chmod 640 $_
+    log {
+        output file /var/log/caddy/crawlers.log {
+            roll_size 10MiB
+            roll_keep 5
+            roll_keep_for 720h
+        }
+        format json
+    }
+    @notcrawler not header_regexp User-Agent "(?i)(googlebot|bingbot|oai-searchbot|gptbot|chatgpt-user|applebot|duckduckbot|yandexbot|slurp|petalbot|amazonbot|claudebot|perplexitybot|bytespider|meta-externalagent)"
+    log_skip @notcrawler
+
     # Metrikas neizpaust publiski (Prometheus galapunkts autentifikāciju NEPRASA).
     @metrics path /metrics
     respond @metrics 403
