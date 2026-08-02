@@ -56,14 +56,24 @@ tavs-domens.lv {
 
     # Opcionālā autentifikācija + paroles atjaunošana: /auth/* -> MP serveris.
     # (Klients atvasina HTTP bāzi no WS URL, tāpēc /auth iet uz to pašu domēnu.)
-    # SVARĪGI: serveris rate-limito pēc IP un ar TRUST_PROXY=true uzticas
-    # X-Forwarded-For. `header_up` PĀRRAKSTA XFF ar īsto klienta IP, lai klients
-    # nevar to viltot (Caddy pēc noklusējuma PIEVIENO, tāpēc bez šī kreisā vērtība
-    # būtu klienta kontrolēta un per-IP limits — apejams).
+    # Serveris rate-limito pēc IP un ar TRUST_PROXY=true uzticas X-Forwarded-For.
     #
-    # Caddy `validate` par katru šādu rindu izdod brīdinājumu "Unnecessary header_up
-    # X-Forwarded-For". Tas ir GAIDĪTS un to NEDRĪKST "salabot", izņemot rindas: Caddy
-    # brīdina par galvenes PADOŠANU augšup, bet mums vajag tieši PĀRRAKSTĪŠANU.
+    # LABOTS 2026-08-02: agrākais komentārs šeit apgalvoja, ka Caddy ienākošo XFF
+    # PIEVIENO un ka bez `header_up` kreisā vērtība būtu klienta kontrolēta. Tas ir
+    # NEPAREIZI. Caddy dokumentācija: "For these X-Forwarded-* headers, by default, the
+    # proxy will ignore their values from incoming requests, to prevent spoofing."
+    # Ienākošā vērtība tiek IGNORĒTA, un Caddy ieliek īsto klienta IP.
+    #
+    # Tāpēc `header_up X-Forwarded-For {http.request.remote.host}` ir LIEKS, nevis
+    # nesošs. Tas ir nekaitīgs un tiek atstāts kā skaidra nodoma deklarācija, bet:
+    #   - tā noņemšana NEATVĒRTU viltošanas caurumu;
+    #   - Caddy `validate` brīdinājums "Unnecessary header_up X-Forwarded-For" ir
+    #     PAREIZS, nevis kļūdains — agrākais komentārs lika to ignorēt bez pamata.
+    #
+    # Kas ŠEIT tiešām būtu kritiski: ja kādreiz priekšā liek CDN vai citu proksiju,
+    # jākonfigurē globālais `servers > trusted_proxies`. Bez tā Caddy pareizi neuzticēsies
+    # CDN sūtītajam XFF, un visi klienti sabruks uz CDN izejas IP. Šobrīd CDN NAV
+    # (pārbaudīts 2026-08-02: nav Cloudflare, nav nodrošinātāja ugunsmūra).
     reverse_proxy /auth/* 127.0.0.1:4000 {
         header_up X-Forwarded-For {http.request.remote.host}
     }
