@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
-import "../../globals.css";
+// NEVIS `globals.css`: tas ievelk visus 29 stilu failus, no kuriem publiskās lapas lieto
+// piecus. Sk. `app/public.css` galvenē — tur ir gan mērījums, gan katra faila pamatojums.
+import "../../public.css";
 import { BootstrapScripts } from "../../../components/BootstrapScripts";
 import { PwaRegister } from "../../../components/PwaRegister";
 import {

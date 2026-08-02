@@ -1,0 +1,45 @@
+/* Publisko SEO lapu stilu ieejas punkts — TIKAI @import rindas (CSS @import pēc jebkura
+   cita noteikuma tiek ignorēts). Importu secība ir TĀ PATI relatīvā secība kā
+   `globals.css`, tāpēc kaskāde publiskajām lapām paliek identiska.
+
+   KĀPĒC ATSEVIŠĶI NO `globals.css`: `globals.css` ievelk visus 29 stilu failus (~186 KB
+   avota), un `(public)/[locale]/layout.tsx` to importēja tāpat kā spēles sakne. PageSpeed
+   2026-08-02 uz `/lv` nomērīja 20,7 KiB pārsūtīta CSS, no kuras **19,9 KiB (96%) nebija
+   izmantota**, un tas pats fails bija vienīgais atveidošanu bloķējošais pieprasījums
+   (310 ms, kritiskā ceļa gals). Publiskās lapas nelieto nevienu spēles ekrānu.
+
+   KĀ NOTEIKTS SARAKSTS: izsekotas visas 20 klases, ko renderē publiskais koks
+   (`PublicPageShell` + 5 lapas + `PwaRegister` + `JsonLd`), un pārbaudīts katrs no 29
+   failiem, vai kāds tā selektors ar tām sakrīt. Sakrita TIKAI `public-pages.css` un
+   `effects.css`. Papildus paturēti trīs faili, kas nesakrīt pēc klasēm, bet ir vajadzīgi
+   pēc būtības — sk. komentārus pie katra.
+
+   PIEVIENOJOT JAUNU publisko lapu vai komponenti: ja tā lieto klasi no spēles stilu faila,
+   šis saraksts jāpapildina, citādi lapa produkcijā izskatīsies bez stila. */
+
+/* Visu `var(--…)` vērtību VIENĪGAIS avots. Publiskās lapas patērē 11 no tām (krāsas,
+   rādiusi, ēnas, z-indeksi). Bez šī faila viss atrisinātos uz `initial`.
+   NEDALĪT: tokeni ir apzināti centralizēti (sk. projekta tēmu darbu) — divi tokenu faili
+   nozīmētu klusu tēmu novirzīšanos. Neizmantotās rindas ir maksa par to garantiju. */
+@import "../styles/tokens.css";
+
+/* Elementu līmeņa resets: `*{box-sizing}`, `body{margin:0}`, Inter fontu steks,
+   `button{cursor,font}`. Nesakrīt pēc klasēm, bet `public-pages.css` platuma aprēķini
+   pieņem `border-box`, un neviens cits fails fontu neuzstāda. */
+@import "../styles/base.css";
+
+/* VAJADZĪGS TIKAI `.pwaUpdateBanner` dēļ (18 rindas), ko renderē `PwaRegister`, un to
+   publiskais layout mountē katrā lapā. Fails ir 1,1 KB, tāpēc noteikums netiek pārvietots
+   — pārvietošana mainītu `globals.css` kaskādi bez reāla ieguvuma.
+   UZMANĪBU: šī poga parādās TIKAI pēc service worker nomaiņas produkcijā, tāpēc tās
+   trūkstošos stilus lokāli ieraudzīt nevar. */
+@import "../styles/effects.css";
+
+/* Satur globālo `@media (prefers-reduced-motion: reduce){ *,*::before,*::after }` bloku.
+   Šobrīd publiskajām lapām tas ir bezdarbīgs (nav neviena pārejas), bet kļūtu par
+   pieejamības regresiju brīdī, kad kāds pievieno pirmo animāciju. 2,7 KB par to garantiju. */
+@import "../styles/animations.css";
+
+/* Pašas publisko lapu kārtulas — definē 17 no 20 klasēm un pašas satur savas media
+   vaicājumus, tāpēc `responsive.css` (kas skar tikai `.lobby*`/`.settings*`) nav vajadzīgs. */
+@import "../styles/public-pages.css";

@@ -2,11 +2,39 @@
 
 import { useEffect, useState } from "react";
 
-import { defaultLocale, getAppStrings, isLocale } from "../lib/i18n";
 import { decideReloadAction, isReloadSafe } from "../lib/pwa/reloadGate";
 import { readLocalStorage } from "../lib/safeStorage";
 
 const localeStorageKey = "domino-poker-locale";
+
+/**
+ * Rezerves teksts, ja `lib/i18n` chunk-u neizdodas ielādēt.
+ *
+ * Šis gadījums ir reāls tieši šeit: uzvedne parādās PĒC service worker nomaiņas, un tieši
+ * tad iepriekšējā laidiena chunk-i uz servera var vairs neeksistēt. Bez rezerves lietotājs
+ * paliktu uz novecojušas versijas BEZ pogas, ar ko to nomainīt — sliktāk nekā redzēt
+ * netulkotu tekstu. Angļu valoda tāpēc, ka tā ir `defaultLocale`.
+ */
+const updateLabelFallback = "New version available — tap to update";
+
+/**
+ * Ielādē uzvednes tekstu TIKAI tad, kad tas tiešām vajadzīgs.
+ *
+ * `lib/i18n` statiski importē visas 21 valodas (~395 KB neapstrādāti / 114,7 KiB gzip).
+ * Kamēr imports bija statisks, KATRA lapa — arī publiskās SEO lapas, kur šī poga
+ * neparādās nekad — to ievilka sākotnējā ielādē. PageSpeed to nepamanīja, jo Chrome
+ * coverage visu valodu tabulu skaita par "izmantotu": tā ir viens augšlīmeņa objekta
+ * piešķīrums, kas izpildās pilnībā.
+ *
+ * Valoda joprojām nāk no `localStorage`, nevis no servera prop: spēlē lietotājs valodu
+ * maina izpildlaikā, tāpēc SSR laika vērtība būtu nepareiza.
+ */
+async function loadUpdateLabel(): Promise<string> {
+  const { defaultLocale, getAppStrings, isLocale } = await import("../lib/i18n");
+  const stored = readLocalStorage(localeStorageKey);
+  const locale = stored && isLocale(stored) ? stored : defaultLocale;
+  return getAppStrings(locale).pwaUpdateReady;
+}
 
 /**
  * Reģistrē service worker (tikai produkcijā) UN pārvalda jaunas versijas pieņemšanu:
@@ -21,7 +49,9 @@ const localeStorageKey = "domino-poker-locale";
  * pārlādi NEIZRAISA (sk. `decideReloadAction`).
  */
 export function PwaRegister() {
-  const [updateReady, setUpdateReady] = useState(false);
+  // Teksts UN redzamība vienā stāvoklī: poga parādās tieši tad, kad teksts ir zināms.
+  // Atsevišķs `updateReady` karogs ļautu renderēt pogu bez uzraksta, kamēr chunks ielādējas.
+  const [updateLabel, setUpdateLabel] = useState<string | null>(null);
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") return;
@@ -32,6 +62,7 @@ export function PwaRegister() {
     // `controllerchange` nozīmē atjauninājumu (nevis pirmo instalāciju).
     const hadController = sw.controller !== null;
     let reloaded = false;
+    let cancelled = false;
 
     const onControllerChange = () => {
       if (reloaded) return;
@@ -40,7 +71,16 @@ export function PwaRegister() {
         reloaded = true;
         window.location.reload();
       } else if (action === "prompt") {
-        setUpdateReady(true);
+        void loadUpdateLabel()
+          .catch((error: unknown) => {
+            // Non-fatāls, tāpat kā reģistrācijas un update kļūmes zemāk: netulkots uzraksts
+            // ir noderīgāks nekā pazudusi poga, jo bez tās lietotājs paliek uz vecās versijas.
+            console.warn("[pwa] update label load failed", error);
+            return updateLabelFallback;
+          })
+          .then((label) => {
+            if (!cancelled) setUpdateLabel(label);
+          });
       }
     };
 
@@ -72,16 +112,13 @@ export function PwaRegister() {
     document.addEventListener("visibilitychange", onVisible);
 
     return () => {
+      cancelled = true;
       sw.removeEventListener("controllerchange", onControllerChange);
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 
-  if (!updateReady) return null;
-
-  const storedLocale = readLocalStorage(localeStorageKey);
-  const locale = storedLocale && isLocale(storedLocale) ? storedLocale : defaultLocale;
-  const t = getAppStrings(locale);
+  if (updateLabel === null) return null;
 
   return (
     <button
@@ -89,7 +126,7 @@ export function PwaRegister() {
       className="pwaUpdateBanner"
       onClick={() => window.location.reload()}
     >
-      {t.pwaUpdateReady}
+      {updateLabel}
     </button>
   );
 }
